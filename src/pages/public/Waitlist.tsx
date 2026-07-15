@@ -21,6 +21,7 @@ export default function Waitlist() {
     primaryMarket: '',
     businessType: '',
     notes: '',
+    website: '',
   })
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
@@ -44,8 +45,13 @@ export default function Waitlist() {
       return
     }
 
-    setMessage('You are on the Deal Blast Pro waitlist. We will reach out when prerelease access is ready.')
-    setForm({ fullName: '', email: '', phone: '', primaryMarket: '', businessType: '', notes: '' })
+    if (result.duplicate) {
+      setMessage('This email is already on the Deal Blast Pro waitlist. We will notify you when early access becomes available.')
+      return
+    }
+
+    setMessage('You are on the waitlist! Thanks for registering. We will notify you when Deal Blast Pro early access becomes available. Check your inbox for a confirmation email.')
+    setForm({ fullName: '', email: '', phone: '', primaryMarket: '', businessType: '', notes: '', website: '' })
   }
 
   return (
@@ -63,6 +69,15 @@ export default function Waitlist() {
         <form onSubmit={submit} className="card p-6 space-y-4">
           {message && <div className="rounded border border-[#22C55E]/30 bg-[#22C55E]/10 p-3 text-sm text-[#86EFAC]">{message}</div>}
           {error && <div className="rounded border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">{error}</div>}
+          <label className="hidden" aria-hidden="true">
+            Website
+            <input
+              tabIndex={-1}
+              autoComplete="off"
+              value={form.website}
+              onChange={e => update('website', e.target.value)}
+            />
+          </label>
 
           <div className="grid md:grid-cols-2 gap-4">
             <label className="block">

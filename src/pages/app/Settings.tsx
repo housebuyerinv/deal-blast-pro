@@ -112,6 +112,9 @@ export default function Settings() {
   const [emailSettingsSaving, setEmailSettingsSaving] = useState(false)
   const [emailTestSending, setEmailTestSending] = useState(false)
   const [emailLogs, setEmailLogs] = useState<EmailNotificationLog[]>([])
+  const [waitlistEntries, setWaitlistEntries] = useState<any[]>([])
+  const [waitlistLoading, setWaitlistLoading] = useState(false)
+  const [waitlistRetryingId, setWaitlistRetryingId] = useState('')
 
   // Ensure storage imports are referenced (used in Diagnostics tab) to satisfy strict TS unused check
   void getStorageMode; void getActiveAdapterName; void isApiMode
@@ -408,6 +411,7 @@ export default function Settings() {
   useEffect(() => {
     if (hasSuperAdminAccess) {
       void refreshEmailNotificationSettings()
+      void refreshWaitlistEntries()
     }
   }, [hasSuperAdminAccess, emailWorkspaceId])
 
@@ -974,6 +978,53 @@ export default function Settings() {
     }
   }
 
+  const getAuthHeaders = async () => {
+    const { data } = await supabase.auth.getSession()
+    const token = data.session?.access_token
+    if (!token) throw new Error('Sign in again before viewing admin waitlist data.')
+    return { Authorization: `Bearer ${token}` }
+  }
+
+  const refreshWaitlistEntries = async () => {
+    if (!hasSuperAdminAccess) return
+    setWaitlistLoading(true)
+    try {
+      const response = await fetch('/api/waitlist-admin', {
+        headers: await getAuthHeaders(),
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok || payload?.ok === false) throw new Error(payload?.error || 'Waitlist entries unavailable.')
+      setWaitlistEntries(Array.isArray(payload.entries) ? payload.entries : [])
+    } catch (error: any) {
+      console.warn('[Deal Blast Pro] Waitlist entries unavailable:', error)
+    } finally {
+      setWaitlistLoading(false)
+    }
+  }
+
+  const retryWaitlistEmails = async (entryId: string) => {
+    setWaitlistRetryingId(entryId)
+    try {
+      const response = await fetch('/api/waitlist-admin', {
+        method: 'POST',
+        headers: {
+          ...(await getAuthHeaders()),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ entryId }),
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok || payload?.ok === false) throw new Error(payload?.error || 'Waitlist retry failed.')
+      toast.success('Waitlist email retry requested.')
+      await refreshWaitlistEntries()
+      await refreshEmailNotificationLogs()
+    } catch (error: any) {
+      toast.error(error?.message || 'Waitlist retry failed.')
+    } finally {
+      setWaitlistRetryingId('')
+    }
+  }
+
   const saveEmailNotifications = async () => {
     const checked = validateNotificationRecipients(emailRecipientsText)
     if (!checked.ok) {
@@ -1153,6 +1204,82 @@ export default function Settings() {
               )}
             </div>
           </div>
+
+          {hasSuperAdminAccess && (
+            <div className="rounded border border-[#252A38] bg-[#0A0C12] p-3">
+              <div className="mb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div>
+                  <div className="text-sm font-semibold text-[#E6E8EE]">Waitlist Registrations</div>
+                  <div className="text-xs text-[#8B92A3]">Owner-admin view of saved waitlist records and email delivery status.</div>
+                </div>
+                <button onClick={refreshWaitlistEntries} disabled={waitlistLoading} className="btn btn-ghost text-xs sm:w-auto disabled:opacity-60">
+                  {waitlistLoading ? 'Refreshing...' : 'Refresh Waitlist'}
+                </button>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[900px] text-xs">
+                  <thead>
+                    <tr className="text-left text-[#8B92A3]">
+                      <th className="py-2 pr-3">Name</th>
+                      <th className="py-2 pr-3">Email</th>
+                      <th className="py-2 pr-3">Phone</th>
+                      <th className="py-2 pr-3">Market</th>
+                      <th className="py-2 pr-3">Role</th>
+                      <th className="py-2 pr-3">Date Joined</th>
+                      <th className="py-2 pr-3">Admin Email</th>
+                      <th className="py-2 pr-3">Confirmation</th>
+                      <th className="py-2 pr-3">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {waitlistEntries.map(entry => {
+                      const failed = entry.admin_notification_status === 'failed' || entry.confirmation_email_status === 'failed'
+                      return (
+                        <tr key={entry.id} className="border-t border-[#252A38]">
+                          <td className="py-2 pr-3 text-[#E6E8EE]">{entry.full_name || 'Not Provided'}</td>
+                          <td className="py-2 pr-3 text-[#C5CAD6]">{entry.email}</td>
+                          <td className="py-2 pr-3 text-[#C5CAD6]">{entry.phone || 'Not Provided'}</td>
+                          <td className="py-2 pr-3 text-[#C5CAD6]">{entry.primary_market || 'Not Provided'}</td>
+                          <td className="py-2 pr-3 text-[#C5CAD6]">{entry.business_type || 'Not Provided'}</td>
+                          <td className="py-2 pr-3 text-[#8B92A3]">{entry.created_at ? new Date(entry.created_at).toLocaleString() : 'Not Provided'}</td>
+                          <td className="py-2 pr-3">
+                            <span className={`px-2 py-1 rounded border ${entry.admin_notification_status === 'sent' ? 'border-[#22C55E]/30 bg-[#22C55E]/10 text-[#22C55E]' : entry.admin_notification_status === 'failed' ? 'border-red-500/30 bg-red-500/10 text-red-300' : 'border-amber-500/30 bg-amber-500/10 text-amber-300'}`}>
+                              {entry.admin_notification_status || 'pending'}
+                            </span>
+                          </td>
+                          <td className="py-2 pr-3">
+                            <span className={`px-2 py-1 rounded border ${entry.confirmation_email_status === 'sent' ? 'border-[#22C55E]/30 bg-[#22C55E]/10 text-[#22C55E]' : entry.confirmation_email_status === 'failed' ? 'border-red-500/30 bg-red-500/10 text-red-300' : 'border-amber-500/30 bg-amber-500/10 text-amber-300'}`}>
+                              {entry.confirmation_email_status || 'pending'}
+                            </span>
+                          </td>
+                          <td className="py-2 pr-3">
+                            {failed ? (
+                              <button
+                                onClick={() => retryWaitlistEmails(entry.id)}
+                                disabled={waitlistRetryingId === entry.id}
+                                className="btn btn-ghost text-[10px] px-2 py-1 disabled:opacity-60"
+                              >
+                                {waitlistRetryingId === entry.id ? 'Retrying...' : 'Retry Emails'}
+                              </button>
+                            ) : (
+                              <span className="text-[#64748B]">-</span>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                    {!waitlistEntries.length && (
+                      <tr>
+                        <td colSpan={9} className="py-4 text-center text-[#8B92A3]">
+                          {waitlistLoading ? 'Loading waitlist entries...' : 'No waitlist entries yet.'}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     )

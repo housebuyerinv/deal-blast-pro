@@ -69,6 +69,7 @@ const eventSettingKey = (eventType: string) => {
     deal_status_change: 'notify_deal_status_change',
     closing_followup: 'notify_closing_followup',
     contact: 'notify_new_deal',
+    waitlist_entry_created: 'enabled',
     test_email: 'enabled',
   }
   return map[eventType] || 'enabled'
@@ -271,11 +272,42 @@ async function getExistingNotificationLog(idempotencyKey: string) {
   return data
 }
 
+async function getWaitlistEntry(entryId: string) {
+  const client = getServiceClient()
+  if (!client || !entryId) return null
+
+  const { data, error } = await client
+    .from('waitlist_entries')
+    .select('*')
+    .eq('id', entryId)
+    .maybeSingle()
+
+  if (error) {
+    console.warn('Could not read waitlist entry:', error.message)
+    return null
+  }
+  return data
+}
+
+async function updateWaitlistEmailStatus(entryId: string, updates: Record<string, any>) {
+  const client = getServiceClient()
+  if (!client || !entryId) return
+  const { error } = await client
+    .from('waitlist_entries')
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', entryId)
+  if (error) console.warn('Could not update waitlist email status:', error.message)
+}
+
 async function sendResendEmail(payload: {
   subject: string
   html: string
   text: string
   recipients: string[]
+  replyTo?: string
   workspaceId: string
   eventType: string
   relatedRecordId?: string
@@ -328,6 +360,7 @@ async function sendResendEmail(payload: {
       body: JSON.stringify({
         from: fromEmail,
         to: [recipient],
+        reply_to: payload.replyTo || undefined,
         subject: payload.subject,
         html: payload.html,
         text: payload.text
@@ -359,6 +392,173 @@ async function sendResendEmail(payload: {
     ok: failed.length === 0,
     status: failed.length ? failed[0].status : 200,
     results,
+  }
+}
+
+function firstName(fullName: string) {
+  return safeText(fullName, 'there').split(/\s+/)[0] || 'there'
+}
+
+function appHomeUrl() {
+  return Deno.env.get('PUBLIC_APP_URL') || 'https://deal-blast-pro.vercel.app'
+}
+
+function buildWaitlistAdminMessage(entry: any) {
+  const createdAt = entry?.created_at || new Date().toISOString()
+  const appUrl = appHomeUrl()
+  return {
+    subject: 'New Deal Blast Pro Waitlist Registration',
+    text:
+`New Deal Blast Pro waitlist registration
+
+Full Name: ${safeText(entry?.full_name)}
+Email: ${safeText(entry?.email)}
+Phone: ${safeText(entry?.phone)}
+Primary Market: ${safeText(entry?.primary_market)}
+Business Type / Role: ${safeText(entry?.business_type)}
+Notes: ${safeText(entry?.notes)}
+Registration Date: ${safeText(createdAt)}
+Waitlist Entry ID: ${safeText(entry?.id)}
+Source Page: ${safeText(entry?.source_page || entry?.source)}
+Referral Data: ${safeText(entry?.referral_data)}
+
+Open Deal Blast Pro: ${appUrl}`,
+    html: `
+      <div style="font-family:Inter,Arial,sans-serif;line-height:1.55;color:#0f172a;max-width:640px;margin:0 auto;padding:24px">
+        <h1 style="font-size:22px;margin:0 0 16px">New Deal Blast Pro Waitlist Registration</h1>
+        <table style="width:100%;border-collapse:collapse">
+          ${[
+            ['Full Name', entry?.full_name],
+            ['Email', entry?.email],
+            ['Phone', entry?.phone],
+            ['Primary Market', entry?.primary_market],
+            ['Business Type / Role', entry?.business_type],
+            ['Notes', entry?.notes],
+            ['Registration Date', createdAt],
+            ['Waitlist Entry ID', entry?.id],
+            ['Source Page', entry?.source_page || entry?.source],
+            ['Referral Data', entry?.referral_data],
+          ].map(([label, value]) => `
+            <tr>
+              <td style="border-top:1px solid #e5e7eb;padding:10px 12px;font-weight:700;width:190px">${escapeHtml(label)}</td>
+              <td style="border-top:1px solid #e5e7eb;padding:10px 12px">${escapeHtml(value)}</td>
+            </tr>
+          `).join('')}
+        </table>
+        <p style="margin-top:20px"><a href="${appUrl}" style="color:#2563eb">Open Deal Blast Pro</a></p>
+      </div>
+    `,
+    sms: `New Deal Blast Pro waitlist registration: ${entry?.full_name || entry?.email || 'New registrant'}.`,
+  }
+}
+
+function buildWaitlistConfirmationMessage(entry: any) {
+  const appUrl = appHomeUrl()
+  const name = firstName(entry?.full_name)
+  return {
+    subject: 'You are on the Deal Blast Pro Waitlist',
+    text:
+`Hi ${safeText(name)},
+
+Thanks for joining the Deal Blast Pro waitlist.
+
+We are preparing Deal Blast Pro to help real estate professionals organize deals, manage buyers, market opportunities, and improve their acquisition and disposition workflows.
+
+You will be notified when early access becomes available.
+
+We appreciate your interest and look forward to having you in the Deal Blast Pro community.
+
+Marcel G
+Deal Blast Pro
+House Buyer Investments LLC
+
+${appUrl}`,
+    html: `
+      <div style="margin:0;padding:0;background:#0A0C12">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#0A0C12;padding:24px 12px">
+          <tr>
+            <td align="center">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background:#ffffff;border-radius:12px;overflow:hidden;font-family:Inter,Arial,sans-serif;color:#0f172a">
+                <tr>
+                  <td style="padding:28px 28px 10px">
+                    <div style="font-size:14px;font-weight:800;color:#16a34a;letter-spacing:.08em;text-transform:uppercase">Deal Blast Pro</div>
+                    <h1 style="font-size:26px;line-height:1.2;margin:12px 0 0">You are on the waitlist</h1>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:8px 28px 28px;font-size:16px;line-height:1.65">
+                    <p>Hi ${escapeHtml(name)},</p>
+                    <p>Thanks for joining the Deal Blast Pro waitlist.</p>
+                    <p>We are preparing Deal Blast Pro to help real estate professionals organize deals, manage buyers, market opportunities, and improve their acquisition and disposition workflows.</p>
+                    <p>You will be notified when early access becomes available.</p>
+                    <p>We appreciate your interest and look forward to having you in the Deal Blast Pro community.</p>
+                    <p style="margin-top:24px">Marcel G<br />Deal Blast Pro<br />House Buyer Investments LLC</p>
+                    <p style="margin-top:24px">
+                      <a href="${appUrl}" style="display:inline-block;background:#22C55E;color:#020617;text-decoration:none;font-weight:700;padding:12px 18px;border-radius:8px">Visit Deal Blast Pro</a>
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </div>
+    `,
+    sms: `Deal Blast Pro waitlist confirmation for ${entry?.email || 'registrant'}.`,
+  }
+}
+
+async function sendWaitlistEmails(entryId: string, idempotencyKeyBase: string) {
+  const entry = await getWaitlistEntry(entryId)
+  if (!entry) return { ok: false, error: 'Waitlist entry not found.' }
+
+  await updateWaitlistEmailStatus(entry.id, {
+    email_attempt_count: Number(entry.email_attempt_count || 0) + 1,
+    email_last_error: null,
+  })
+
+  const adminEmail = Deno.env.get('ADMIN_NOTIFICATION_EMAIL') || DEFAULT_RECIPIENT
+  const adminMessage = buildWaitlistAdminMessage(entry)
+  const adminResult = await sendResendEmail({
+    ...adminMessage,
+    recipients: [adminEmail],
+    replyTo: entry.email,
+    workspaceId: 'default',
+    eventType: 'waitlist_entry_created',
+    relatedRecordId: entry.id,
+    idempotencyKeyBase: `${idempotencyKeyBase}:admin`,
+  })
+
+  const confirmationMessage = buildWaitlistConfirmationMessage(entry)
+  const confirmationResult = await sendResendEmail({
+    ...confirmationMessage,
+    recipients: [entry.email],
+    workspaceId: 'default',
+    eventType: 'waitlist_confirmation',
+    relatedRecordId: entry.id,
+    idempotencyKeyBase: `${idempotencyKeyBase}:confirmation`,
+  })
+
+  const now = new Date().toISOString()
+  const adminSent = Boolean(adminResult.ok)
+  const confirmationSent = Boolean(confirmationResult.ok)
+  const error = [
+    adminSent ? '' : `Admin notification failed: ${adminResult.reason || adminResult.status || 'provider rejected'}`,
+    confirmationSent ? '' : `Confirmation email failed: ${confirmationResult.reason || confirmationResult.status || 'provider rejected'}`,
+  ].filter(Boolean).join(' | ')
+
+  await updateWaitlistEmailStatus(entry.id, {
+    admin_notification_status: adminSent ? 'sent' : 'failed',
+    admin_notification_sent_at: adminSent ? now : null,
+    confirmation_email_status: confirmationSent ? 'sent' : 'failed',
+    confirmation_email_sent_at: confirmationSent ? now : null,
+    email_last_error: error || null,
+  })
+
+  return {
+    ok: adminSent && confirmationSent,
+    admin: adminResult,
+    confirmation: confirmationResult,
   }
 }
 
@@ -596,12 +796,22 @@ Deno.serve(async (req) => {
         ? 'contact'
         : input?.type === 'test'
           ? 'test'
-          : 'deal'
+          : input?.type === 'waitlist' || input?.eventType === 'waitlist_entry_created'
+            ? 'waitlist'
+            : 'deal'
     const eventType = input?.eventType || (type === 'account' ? 'new_account_created' : type === 'buyer' ? 'new_buyer' : type === 'test' ? 'test_email' : type === 'contact' ? 'contact' : 'new_deal')
     const workspaceId = String(input?.workspaceId || input?.workspace_id || 'default')
     const relatedRecordId = String(input?.relatedRecordId || input?.related_record_id || input?.data?.id || '')
     const data = input?.data || {}
     const portalUrl = Deno.env.get('ADMIN_PORTAL_URL') || 'https://deal-blast-pro.vercel.app/app/submissions'
+
+    if (type === 'waitlist') {
+      const entryId = relatedRecordId || data?.id || data?.entryId
+      if (!entryId) return json({ ok: false, error: 'Waitlist entry ID is required.' }, 400)
+      const result = await sendWaitlistEmails(String(entryId), input?.idempotencyKey || `waitlist:${entryId}`)
+      return json({ ok: Boolean(result.ok), provider: PROVIDER, waitlist: result })
+    }
+
     const settings = eventType === 'new_account_created'
       ? await getAccountNotificationSettings(workspaceId)
       : await getNotificationSettings(workspaceId)
