@@ -1,0 +1,195 @@
+import React from 'react'
+import { Link } from 'react-router-dom'
+import PublicNav from '../../components/layout/PublicNav'
+
+const tiers = [
+  {
+    name: 'Free',
+    monthly: '$0',
+    annual: '$0',
+    positioning: 'For a quick look at the public submission flow.',
+    cta: 'Create Admin Account',
+    to: '/admin-register',
+    highlight: false
+  },
+  {
+    name: 'Starter',
+    monthly: '$47',
+    annual: '$42/mo billed annually',
+    positioning: 'For solo operators collecting deals and buyer interest.',
+    cta: 'Create Admin Account',
+    to: '/admin-register',
+    highlight: false
+  },
+  {
+    name: 'Pro',
+    monthly: '$97',
+    annual: '$84/mo billed annually',
+    positioning: 'For active teams sending regular buyer outreach.',
+    cta: 'Create Admin Account',
+    to: '/admin-register',
+    highlight: true,
+    badge: 'Most Popular'
+  },
+  {
+    name: 'Agency',
+    monthly: '$197',
+    annual: '$167/mo billed annually',
+    positioning: 'For teams coordinating submissions, buyers, and follow-up.',
+    cta: 'Create Admin Account',
+    to: '/admin-register',
+    highlight: false
+  },
+  {
+    name: 'Enterprise',
+    monthly: '$297/mo or Custom',
+    annual: '$250/mo billed annually or Custom',
+    positioning: 'For higher-volume teams needing onboarding and integrations.',
+    cta: 'Contact Sales',
+    to: '/contact',
+    highlight: false
+  }
+]
+
+const features = [
+  'Public deal intake',
+  'Public buyer signup',
+  'Buyer criteria capture',
+  'Document uploads',
+  'Buyer outreach exports',
+  'Response follow-up tools',
+  'Team seats',
+  'Role permissions',
+  'Reporting',
+  'Data export',
+  'Custom onboarding',
+  'Integration support'
+]
+
+const minimumTier: Record<string, number> = {
+  'Public deal intake': 0,
+  'Public buyer signup': 0,
+  'Buyer criteria capture': 1,
+  'Document uploads': 1,
+  'Buyer outreach exports': 1,
+  'Response follow-up tools': 2,
+  'Team seats': 3,
+  'Role permissions': 3,
+  'Reporting': 2,
+  'Data export': 2,
+  'Custom onboarding': 4,
+  'Integration support': 4
+}
+
+export default function Pricing() {
+  const [billing, setBilling] = React.useState<'monthly' | 'annual'>('monthly')
+
+  const hasFeature = (feature: string, tierIndex: number) => tierIndex >= (minimumTier[feature] ?? 0)
+
+  return (
+    <div className="min-h-screen bg-[#0A0C12] text-[#E6E8EE]">
+      <PublicNav />
+      <main className="max-w-7xl mx-auto px-6 py-12">
+        <div className="text-center mb-6">
+          <h1 className="text-4xl font-semibold tracking-tight">Simple, transparent pricing</h1>
+          <p className="mt-3 text-[#8B92A3]">Start small, then upgrade when your deal flow and buyer outreach need more room.</p>
+        </div>
+
+        <div className="flex justify-center mb-8">
+          <div className="inline-flex rounded-lg border border-[#252A38] p-1">
+            <button
+              onClick={() => setBilling('monthly')}
+              className={`px-4 py-1 text-sm rounded-md ${billing === 'monthly' ? 'bg-[#3B82F6] text-white' : 'text-[#8B92A3]'}`}
+            >
+              Monthly
+            </button>
+            <button
+              onClick={() => setBilling('annual')}
+              className={`px-4 py-1 text-sm rounded-md ${billing === 'annual' ? 'bg-[#3B82F6] text-white' : 'text-[#8B92A3]'}`}
+            >
+              Annual
+            </button>
+          </div>
+          <div className="ml-3 text-xs text-[#8B92A3] self-center">Annual saves about 15%</div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-16">
+          {tiers.map((tier) => (
+            <div
+              key={tier.name}
+              className={`card p-6 flex flex-col ${tier.highlight ? 'ring-2 ring-[#22C55E] relative' : ''}`}
+            >
+              {tier.badge && (
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#22C55E] text-black text-xs font-bold px-3 py-1 rounded-full">
+                  {tier.badge}
+                </div>
+              )}
+
+              <div className="mb-4">
+                <div className="font-semibold text-xl">{tier.name}</div>
+                <div className="mt-1 text-xs text-[#8B92A3] italic">{tier.positioning}</div>
+                <div className="mt-3">
+                  <span className="text-3xl font-semibold">{billing === 'monthly' ? tier.monthly : tier.annual}</span>
+                </div>
+                <div className="text-[10px] text-[#8B92A3] mt-0.5">{billing === 'monthly' ? 'per month' : 'annual plan'}</div>
+              </div>
+
+              <Link
+                to={tier.to}
+                className={`btn text-center mt-auto ${tier.highlight ? 'btn-green' : 'btn-ghost'}`}
+              >
+                {tier.cta}
+              </Link>
+            </div>
+          ))}
+        </div>
+
+        <section className="mb-12">
+          <h2 className="text-2xl font-semibold mb-6 text-center">Feature Comparison</h2>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm border border-[#252A38]">
+              <thead>
+                <tr className="bg-[#12151F]">
+                  <th className="p-3 text-left font-normal text-[#8B92A3]">Feature</th>
+                  {tiers.map((tier) => (
+                    <th key={tier.name} className="p-3 text-center font-normal">{tier.name}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {features.map((feature) => (
+                  <tr key={feature} className="border-t border-[#252A38]">
+                    <td className="p-3 font-medium">{feature}</td>
+                    {tiers.map((tier, index) => {
+                      const included = hasFeature(feature, index)
+                      return (
+                        <td key={tier.name} className={`p-3 text-center text-xs ${included ? 'text-[#22C55E]' : 'text-[#8B92A3]'}`}>
+                          {included ? 'Included' : '-'}
+                        </td>
+                      )
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <div className="text-center text-xs text-[#8B92A3]">
+          Cancel or downgrade anytime. Contact sales for higher-volume needs.
+        </div>
+      </main>
+
+      <footer className="border-t border-[#252A38] py-8 text-center text-xs text-[#8B92A3]">
+        Deal Blast Pro<br />
+        <Link to="/pricing" className="hover:text-white">Pricing</Link> -{' '}
+        <Link to="/portal" className="hover:text-white">Submit Deal</Link> -{' '}
+        <Link to="/buyer-portal" className="hover:text-white">Buyer Portal</Link> -{' '}
+        <Link to="/contact" className="hover:text-white">Contact</Link> -{' '}
+        <Link to="/privacy" className="hover:text-white">Privacy</Link> -{' '}
+        <Link to="/terms" className="hover:text-white">Terms</Link> -{' '}
+        <Link to="/security" className="hover:text-white">Security</Link>
+      </footer>
+    </div>
+  )
+}

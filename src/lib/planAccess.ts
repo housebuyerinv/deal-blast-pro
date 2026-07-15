@@ -1,0 +1,170 @@
+import type { AppSettings, TrialState, User } from './types'
+import { isSuperAdmin } from './accessControl'
+
+export type PlanName = TrialState['plan'] | 'Owner Admin'
+export type AppRoute =
+  | '/app/dashboard'
+  | '/app/submissions'
+  | '/app/inventory'
+  | '/app/buyers'
+  | '/app/resources'
+  | '/app/blast'
+  | '/app/calculator'
+  | '/app/settings'
+  | '/app/upgrade'
+  | '/app/intake'
+  | '/app/followups'
+  | '/app/analytics'
+  | '/app/pipeline'
+
+export const ALL_APP_ROUTES: AppRoute[] = [
+  '/app/dashboard',
+  '/app/submissions',
+  '/app/inventory',
+  '/app/buyers',
+  '/app/resources',
+  '/app/blast',
+  '/app/calculator',
+  '/app/settings',
+  '/app/upgrade',
+  '/app/intake',
+  '/app/followups',
+  '/app/analytics',
+  '/app/pipeline',
+]
+
+export const PLAN_ROUTE_ACCESS: Record<Exclude<PlanName, 'Owner Admin'>, AppRoute[]> = {
+  'Free Demo': ['/app/dashboard', '/app/submissions', '/app/inventory', '/app/buyers', '/app/calculator', '/app/settings', '/app/upgrade'],
+  Starter: ['/app/dashboard', '/app/submissions', '/app/inventory', '/app/buyers', '/app/blast', '/app/calculator', '/app/settings', '/app/upgrade', '/app/followups', '/app/pipeline'],
+  Pro: ['/app/dashboard', '/app/submissions', '/app/inventory', '/app/buyers', '/app/resources', '/app/blast', '/app/calculator', '/app/settings', '/app/upgrade', '/app/followups', '/app/analytics', '/app/pipeline'],
+  Agency: ALL_APP_ROUTES,
+  Enterprise: ALL_APP_ROUTES,
+}
+
+export function getOwnerPreviewPlan(settings?: Pick<AppSettings, 'ownerPreviewPlan'> | null): PlanName {
+  const previewPlan = settings?.ownerPreviewPlan || 'Owner Admin'
+  return previewPlan || 'Owner Admin'
+}
+
+export function isOwnerPreviewActive(user?: Pick<User, 'email'> | null, settings?: Pick<AppSettings, 'ownerPreviewPlan'> | null) {
+  return isSuperAdmin(user) && getOwnerPreviewPlan(settings) !== 'Owner Admin'
+}
+
+export function getEffectivePlan(
+  trial: TrialState,
+  user?: Pick<User, 'email'> | null,
+  settings?: Pick<AppSettings, 'ownerPreviewPlan'> | null,
+): PlanName {
+  if (isSuperAdmin(user)) return getOwnerPreviewPlan(settings)
+  return trial.plan || (trial.isPaid ? 'Pro' : 'Free Demo')
+}
+
+export function getAllowedRoutes(
+  trial: TrialState,
+  user?: Pick<User, 'email'> | null,
+  settings?: Pick<AppSettings, 'ownerPreviewPlan'> | null,
+): AppRoute[] {
+  const plan = getEffectivePlan(trial, user, settings)
+  if (plan === 'Owner Admin') return ALL_APP_ROUTES
+  return Array.from(new Set([...(PLAN_ROUTE_ACCESS[plan] || PLAN_ROUTE_ACCESS['Free Demo']), '/app/settings' as AppRoute]))
+}
+
+export function canAccessRoute(
+  route: string,
+  trial: TrialState,
+  user?: Pick<User, 'email'> | null,
+  settings?: Pick<AppSettings, 'ownerPreviewPlan'> | null,
+) {
+  return getAllowedRoutes(trial, user, settings).includes(route as AppRoute)
+}
+
+export function getRequiredPlanForRoute(route: string): 'Starter' | 'Pro' {
+  if (PLAN_ROUTE_ACCESS.Starter.includes(route as AppRoute)) return 'Starter'
+  return 'Pro'
+}
+
+export const PAST_DUE_GRACE_DAYS = 3
+
+export type BillingNoticeKind =
+  | 'none'
+  | 'upcoming'
+  | 'due-today'
+  | 'past-due'
+  | 'past-due-grace-ended'
+  | 'cancellation-scheduled'
+  | 'payment-pending'
+  | 'free-demo-limit'
+
+export function getDaysUntil(dateValue?: string) {
+  if (!dateValue) return null
+  const time = new Date(dateValue).getTime()
+  if (!Number.isFinite(time)) return null
+  return Math.ceil((time - Date.now()) / 86400000)
+}
+
+export function getBillingNotice(
+  trial: TrialState,
+  deletionRequest?: { accountStatus?: string; scheduledDeletionAt?: string; cancellationRequestedAt?: string },
+) {
+  const billingStatus = trial.billingStatus || (trial.isPaid ? 'Paid Active' : 'Trial Active')
+  const dueDays = getDaysUntil(trial.billingPeriodEnd || '')
+  const cancelDate = deletionRequest?.scheduledDeletionAt || deletionRequest?.cancellationRequestedAt || trial.billingPeriodEnd || ''
+
+  if (deletionRequest?.accountStatus === 'Cancellation Scheduled') {
+    return {
+      kind: 'cancellation-scheduled' as BillingNoticeKind,
+      title: 'Cancellation scheduled',
+      message: `Your account is scheduled to cancel${cancelDate ? ` on ${new Date(cancelDate).toLocaleDateString()}` : ''}. Access remains active until then.`,
+      action: 'View Billing Center',
+    }
+  }
+
+  if (billingStatus === 'Payment Pending') {
+    return {
+      kind: 'payment-pending' as BillingNoticeKind,
+      title: 'Payment pending',
+      message: 'Your payment is pending confirmation. Complete payment or choose Free Demo to continue with limited access.',
+      action: 'Complete Payment',
+    }
+  }
+
+  if (billingStatus === 'Past Due') {
+    const updatedDays = getDaysUntil(trial.billingUpdatedAt || '')
+    const graceEnded = updatedDays !== null ? Math.abs(Math.min(updatedDays, 0)) > PAST_DUE_GRACE_DAYS : false
+    return {
+      kind: graceEnded ? 'past-due-grace-ended' as BillingNoticeKind : 'past-due' as BillingNoticeKind,
+      title: 'Payment past due',
+      message: graceEnded
+        ? 'Your payment is past due and the grace period has ended. Paid features are blocked until payment is completed.'
+        : 'Your payment is past due. Complete payment to keep access to your paid plan.',
+      action: 'Complete Payment',
+    }
+  }
+
+  if ((billingStatus === 'Paid Active' || billingStatus === 'Comped') && dueDays !== null && dueDays <= 7) {
+    return {
+      kind: dueDays <= 0 ? 'due-today' as BillingNoticeKind : 'upcoming' as BillingNoticeKind,
+      title: dueDays <= 0 ? 'Payment due today' : 'Upcoming payment',
+      message: dueDays <= 0
+        ? 'Your next payment is due today.'
+        : `Your next payment is due in ${dueDays} day${dueDays === 1 ? '' : 's'}.`,
+      action: 'View Billing Center',
+    }
+  }
+
+  if (billingStatus === 'Trial Active' && (trial.plan || 'Free Demo') === 'Free Demo' && (!trial.isActive || (trial.daysLeft || 0) <= 0)) {
+    return {
+      kind: 'free-demo-limit' as BillingNoticeKind,
+      title: 'Free Demo limit reached',
+      message: 'Upgrade to Starter or Pro to continue creating new activity.',
+      action: 'Upgrade',
+    }
+  }
+
+  return {
+    kind: 'none' as BillingNoticeKind,
+    title: 'No billing notice',
+    message: 'Your billing status does not need attention right now.',
+    action: '',
+  }
+}

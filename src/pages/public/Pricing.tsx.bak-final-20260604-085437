@@ -1,0 +1,226 @@
+import React from 'react'
+import { Link } from 'react-router-dom'
+import PublicNav from '../../components/layout/PublicNav'
+
+const tiers = [
+  {
+    name: 'Free Demo',
+    monthly: '$0',
+    annual: '$0',
+    annualNote: '',
+    positioning: '7-Day Limited Free Trial',
+    cta: 'Start Free Demo',
+    to: '/register',
+    highlight: false
+  },
+  {
+    name: 'Starter',
+    monthly: '$47',
+    annual: '$42/mo billed annually',
+    annualNote: '',
+    positioning: 'For solo wholesalers and small dispo operators getting organized.',
+    cta: 'Select & Upgrade',
+    to: '/upgrade',
+    highlight: false
+  },
+  {
+    name: 'Pro',
+    monthly: '$97',
+    annual: '$84/mo billed annually',
+    annualNote: '',
+    positioning: 'For active deal finders sending regular buyer blasts.',
+    cta: 'Select & Upgrade',
+    to: '/upgrade',
+    highlight: true,
+    badge: 'Most Popular'
+  },
+  {
+    name: 'Agency',
+    monthly: '$197',
+    annual: '$167/mo billed annually',
+    annualNote: '',
+    positioning: 'For teams, VAs, and dispo operators managing multiple deals.',
+    cta: 'Select & Upgrade',
+    to: '/upgrade',
+    highlight: false
+  },
+  {
+    name: 'Enterprise',
+    monthly: '$297/mo or Custom',
+    annual: '$250/mo billed annually or Custom',
+    annualNote: '',
+    positioning: 'For high-volume teams needing custom workflows, onboarding, and integrations.',
+    cta: 'Contact Sales',
+    to: '/contact',
+    highlight: false
+  }
+]
+
+export default function Pricing() {
+  const [billing, setBilling] = React.useState<'monthly' | 'annual'>('monthly')
+
+  const getDisplayedPrice = (t: any) => billing === 'monthly' ? t.monthly : t.annual
+  const getDisplayedNote = (t: any) => billing === 'monthly' ? '' : (t.annualNote || '')
+
+  // Realistic per-tier feature availability (no blanket checkmarks)
+  const featureAvailability: Record<string, number> = {
+    'Deal submissions': 0,
+    'Buyer imports': 1,
+    'Basic buyer matching': 1,
+    'Advanced matching + heat scores': 2,
+    'Gmail BCC exports': 1,
+    'Blast history & response tracking': 2,
+    'Follow-up center': 1,
+    'Pipeline board': 1,
+    'Analytics dashboard': 1,
+    'Team / VA seats': 3,
+    'Role-based permissions': 3,
+    'Shared pipelines & DB': 3,
+    'Backup / export center': 2,
+    'Backend/API readiness': 4, // Enterprise only
+    'Custom integrations & onboarding': 4
+  }
+
+  const tierIndex = (name: string) => tiers.findIndex(t => t.name === name)
+
+  const hasFeature = (feature: string, tierName: string) => {
+    const minTier = featureAvailability[feature] ?? 0
+    const tIdx = tierIndex(tierName)
+    if (feature === 'Backend/API readiness' || feature === 'Custom integrations & onboarding') {
+      return tIdx >= 4
+    }
+    if (feature.includes('Team') || feature.includes('Role') || feature.includes('Shared')) {
+      return tIdx >= 3
+    }
+    if (feature.includes('Advanced') || feature.includes('Blast history') || feature.includes('response')) {
+      return tIdx >= 2
+    }
+    return tIdx >= minTier
+  }
+
+  return (
+    <div className="min-h-screen bg-[#0A0C12] text-[#E6E8EE]">
+      <PublicNav />
+      <div className="max-w-7xl mx-auto px-6 py-12">
+        <div className="text-center mb-6">
+          <h1 className="text-4xl font-semibold tracking-tight">Simple, transparent pricing</h1>
+          <p className="mt-3 text-[#8B92A3]">Start free. Upgrade when you're ready to run real deals.</p>
+        </div>
+
+        {/* Monthly / Annual Toggle - actually controls prices */}
+        <div className="flex justify-center mb-8">
+          <div className="inline-flex rounded-lg border border-[#252A38] p-1">
+            <button 
+              onClick={() => setBilling('monthly')} 
+              className={`px-4 py-1 text-sm rounded-md ${billing === 'monthly' ? 'bg-[#3B82F6] text-white' : 'text-[#8B92A3]'}`}
+            >
+              Monthly
+            </button>
+            <button 
+              onClick={() => setBilling('annual')} 
+              className={`px-4 py-1 text-sm rounded-md ${billing === 'annual' ? 'bg-[#3B82F6] text-white' : 'text-[#8B92A3]'}`}
+            >
+              Annual
+            </button>
+          </div>
+          <div className="ml-3 text-xs text-[#8B92A3] self-center">Annual saves ~15-16%</div>
+        </div>
+
+        {/* Pricing Cards - prices now react to toggle */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-16">
+          {tiers.map((tier, index) => (
+            <div 
+              key={index} 
+              className={`card p-6 flex flex-col ${tier.highlight ? 'ring-2 ring-[#22C55E] relative' : ''}`}
+            >
+              {tier.badge && (
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#22C55E] text-black text-xs font-bold px-3 py-1 rounded-full">
+                  {tier.badge}
+                </div>
+              )}
+              
+              <div className="mb-4">
+                <div className="font-semibold text-xl">{tier.name}</div>
+                <div className="mt-1 text-xs text-[#8B92A3] italic">{tier.positioning}</div>
+                <div className="mt-1">
+                  <span className="text-3xl font-semibold">{getDisplayedPrice(tier)}</span>
+                  <span className="text-[#8B92A3] text-sm">{getDisplayedNote(tier)}</span>
+                </div>
+                <div className="text-[10px] text-[#8B92A3] mt-0.5">{billing === 'monthly' ? 'per month' : 'Annual plan'}</div>
+              </div>
+
+              <div className="text-sm flex-1 mb-6 text-[#C5CAD6]">
+                {tier.name === 'Free Demo' && '7-Day Limited Free Trial • Sample data only • No team tools'}
+                {tier.name === 'Starter' && 'Core intake + matching + blasts • 1 user • Basic exports'}
+                {tier.name === 'Pro' && 'Everything in Starter + unlimited blasts, history, heat scores, segments'}
+                {tier.name === 'Agency' && 'Everything in Pro + team seats, roles, shared pipelines & reporting'}
+                {tier.name === 'Enterprise' && 'Everything + API, custom onboarding, white-label, priority support'}
+              </div>
+
+              <Link 
+                to={tier.to} 
+                className={`btn text-center ${tier.highlight ? 'btn-green' : 'btn-ghost'}`}
+              >
+                {tier.cta}
+              </Link>
+            </div>
+          ))}
+        </div>
+
+        {/* Comparison Matrix - realistic, not all checkmarks. Backend/API is Enterprise-only or Planned. */}
+        <div className="mb-12">
+          <h2 className="text-2xl font-semibold mb-6 text-center">Feature Comparison</h2>
+          
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm border border-[#252A38]">
+              <thead>
+                <tr className="bg-[#12151F]">
+                  <th className="p-3 text-left font-normal text-[#8B92A3]">Feature</th>
+                  {tiers.map((t, i) => (
+                    <th key={i} className="p-3 text-center font-normal">{t.name}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  'Deal submissions', 'Buyer imports', 'Basic buyer matching', 'Advanced matching + heat scores',
+                  'Gmail BCC exports', 'Blast history & response tracking', 'Follow-up center', 'Pipeline board',
+                  'Analytics dashboard', 'Team / VA seats', 'Role-based permissions', 'Shared pipelines & DB',
+                  'Backup / export center', 'Backend/API readiness', 'Custom integrations & onboarding'
+                ].map((feature, rowIndex) => (
+                  <tr key={rowIndex} className="border-t border-[#252A38]">
+                    <td className="p-3 font-medium">{feature}</td>
+                    {tiers.map((tier, colIndex) => {
+                      const included = hasFeature(feature, tier.name)
+                      const label = included ? '✓' : (feature.includes('Backend') || feature.includes('Custom') ? 'Planned' : '—')
+                      return (
+                        <td key={colIndex} className={`p-3 text-center text-xs ${included ? 'text-[#22C55E]' : 'text-[#8B92A3]'}`}>
+                          {label}
+                        </td>
+                      )
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="text-[10px] text-[#8B92A3] mt-2 text-center">Backend/API readiness and custom onboarding are Enterprise-only. Lower tiers show core dispo features.</div>
+        </div>
+
+        <div className="text-center text-xs text-[#8B92A3]">
+          No credit card required. Cancel or downgrade anytime.
+        </div>
+      </div>
+
+      <footer className="border-t border-[#252A38] py-8 text-center text-xs text-[#8B92A3]">
+        House Buyer Investments • Deal Blast Pro<br />
+        <Link to="/pricing" className="hover:text-white">Pricing</Link> · 
+        <Link to="/portal" className="hover:text-white">Submit Deal</Link> · 
+        <Link to="/contact" className="hover:text-white">Contact</Link> · 
+        <Link to="/privacy" className="hover:text-white">Privacy</Link> · 
+        <Link to="/terms" className="hover:text-white">Terms</Link> · 
+        <Link to="/security" className="hover:text-white">Security</Link>
+      </footer>
+    </div>
+  )
+}

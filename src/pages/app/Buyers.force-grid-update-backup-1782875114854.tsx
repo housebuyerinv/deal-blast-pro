@@ -1,0 +1,4604 @@
+
+import React, { useState, useEffect } from 'react'
+import { useAppStore } from '../../store/useAppStore'
+import { useSearchParams } from 'react-router-dom'
+import Papa from 'papaparse'
+import { Upload, X, Building2, Home, TrendingUp, MapPin, Flame, CheckSquare, Square, Warehouse, Hotel, Store, Building, Landmark } from 'lucide-react'
+import { toast } from 'sonner'
+import { openBuyerProofFile } from '../../lib/buyerProofStorage'
+import { listPendingBuyerPortalSubmissions, markBuyerPortalSubmissionsImported, markBuyerPortalSubmissionsDismissed } from '../../lib/buyerPortalSubmissionStorage'
+import { Buyer } from '../../lib/types'
+import Tooltip from '../../components/Tooltip'
+import { fetchBuyersFromSupabase, updateBuyerInSupabase, deleteBuyersFromSupabase, deleteAllBuyersFromSupabase, upsertBuyersToSupabase } from '../../lib/buyerSupabaseSync'
+
+const safeLower = (value: any) => String(value ?? '').toLowerCase();
+
+const BUYER_STRATEGY_OPTIONS = [
+  'Fix & Flip',
+  'BRRRR',
+  'Buy & Hold',
+  'Section 8',
+  'Long-Term Rental',
+  'Short-Term Rental',
+  'SubTo',
+  'Seller Finance',
+  'Creative Finance',
+  'Wholesale',
+  'Development',
+  'JV',
+  'DSCR Rental',
+  'Novation',
+  'Wrap',
+  'Lease Option',
+  'Other'
+]
+
+const normalizeBuyerStrategies = (buyer: any) => {
+  const values: string[] = []
+
+  const addValue = (value: any) => {
+    if (!value) return
+
+    if (Array.isArray(value)) {
+      value.forEach(addValue)
+      return
+    }
+
+    String(value)
+      .split(/[|,;/\n]+/)
+      .map(v => v.trim())
+      .filter(Boolean)
+      .forEach(v => values.push(v))
+  }
+
+  addValue(buyer?.strategies)
+  addValue(buyer?.strategy)
+  addValue(buyer?.exitStrategy)
+  addValue(buyer?.exit_strategy)
+  addValue(buyer?.investmentStrategy)
+  addValue(buyer?.investment_strategy)
+
+  const haystack = [
+    buyer?.strategy,
+    buyer?.strategies,
+    buyer?.exitStrategy,
+    buyer?.exit_strategy,
+    buyer?.investmentStrategy,
+    buyer?.investment_strategy,
+    buyer?.notes,
+    buyer?.buyBox,
+    buyer?.buy_box,
+    buyer?.rawText,
+    buyer?.criteria
+  ].filter(Boolean).join(' ').toLowerCase()
+
+  const inferred: string[] = []
+
+  if (/fix\s*&?\s*flip|flip/.test(haystack)) inferred.push('Fix & Flip')
+  if (/brrrr|brrr/.test(haystack)) inferred.push('BRRRR')
+  if (/buy\s*&?\s*hold|rental|landlord/.test(haystack)) inferred.push('Buy & Hold')
+  if (/section\s*8|sec\s*8|voucher/.test(haystack)) inferred.push('Section 8')
+  if (/long.?term|ltr/.test(haystack)) inferred.push('Long-Term Rental')
+  if (/short.?term|str|airbnb|mid.?term|mtr/.test(haystack)) inferred.push('Short-Term Rental')
+  if (/subto|sub.?to|subject.?to/.test(haystack)) inferred.push('SubTo')
+  if (/seller finance|owner finance/.test(haystack)) inferred.push('Seller Finance')
+  if (/creative/.test(haystack)) inferred.push('Creative Finance')
+  if (/wholesale/.test(haystack)) inferred.push('Wholesale')
+  if (/development|build/.test(haystack)) inferred.push('Development')
+  if (/\bjv\b|joint venture/.test(haystack)) inferred.push('JV')
+  if (/dscr/.test(haystack)) inferred.push('DSCR Rental')
+  if (/novation/.test(haystack)) inferred.push('Novation')
+  if (/wrap/.test(haystack)) inferred.push('Wrap')
+  if (/lease option|rent to own|rto/.test(haystack)) inferred.push('Lease Option')
+
+  const all = [...values, ...inferred]
+    .map(v => {
+      const clean = String(v || '').trim()
+      const match = BUYER_STRATEGY_OPTIONS.find(opt => opt.toLowerCase() === clean.toLowerCase())
+      return match || clean
+    })
+    .filter(Boolean)
+    .filter(v => !['Buyer','Cash Buyer','Creative Buyer','Verified Buyer','VIP Buyer'].includes(v))
+
+  return Array.from(new Set(all))
+}
+
+const getSelectedBuyerStrategies = (buyer: any) => {
+  // BUYER_STRATEGY_SAVE_FIX_V1
+  const direct = Array.isArray(buyer?.strategies)
+    ? buyer.strategies
+    : []
+
+  const fallback = normalizeBuyerStrategies({
+    ...buyer,
+    strategies: [
+      ...direct,
+      buyer?.strategy,
+      buyer?.exitStrategy,
+      buyer?.investmentStrategy,
+      buyer?.buyerStrategy,
+    ].filter(Boolean)
+  })
+
+  return Array.from(new Set(
+    fallback
+      .map((strategy: any) => String(strategy || '').trim())
+      .filter(Boolean)
+      .filter((strategy: string) => strategy !== 'Strategy Missing')
+  ))
+}
+
+const buildBuyerStrategyUpdate = (buyer: any) => {
+  const strategies = getSelectedBuyerStrategies(buyer)
+
+  return {
+    ...buyer,
+    strategies,
+    strategy: strategies.join(', '),
+    exitStrategy: strategies.join(', '),
+    investmentStrategy: strategies.join(', '),
+    creativeFinance: strategies.some(strategy => ['Creative Finance', 'Seller Finance', 'SubTo', 'Wrap', 'Lease Option'].includes(strategy)),
+    sellerFinance: strategies.includes('Seller Finance'),
+    cashBuyer: strategies.some(strategy => ['Fix & Flip', 'BRRRR', 'Buy & Hold', 'Section 8', 'Wholesale', 'DSCR Rental'].includes(strategy)),
+  }
+}
+
+interface ImportResult {
+  total: number
+  added: number
+  dups: number
+  suppressed: number
+  invalid: number
+  preview: Array<{ existing?: Buyer; incoming: any; action: string }>
+}
+
+
+const cleanDisplayValue = (value: any, fallback = '') => {
+  const raw = String(value ?? '').trim()
+  if (!raw) return fallback
+
+  const badValues = [
+    'n/a',
+    'na',
+    'none',
+    'unknown',
+    'undefined',
+    'null',
+    'buyer',
+    'name missing',
+    'company missing',
+    'phone missing',
+    'market missing',
+    'budget unknown'
+  ]
+
+  if (badValues.includes(raw.toLowerCase())) return fallback
+
+  return raw.replace(/\s+/g, ' ').trim()
+}
+
+const deriveDisplayNameFromEmail = (email: any) => {
+  const raw = String(email || '').split('@')[0] || '';
+  const cleaned = raw
+    .replace(/[._-]+/g, ' ')
+    .replace(/\d+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!cleaned) return 'Buyer';
+
+  return cleaned
+    .split(' ')
+    .filter(Boolean)
+    .map((piece: string) => piece.charAt(0).toUpperCase() + piece.slice(1).toLowerCase())
+    .join(' ');
+};
+
+const displayBuyerText = (value: any, fallback = '') => {
+  const text = String(value ?? '').trim();
+
+  if (!text) return fallback;
+
+  const bad = [
+    'undefined',
+    'null',
+    'n/a',
+    'na',
+    'none',
+    'buyer name',
+    'name missing'
+  ];
+
+  return bad.includes(text.toLowerCase()) ? fallback : text;
+};
+
+const getDisplayName = (buyer: any) => {
+  const buyerData: any = buyer && typeof buyer.data === 'object' && buyer.data ? buyer.data : {}
+  const merged: any = { ...buyer, ...buyerData }
+
+  const direct = cleanDisplayValue(
+    merged.name ||
+    merged.fullName ||
+    merged.full_name ||
+    merged.buyerName ||
+    merged.buyer_name ||
+    merged.contactName ||
+    merged.contact_name,
+    ''
+  )
+
+  if (direct) return direct
+
+  const emailName = deriveDisplayNameFromEmail(merged.email)
+  return cleanDisplayValue(emailName, '')
+}
+
+const getDisplayCompany = (buyer: any) => {
+  const buyerData: any = buyer && typeof buyer.data === 'object' && buyer.data ? buyer.data : {}
+  const merged: any = { ...buyer, ...buyerData }
+
+  return displayBuyerText(
+    merged.company ||
+    merged.companyName ||
+    merged.company_name ||
+    merged.entity ||
+    merged.business ||
+    merged.organization,
+    ''
+  )
+}
+
+const getDisplayPhone = (buyer: any) => {
+  return cleanDisplayValue(
+    buyer?.phone ||
+      buyer?.mobile ||
+      buyer?.cell ||
+      buyer?.phoneNumber ||
+      buyer?.phone_number,
+    ''
+  );
+};
+
+
+const getMarketDisplayList = (...values: any[]) => {
+  return getDisplayList(...values);
+};
+
+
+// BUYER_BUDGET_PROOF_FIX_V1
+const normalizeBuyerBudgetMin = (value: any) => {
+  const n = Number(String(value ?? '').replace(/[^0-9.]/g, ''))
+  if (!Number.isFinite(n) || n <= 1) return 0
+  return Math.round(n)
+}
+
+const normalizeBuyerBudgetMax = (value: any) => {
+  const n = Number(String(value ?? '').replace(/[^0-9.]/g, ''))
+  if (!Number.isFinite(n) || n <= 0) return 0
+  return Math.round(n)
+}
+
+const displayBudgetInputValue = (value: any) => {
+  const n = normalizeBuyerBudgetMin(value)
+  return n > 0 ? String(n) : ''
+}
+
+const getBuyerProofFiles = (buyer: any) => {
+  const merged = buyer && typeof buyer.data === 'object' && buyer.data ? { ...buyer, ...buyer.data } : (buyer || {})
+
+  const buckets = [
+    merged.proofFiles,
+    merged.uploadedFiles,
+    merged.verificationFiles,
+    merged.documents,
+    merged.files,
+    merged.buyerPortalSubmission?.proofFiles,
+    merged.buyerPortalSubmission?.uploadedFiles,
+    merged.rawPortalSubmission?.buyer_data?.proofFiles,
+    merged.rawPortalSubmission?.buyer_data?.uploadedFiles,
+  ]
+
+  const files = buckets.flatMap((bucket: any) => Array.isArray(bucket) ? bucket : [])
+  const seen = new Set<string>()
+
+  return files.filter((file: any) => {
+    const key = [
+      file?.id,
+      file?.storagePath,
+      file?.publicUrl,
+      file?.fileDataUrl,
+      file?.url,
+      file?.downloadUrl,
+      file?.fileName || file?.name || file?.filename,
+      file?.fileSize || file?.size,
+    ].filter(Boolean).join('|') || JSON.stringify(file || {})
+
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
+const formatProofFileSize = (size?: number) => {
+  const n = Number(size || 0)
+  if (!n || Number.isNaN(n)) return ''
+  if (n >= 1024 * 1024) return (n / (1024 * 1024)).toFixed(1) + ' MB'
+  if (n >= 1024) return Math.round(n / 1024) + ' KB'
+  return n + ' B'
+}
+
+void formatProofFileSize
+
+const getDisplayList = (...values: any[]) => {
+  for (const value of values) {
+    if (Array.isArray(value)) {
+      const cleaned = value.map(v => cleanDisplayValue(v, '')).filter(Boolean);
+      if (cleaned.length) return cleaned;
+    }
+
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) continue;
+
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          const cleaned = parsed.map(v => cleanDisplayValue(v, '')).filter(Boolean);
+          if (cleaned.length) return cleaned;
+        }
+      } catch {}
+
+      const cleaned = trimmed
+        .split(/[;,|]/g)
+        .map(v => cleanDisplayValue(v, ''))
+        .filter(Boolean);
+
+      if (cleaned.length) return cleaned;
+    }
+  }
+
+  return [];
+};
+
+
+// BUYER_MANUAL_NAME_SAVE_FIX_V1
+const formatManualBuyerName = (value: any, emailValue = '') => {
+  const raw = String(value ?? '').replace(/\s+/g, ' ').trim()
+  const email = String(emailValue ?? '').trim().toLowerCase()
+
+  const titleCase = (input: string) =>
+    String(input || '')
+      .replace(/[_\-.]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .split(' ')
+      .filter(Boolean)
+      .map(word => {
+        const lower = word.toLowerCase()
+        if (['llc', 'inc', 'lp', 'llp', 'rei', 'usa', 'dc'].includes(lower)) return lower.toUpperCase()
+        return lower.charAt(0).toUpperCase() + lower.slice(1)
+      })
+      .join(' ')
+
+  // If user manually typed a real spaced name, keep it.
+  if (raw && /\s/.test(raw) && !/missing|unknown|undefined|null/i.test(raw)) {
+    return titleCase(raw)
+  }
+
+  // If user typed a compact name, do not destroy it, but title it.
+  // Example: "martinchristopher" becomes "Martinchristopher" unless manually edited.
+  if (raw && !/missing|unknown|undefined|null/i.test(raw)) {
+    return titleCase(raw)
+  }
+
+  const local = email
+    .replace(/@.*/, '')
+    .replace(/\+.*/, '')
+    .replace(/\d+$/g, '')
+    .replace(/[._-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  return titleCase(local)
+}
+
+export default function Buyers() {
+  const { 
+    buyers, isNewBuyer, markBuyerViewed, importBuyers, 
+    addToSuppression, updateBuyer, deleteBuyer,
+    getBuyerMatchHistory
+  } = useAppStore()
+
+  const persistBuyerUpdate = async (id: string, updates: any, successMessage?: string) => {
+    const cleanId = String(id || '').trim()
+    if (!cleanId) return false
+
+    const strategySyncedUpdates = buildBuyerStrategyUpdate(updates)
+
+    const cleanUpdates = {
+      ...strategySyncedUpdates,
+      name: formatManualBuyerName(strategySyncedUpdates?.name || strategySyncedUpdates?.buyerName || strategySyncedUpdates?.fullName, strategySyncedUpdates?.email),
+      buyerName: formatManualBuyerName(strategySyncedUpdates?.name || strategySyncedUpdates?.buyerName || strategySyncedUpdates?.fullName, strategySyncedUpdates?.email),
+      fullName: formatManualBuyerName(strategySyncedUpdates?.name || strategySyncedUpdates?.buyerName || strategySyncedUpdates?.fullName, strategySyncedUpdates?.email),
+      budgetMin: normalizeBuyerBudgetMin(strategySyncedUpdates?.budgetMin),
+      budgetMax: normalizeBuyerBudgetMax(strategySyncedUpdates?.budgetMax),
+      proofFiles: getBuyerProofFiles(updates).length ? getBuyerProofFiles(updates) : strategySyncedUpdates?.proofFiles,
+      uploadedFiles: Array.isArray(strategySyncedUpdates?.uploadedFiles) ? updates.uploadedFiles : strategySyncedUpdates?.uploadedFiles,
+      id: cleanId,
+      updatedAt: new Date().toISOString(),
+    }
+
+    const result = await updateBuyerInSupabase(cleanId, cleanUpdates)
+
+    if (!result.ok) {
+      toast.error('Supabase update failed: ' + result.error)
+      return false
+    }
+
+    // BUYER_SAVE_LOCAL_VALUES_WIN_V1
+    // Supabase may return an older/normalized row. Keep the values the user just saved
+    // as the local source of truth so edited names like "Martin Christopher" do not
+    // immediately revert to email-derived names like "Martinchristopher".
+    const submittedUpdates = typeof cleanUpdates !== 'undefined' ? cleanUpdates : { ...updates, id: cleanId, updatedAt: new Date().toISOString() }
+    const savedBuyer = {
+      ...(result.data || {}),
+      ...submittedUpdates,
+      id: cleanId,
+      name: submittedUpdates.name || submittedUpdates.buyerName || submittedUpdates.fullName || result.data?.name || result.data?.buyerName || result.data?.fullName || '',
+      buyerName: submittedUpdates.name || submittedUpdates.buyerName || submittedUpdates.fullName || result.data?.buyerName || result.data?.name || '',
+      fullName: submittedUpdates.name || submittedUpdates.buyerName || submittedUpdates.fullName || result.data?.fullName || result.data?.name || '',
+    }
+
+    updateBuyer(cleanId, savedBuyer as any)
+    if (selectedBuyer?.id === cleanId) {
+      setSelectedBuyer((current: any) => current ? ({ ...current, ...savedBuyer }) : savedBuyer as any)
+      setEditBuyer((current: any) => ({ ...current, ...savedBuyer }))
+    }
+
+    if (successMessage) toast.success(successMessage)
+    return true
+  }
+
+  const removeBuyersEverywhere = async (ids: any[], successMessage?: string) => {
+    const cleanIds = Array.from(new Set((ids || []).map(id => String(id || '').trim()).filter(Boolean)))
+    if (!cleanIds.length) return false
+
+    const result = await deleteBuyersFromSupabase(cleanIds)
+    if (!result.ok) {
+      toast.error('Supabase delete failed: ' + result.error)
+      return false
+    }
+
+    cleanIds.forEach(id => deleteBuyer(id))
+    setSelectedBuyerIds(prev => prev.filter(id => !cleanIds.includes(id)))
+    if (selectedBuyer && cleanIds.includes(selectedBuyer.id)) setSelectedBuyer(null)
+
+    if (successMessage) toast.success(successMessage)
+    return true
+  }
+
+
+  // BUYER_SUPABASE_HYDRATE_ON_PAGE_OPEN
+  useEffect(() => {
+    let cancelled = false
+
+    const buyerKey = (buyer: any) =>
+      safeLower(String(buyer?.email || buyer?.id || '').trim())
+
+    const dedupeCloudBuyers = (rows: any[]) => {
+      const map = new Map<string, any>()
+
+      ;(rows || []).forEach((buyer: any) => {
+        const key = buyerKey(buyer)
+        if (!key) return
+
+        const existing = map.get(key)
+
+        if (!existing) {
+          map.set(key, buyer)
+          return
+        }
+
+        map.set(key, {
+          ...existing,
+          ...buyer,
+          id: existing.id || buyer.id,
+          email: existing.email || buyer.email,
+          createdAt: existing.createdAt || buyer.createdAt || buyer.created_at,
+          updatedAt: buyer.updatedAt || buyer.updated_at || existing.updatedAt,
+        })
+      })
+
+      return Array.from(map.values())
+    }
+
+    ;(async () => {
+      const result = await fetchBuyersFromSupabase()
+
+      if (!result.ok) {
+        console.warn('[Deal Blast Pro] Supabase buyer load failed; keeping local buyers fallback:', result.error)
+        return
+      }
+
+      const cloudBuyers = dedupeCloudBuyers(Array.isArray(result.data) ? result.data : [])
+
+      if (!cancelled) {
+        useAppStore.setState({ buyers: cloudBuyers as any })
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const [search, setSearch] = useState('')
+const [showImport, setShowImport] = useState(false)
+  const [showAddBuyer, setShowAddBuyer] = useState(false)
+  const [buyerPortalQueueCount, setBuyerPortalQueueCount] = useState(0)
+  const [addBuyerMode, setAddBuyerMode] = useState<'quick' | 'manual' | 'detailed' | 'multi' | 'text'>('manual')
+  const [buyerPasteText, setBuyerPasteText] = useState('')
+  const [manualBuyer, setManualBuyer] = useState<any>({
+    name: '',
+    email: '',
+    phone: '',
+    company: '',
+    type: '',
+    status: 'Active',
+    markets: [],
+    assetTypes: [],
+    budgetMin: '',
+    budgetMax: '',
+    notes: ''
+  })
+  const [importResult, setImportResult] = useState<ImportResult | null>(null)
+  const [pendingImport, setPendingImport] = useState<any[]>([]) // CSV/TXT/manual rows waiting for review/approve before any store write
+  const [showPortalReview, setShowPortalReview] = useState(false)
+  const [pendingPortalImport, setPendingPortalImport] = useState<any[]>([]) // buyer portal submissions only, kept separate from CSV/TXT imports
+  const [selectedBuyerIds, setSelectedBuyerIds] = useState<string[]>([])
+  const [selectedBuyer, setSelectedBuyer] = useState<Buyer | null>(null) // Buyer profile drawer state
+  const [editBuyer, setEditBuyer] = useState<any>({}) // for inline editing in drawer
+
+  function hydrateBuyerForEdit(buyer: any) {
+    const buyerData: any = buyer && typeof buyer.data === 'object' && buyer.data ? buyer.data : {}
+    const merged: any = { ...buyer, ...buyerData }
+
+    const asArray = (...values: any[]) => {
+      const out: string[] = []
+
+      values.forEach(value => {
+        if (Array.isArray(value)) {
+          value.forEach(v => out.push(String(v || '').trim()))
+        } else if (typeof value === 'string') {
+          value
+            .split(/[|,;/\n]+/)
+            .map(v => v.trim())
+            .filter(Boolean)
+            .forEach(v => out.push(v))
+        }
+      })
+
+      return Array.from(new Set(out.filter(Boolean)))
+    }
+
+    const asMoney = (...values: any[]) => {
+      for (const value of values) {
+        if (typeof value === 'number' && Number.isFinite(value) && value > 0) return value
+
+        if (typeof value === 'string') {
+          const cleaned = value.replace(/\$/g, '').replace(/,/g, '').replace(/\s+/g, '').toLowerCase()
+          const match = cleaned.match(/(\d+(?:\.\d+)?)(k|m)?/)
+          if (!match) continue
+
+          let n = Number(match[1])
+          if (!Number.isFinite(n) || n <= 0) continue
+
+          if (match[2] === 'k') n *= 1000
+          if (match[2] === 'm') n *= 1000000
+
+          return Math.round(n)
+        }
+      }
+
+      return 0
+    }
+
+    const normalizeState = (value: any) => {
+      const raw = String(value || '').trim()
+      if (!raw) return ''
+
+      const upper = raw.toUpperCase()
+      const stateMatch = upper.match(/\b(AL|AK|AZ|AR|CA|CO|CT|DE|DC|FL|GA|HI|IA|ID|IL|IN|KS|KY|LA|MA|MD|ME|MI|MN|MO|MS|MT|NC|ND|NE|NH|NJ|NM|NV|NY|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VA|VT|WA|WI|WV|WY)\b/)
+      if (stateMatch) return stateMatch[1]
+
+      if (/NATIONWIDE|NATIONAL|ANYWHERE|ALL MARKETS/.test(upper)) return 'Nationwide'
+
+      return ''
+    }
+
+    const normalizeAsset = (value: any) => {
+      const raw = String(value || '').trim()
+      if (!raw) return ''
+
+      const lower = raw.toLowerCase()
+
+      if (['buyer','cash buyer','creative buyer','verified buyer','vip buyer','seller finance buyer','wholesaler','agent','broker','lender','other'].includes(lower)) return ''
+
+      if (/\b(sfh|single family|single-family|sfr)\b/i.test(raw)) return 'SFH'
+      if (/\b(multifamily|multi family|multi-family|apartment|apartments|units?)\b/i.test(raw)) return 'Multifamily'
+      if (/\b(duplex|triplex|quad|fourplex)\b/i.test(raw)) return 'Small Multifamily'
+      if (/\b(land|lot|acre|acres)\b/i.test(raw)) return 'Land'
+      if (/\b(hotel|hospitality|motel)\b/i.test(raw)) return 'Hotel'
+      if (/\b(retail|strip center|shopping center)\b/i.test(raw)) return 'Retail'
+      if (/\b(office)\b/i.test(raw)) return 'Office'
+      if (/\b(industrial|warehouse)\b/i.test(raw)) return 'Industrial'
+      if (/\b(storage|self storage)\b/i.test(raw)) return 'Storage'
+      if (/\b(mixed use|mixed-use)\b/i.test(raw)) return 'Mixed-Use'
+      if (/\b(mobile home park|mhp|rv park)\b/i.test(raw)) return 'MHP'
+
+      return ''
+    }
+
+    const marketSource = asArray(
+      merged.markets,
+      merged.targetMarkets,
+      merged.target_markets,
+      merged.states,
+      merged.state,
+      merged.locations,
+      merged.market,
+      merged.notes,
+      merged.buyBox,
+      merged.buy_box
+    )
+
+    const markets = Array.from(new Set(marketSource.map(normalizeState).filter(Boolean)))
+
+    const assetSource = asArray(
+      merged.assetTypes,
+      merged.asset_types,
+      merged.assetFocus,
+      merged.asset_focus,
+      merged.propertyTypes,
+      merged.property_types,
+      merged.propertyType,
+      merged.asset,
+      merged.assets,
+      merged.notes,
+      merged.buyBox,
+      merged.buy_box
+    )
+
+    const assetTypes = Array.from(new Set(assetSource.map(normalizeAsset).filter(Boolean)))
+
+    const strategyText = asArray(
+      merged.strategy,
+      merged.strategies,
+      merged.exitStrategy,
+      merged.exit_strategy,
+      merged.investmentStrategy,
+      merged.investment_strategy,
+      merged.notes,
+      merged.buyBox,
+      merged.buy_box,
+      merged.rawText,
+      merged.criteria
+    ).join(' ').toLowerCase()
+
+    const isCreative = !!merged.creativeFinance || !!merged.sellerFinance || /creative|seller finance|owner finance|subject to|subto|wrap|lease option/.test(strategyText)
+    const isCash = !!merged.cashBuyer || /cash|fix.?flip|flip|wholesale/.test(strategyText)
+
+    const buyerType =
+      merged.buyerType ||
+      merged.buyer_type ||
+      merged.type ||
+      (isCreative ? 'Creative Buyer' : isCash ? 'Cash Buyer' : 'Buyer')
+
+    const status = merged.status || merged.verificationStatus || 'Active'
+
+    return {
+      ...merged,
+      name: merged.name || merged.buyerName || merged.buyer_name || merged.fullName || merged.full_name || '',
+      email: merged.email || merged.Email || '',
+      company: merged.company || merged.entity || merged.companyName || merged.company_name || '',
+      phone: merged.phone || merged.mobile || merged.cell || merged.Phone || '',
+      mobile: merged.mobile || merged.cell || '',
+      type: buyerType,
+      buyerType,
+      markets,
+      targetMarkets: markets,
+      target_markets: markets,
+      assetTypes,
+      assetFocus: assetTypes,
+      asset_focus: assetTypes,
+      budgetMin: normalizeBuyerBudgetMin(asMoney(merged.budgetMin, merged.budget_min, merged.minBudget, merged.min_budget, merged.priceMin, merged.price_min)),
+      budgetMax: asMoney(merged.budgetMax, merged.budget_max, merged.maxBudget, merged.max_budget, merged.priceMax, merged.price_max, merged.budget, merged.maxPrice, merged.max_price),
+      creativeFinance: isCreative,
+      sellerFinance: !!merged.sellerFinance || /seller finance|owner finance/i.test(strategyText),
+      cashBuyer: isCash,
+      strategies: normalizeBuyerStrategies(merged),
+      strategy: normalizeBuyerStrategies(merged).join(', '),
+      exitStrategy: normalizeBuyerStrategies(merged).join(', '),
+      status,
+      verificationStatus: status,
+      notes: merged.notes || merged.buyBox || merged.buy_box || merged.criteria || ''
+    }
+  }
+
+  // Buyer Custom Lists (localStorage persisted)
+  const [buyerLists, setBuyerLists] = useState<any[]>(() => {
+    try {
+      const saved = localStorage.getItem('dbp_buyer_lists')
+      return saved ? JSON.parse(saved) : []
+    } catch { return [] }
+  })
+  const [showListModal, setShowListModal] = useState(false)
+  const [newListName, setNewListName] = useState('')
+  const [currentListId, setCurrentListId] = useState<string | null>(null) // for viewing a specific list
+
+  // Sort & Filter state for Buyer DB
+  const [sortMode, setSortMode] = useState('heat-high')
+  const [activeFilters, setActiveFilters] = useState<string[]>([])
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
+  const [showDuplicatePanel, setShowDuplicatePanel] = useState(false)
+  const [activeTab, setActiveTab] = useState('all') // all | segments | lists
+  const [selectedSegment, setSelectedSegment] = useState<string | null>(null) // for viewing specific segment
+
+  // Persist buyer lists
+  React.useEffect(() => {
+    try { localStorage.setItem('dbp_buyer_lists', JSON.stringify(buyerLists)) } catch {}
+  }, [buyerLists])
+
+  useEffect(() => {
+    if (!selectedBuyer?.id) return
+    const fresh = buyers.find(b => b.id === selectedBuyer.id)
+
+    // BUYER_DRAWER_STABILITY_PATCH_V1
+    // Do not auto-close the profile drawer if the Supabase buyer refresh briefly
+    // does not contain the selected buyer. This was causing Review & Edit Profile
+    // to flash open for a second and then disappear.
+    if (!fresh) {
+      return
+    }
+
+    const hydrated = hydrateBuyerForEdit(fresh)
+    setSelectedBuyer((current: any) => current ? { ...current, ...hydrated } : hydrated as any)
+    setEditBuyer((current: any) => ({ ...current, ...hydrated }))
+  }, [buyers, selectedBuyer?.id])
+
+
+  const normalizeDuplicateText = (value: any) => String(value ?? '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  const normalizeDuplicatePhone = (value: any) => String(value ?? '').replace(/\D/g, '')
+
+  const getDuplicateKeys = (buyer: any): string[] => {
+    const keys: string[] = []
+    const email = String(buyer?.email || '').trim().toLowerCase()
+    const phone = normalizeDuplicatePhone(getDisplayPhone(buyer) || buyer?.phone)
+    const name = normalizeDuplicateText(getDisplayName(buyer))
+    const markets = getMarketDisplayList(
+      buyer?.markets,
+      buyer?.targetMarkets,
+      buyer?.target_markets,
+      buyer?.states,
+      buyer?.locations,
+      buyer?.target_states
+    ).join('|').toLowerCase()
+
+    if (email && email.includes('@')) keys.push('email:' + email)
+    if (phone.length >= 7) keys.push('phone:' + phone.slice(-10))
+    if (name && name !== 'buyer' && name !== 'name missing' && markets) keys.push('name_market:' + name + '|' + markets)
+
+    return keys
+  }
+
+  const getDuplicateGroups = (buyerRows: any[]) => {
+    const keyMap = new Map<string, any[]>()
+
+    ;(buyerRows || []).forEach((buyer: any) => {
+      getDuplicateKeys(buyer).forEach(key => {
+        const rows = keyMap.get(key) || []
+        rows.push(buyer)
+        keyMap.set(key, rows)
+      })
+    })
+
+    const seen = new Set<string>()
+    const groups: Array<{ key: string; label: string; buyers: any[] }> = []
+
+    keyMap.forEach((rows, key) => {
+      const uniqueRows = rows.filter((row, index, arr) => row?.id && arr.findIndex(x => x?.id === row.id) === index)
+      if (uniqueRows.length < 2) return
+
+      const signature = uniqueRows.map(row => row.id).sort().join('|')
+      if (seen.has(signature)) return
+      seen.add(signature)
+
+      const label = key.startsWith('email:')
+        ? 'Same email: ' + key.replace('email:', '')
+        : key.startsWith('phone:')
+          ? 'Same phone: ' + key.replace('phone:', '')
+          : 'Same name + market'
+
+      groups.push({ key, label, buyers: uniqueRows })
+    })
+
+    return groups.sort((a, b) => b.buyers.length - a.buyers.length || a.label.localeCompare(b.label))
+  }
+
+  const mergeBuyerRecords = async (keeper: any, duplicateRows: any[]) => {
+    const rows = [keeper, ...duplicateRows].filter(Boolean)
+    const firstValue = (...values: any[]) => values.find(v => String(v ?? '').trim())
+    const unionList = (...values: any[]) => Array.from(new Set(values.flatMap(value => {
+      if (Array.isArray(value)) return value
+      if (value === undefined || value === null) return []
+      if (typeof value === 'string') {
+        const trimmed = value.trim()
+        if (!trimmed) return []
+        try {
+          const parsed = JSON.parse(trimmed)
+          if (Array.isArray(parsed)) return parsed
+        } catch {}
+        return trimmed.split(/[;,|]/g)
+      }
+      return [value]
+    }).map(v => String(v || '').trim()).filter(Boolean)))
+
+    const numberValues = (field: string) => rows.map(r => Number(r?.[field] || 0)).filter(n => Number.isFinite(n) && n > 0)
+    const minBudgetValues = numberValues('budgetMin')
+    const maxBudgetValues = numberValues('budgetMax')
+
+    const duplicateIds = duplicateRows
+      .map(row => String(row?.id || '').trim())
+      .filter(id => id && id !== keeper.id)
+
+    const merged: any = {
+      ...keeper,
+      name: cleanBuyerName(firstValue(keeper.name, ...rows.map(r => r.name), getDisplayName(keeper)), firstValue(keeper.email, ...rows.map(r => r.email))),
+      email: firstValue(keeper.email, ...rows.map(r => r.email)),
+      phone: firstValue(keeper.phone, ...rows.map(r => r.phone), ...rows.map(r => getDisplayPhone(r))),
+      company: firstValue(keeper.company, ...rows.map(r => r.company), ...rows.map(r => getDisplayCompany(r))),
+      type: firstValue(keeper.type, ...rows.map(r => r.type)),
+      status: firstValue(keeper.status, ...rows.map(r => r.status)),
+      verificationStatus: firstValue(keeper.verificationStatus, ...rows.map(r => r.verificationStatus)),
+      markets: unionList(...rows.map(r => getMarketDisplayList(r.markets, r.targetMarkets, r.target_markets, r.states, r.locations, r.target_states))),
+      assetTypes: unionList(...rows.map(r => r.assetTypes), ...rows.map(r => r.asset_types), ...rows.map(r => r.assetFocus), ...rows.map(r => r.asset_focus)),
+      tags: unionList(...rows.map(r => r.tags)),
+      creativeFinance: rows.some(r => !!r.creativeFinance),
+      sellerFinance: rows.some(r => !!r.sellerFinance),
+      budgetMin: minBudgetValues.length ? Math.min(...minBudgetValues) : keeper.budgetMin,
+      budgetMax: maxBudgetValues.length ? Math.max(...maxBudgetValues) : keeper.budgetMax,
+      notes: unionList(...rows.map(r => r.notes)).join('\n') || keeper.notes,
+      updatedAt: new Date().toISOString(),
+    }
+
+    const updateResult = await updateBuyerInSupabase(keeper.id, merged)
+    if (!updateResult.ok) {
+      toast.error('Supabase merge update failed: ' + updateResult.error)
+      return
+    }
+
+    if (duplicateIds.length) {
+      const deleteResult = await deleteBuyersFromSupabase(duplicateIds)
+      if (!deleteResult.ok) {
+        toast.error('Supabase duplicate delete failed: ' + deleteResult.error)
+        return
+      }
+    }
+
+    updateBuyer(keeper.id, (updateResult.data || merged) as any)
+    duplicateIds.forEach(id => deleteBuyer(id))
+
+    setSelectedBuyerIds([])
+    if (selectedBuyer && duplicateIds.includes(selectedBuyer.id)) setSelectedBuyer(null)
+    toast.success('Merged ' + duplicateIds.length + ' duplicate' + (duplicateIds.length === 1 ? '' : 's') + ' and saved to Supabase')
+  }
+
+  const deleteDuplicateRecord = async (buyer: any) => {
+    if (!buyer?.id) return
+    if (confirm('Delete duplicate buyer "' + (getDisplayName(buyer) || buyer.email || 'this buyer') + '" from Supabase?')) {
+      await removeBuyersEverywhere([buyer.id], 'Duplicate deleted from Supabase')
+    }
+  }
+
+  const BED_REQUIREMENT_OPTIONS = ['Any', 'Studio', '1+', '2+', '3+', '4+', '5+']
+  const BATH_REQUIREMENT_OPTIONS = ['Any', '1+', '1.5+', '2+', '2.5+', '3+', '4+']
+  const UNIT_REQUIREMENT_OPTIONS = ['Any', '1+', '2+', '3+', '4+', '5+', '10+', '20+', '50+', '100+']
+
+  const US_STATE_CODES = ['AL','AK','AZ','AR','CA','CO','CT','DE','DC','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY']
+
+  const extractBuyerField = (text: string, label: string) => {
+    const lines = text.split(/\r?\n/).map(x => x.trim()).filter(Boolean)
+    const labelRegex = new RegExp(`^${label}\\s*:?\\s*(.*)$`, 'i')
+
+    for (let i = 0; i < lines.length; i++) {
+      const match = lines[i].match(labelRegex)
+      if (!match) continue
+      const inlineValue = (match[1] || '').trim()
+      if (inlineValue) return inlineValue
+
+      const collected: string[] = []
+      for (let j = i + 1; j < lines.length; j++) {
+        if (/^(name|email|phone|company|location\/?s?\s+of\s+interest|locations?|markets?|buy\s*box|price\s*range|budget|notes?)\s*:?/i.test(lines[j])) break
+        collected.push(lines[j])
+      }
+      return collected.join(', ').trim()
+    }
+
+    return ''
+  }
+
+  const parseMoneyValue = (raw: string) => {
+    const value = String(raw || '').trim().replace(/\$/g, '').replace(/,/g, '')
+    const match = value.match(/(\d+(?:\.\d+)?)\s*([kKmM])?/)
+    if (!match) return 0
+
+    const num = Number(match[1])
+    const suffix = safeLower(match[2] || '')
+    if (suffix === 'm') return Math.round(num * 1000000)
+    if (suffix === 'k') return Math.round(num * 1000)
+    return Math.round(num)
+  }
+
+
+  const STATE_NAME_TO_CODE: Record<string, string> = {
+    Alabama:'AL', Alaska:'AK', Arizona:'AZ', Arkansas:'AR', California:'CA',
+    Colorado:'CO', Connecticut:'CT', Delaware:'DE',
+  'district of columbia': 'DC', Florida:'FL', Georgia:'GA',
+    Hawaii:'HI', Idaho:'ID', Illinois:'IL', Indiana:'IN', Iowa:'IA',
+    Kansas:'KS', Kentucky:'KY', Louisiana:'LA', Maine:'ME', Maryland:'MD',
+    Massachusetts:'MA', Michigan:'MI', Minnesota:'MN', Mississippi:'MS', Missouri:'MO',
+    Montana:'MT', Nebraska:'NE', Nevada:'NV', Ohio:'OH', Oklahoma:'OK',
+    Oregon:'OR', Pennsylvania:'PA', Tennessee:'TN', Texas:'TX', Utah:'UT',
+    Vermont:'VT', Virginia:'VA', Washington:'WA', Wisconsin:'WI', Wyoming:'WY',
+    'New Hampshire':'NH', 'New Jersey':'NJ', 'New Mexico':'NM', 'New York':'NY',
+    'North Carolina':'NC', 'North Dakota':'ND', 'Rhode Island':'RI',
+    'South Carolina':'SC', 'South Dakota':'SD', 'West Virginia':'WV'
+  }
+
+  const extractSpecificStateMarkets = (value: any, allowLooseCodes = false): string[] => {
+    const text = Array.isArray(value) ? value.join(' ') : String(value || '')
+    const found = new Set<string>()
+
+    Object.entries(STATE_NAME_TO_CODE).forEach(([name, code]) => {
+      if (new RegExp('\\b' + name.replace(/ /g, '\\s+') + '\\b', 'i').test(text)) found.add(code)
+    })
+
+    // Trust short state codes only in explicit market/location strings.
+    if (allowLooseCodes) {
+      US_STATE_CODES.forEach(code => {
+        const re = new RegExp('(?:^|[^A-Za-z])' + code + '(?:$|[^A-Za-z])')
+        if (re.test(text)) found.add(code)
+      })
+    }
+
+    return Array.from(found)
+  }
+
+  const hasNationwideLanguage = (value: any) =>
+    /\b(nationwide|national|anywhere|all\s+states|all\s+markets|any\s+state|any\s+market)\b/i.test(String(value || ''))
+
+  const normalizeExplicitMarkets = (value: any, fallbackText: any = ''): string[] => {
+    const explicitText = Array.isArray(value) ? value.join(' ') : String(value || '')
+    const fallback = Array.isArray(fallbackText) ? fallbackText.join(' ') : String(fallbackText || '')
+
+    const explicitStates = extractSpecificStateMarkets(explicitText, true)
+    const fallbackStates = extractSpecificStateMarkets(fallback, false)
+
+    const states = Array.from(new Set([...explicitStates, ...fallbackStates]))
+    if (states.length) return states
+
+    if (hasNationwideLanguage(explicitText) || (!explicitText && hasNationwideLanguage(fallback))) return ['Nationwide']
+
+    const manual = explicitText
+      .split(/[,;|/]+/)
+      .map(x => x.trim())
+      .filter(x => x && !/^(nationwide|any)$/i.test(x))
+
+    return manual
+  }
+
+  const KNOWN_NAME_PART_FIXES: Record<string, string> = {
+    garciare: 'Garcia',
+    gaciare: 'Garcia',
+    russelll: 'Russell',
+    griffth: 'Griffith',
+  }
+
+  const autoCapBuyerName = (value: any) => {
+    const raw = String(value || '').replace(/\s+/g, ' ').trim()
+    if (!raw) return ''
+
+    const upperWords = new Set(['llc', 'inc', 'corp', 'co', 'lp', 'llp', 'pllc', 'gkw', 'des', 'usa', 'rei'])
+    const smallWords = new Set(['of', 'and', 'the'])
+
+    return raw
+      .split(' ')
+      .filter(Boolean)
+      .map((word, index) => {
+        const lower = safeLower(word)
+
+        if (upperWords.has(lower)) return lower.toUpperCase()
+        if (index > 0 && smallWords.has(lower)) return lower
+
+        return lower
+          .split(/([-'�])/)
+          .map((piece: any) => {
+            if (piece === '-' || piece === "'" || piece === '�') return piece
+            if (!piece) return piece
+            return piece.charAt(0).toUpperCase() + piece.slice(1)
+          })
+          .join('')
+      })
+      .join(' ')
+      .trim()
+  }
+
+
+  const splitEmailUsernameName = (emailValue: any) => {
+    const email = String(emailValue || '').trim().toLowerCase();
+    const match = email.match(/^([^@]+)@/);
+    if (!match) return '';
+
+    const local = match[1]
+      .replace(/\+.*/, '')
+      .replace(/\d+$/g, '')
+      .replace(/[._-]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (!local) return '';
+
+    const generic = new Set([
+      'info', 'admin', 'administrator', 'contact', 'hello', 'team', 'office',
+      'support', 'sales', 'deals', 'deal', 'acquisitions', 'acquisition',
+      'buyers', 'buyer', 'investors', 'investor', 'dispo', 'offers',
+      'properties', 'property', 'realestate', 'realty', 'homes', 'home',
+      'marketing', 'operations', 'ops', 'management', 'mail'
+    ]);
+
+    const compact = local.replace(/\s+/g, '');
+    if (generic.has(compact)) return '';
+
+    return local
+      .split(' ')
+      .filter(Boolean)
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
+  };
+  void KNOWN_NAME_PART_FIXES;
+
+const cleanBuyerName = (value: any, emailValue = '') => {
+  const rawName = String(value ?? '').trim();
+  const email = String(emailValue ?? '').trim().toLowerCase();
+
+  const genericNameWords = new Set([
+    'info', 'admin', 'administrator', 'contact', 'hello', 'team', 'office',
+    'support', 'sales', 'deals', 'deal', 'acquisitions', 'acquisition',
+    'buyers', 'buyer', 'investors', 'investor', 'dispo', 'offers',
+    'properties', 'property', 'realestate', 'realty', 'homes', 'home',
+    'marketing', 'operations', 'ops', 'management', 'mail',
+    'info team', 'deals team', 'sales team', 'admin team', 'acquisition team',
+    'acquisitions team', 'buyer team', 'buyers team'
+  ]);
+
+  const titleCase = (input: string) =>
+    String(input || '')
+      .replace(/[_\-.]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .split(' ')
+      .filter(Boolean)
+      .map(word => {
+        const lower = word.toLowerCase();
+        if (['llc', 'inc', 'lp', 'llp', 'rei', 'usa', 'dc'].includes(lower)) return lower.toUpperCase();
+        return lower.charAt(0).toUpperCase() + lower.slice(1);
+      })
+      .join(' ');
+
+  const splitKnownBusinessWords = (input: string) => {
+    let text = String(input || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').trim();
+    if (!text) return '';
+
+    const emailProviders = new Set([
+      'gmail','yahoo','hotmail','outlook','icloud','aol','protonmail','msn',
+      'live','me','comcast','att','verizon'
+    ]);
+    if (emailProviders.has(text)) return '';
+
+    const words = [
+      'capital','stay','holdings','holding','properties','property','investments',
+      'investment','investors','investor','buyers','buyer','homes','home',
+      'house','houses','realty','real','estate','group','partners','partner',
+      'solutions','solution','ventures','venture','equity','wealth','cash',
+      'land','fund','funding','acquisitions','acquisition','elevations',
+      'entertainment','movies','realtors','realtor','wholesale','wholesaling',
+      'development','developers','developer','management','mgmt','loans','loan',
+      'capital','financial','finance','lending','holdings','property'
+    ];
+
+    for (const w of words) {
+      text = text.replace(new RegExp(w, 'g'), ' ' + w + ' ');
+    }
+
+    return titleCase(text.replace(/\s+/g, ' ').trim());
+  };
+
+  const getEmailParts = () => {
+    const match = email.match(/^([^@]+)@([a-z0-9.-]+\.[a-z]{2,})$/i);
+    if (!match) return { local: '', domainRoot: '' };
+
+    const local = match[1]
+      .replace(/\+.*/, '')
+      .replace(/\d+$/g, '')
+      .replace(/[._-]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    const domainRoot = match[2]
+      .replace(/^www\./, '')
+      .split('.')[0]
+      .replace(/\d+$/g, '')
+      .trim();
+
+    return { local, domainRoot };
+  };
+
+  const fromEmail = () => {
+    const { local, domainRoot } = getEmailParts();
+    const compactLocal = local.toLowerCase().replace(/\s+/g, '');
+    const domainName = splitKnownBusinessWords(domainRoot);
+
+    if (genericNameWords.has(compactLocal)) return domainName;
+
+    if (local && !genericNameWords.has(compactLocal)) {
+      return titleCase(local);
+    }
+
+    return domainName;
+  };
+
+  const isBadSavedName = (name: string) => {
+    const n = String(name || '').trim();
+    const lower = n.toLowerCase().replace(/\s+/g, ' ');
+    const compact = lower.replace(/\s+/g, '');
+
+    if (!n) return true;
+    if (genericNameWords.has(lower) || genericNameWords.has(compact)) return true;
+
+    // Market/location names should not become buyer names.
+    if (/\b(memphis|pittsburgh|birmingham|cleveland|atlanta|dallas|houston|miami|jacksonville|chicago|nationwide|any)\b/i.test(n)) return true;
+    if (/^[A-Z]{2}$/i.test(n)) return true;
+    if (/^[A-Z]{2}\s+[A-Z]{2}$/i.test(n)) return true;
+
+    // Strategy/field labels should not become buyer names.
+    if (/\b(cash buyer|seller finance|creative only|target markets?|asset focus|company missing|phone missing)\b/i.test(n)) return true;
+
+    return false;
+  };
+
+  const emailDerived = fromEmail();
+
+  if (isBadSavedName(rawName)) {
+    return emailDerived || titleCase(rawName);
+  }
+
+  return titleCase(rawName);
+};const formatDownPaymentField = (value: any) => {
+    const n = parseMoneyValue(String(value || ''))
+    return n ? '$' + Math.round(n).toLocaleString() : String(value || '').replace(/\.0\b/g, '')
+  }
+
+  const formatMonthlyPaymentField = (value: any) => {
+    const n = parseMoneyValue(String(value || ''))
+    return n ? '$' + Math.round(n).toLocaleString() + '/mo' : String(value || '').replace(/\.0\b/g, '')
+  }
+
+  const normalizeRequirementOption = (value: any, options: string[]) => {
+    const raw = String(value || '').trim()
+    if (!raw) return 'Any'
+
+    const clean = raw
+      .replace(/bed(?:room)?s?/gi, '')
+      .replace(/bath(?:room)?s?/gi, '')
+      .replace(/units?|doors?/gi, '')
+      .replace(/\s+/g, '')
+      .trim()
+
+    if (!clean || /^(any|none|nopreference|n\/a|na)$/i.test(clean)) return 'Any'
+
+    if (/studio/i.test(raw)) {
+      return options.includes('Studio') ? 'Studio' : 'Any'
+    }
+
+    const normalized = /^\d+(?:\.5)?$/.test(clean) ? clean + '+' : clean
+    const exact = options.find(option => safeLower(option) === safeLower(normalized))
+    return exact || 'Any'
+  }
+
+  const normalizeUnitRequirementFromNumber = (value: any) => {
+    const n = Number(String(value || '').replace(/[^0-9]/g, ''))
+    if (!n) return 'Any'
+    if (n >= 100) return '100+'
+    if (n >= 50) return '50+'
+    if (n >= 20) return '20+'
+    if (n >= 10) return '10+'
+    if (n >= 5) return '5+'
+    if (n >= 4) return '4+'
+    if (n >= 3) return '3+'
+    if (n >= 2) return '2+'
+    return '1+'
+  }
+
+  const parsePropertyRequirements = (textValue: any) => {
+    const raw = String(textValue || '')
+    const text = safeLower(raw).replace(/[��]/g, '-')
+
+    let bedRequirement = 'Any'
+    let bathRequirement = 'Any'
+    let unitRequirement = 'Any'
+
+    // Studio
+    if (/\bstudio\b/i.test(text)) {
+      bedRequirement = 'Studio'
+    }
+
+    // Common residential shorthand: 3/2, 3 / 2, 3-2, 3br/2ba, 3 bed 2 bath
+    const slashBedBath =
+      text.match(/\b(\d+)\s*(?:br|bd|bed|beds|bedroom|bedrooms)?\s*[\/x-]\s*(\d+(?:\.5)?)\s*(?:ba|bath|baths|bathroom|bathrooms)?\b/i)
+
+    if (slashBedBath?.[1] && slashBedBath?.[2]) {
+      bedRequirement = normalizeRequirementOption(slashBedBath[1] + '+', BED_REQUIREMENT_OPTIONS)
+      bathRequirement = normalizeRequirementOption(slashBedBath[2] + '+', BATH_REQUIREMENT_OPTIONS)
+    }
+
+    const bedMatch =
+      text.match(/\b(\d+)\s*\+?\s*(?:br|bd|bed|beds|bedroom|bedrooms)\b/i) ||
+      text.match(/\b(?:br|bd|bed|beds|bedroom|bedrooms)\s*[:\-]?\s*(\d+)\s*\+?/i)
+
+    if (bedMatch?.[1]) {
+      bedRequirement = normalizeRequirementOption(bedMatch[1] + '+', BED_REQUIREMENT_OPTIONS)
+    }
+
+    const bathMatch =
+      text.match(/\b(\d+(?:\.5)?)\s*\+?\s*(?:ba|bath|baths|bathroom|bathrooms)\b/i) ||
+      text.match(/\b(?:ba|bath|baths|bathroom|bathrooms)\s*[:\-]?\s*(\d+(?:\.5)?)\s*\+?/i)
+
+    if (bathMatch?.[1]) {
+      bathRequirement = normalizeRequirementOption(bathMatch[1] + '+', BATH_REQUIREMENT_OPTIONS)
+    }
+
+    // Multifamily / unit preferences
+    const unitMatch =
+      text.match(/\b(\d+)\s*\+?\s*(?:unit|units|door|doors)\b/i) ||
+      text.match(/\b(?:unit|units|door|doors)\s*[:\-]?\s*(\d+)\s*\+?/i)
+
+    if (unitMatch?.[1]) {
+      unitRequirement = normalizeUnitRequirementFromNumber(unitMatch[1])
+    }
+
+    // Property-type clues
+    if (/\bduplex\b/i.test(text)) unitRequirement = unitRequirement === 'Any' ? '2+' : unitRequirement
+    if (/\btriplex\b/i.test(text)) unitRequirement = unitRequirement === 'Any' ? '3+' : unitRequirement
+    if (/\bquad\b|\bfourplex\b/i.test(text)) unitRequirement = unitRequirement === 'Any' ? '4+' : unitRequirement
+    if (/\bsmall\s*multi(?:family)?\b|\b2\s*-\s*4\b|\b1\s*-\s*4\b/i.test(text)) {
+      unitRequirement = unitRequirement === 'Any' ? '2+' : unitRequirement
+    }
+
+    return { bedRequirement, bathRequirement, unitRequirement }
+  }
+
+  const normalizeBuyerReviewRow = (row: any) => ({
+    ...row,
+    name: cleanBuyerName(row.name || row.Name || row.fullName || row.buyerName, row.email || row.Email || row['Email Address'] || ''),
+    markets: normalizeExplicitMarkets(row.markets || row.market || row.Markets || row.Market || row.location || row.locations, row.notes || row.Notes || row.buyBox || row['Buy Box'] || row.rawText),
+    downPaymentMax: formatDownPaymentField(row.downPaymentMax || row['Down Payment Max'] || row.downPayment || row.DP),
+    monthlyPaymentMax: formatMonthlyPaymentField(row.monthlyPaymentMax || row['Monthly Payment Max'] || row.monthlyPayment || row.monthlyBudget),
+  })
+
+
+  const normalizeImportedMarkets = (value: any): string[] => {
+    return normalizeExplicitMarkets(value)
+  }
+
+  const parseCreativeTerms = (text: string) => {
+    const raw = String(text || '').replace(/[–—]/g, '-')
+
+    const normalizeMoneyMax = (value: string) => {
+      const v = String(value || '').trim()
+      if (!v) return ''
+      const moneyMatches = Array.from(
+        v.matchAll(/\$\s*\d[\d,]*(?:\.\d+)?\s*[kKmM]?|\d[\d,]*(?:\.\d+)?\s*[kKmM]/g)
+      ).map(m => m[0].trim())
+      if (!moneyMatches.length) return ''
+      return moneyMatches[moneyMatches.length - 1]
+    }
+
+    const normalizePercentMax = (value: string) => {
+      const v = String(value || '').trim()
+      if (!v) return ''
+      const nums = Array.from(v.matchAll(/\d+(?:\.\d+)?/g)).map(m => Number(m[0]))
+      if (!nums.length) return ''
+      return nums[nums.length - 1] + '%'
+    }
+
+    const normalizeBalloonMax = (value: string) => {
+      const v = String(value || '').trim()
+      if (!v) return ''
+      const nums = Array.from(v.matchAll(/\d+/g)).map(m => Number(m[0]))
+      if (!nums.length) return ''
+      return nums[nums.length - 1] + ' years'
+    }
+
+    const normalizeCapMax = (value: string) => {
+      const v = String(value || '').trim()
+      if (!v) return ''
+      const nums = Array.from(v.matchAll(/\d+(?:\.\d+)?/g)).map(m => Number(m[0]))
+      if (!nums.length) return ''
+      return nums[nums.length - 1] + '% cap'
+    }
+
+    const downRaw =
+      raw.match(/(?:down payment|down|dp)\s*[:\-]?\s*\$?\s*\d[\d,]*(?:\.\d+)?\s*[kKmM]?(?:\s*-\s*\$?\s*\d[\d,]*(?:\.\d+)?\s*[kKmM]?)?/i)?.[0] ||
+      raw.match(/\$?\s*\d[\d,]*(?:\.\d+)?\s*[kKmM]?(?:\s*-\s*\$?\s*\d[\d,]*(?:\.\d+)?\s*[kKmM]?)?\s*(?:down payment|down|dp)/i)?.[0] || ''
+
+    const monthlyRaw =
+      raw.match(/(?:monthly payment|monthly budget|monthly|per month|\/\s*mo|\/\s*mth|mo|mth)\s*[:\-]?\s*\$?\s*\d[\d,]*(?:\.\d+)?\s*[kKmM]?/i)?.[0] ||
+      raw.match(/\$?\s*\d[\d,]*(?:\.\d+)?\s*[kKmM]?\s*(?:\/\s*mo|\/\s*mth|per month|monthly|mo|mth)/i)?.[0] || ''
+
+    const interestRaw =
+      raw.match(/(?:interest rate|rate|interest)\s*[:\-]?\s*\d+(?:\.\d+)?\s*%?(?:\s*-\s*\d+(?:\.\d+)?\s*%?)?/i)?.[0] ||
+      raw.match(/\d+(?:\.\d+)?\s*%?(?:\s*-\s*\d+(?:\.\d+)?\s*%?)?\s*(?:interest|rate)/i)?.[0] || ''
+
+    const balloonRaw =
+      raw.match(/(?:balloon term|balloon)\s*[:\-]?\s*\d+\s*(?:-\s*\d+\s*)?(?:year|yr|yrs|years|month|mo|mos|months)?/i)?.[0] ||
+      raw.match(/\d+\s*(?:-\s*\d+\s*)?(?:year|yr|yrs|years|month|mo|mos|months)\s*(?:balloon|term)?/i)?.[0] || ''
+
+    const capRaw =
+      raw.match(/(?:cap rate target|target cap|cap rate|cap)\s*[:\-]?\s*\d+(?:\.\d+)?\s*%?(?:\s*-\s*\d+(?:\.\d+)?\s*%?)?/i)?.[0] ||
+      raw.match(/\d+(?:\.\d+)?\s*%?(?:\s*-\s*\d+(?:\.\d+)?\s*%?)?\s*(?:cap|cap rate)/i)?.[0] || ''
+
+    const structures = []
+    if (/seller\s*financ(?:e|ing)/i.test(raw)) structures.push('Seller Finance')
+    if (/owner\s*financ(?:e|ing)/i.test(raw)) structures.push('Owner Finance')
+    if (/subject[ -]?to|subto|sub-to/i.test(raw)) structures.push('Subject-To')
+    if (/wrap/i.test(raw)) structures.push('Wrap')
+    if (/lease option/i.test(raw)) structures.push('Lease Option')
+    if (/rent to own|rto/i.test(raw)) structures.push('Rent To Own')
+    if (/contract for deed/i.test(raw)) structures.push('Contract For Deed')
+    if (/creative/i.test(raw)) structures.push('Creative Finance')
+
+    return {
+      downPaymentMax: normalizeMoneyMax(downRaw),
+      monthlyPaymentMax: normalizeMoneyMax(monthlyRaw),
+      interestRateMax: normalizePercentMax(interestRaw),
+      balloonTerm: normalizeBalloonMax(balloonRaw),
+      capRateTarget: normalizeCapMax(capRaw),
+      creativeStructure: Array.from(new Set(structures)).join(', ')
+    }
+  }
+
+  const parseBudgetRange = (text: string) => {
+    const raw = String(text || '')
+    const cleaned = raw
+      .replace(/\$?\s*\d[\d,]*(?:\.\d+)?\s*[kKmM]?\s*(?:\/\s*mo|\/\s*mth|per month|monthly|mo|mth)/gi, '')
+      .replace(/\$?\s*\d[\d,]*(?:\.\d+)?\s*[kKmM]?\s*(?:down payment|down|dp)/gi, '')
+      .replace(/\d+(?:\.\d+)?\s*%\s*(?:interest|rate|cap|cap rate)?/gi, '')
+      .replace(/\d+\s*(?:year|yr|yrs|years)\s*(?:balloon|term)?/gi, '')
+
+    const values = Array.from(cleaned.matchAll(/\$?\s*\d+(?:\.\d+)?\s*[kKmM]?/g))
+      .map(m => parseMoneyValue(m[0]))
+      .filter(n => n > 0)
+
+    const purchaseLanguage = /budget|price|purchase|asking|buy|acquisition|up to|max|under|less than|range|=|</i.test(cleaned)
+    if (!values.length || !purchaseLanguage) return { budgetMin: 0, budgetMax: 0 }
+    if (values.length === 1) return { budgetMin: 0, budgetMax: values[0] }
+    return { budgetMin: Math.min(...values), budgetMax: Math.max(...values) }
+  }
+
+  const detectMarkets = (text: string) => {
+    const upper = String(text || '').toUpperCase()
+    const markets = new Set<string>()
+
+    US_STATE_CODES.forEach(st => {
+      const stateRegex = new RegExp(`\\b${st}\\b`, 'i')
+      if (stateRegex.test(upper)) markets.add(st)
+    })
+
+    const stateNames: Record<string, string> = {
+      Pennsylvania: 'PA',
+      'South Carolina': 'SC',
+      Florida: 'FL',
+      Alabama: 'AL',
+      Arkansas: 'AR',
+      Tennessee: 'TN',
+      Georgia: 'GA',
+      Texas: 'TX',
+      Ohio: 'OH',
+      Virginia: 'VA',
+      Wisconsin: 'WI',
+      'North Carolina': 'NC',
+      Louisiana: 'LA',
+      Illinois: 'IL',
+      California: 'CA',
+      'New York': 'NY',
+    }
+
+    Object.entries(stateNames).forEach(([name, code]) => {
+      if (new RegExp(`\\b${name}\\b`, 'i').test(text)) markets.add(code)
+    })
+
+    if (/nationwide|anywhere|all states/i.test(text)) markets.add('Nationwide')
+
+    return Array.from(markets)
+  }
+  void detectMarkets
+
+  const detectAssetTypes = (text: string) => {
+    const assets = new Set<string>()
+    const lower = String(text || '')
+
+    if (/\b1\s*[-to]+\s*4\b|1-4|one\s*to\s*four|single\s*family|sfh|sfr/i.test(lower)) {
+      assets.add('SFH')
+      assets.add('Small Multifamily')
+    }
+    if (/duplex|triplex|quad|fourplex|small multifamily|small multi/i.test(lower)) assets.add('Small Multifamily')
+    if (/multi[\s-]*family|multifamily|apartment|units/i.test(lower)) assets.add('Multifamily')
+    if (/land|lot|acre/i.test(lower)) assets.add('Land')
+    if (/hotel|motel|hospitality|ihg|hilton/i.test(lower)) assets.add('Hotel')
+    if (/retail|storefront/i.test(lower)) assets.add('Retail')
+    if (/office/i.test(lower)) assets.add('Office')
+    if (/industrial|warehouse/i.test(lower)) assets.add('Industrial')
+    if (/storage|self storage/i.test(lower)) assets.add('Storage')
+    if (/mixed use|mixed-use/i.test(lower)) assets.add('Mixed Use')
+    if (/mobile home park|mhp|rv park/i.test(lower)) assets.add('Mobile Home Park')
+
+    return Array.from(assets)
+  }
+
+  const parseBuyerTextBlock = (text: string) => {
+    const email = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0]?.trim() || ''
+    const nameField = extractBuyerField(text, 'Name')
+    const emailPrefixName = email ? email.split('@')[0].replace(/[._-]+/g, ' ') : ''
+    const locationText =
+      extractBuyerField(text, 'Location\/?s? of Interest') ||
+      extractBuyerField(text, 'Locations') ||
+      extractBuyerField(text, 'Markets')
+    const buyBoxText = extractBuyerField(text, 'Buy Box')
+    const priceRangeText =
+      extractBuyerField(text, 'Price Range') ||
+      extractBuyerField(text, 'Budget')
+    const company = extractBuyerField(text, 'Company')
+    const phone = extractBuyerField(text, 'Phone')
+    const combined = [text, locationText, buyBoxText, priceRangeText].filter(Boolean).join('\\n')
+    const isCreative = /seller\s*financ(?:e|ing)|owner\s*financ(?:e|ing)|subto|subject\s*to|creative|wrap|lease\s*option|rent\s*to\s*own|rto|novation|balloon|down\s*payment|interest/i.test(combined)
+    const budget = parseBudgetRange(priceRangeText || combined)
+    const markets = normalizeExplicitMarkets(locationText, combined)
+    const assetTypes = detectAssetTypes(buyBoxText || combined)
+    const creativeTerms = parseCreativeTerms(combined)
+
+    return {
+      name: cleanBuyerName(nameField || emailPrefixName, email),
+      email,
+      phone,
+      company,
+      type: /hedge/i.test(combined) ? 'Hedge Fund' : isCreative ? 'Creative Buyer' : 'Cash Buyer',
+      markets: markets.length ? markets : [],
+      assetTypes: assetTypes.length ? assetTypes : [],
+      budgetMin: budget.budgetMin || undefined,
+      budgetMax: budget.budgetMax || undefined,
+      notes: text.trim(),
+      status: 'Active' as const,
+      sellerFinance: /seller\s*financ(?:e|ing)|owner\s*financ(?:e|ing)/i.test(combined),
+      creativeFinance: isCreative,
+      ...creativeTerms,
+      tags: [
+        ...(/class\s*c\+?/i.test(combined) ? ['Class C+'] : []),
+        ...(/class\s*b/i.test(combined) ? ['Class B'] : [])
+      ]
+    }
+  }
+
+  const savePastedBuyers = () => {
+    const raw = buyerPasteText.trim()
+    if (!raw) {
+      toast.error('Paste buyer text first')
+      return
+    }
+
+    const emailCount = (raw.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || []).length
+    const blocks = emailCount <= 1
+      ? [raw]
+      : raw
+          .split(/\n\s*\n|(?=Name\s*:)|(?=\S+@\S+\.\S+)/i)
+          .map(x => x.trim())
+          .filter(Boolean)
+
+    const parsed = blocks
+      .map(parseBuyerTextBlock)
+      .filter(b => b.email)
+
+    if (parsed.length === 0) {
+      toast.error('No valid buyer emails found')
+      return
+    }
+
+    const rowsForReview = parsed.map((b: any) => ({
+      ...b,
+      _id: 'tmp_' + Date.now() + Math.random().toString(36).slice(2),
+      _valid: true,
+      _dup: buyers.some((x: any) => safeLower(x.email || '') === safeLower(b.email || ''))
+    }))
+
+    setPendingImport(rowsForReview)
+    setImportResult(null)
+    setBuyerPasteText('')
+    setShowAddBuyer(false)
+    setShowImport(true)
+    toast.success(rowsForReview.length + ' parsed buyer' + (rowsForReview.length === 1 ? '' : 's') + ' ready for review')
+  }
+
+  const saveManualBuyer = () => {
+    if (!manualBuyer.email || !manualBuyer.name) {
+      toast.error('Name and email are required')
+      return
+    }
+
+    const buyerForReview = {
+      ...manualBuyer,
+      _id: 'tmp_' + Date.now() + Math.random().toString(36).slice(2),
+      markets: Array.isArray(manualBuyer.markets) ? manualBuyer.markets : String(manualBuyer.markets || '').split(',').map((x:string)=>x.trim()).filter(Boolean),
+      assetTypes: Array.isArray(manualBuyer.assetTypes) ? manualBuyer.assetTypes : String(manualBuyer.assetTypes || '').split(',').map((x:string)=>x.trim()).filter(Boolean),
+      budgetMin: Number(manualBuyer.budgetMin) || 0,
+      budgetMax: Number(manualBuyer.budgetMax) || 0,
+      status: manualBuyer.status || 'Active',
+      _valid: true,
+      _dup: buyers.some((x: any) => safeLower(x.email || '') === String(manualBuyer.email || ''))
+    }
+
+    setPendingImport([buyerForReview])
+    setImportResult(null)
+    setShowAddBuyer(false)
+    setShowImport(true)
+    toast.success('Buyer ready for review')
+
+    setManualBuyer({
+      name: '',
+      email: '',
+      phone: '',
+      company: '',
+      type: '',
+      status: 'Active',
+      markets: [],
+      assetTypes: [],
+      budgetMin: '',
+      budgetMax: '',
+      notes: ''
+    })
+  }
+
+  const toggleManualBuyerArray = (field: 'markets' | 'assetTypes', value: string) => {
+    const current = Array.isArray(manualBuyer[field]) ? manualBuyer[field] : []
+    const next = current.includes(value) ? current.filter((x:string) => x !== value) : [...current, value]
+    setManualBuyer({ ...manualBuyer, [field]: next })
+  }
+
+  const refreshBuyerPortalQueueCount = async () => {
+    try {
+      const queue = await listPendingBuyerPortalSubmissions()
+      setBuyerPortalQueueCount(queue.length)
+    } catch (error) {
+      console.error('Could not refresh buyer portal submission count:', error)
+      setBuyerPortalQueueCount(0)
+    }
+  }
+
+  useEffect(() => {
+    void refreshBuyerPortalQueueCount()
+    const id = window.setInterval(() => { void refreshBuyerPortalQueueCount() }, 3000)
+    return () => window.clearInterval(id)
+  }, [])
+
+  const importBuyerPortalQueue = async () => {
+    try {
+      const queue = await listPendingBuyerPortalSubmissions()
+
+      if (!Array.isArray(queue) || queue.length === 0) {
+        setPendingPortalImport([])
+        setShowPortalReview(false)
+        toast.info('No buyer portal submissions waiting for review')
+        void refreshBuyerPortalQueueCount()
+        return
+      }
+
+      const rowsForReview = queue.map((submission: any, index: number) => {
+        const buyer = submission.buyer_data || {}
+
+        return {
+          ...normalizeBuyerReviewRow(buyer),
+          _id: buyer._id || buyer.id || 'buyer_portal_' + Date.now() + '_' + index,
+          _valid: !!buyer.email,
+          _dup: false,
+          _merge: false,
+          buyerPortalSubmission: buyer,
+          rawPortalSubmission: submission,
+          buyerPortalSubmissionId: submission.id,
+          proofFiles: Array.isArray(buyer.proofFiles) ? buyer.proofFiles : [],
+          uploadedFiles: Array.isArray(buyer.uploadedFiles) ? buyer.uploadedFiles : Array.isArray(buyer.proofFiles) ? buyer.proofFiles : [],
+          status: buyer.status || 'Submitted / Pending Review',
+          verificationStatus: buyer.verificationStatus || 'Submitted / Pending Review',
+          blastEligible: true,
+          tags: Array.from(new Set([...(buyer.tags || []), 'Buyer Portal', 'Verified Buyer']))
+        }
+      })
+
+      setPendingPortalImport(rowsForReview)
+      setShowPortalReview(true)
+
+      void refreshBuyerPortalQueueCount()
+
+      toast.success(queue.length + ' buyer portal submission' + (queue.length === 1 ? '' : 's') + ' ready for review')
+    } catch (error) {
+      console.error(error)
+      toast.error('Could not import buyer portal submissions from Supabase')
+    }
+  }
+  const toggleBuyerSelection = (id: string) => {
+    setSelectedBuyerIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+
+  }
+
+  // Base buyer set per user's spec: tab + selection first, then search/sort/filters on top
+  let baseBuyers = buyers;
+
+  if (activeTab === 'lists' && currentListId) {
+    const list = buyerLists.find(l => l.id === currentListId);
+    baseBuyers = buyers.filter(b => list && (list.buyerIds || []).includes(b.id));
+  } else if (activeTab === 'segments' && selectedSegment) {
+    const seg = [
+      { name: 'Alabama Buyers', filter: (b: any) => (b.markets ?? []).some((m: any) => m.includes('AL')) },
+      { name: 'Nationwide Buyers', filter: (b: any) => (b.markets ?? []).some((m: any) => ['Nationwide','Any'].includes(m)) },
+      { name: 'Creative Finance Buyers', filter: (b: any) => b.creativeFinance || b.sellerFinance },
+      { name: 'Seller Finance Buyers', filter: (b: any) => b.sellerFinance },
+      { name: 'Cash Buyers', filter: (b: any) => !b.creativeFinance && !b.sellerFinance },
+      { name: 'Hot Buyers', filter: (b: any) => b.status === 'Hot' },
+      { name: 'High Budget Buyers', filter: (b: any) => (b.budgetMax || 0) >= 1000000 },
+      { name: 'Multifamily Buyers', filter: (b: any) => (b.assetTypes ?? []).includes('Multifamily') },
+    ].find(s => s.name === selectedSegment);
+    if (seg) baseBuyers = buyers.filter(seg.filter);
+  } else {
+    baseBuyers = buyers;
+  }
+
+
+  const duplicateGroups = getDuplicateGroups(buyers as any[])
+  const duplicateBuyerIds = new Set(duplicateGroups.flatMap(group => group.buyers.map((buyer: any) => buyer.id)))
+  const duplicateRecordCount = duplicateGroups.reduce((total, group) => total + group.buyers.length, 0)
+  const pendingReviewCount = buyers.filter((b: any) => ['Submitted / Pending Review', 'Pending Review'].includes(String(b.status || b.verificationStatus || ''))).length
+  const newBuyerCount = buyers.filter((b: any) => isNewBuyer(b.id)).length
+
+  // Apply search on the correct base
+  let workingBuyers = baseBuyers.filter((b: any) => {
+    const q = String(search || '').toLowerCase().trim();
+    if (!q) return true;
+
+    const asText = (value: any): string => {
+      if (value === undefined || value === null) return '';
+      if (Array.isArray(value)) return value.map(asText).join(' ');
+      if (typeof value === 'object') return '';
+      return String(value);
+    };
+
+    const parseMaybeList = (value: any): string => {
+      if (value === undefined || value === null) return '';
+      if (Array.isArray(value)) return value.map(asText).join(' ');
+      if (typeof value !== 'string') return String(value || '');
+
+      const trimmed = value.trim();
+      if (!trimmed) return '';
+
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) return parsed.map(asText).join(' ');
+      } catch {}
+
+      return trimmed;
+    };
+
+    // IMPORTANT:
+    // Only search visible/profile fields.
+    // Do NOT search raw import objects, submission payloads, or entire buyer objects,
+    // because those can contain the full CSV/TXT import and cause false matches.
+    const searchable = [
+      asText(b.name),
+      asText(b.firstName),
+      asText(b.lastName),
+      asText(b.email),
+      asText(b.phone),
+      asText(b.company),
+      asText(b.type),
+      asText(b.status),
+      asText(b.verificationStatus),
+      asText(b.strategy),
+      asText(b.buyerType),
+      asText(b.assetFocus),
+      asText(b.asset_focus),
+      parseMaybeList(b.markets),
+      parseMaybeList(b.targetMarkets),
+      parseMaybeList(b.target_markets),
+      parseMaybeList(b.locations),
+      parseMaybeList(b.states),
+      parseMaybeList(b.target_states),
+      parseMaybeList(b.assetTypes),
+      parseMaybeList(b.asset_types),
+      parseMaybeList(b.tags),
+      asText(b.notes)
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+
+    return searchable.includes(q);
+  });
+
+  // Apply filters on top of the base + search
+  if (activeFilters.includes('creative')) workingBuyers = workingBuyers.filter(b => b.creativeFinance || b.sellerFinance)
+  if (activeFilters.includes('hot')) workingBuyers = workingBuyers.filter(b => b.status === 'Hot')
+  if (activeFilters.includes('seller')) workingBuyers = workingBuyers.filter(b => b.sellerFinance)
+  if (activeFilters.includes('cash')) workingBuyers = workingBuyers.filter(b => !b.creativeFinance && !b.sellerFinance)
+  if (activeFilters.includes('hedge')) workingBuyers = workingBuyers.filter(b => safeLower(b.type || '').includes('hedge'))
+  if (activeFilters.includes('pendingVerification') || activeFilters.includes('pendingReview')) workingBuyers = workingBuyers.filter((b: any) => ['Submitted / Pending Review', 'Pending Review'].includes(String(b.status || b.verificationStatus || '')))
+  if (activeFilters.includes('duplicates')) workingBuyers = workingBuyers.filter((b: any) => duplicateBuyerIds.has(b.id))
+  if (activeFilters.includes('verifiedBuyer')) workingBuyers = workingBuyers.filter((b: any) => (b.status || b.verificationStatus) === 'Verified Buyer')
+  if (activeFilters.includes('vipBuyer')) workingBuyers = workingBuyers.filter((b: any) => (b.status || b.verificationStatus) === 'VIP Buyer')
+  if (activeFilters.includes('needsMoreInfo')) workingBuyers = workingBuyers.filter((b: any) => (b.status || b.verificationStatus) === 'Needs More Info')
+  if (activeFilters.includes('doNotBlast')) workingBuyers = workingBuyers.filter((b: any) => (b.status || b.verificationStatus) === 'Do Not Blast')
+
+  // Advanced dropdown filters (state and asset) - applied on top of base + search + button filters
+  const stateFilter = activeFilters.find(f => f.startsWith('state:'));
+  if (stateFilter) {
+    const st = stateFilter.split(':')[1].toUpperCase();
+    workingBuyers = workingBuyers.filter(b => {
+      const markets = (b.markets ?? []).map((m: string) => (m || '').toUpperCase());
+      return markets.includes(st) || markets.includes('NATIONWIDE') || markets.includes('ANY');
+    });
+  }
+
+  const assetFilter = activeFilters.find(f => f.startsWith('asset:'));
+  if (assetFilter) {
+    const at = safeLower(assetFilter.split(':')[1]);
+    workingBuyers = workingBuyers.filter(b => {
+      const assets = (b.assetTypes ?? []).map((a: string) => safeLower(a || ''));
+      return assets.some((a: string) => a.includes(at) || at.includes(a));
+    });
+  }
+  // Apply sort using normalized buyer data so dropdown options actually reorder cards.
+  const getSortableBuyer = (buyer: any) => {
+    const buyerData: any = buyer && typeof buyer.data === 'object' && buyer.data ? buyer.data : {}
+    const merged: any = { ...buyer, ...buyerData }
+
+    const moneyValue = (...values: any[]) => {
+      for (const value of values) {
+        if (typeof value === 'number' && Number.isFinite(value) && value > 0) return value
+
+        if (typeof value === 'string') {
+          const cleaned = value.replace(/\$/g, '').replace(/,/g, '').replace(/\s+/g, '').toLowerCase()
+          const match = cleaned.match(/(\d+(?:\.\d+)?)(k|m)?/)
+          if (!match) continue
+
+          let n = Number(match[1])
+          if (!Number.isFinite(n) || n <= 0) continue
+
+          if (match[2] === 'k') n *= 1000
+          if (match[2] === 'm') n *= 1000000
+
+          return Math.round(n)
+        }
+      }
+
+      return 0
+    }
+
+    const budgetMax = moneyValue(
+      merged.budgetMax,
+      merged.budget_max,
+      merged.maxBudget,
+      merged.max_budget,
+      merged.priceMax,
+      merged.price_max,
+      merged.budget,
+      merged.maxPrice,
+      merged.max_price
+    )
+
+    const budgetMin = moneyValue(
+      merged.budgetMin,
+      merged.budget_min,
+      merged.minBudget,
+      merged.min_budget,
+      merged.priceMin,
+      merged.price_min
+    )
+
+    return {
+      ...merged,
+      displayName: getDisplayName(merged) || merged.name || merged.email || '',
+      buyerType: merged.buyerType || merged.buyer_type || merged.type || '',
+      budgetMax,
+      budgetMin,
+      createdTime: new Date(merged.createdAt || merged.created_at || merged.updatedAt || merged.updated_at || 0).getTime() || 0,
+      heatScore: useAppStore.getState().getBuyerHeatScore?.(merged.id) || merged.heatScore || 0,
+      strengthScore: merged.strengthScore || 0
+    }
+  }
+
+  workingBuyers = [...workingBuyers].sort((a, b) => {
+    const aa = getSortableBuyer(a)
+    const bb = getSortableBuyer(b)
+
+    if (sortMode === 'heat-high') return (bb.heatScore || 0) - (aa.heatScore || 0)
+    if (sortMode === 'strength-high') return (bb.strengthScore || 0) - (aa.strengthScore || 0)
+    if (sortMode === 'budget-high') return (bb.budgetMax || 0) - (aa.budgetMax || 0)
+    if (sortMode === 'budget-low') return (aa.budgetMax || 0) - (bb.budgetMax || 0)
+    if (sortMode === 'recent') return (bb.createdTime || 0) - (aa.createdTime || 0)
+    if (sortMode === 'type') return String(aa.buyerType || '').localeCompare(String(bb.buyerType || '')) || String(aa.displayName || '').localeCompare(String(bb.displayName || ''))
+    if (sortMode === 'name-az') return String(aa.displayName || '').localeCompare(String(bb.displayName || '')) || String(aa.email || '').localeCompare(String(bb.email || ''))
+
+    return (bb.heatScore || 0) - (aa.heatScore || 0)
+  })
+
+  const getBuyerBorderColor = (b: any) => {
+    if (b.creativeFinance || b.sellerFinance) return '#f59e0b'; // Amber - Creative/Seller Finance
+    if (!b.creativeFinance && !b.sellerFinance) return '#22c55e'; // Green - Cash
+    if (safeLower(b.type || '').includes('hedge')) return '#ef4444'; // Red - Hedge
+    if (safeLower(b.type || '').includes('institutional')) return '#a855f7'; // Purple
+    if (safeLower(b.type || '').includes('jv') || safeLower(b.type || '').includes('partner')) return '#06b6d4'; // Cyan
+    if (safeLower(b.type || '').includes('broker') || safeLower(b.type || '').includes('agent')) return '#6b7280'; // Gray
+    return '#22c55e'; // Default Emerald/Green
+  }
+
+  const filtered = workingBuyers
+
+  const formatBudget = (min?: number, max?: number): string => {
+    const fmt = (n: number): string => {
+      if (!n || n <= 0) return ''
+      const abs = Math.abs(n)
+      if (abs >= 1000000000) return '$' + (abs / 1000000000).toFixed(1).replace(/\.0$/, '') + 'B'
+      if (abs >= 1000000) return '$' + (abs / 1000000).toFixed(abs % 1000000 === 0 ? 0 : 1).replace(/\.0$/, '') + 'M'
+      if (abs >= 1000) return '$' + Math.round(abs / 1000) + 'K'
+      return '$' + abs.toLocaleString()
+    }
+    // BUYER_BUDGET_UP_TO_PATCH_V2
+    // Blank, zero, or placeholder $1 minimum should display as "Up to $X" instead of "$1 - $X".
+    const minStr = min != null && min > 1 ? fmt(min) : ''
+    const maxStr = max != null && max > 0 ? fmt(max) : ''
+    if (minStr && maxStr) return `${minStr} - ${maxStr}`
+    if (maxStr) return `Up to ${maxStr}`
+    if (minStr) return `${minStr}+`
+    return 'Budget Unknown'
+  }
+
+  const parseBuyerMoneyValue = (...values: any[]) => {
+    for (const value of values) {
+      if (typeof value === 'number' && Number.isFinite(value) && value > 0) return Math.round(value)
+
+      if (typeof value === 'string') {
+        const cleaned = value.replace(/\$/g, '').replace(/,/g, '').toLowerCase()
+        const matches = Array.from(cleaned.matchAll(/(\d+(?:\.\d+)?)\s*(k|m|b)?/g))
+        if (!matches.length) continue
+
+        const nums = matches.map(match => {
+          let n = Number(match[1])
+          if (!Number.isFinite(n) || n <= 0) return 0
+
+          if (match[2] === 'k') n *= 1000
+          if (match[2] === 'm') n *= 1000000
+          if (match[2] === 'b') n *= 1000000000
+
+          return Math.round(n)
+        }).filter(n => n > 0)
+
+        if (nums.length) return nums[0]
+      }
+    }
+
+    return 0
+  }
+
+  const parseBuyerBudgetRange = (...values: any[]) => {
+    for (const value of values) {
+      if (typeof value !== 'string') continue
+
+      const cleaned = value.replace(/,/g, '').toLowerCase()
+      const matches = Array.from(cleaned.matchAll(/\$?\s*(\d+(?:\.\d+)?)\s*(k|m|b)?/g))
+
+      const nums = matches.map(match => {
+        let n = Number(match[1])
+        if (!Number.isFinite(n) || n <= 0) return 0
+
+        if (match[2] === 'k') n *= 1000
+        if (match[2] === 'm') n *= 1000000
+        if (match[2] === 'b') n *= 1000000000
+
+        return Math.round(n)
+      }).filter(n => n > 0)
+
+      if (nums.length >= 2) return { min: Math.min(...nums), max: Math.max(...nums) }
+      if (nums.length === 1) return { min: 0, max: nums[0] }
+    }
+
+    return { min: 0, max: 0 }
+  }
+
+  const getBuyerFullNameForCard = (buyer: any) => {
+    const buyerData: any = buyer && typeof buyer.data === 'object' && buyer.data ? buyer.data : {}
+    const merged: any = { ...buyer, ...buyerData }
+
+    const cleanNameValue = (value: any) => {
+      const raw = String(value || '').trim()
+      if (!raw) return ''
+
+      if (/^(buyer|cash buyer|creative buyer|company missing|name missing|phone missing|budget unknown)$/i.test(raw)) return ''
+      if (raw.includes('@')) return ''
+
+      return raw
+        .replace(/[_]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+    }
+
+    const fieldName = cleanNameValue(
+      merged.fullName ||
+      merged.full_name ||
+      merged.buyerName ||
+      merged.buyer_name ||
+      merged.contactName ||
+      merged.contact_name ||
+      merged.name
+    )
+
+    const notes = String(merged.notes || merged.buyBox || merged.buy_box || merged.rawText || '')
+    const noteNameMatch = notes.match(/^\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})\s*(?:[��-]|,|\|)/)
+
+    const noteName = cleanNameValue(noteNameMatch?.[1])
+
+    const emailUser = String(merged.email || '').split('@')[0]?.toLowerCase() || ''
+    const fieldIsEmailStub = fieldName && emailUser && emailUser.includes(fieldName.toLowerCase().replace(/\s+/g, ''))
+
+    if (noteName && (!fieldName || fieldName.split(' ').length === 1 || fieldIsEmailStub)) return noteName
+
+    if (fieldName) return fieldName
+
+    const fallback = cleanNameValue(getDisplayName(merged))
+    return fallback || 'Name Missing'
+  }
+
+  const getBuyerStrategyLabelsForCard = (buyer: any) => {
+    const buyerData: any = buyer && typeof buyer.data === 'object' && buyer.data ? buyer.data : {}
+    const merged: any = { ...buyer, ...buyerData }
+
+    const explicit = normalizeBuyerStrategies(merged)
+      .filter((strategy: string) => !/^(buyer|cash buyer|creative buyer|verified buyer|vip buyer)$/i.test(strategy))
+      .map((strategy: string) => strategy === 'Creative' || strategy === 'Creative Finance' ? 'Creative Finance' : strategy)
+      .map((strategy: string) => strategy === 'Cash' ? 'Fix & Flip' : strategy)
+
+    if (explicit.length) return Array.from(new Set(explicit))
+
+    const haystack = [
+      merged.strategy,
+      merged.strategies,
+      merged.exitStrategy,
+      merged.exit_strategy,
+      merged.investmentStrategy,
+      merged.investment_strategy,
+      merged.notes,
+      merged.buyBox,
+      merged.buy_box,
+      merged.rawText,
+      merged.criteria
+    ].filter(Boolean).join(' ').toLowerCase()
+
+    const inferred: string[] = []
+
+    if (/fix\s*&?\s*flip|flip/.test(haystack)) inferred.push('Fix & Flip')
+    if (/brrrr|brrr/.test(haystack)) inferred.push('BRRRR')
+    if (/section\s*8|sec\s*8|voucher/.test(haystack)) inferred.push('Section 8')
+    if (/subto|sub.?to|subject.?to/.test(haystack)) inferred.push('SubTo')
+    if (/seller finance|owner finance/.test(haystack)) inferred.push('Seller Finance')
+    if (/creative/.test(haystack)) inferred.push('Creative Finance')
+    if (/buy\s*&?\s*hold|rental|landlord/.test(haystack)) inferred.push('Buy & Hold')
+    if (/wholesale/.test(haystack)) inferred.push('Wholesale')
+    if (/development|build/.test(haystack)) inferred.push('Development')
+    if (/\bjv\b|joint venture/.test(haystack)) inferred.push('JV')
+    if (/dscr/.test(haystack)) inferred.push('DSCR Rental')
+    if (/novation/.test(haystack)) inferred.push('Novation')
+    if (/wrap/.test(haystack)) inferred.push('Wrap')
+    if (/lease option|rent to own|rto/.test(haystack)) inferred.push('Lease Option')
+
+    return Array.from(new Set(inferred.length ? inferred : ['Strategy Missing']))
+  }
+
+  const getBuyerBudgetDisplay = (buyer: any) => {
+    const buyerData: any = buyer && typeof buyer.data === 'object' && buyer.data ? buyer.data : {}
+    const merged: any = { ...buyer, ...buyerData }
+
+    let min = parseBuyerMoneyValue(
+      merged.budgetMin,
+      merged.budget_min,
+      merged.minBudget,
+      merged.min_budget,
+      merged.priceMin,
+      merged.price_min,
+      merged.purchaseBudgetMin,
+      merged.purchase_budget_min
+    )
+
+    let max = parseBuyerMoneyValue(
+      merged.budgetMax,
+      merged.budget_max,
+      merged.maxBudget,
+      merged.max_budget,
+      merged.priceMax,
+      merged.price_max,
+      merged.purchaseBudgetMax,
+      merged.purchase_budget_max,
+      merged.budget,
+      merged.maxPrice,
+      merged.max_price,
+      merged.purchaseBudget,
+      merged.purchase_budget
+    )
+
+    if (!min && !max) {
+      const range = parseBuyerBudgetRange(
+        merged.budget,
+        merged.budgetRange,
+        merged.budget_range,
+        merged.priceRange,
+        merged.price_range,
+        merged.notes,
+        merged.buyBox,
+        merged.buy_box,
+        merged.rawText,
+        merged.criteria
+      )
+
+      min = range.min
+      max = range.max
+    }
+
+    return formatBudget(min, max)
+  }
+
+  // Support direct open of Buyer Profile Drawer from Dashboard Hot Buyers (or external links)
+  const [searchParams, setSearchParams] = useSearchParams()
+  useEffect(() => {
+    const buyerId = searchParams.get('buyer')
+    if (buyerId && !selectedBuyer) {
+      const found = buyers.find(b => b.id === buyerId)
+      if (found) {
+        const hydrated = hydrateBuyerForEdit(found)
+        setSelectedBuyer(hydrated as any)
+        setEditBuyer(hydrated)
+        // Clear param so it doesn't re-open on every render
+        setSearchParams({})
+      }
+    }
+  }, [searchParams, buyers, selectedBuyer, setSearchParams])
+
+  // Buyer import: parse only into pending review state. No store write until user approves in review screen.
+  // Supports CSV plus raw TXT buyer lists, one email per line, comma-separated emails, and name + email lines.
+  const handleFile = (file: File) => {
+    const isTxt = safeLower(file.name).endsWith('.txt')
+
+    const cleanKey = (key: string) =>
+      safeLower(String(key || ''))
+        .replace(/[^a-z0-9]/g, '')
+
+    const pick = (raw: any, aliases: string[]) => {
+      if (!raw) return ''
+      const keys = Object.keys(raw)
+      for (const alias of aliases) {
+        const wanted = cleanKey(alias)
+        const found = keys.find(k => cleanKey(k) === wanted)
+        if (found && raw[found] !== undefined && raw[found] !== null && String(raw[found]).trim() !== '') {
+          return String(raw[found]).trim()
+        }
+      }
+      return ''
+    }
+
+    const splitList = (value: any) => {
+      const text = String(value || '').trim()
+      if (!text) return []
+      return text
+        .split(/[,;|\/]+/)
+        .map(x => x.trim())
+        .filter(Boolean)
+    }
+
+    const parseMoney = (value: any) => {
+      const text = String(value || '').replace(/[$,\s]/g, '')
+      if (!text) return 0
+
+      const match = text.match(/[0-9]+(?:\.[0-9]+)?/)
+      if (!match) return 0
+
+      let num = parseFloat(match[0])
+      if (text.includes('m')) num *= 1000000
+      if (text.includes('k')) num *= 1000
+      return Math.round(num)
+    }
+
+    const parseBudgetRange = (raw: any) => {
+      const directMin = parseMoney(pick(raw, ['Budget Min', 'Min Budget', 'Minimum Budget', 'Min Price', 'Price Min', 'Minimum Price']))
+      const directMax = parseMoney(pick(raw, ['Budget Max', 'Max Budget', 'Maximum Budget', 'Max Price', 'Price Max', 'Maximum Price']))
+
+      if (directMin || directMax) {
+        return { budgetMin: directMin || 0, budgetMax: directMax || 0 }
+      }
+
+      const combined = pick(raw, ['Budget', 'Budget Range', 'Price Range', 'Purchase Price', 'Target Price', 'Buy Box Price', 'Price'])
+      const numbers = String(combined || '')
+        .match(/[0-9]+(?:\.[0-9]+)?\s*[kKmM]?/g)
+        ?.map(parseMoney)
+        .filter(Boolean) || []
+
+      if (numbers.length >= 2) return { budgetMin: numbers[0], budgetMax: numbers[1] }
+      if (numbers.length === 1) return { budgetMin: 0, budgetMax: numbers[0] }
+
+      return { budgetMin: 0, budgetMax: 0 }
+    }
+
+    const inferStates = (text: string) => normalizeImportedMarkets(text)
+    void inferStates
+
+    const normalizeAssetTypes = (value: any, fallbackText = '') => {
+      const rawList = splitList(value)
+      const text = safeLower(rawList.join(' ') + ' ' + fallbackText)
+      const assets: string[] = []
+
+      if (/single family|sfh|sfr|house|houses/.test(text)) assets.push('SFH')
+      if (/duplex|triplex|quad|2-4|1-4|small multi|small multifamily/.test(text)) assets.push('Small Multifamily')
+      if (/multifamily|multi family|apartment|apartments|units/.test(text)) assets.push('Multifamily')
+      if (/mobile home|mhp|rv park|trailer park/.test(text)) assets.push('MHP')
+      if (/land|development|lot|acre/.test(text)) assets.push('Land')
+      if (/commercial|retail|office|warehouse|industrial|mixed use|mixed-use/.test(text)) assets.push('Commercial')
+      if (/hotel|motel|hospitality/.test(text)) assets.push('Hotel')
+
+      rawList.forEach(x => {
+        if (!assets.some(a => safeLower(a) === safeLower(x))) assets.push(x)
+      })
+
+      return assets.length ? Array.from(new Set(assets)) : []
+    }
+
+    const normalizeImportedBuyer = (raw: any) => {
+      const email = pick(raw, ['Email', 'Email Address', 'E-mail', 'Buyer Email', 'Contact Email', 'Primary Email']) || ''
+      const fullName =
+        pick(raw, ['Name', 'Full Name', 'Buyer Name', 'Contact Name', 'First Last', 'Principal', 'Investor Name']) ||
+        [pick(raw, ['First Name', 'Firstname']), pick(raw, ['Last Name', 'Lastname'])].filter(Boolean).join(' ') ||
+        splitEmailUsernameName(email) ||
+        'Unknown Buyer'
+
+      const notes = pick(raw, ['Notes', 'Buy Box', 'Criteria', 'Buyer Criteria', 'Description', 'Comments', 'Strategy Notes'])
+      const marketText = pick(raw, ['Markets', 'Market', 'Target Markets', 'Locations', 'Location', 'States', 'Target States', 'Buying Areas', 'Areas'])
+      const assetText = pick(raw, ['Asset Types', 'Asset Type', 'Property Types', 'Property Type', 'Category', 'Asset Focus', 'Product Type'])
+      const financeText = pick(raw, ['Finance Type', 'Financing', 'Strategy', 'Buyer Type', 'Type', 'Purchase Type'])
+      const combinedText = [notes, marketText, assetText, financeText].filter(Boolean).join(' ')
+
+      const downText = pick(raw, ['downPaymentMax', 'Down Payment Max', 'Down Payment', 'DP', 'Max Down Payment'])
+      const monthlyText = pick(raw, ['monthlyPaymentMax', 'Monthly Payment Max', 'Monthly Payment', 'Monthly Budget', 'Payment Max'])
+      const interestText = pick(raw, ['interestRateMax', 'Interest Rate Max', 'Interest Rate', 'Rate'])
+      const capText = pick(raw, ['capRateTarget', 'Cap Rate Target', 'Cap Rate', 'Target Cap'])
+      const balloonText = pick(raw, ['balloonTerm', 'Balloon Term', 'Balloon'])
+
+      const creativeParseText = [
+        combinedText,
+        downText ? 'Down Payment ' + downText : '',
+        monthlyText ? 'Monthly Payment ' + monthlyText : '',
+        interestText ? 'Interest Rate ' + interestText : '',
+        capText ? 'Cap Rate ' + capText : '',
+        balloonText ? 'Balloon Term ' + balloonText : ''
+      ].filter(Boolean).join(' | ')
+
+      const markets = normalizeExplicitMarkets(marketText, [combinedText, notes].filter(Boolean).join(' '))
+      const finalMarkets = markets.length ? markets : []
+      const assetTypes = normalizeAssetTypes(assetText, combinedText)
+
+      const isCreative = /creative|seller\s*financ(?:e|ing)|owner\s*financ(?:e|ing)|subto|subject\s*to|wrap|lease\s*option|rent\s*to\s*own|rto|novation|balloon|down\s*payment|interest/i.test(creativeParseText)
+      const isSellerFinance = /seller\s*financ(?:e|ing)|owner\s*financ(?:e|ing)/i.test(creativeParseText)
+      const isCash = /cash|cash buyer|proof of funds|pof/i.test(combinedText) && !isCreative
+      const budgets = parseBudgetRange(raw)
+      const creativeTerms = parseCreativeTerms(creativeParseText)
+
+      return {
+        _id: 'tmp_' + Date.now() + Math.random().toString(36).slice(2),
+        name: cleanBuyerName(fullName, email),
+        email: String(email || '').trim(),
+        phone: pick(raw, ['Phone', 'Phone Number', 'Mobile', 'Cell', 'Contact Phone']),
+        company: pick(raw, ['Company', 'Company Name', 'Entity', 'Business', 'Organization']),
+        type: pick(raw, ['Buyer Type', 'Type', 'Investor Type', 'Strategy']) || (isCreative ? 'Creative Buyer' : isCash ? 'Cash Buyer' : ''),
+        markets: finalMarkets,
+        assetTypes,
+        budgetMin: budgets.budgetMin,
+        budgetMax: budgets.budgetMax,
+        creativeFinance: isCreative,
+        sellerFinance: isSellerFinance,
+        cashBuyer: isCash,
+        downPaymentMax: formatDownPaymentField(creativeTerms.downPaymentMax || downText || ''),
+        monthlyPaymentMax: formatMonthlyPaymentField(creativeTerms.monthlyPaymentMax || monthlyText || ''),
+        interestRateMax: creativeTerms.interestRateMax || interestText || '',
+        capRateTarget: creativeTerms.capRateTarget || capText || '',
+        balloonTerm: creativeTerms.balloonTerm || balloonText || '',
+        creativeStructure: creativeTerms.creativeStructure || (isSellerFinance ? 'Seller Finance' : ''),
+        notes: notes || combinedText,
+        status: 'New',
+        source: 'CSV/TXT Import',
+        tags: isCreative ? ['Creative Finance'] : [],
+        _valid: /\S+@\S+\.\S+/.test(String(email || ''))
+      }
+    }
+
+    if (isTxt) {
+      const reader = new FileReader()
+
+      reader.onload = (e) => {
+        const text = ((e.target?.result as string) || '').trim()
+
+        const chunks = text
+          .split(/[\r\n,;]+/)
+          .map(x => x.trim())
+          .filter(Boolean)
+
+        const mapped: any[] = []
+        let invalidCount = 0
+
+        chunks.forEach(chunk => {
+          const emailMatch = chunk.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)
+          const email = emailMatch?.[0] || ''
+
+          if (!email) {
+            invalidCount++
+            return
+          }
+
+          const cleanedName = chunk
+            .replace(email, '')
+            .replace(/phone\s*missing/ig, '')
+            .replace(/company\s*missing/ig, '')
+            .replace(/\s+/g, ' ')
+            .trim()
+
+          mapped.push(normalizeBuyerReviewRow(normalizeImportedBuyer({
+            Name: cleanedName.length > 1 ? cleanedName : email.split('@')[0],
+            Email: email,
+            Notes: chunk
+          })))
+        })
+
+        const uniqueByEmail = Array.from(
+          new Map(mapped.map(m => [safeLower(m.email), m])).values()
+        )
+
+        const withDupFlag = uniqueByEmail.map(m => ({
+          ...m,
+          _dup: buyers.some((b: any) => safeLower(b.email) === safeLower(m.email))
+        }))
+
+        setPendingImport(prev => {
+          const existingEmails = new Set(prev.map((p: any) => String(p.email || '')))
+          return [
+            ...prev,
+            ...withDupFlag.map((row: any) => ({
+              ...row,
+              _dup: row._dup || existingEmails.has(String(row.email || ''))
+            }))
+          ]
+        })
+        setImportResult(null)
+        toast.info(`${withDupFlag.length} TXT buyers ready for review. ${invalidCount} invalid skipped.`)
+      }
+
+      reader.onerror = () => toast.error('Could not read TXT file.')
+      reader.readAsText(file)
+      return
+    }
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        const rows = results.data as any[]
+        const mapped: any[] = []
+        let invalidCount = 0
+
+        rows.forEach((r: any) => {
+          const normalized = normalizeImportedBuyer(r)
+
+          if (!normalized._valid) {
+            invalidCount++
+            return
+          }
+
+          mapped.push(normalizeBuyerReviewRow(normalized))
+        })
+
+        const withDupFlag = mapped.map(m => ({
+          ...m,
+          _dup: buyers.some((b: any) => safeLower(b.email) === safeLower(m.email))
+        }))
+
+        setPendingImport(prev => {
+          const existingEmails = new Set(prev.map((p: any) => String(p.email || '')))
+          return [
+            ...prev,
+            ...withDupFlag.map((row: any) => ({
+              ...row,
+              _dup: row._dup || existingEmails.has(String(row.email || ''))
+            }))
+          ]
+        })
+        setImportResult(null)
+        toast.info(`${mapped.length} rows ready for review. ${invalidCount} invalid skipped.`)
+      },
+      error: () => toast.error('Could not parse CSV file.')
+    })
+  }
+
+  // Review screen actions (edit/remove/merge/approve)
+  const getParsedRequirementsForRow = (row: any) => {
+    return parsePropertyRequirements([
+      row.notes,
+      row.Notes,
+      row.buyBox,
+      row['Buy Box'],
+      row.rawText,
+      row.assetTypes,
+      row.assetType,
+      row.propertyTypes
+    ].filter(Boolean).join(' | '))
+  }
+
+  const getRequirementValue = (row: any, field: 'bedRequirement' | 'bathRequirement' | 'unitRequirement') => {
+    const current = row?.[field]
+    if (current && current !== 'Any') return current
+
+    const parsed = getParsedRequirementsForRow(row)
+    return parsed?.[field] || 'Any'
+  }
+
+  const updatePendingRow = (id: string, changes: any) => {
+    setPendingImport(prev => prev.map(r => r._id === id ? { ...r, ...changes } : r))
+  }
+  const removePendingRow = async (id: string) => {
+    const row = pendingImport.find((r: any) => r._id === id)
+
+    try {
+      if (row?.buyerPortalSubmissionId) {
+        await markBuyerPortalSubmissionsDismissed([row.buyerPortalSubmissionId])
+      }
+
+      setPendingImport(prev => {
+        const next = prev.filter((r: any) => r._id !== id)
+
+        if (next.length === 0 && row?.buyerPortalSubmissionId) {
+          setImportResult(null)
+          setShowImport(false)
+        }
+
+        return next
+      })
+
+      if (row?.buyerPortalSubmissionId) {
+        void refreshBuyerPortalQueueCount()
+        toast.success('Buyer portal submission removed from review queue')
+      }
+    } catch (error) {
+      console.error(error)
+      toast.error('Could not remove buyer portal submission')
+    }
+  }
+
+  const clearPendingImportRows = async () => {
+    const submissionIds = pendingImport
+      .map((r: any) => r.buyerPortalSubmissionId)
+      .filter(Boolean)
+
+    try {
+      if (submissionIds.length) {
+        await markBuyerPortalSubmissionsDismissed(submissionIds)
+        toast.success('Buyer portal review queue cleared')
+      }
+
+      setPendingImport([])
+      setImportResult(null)
+
+      if (submissionIds.length) {
+        setShowImport(false)
+      }
+
+      void refreshBuyerPortalQueueCount()
+    } catch (error) {
+      console.error(error)
+      toast.error('Could not clear buyer portal review queue')
+    }
+  }
+  const toggleMergePending = (id: string) => {
+    setPendingImport(prev => prev.map(r => r._id === id ? { ...r, _merge: !r._merge } : r))
+  }
+
+
+  const normalizeBuyerBeforeApproval = (buyer: any) => {
+    const splitToArray = (value: any) => {
+      if (Array.isArray(value)) return value.map(x => String(x).trim()).filter(Boolean)
+      if (value === undefined || value === null) return []
+      return String(value)
+        .split(/[,;|\/]+/)
+        .map(x => x.trim())
+        .filter(Boolean)
+    }
+
+    const toBool = (value: any) => {
+      if (typeof value === 'boolean') return value
+      const text = String(value || '').trim()
+      return ['true', 'yes', 'y', '1'].includes(text)
+    }
+
+    const toNumber = (value: any) => {
+      if (typeof value === 'number') return Number.isFinite(value) ? value : 0
+      const text = String(value || '').replace(/[$,\s]/g, '')
+      const match = text.match(/[0-9]+(?:\.[0-9]+)?/)
+      if (!match) return 0
+      let num = parseFloat(match[0])
+      if (text.includes('m')) num *= 1000000
+      if (text.includes('k')) num *= 1000
+      return Math.round(num)
+    }
+
+    const markets = normalizeExplicitMarkets(splitToArray(buyer.markets || buyer.market || buyer.Markets || buyer.Market), buyer.notes || buyer.Notes || buyer.buyBox || buyer['Buy Box'])
+    const assetTypes = splitToArray(buyer.assetTypes || buyer.assetType || buyer['Asset Types'] || buyer.Property_Types || buyer.propertyTypes)
+
+    const creativeFinance = toBool(buyer.creativeFinance)
+    const sellerFinance = toBool(buyer.sellerFinance)
+
+    return {
+      ...buyer,
+      name: autoCapBuyerName(cleanBuyerName(buyer.name || buyer.Name || buyer.fullName, buyer.email || buyer.Email || '')),
+      email: buyer.email || buyer.Email || buyer['Email Address'] || '',
+      phone: buyer.phone || buyer.Phone || '',
+      company: buyer.company || buyer.Company || '',
+      type: buyer.type || buyer.Type || buyer['Buyer Type'] || (creativeFinance ? 'Creative Buyer' : ''),
+      markets,
+      assetTypes,
+      budgetMin: toNumber(buyer.budgetMin || buyer['Budget Min'] || buyer.minBudget),
+      budgetMax: toNumber(buyer.budgetMax || buyer['Budget Max'] || buyer.maxBudget),
+      bedRequirement: buyer.bedRequirement && buyer.bedRequirement !== 'Any' ? buyer.bedRequirement : parsePropertyRequirements([buyer.notes, buyer.buyBox, buyer.rawText, buyer.assetTypes].filter(Boolean).join(' | ')).bedRequirement,
+      bathRequirement: buyer.bathRequirement && buyer.bathRequirement !== 'Any' ? buyer.bathRequirement : parsePropertyRequirements([buyer.notes, buyer.buyBox, buyer.rawText, buyer.assetTypes].filter(Boolean).join(' | ')).bathRequirement,
+      unitRequirement: buyer.unitRequirement && buyer.unitRequirement !== 'Any' ? buyer.unitRequirement : parsePropertyRequirements([buyer.notes, buyer.buyBox, buyer.rawText, buyer.assetTypes].filter(Boolean).join(' | ')).unitRequirement,
+      downPaymentMax: formatDownPaymentField(buyer.downPaymentMax || buyer['Down Payment Max'] || buyer.downPayment),
+      monthlyPaymentMax: formatMonthlyPaymentField(buyer.monthlyPaymentMax || buyer['Monthly Payment Max'] || buyer.monthlyPayment),
+      interestRateMax: buyer.interestRateMax || buyer['Interest Rate Max'] || buyer.interestRate || '',
+      capRateTarget: buyer.capRateTarget || buyer['Cap Rate Target'] || buyer.capRate || '',
+      balloonTerm: buyer.balloonTerm || buyer['Balloon Term'] || buyer.balloon || '',
+      sellerFinance,
+      creativeFinance,
+      cashBuyer: buyer.cashBuyer !== undefined ? toBool(buyer.cashBuyer) : /\bcash\b|pof|proof of funds/i.test([buyer.type, buyer.Type, buyer['Buyer Type'], buyer.notes, buyer.Notes, buyer.buyBox].filter(Boolean).join(' ')),
+      strategies: normalizeBuyerStrategies(buyer),
+      strategy: normalizeBuyerStrategies(buyer).join(', '),
+      exitStrategy: normalizeBuyerStrategies(buyer).join(', '),
+      notes: buyer.notes || buyer.Notes || '',
+      tags: splitToArray(buyer.tags || buyer.Tags),
+      status: buyer.status || buyer.Status || 'New',
+    }
+  }
+
+  const cleanAllPendingBuyerNames = () => {
+    setPendingImport(prev => prev.map((row: any) => {
+      const normalized = normalizeBuyerReviewRow(row)
+      const parsed = getParsedRequirementsForRow(row)
+
+      return {
+        ...normalized,
+        bedRequirement:
+          row.bedRequirement && row.bedRequirement !== 'Any'
+            ? row.bedRequirement
+            : parsed.bedRequirement,
+        bathRequirement:
+          row.bathRequirement && row.bathRequirement !== 'Any'
+            ? row.bathRequirement
+            : parsed.bathRequirement,
+        unitRequirement:
+          row.unitRequirement && row.unitRequirement !== 'Any'
+            ? row.unitRequirement
+            : parsed.unitRequirement,
+      }
+    }))
+
+    toast.success('Auto-fix complete. Names and bed/bath/unit requirements parsed where possible.')
+  }
+
+  const updatePortalPendingRow = (id: string, changes: any) => {
+    setPendingPortalImport(prev => prev.map(r => r._id === id ? { ...r, ...changes } : r))
+  }
+
+  const removePortalPendingRow = async (id: string) => {
+    const row = pendingPortalImport.find((r: any) => r._id === id)
+
+    try {
+      if (row?.buyerPortalSubmissionId) {
+        await markBuyerPortalSubmissionsDismissed([row.buyerPortalSubmissionId])
+      }
+
+      setPendingPortalImport(prev => prev.filter((r: any) => r._id !== id))
+      void refreshBuyerPortalQueueCount()
+      toast.success('Buyer portal submission removed from review queue')
+    } catch (error) {
+      console.error(error)
+      toast.error('Could not remove buyer portal submission')
+    }
+  }
+
+  const clearPortalPendingRows = async () => {
+    const submissionIds = pendingPortalImport
+      .map((r: any) => r.buyerPortalSubmissionId)
+      .filter(Boolean)
+
+    try {
+      if (submissionIds.length) {
+        await markBuyerPortalSubmissionsDismissed(submissionIds)
+      }
+
+      setPendingPortalImport([])
+      setShowPortalReview(false)
+      void refreshBuyerPortalQueueCount()
+      toast.success('Buyer portal review queue cleared')
+    } catch (error) {
+      console.error(error)
+      toast.error('Could not clear buyer portal review queue')
+    }
+  }
+
+  const cleanAllPortalBuyerNames = () => {
+    setPendingPortalImport(prev => prev.map((row: any) => {
+      const normalized = normalizeBuyerReviewRow(row)
+      const parsed = getParsedRequirementsForRow(row)
+
+      return {
+        ...normalized,
+        bedRequirement: row.bedRequirement || parsed?.bedRequirement || 'Any',
+        bathRequirement: row.bathRequirement || parsed?.bathRequirement || 'Any',
+        unitRequirement: row.unitRequirement || parsed?.unitRequirement || 'Any',
+        buyerPortalSubmission: row.buyerPortalSubmission,
+        buyerPortalSubmissionId: row.buyerPortalSubmissionId,
+      }
+    }))
+
+    toast.success('Portal buyer review cleaned.')
+  }
+
+  const approvePortalSelected = async () => {
+    const toApprove = pendingPortalImport.filter(r => r._valid !== false)
+    if (toApprove.length === 0) return
+
+    const buyersToApprove = toApprove.map(({_id, _dup, _valid, _merge, buyerPortalSubmissionId, buyerPortalSubmission, rawPortalSubmission, ...rest}) =>
+      normalizeBuyerBeforeApproval(rest)
+    )
+
+    const result = importBuyers(buyersToApprove)
+
+    const saveResult = await upsertBuyersToSupabase(buyersToApprove)
+    if (!saveResult.ok) {
+      toast.error('Portal buyer approval failed before Supabase save: ' + saveResult.error)
+      return
+    }
+
+    const cloud = await fetchBuyersFromSupabase()
+    if (cloud.ok) {
+      useAppStore.setState({ buyers: Array.isArray(cloud.data) ? cloud.data as any : [] })
+    } else {
+      console.warn('[Deal Blast Pro] Buyer reload after portal approval failed:', cloud.error)
+    }
+
+    const submissionIds = toApprove
+      .map((r: any) => r.buyerPortalSubmissionId)
+      .filter(Boolean)
+
+    if (submissionIds.length) {
+      await markBuyerPortalSubmissionsImported(submissionIds)
+    }
+
+    setPendingPortalImport([])
+    setShowPortalReview(false)
+    void refreshBuyerPortalQueueCount()
+
+    toast.success(`Approved ${toApprove.length} portal buyer submission${toApprove.length === 1 ? '' : 's'} (${result.added} new, ${result.dups} dups handled)`)
+  }
+
+  const approveAllPortalValid = () => approvePortalSelected()
+
+  const skipPortalInvalid = () => {
+    setPendingPortalImport(prev => prev.filter(r => r._valid !== false && !r._dup))
+  }
+
+  const approveSelected = async () => {
+    const toApprove = pendingImport.filter(r => r._valid !== false)
+    if (toApprove.length === 0) return
+
+    const buyersToApprove = toApprove.map(({_id, _dup, _valid, _merge, buyerPortalSubmissionId, buyerPortalSubmission, rawPortalSubmission, ...rest}) =>
+      normalizeBuyerBeforeApproval(rest)
+    )
+
+    const result = importBuyers(buyersToApprove)
+
+    const saveResult = await upsertBuyersToSupabase(buyersToApprove)
+    if (!saveResult.ok) {
+      toast.error('Buyer approval failed before Supabase save: ' + saveResult.error)
+      return
+    }
+
+    const cloud = await fetchBuyersFromSupabase()
+    if (cloud.ok) {
+      useAppStore.setState({ buyers: Array.isArray(cloud.data) ? cloud.data as any : [] })
+    } else {
+      console.warn('[Deal Blast Pro] Buyer reload after approval failed:', cloud.error)
+    }
+
+    toast.success(`Approved ${toApprove.length} buyers (${result.added} new, ${result.dups} dups handled)`)
+
+    setPendingImport([])
+    setImportResult(null)
+    setShowImport(false)
+  }
+  const approveAllValid = () => approveSelected()
+
+
+  const downloadSelectedBuyerProfiles = () => {
+    const selectedBuyers = buyers.filter((buyer: any) => selectedBuyerIds.includes(buyer.id))
+
+    if (!selectedBuyers.length) {
+      toast.error('Select at least one buyer to download')
+      return
+    }
+
+    const formatList = (value: any) => {
+      if (Array.isArray(value)) return value.filter(Boolean).join('; ')
+      if (value === null || value === undefined) return ''
+      return String(value)
+    }
+
+    const formatMoney = (value: any) => {
+      if (value === null || value === undefined || value === '') return ''
+      const numberValue = Number(String(value).replace(/[$,\s]/g, ''))
+      if (!Number.isFinite(numberValue)) return String(value)
+      return '$' + numberValue.toLocaleString()
+    }
+
+    const csvCell = (value: any) => {
+      const text = formatList(value).replace(/\r?\n/g, ' ').trim()
+      return '"' + text.replace(/"/g, '""') + '"'
+    }
+
+    const headers = [
+      'Buyer Name',
+      'Email',
+      'Company',
+      'Phone',
+      'Mobile',
+      'Buyer Type',
+      'Status',
+      'Target Markets',
+      'Asset Focus',
+      'Zip Codes',
+      'Budget Min',
+      'Budget Max',
+      'Down Payment Max',
+      'Monthly Payment Max',
+      'Bed Requirement',
+      'Bath Requirement',
+      'Unit Requirement',
+      'Creative Finance',
+      'Seller Finance',
+      'Cash Buyer',
+      'Nationwide',
+      'Strategy',
+      'Tags',
+      'Source',
+      'Notes',
+      'Heat Score',
+      'Strength Score',
+      'Created At',
+      'Updated At'
+    ]
+
+    const rows = selectedBuyers.map((buyer: any) => [
+      buyer.name,
+      buyer.email,
+      buyer.company,
+      buyer.phone,
+      buyer.mobile,
+      buyer.buyerType || buyer.type,
+      buyer.status,
+      buyer.targetMarkets || buyer.markets,
+      buyer.assetFocus || buyer.assetTypes,
+      buyer.zipCodes,
+      formatMoney(buyer.budgetMin),
+      formatMoney(buyer.budgetMax || buyer.budget),
+      formatMoney(buyer.downPaymentMax),
+      formatMoney(buyer.monthlyPaymentMax),
+      buyer.bedRequirement,
+      buyer.bathRequirement,
+      buyer.unitRequirement,
+      buyer.creativeFinance ? 'Yes' : 'No',
+      buyer.sellerFinance ? 'Yes' : 'No',
+      buyer.cashBuyer ? 'Yes' : 'No',
+      buyer.nationwide ? 'Yes' : 'No',
+      buyer.strategy || buyer.exitStrategy,
+      buyer.tags,
+      buyer.source,
+      buyer.buyBoxSummary || buyer.notes,
+      buyer.heatScore,
+      buyer.strengthScore,
+      buyer.createdAt || buyer.created_at,
+      buyer.updatedAt || buyer.updated_at
+    ])
+
+    const csv = '\ufeff' + [headers.map(csvCell).join(','), ...rows.map(row => row.map(csvCell).join(','))].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'deal-blast-pro-selected-buyer-profiles-' + new Date().toISOString().slice(0, 10) + '.csv'
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+
+    toast.success('Downloaded ' + selectedBuyers.length + ' buyer profile' + (selectedBuyers.length === 1 ? '' : 's'))
+  }
+  const skipInvalid = () => {
+    setPendingImport(prev => prev.filter(r => r._valid !== false && !r._dup))
+  }
+
+  return (
+    <div>
+      <div className="flex justify-between items-end mb-4">
+        <div>
+          <div className="text-xs tracking-[1.5px] text-[#8B92A3]">ASSET STRATEGY</div>
+          <div className="text-2xl font-semibold">Global Buyer Database - {buyers.length} records</div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={() => setShowAddBuyer(true)} className="btn btn-primary flex items-center gap-2">
+            Add Buyer
+          </button>
+          <button onClick={importBuyerPortalQueue} className="btn btn-ghost flex items-center gap-2 text-[#22C55E]">
+            {buyerPortalQueueCount > 0 ? 'Import Buyer Portal Queue (' + buyerPortalQueueCount + ')' : 'Import Buyer Portal Queue'}
+          </button>
+          <button onClick={() => setShowImport(true)} className="btn btn-ghost flex items-center gap-2">
+            <Upload size={16} /> Import Buyers (CSV / TXT)
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-3">
+        <button onClick={() => { setActiveFilters(prev => prev.filter(f => f !== 'duplicates')); setShowDuplicatePanel(false); }} className="card p-3 text-left hover:border-[#3B82F6]/50">
+          <div className="text-[10px] uppercase tracking-[0.18em] text-[#8B92A3]">Total Buyers</div>
+          <div className="text-2xl font-semibold">{buyers.length.toLocaleString()}</div>
+        </button>
+        <div className="card p-3">
+          <div className="text-[10px] uppercase tracking-[0.18em] text-[#8B92A3]">Showing</div>
+          <div className="text-2xl font-semibold">{filtered.length.toLocaleString()}</div>
+        </div>
+        <button onClick={() => { setActiveFilters(prev => prev.includes('duplicates') ? prev.filter(f => f !== 'duplicates') : [...prev, 'duplicates']); setShowDuplicatePanel(true); }} className={'card p-3 text-left hover:border-amber-400/50 ' + (activeFilters.includes('duplicates') ? 'border-amber-400/60 bg-amber-500/10' : '')}>
+          <div className="text-[10px] uppercase tracking-[0.18em] text-[#8B92A3]">Duplicate Groups</div>
+          <div className="text-2xl font-semibold text-amber-300">{duplicateGroups.length.toLocaleString()}</div>
+        </button>
+        <button onClick={() => { setActiveFilters(prev => prev.includes('duplicates') ? prev : [...prev, 'duplicates']); setShowDuplicatePanel(true); }} className="card p-3 text-left hover:border-amber-400/50">
+          <div className="text-[10px] uppercase tracking-[0.18em] text-[#8B92A3]">Duplicate Records</div>
+          <div className="text-2xl font-semibold text-amber-300">{duplicateRecordCount.toLocaleString()}</div>
+        </button>
+        <div className="card p-3">
+          <div className="text-[10px] uppercase tracking-[0.18em] text-[#8B92A3]">New / Pending</div>
+          <div className="text-2xl font-semibold text-[#22C55E]">{newBuyerCount.toLocaleString()} / {pendingReviewCount.toLocaleString()}</div>
+        </div>
+      </div>
+
+      {true && (
+        <div data-testid="buyer-submission-review-alert" className="mb-3 card p-3 border border-amber-500/40 bg-amber-500/10 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="font-semibold text-amber-300">Buyer Portal Review Center</div>
+            <div className="text-xs text-[#8B92A3]">
+              {buyerPortalQueueCount > 0 ? buyerPortalQueueCount + ' verified buyer portal submission' + (buyerPortalQueueCount === 1 ? '' : 's') + ' waiting in the review queue.' : 'No buyer portal submissions waiting right now.'}
+            </div>
+          </div>
+          <button onClick={importBuyerPortalQueue} className={buyerPortalQueueCount > 0 ? 'btn btn-primary text-xs' : 'btn btn-ghost text-xs'}>
+            Open Buyer Review
+          </button>
+        </div>
+      )}
+
+      {/* Tabs for All Buyers / Segments / Lists */}
+      <div className="flex gap-2 mb-3 text-sm border-b border-[#252A38] pb-1">
+        <button onClick={() => { setActiveTab('all'); setCurrentListId(null); setSelectedSegment(null); }} className={`px-3 py-1 ${activeTab === 'all' ? 'border-b-2 border-[#22C55E] font-medium' : 'text-[#8B92A3]'}`}>All Buyers</button>
+        <button onClick={() => { setActiveTab('segments'); setCurrentListId(null); setSelectedSegment(null); }} className={`px-3 py-1 ${activeTab === 'segments' ? 'border-b-2 border-[#22C55E] font-medium' : 'text-[#8B92A3]'}`}>Saved Segments</button>
+        <button onClick={() => { setActiveTab('lists'); setCurrentListId(null); setSelectedSegment(null); }} className={`px-3 py-1 ${activeTab === 'lists' ? 'border-b-2 border-[#22C55E] font-medium' : 'text-[#8B92A3]'}`}>Custom Lists</button>
+      </div>
+
+      {(activeTab === 'all' || (activeTab === 'lists' && currentListId) || (activeTab === 'segments' && selectedSegment)) && (
+      <div className="flex gap-3 mb-4">
+        <input
+          type="search"
+          className="input w-full min-w-[260px] sm:w-[320px] lg:w-[380px] flex-none"
+          placeholder="Search name, email, market..."
+          value={search}
+          onChange={(e) => setSearch(e.currentTarget.value)}
+          onInput={(e) => setSearch((e.currentTarget as HTMLInputElement).value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') setSearch('');
+          }}
+        />
+        <select className="select text-xs" value={sortMode} onChange={e => setSortMode(e.target.value)}>
+          <option value="heat-high">Sort: Heat High to Low</option>
+          <option value="strength-high">Sort: Strength High to Low</option>
+          <option value="budget-high">Sort: Budget High to Low</option>
+          <option value="budget-low">Sort: Budget Low to High</option>
+          <option value="recent">Sort: Recently Added</option>
+          <option value="type">Sort: Buyer Type</option>
+          <option value="name-az">Sort: Name A to Z</option>
+        </select>
+
+        <div className="flex gap-1 text-xs">
+          <button 
+            onClick={() => setActiveFilters(prev => prev.includes('creative') ? prev.filter(x => x !== 'creative') : [...prev, 'creative'])} 
+            className={`btn btn-ghost px-2 py-0.5 text-[10px] ${activeFilters.includes('creative') ? 'ring-1 ring-emerald-500 text-emerald-400' : ''}`}
+          >Creative Finance</button>
+          <button 
+            onClick={() => setActiveFilters(prev => prev.includes('hot') ? prev.filter(x => x !== 'hot') : [...prev, 'hot'])} 
+            className={`btn btn-ghost px-2 py-0.5 text-[10px] ${activeFilters.includes('hot') ? 'ring-1 ring-orange-500 text-orange-400' : ''}`}
+          >Hot</button>
+          <button 
+            onClick={() => setActiveFilters(prev => prev.includes('seller') ? prev.filter(x => x !== 'seller') : [...prev, 'seller'])} 
+            className={`btn btn-ghost px-2 py-0.5 text-[10px] ${activeFilters.includes('seller') ? 'ring-1 ring-amber-500 text-amber-400' : ''}`}
+          >Seller Finance</button>
+          <button 
+            onClick={() => setActiveFilters(prev => prev.includes('cash') ? prev.filter(x => x !== 'cash') : [...prev, 'cash'])} 
+            className={`btn btn-ghost px-2 py-0.5 text-[10px] ${activeFilters.includes('cash') ? 'ring-1 ring-sky-500 text-sky-400' : ''}`}
+          >Cash Buyers</button>
+          <button 
+            onClick={() => setActiveFilters(prev => prev.includes('hedge') ? prev.filter(x => x !== 'hedge') : [...prev, 'hedge'])} 
+            className={`btn btn-ghost px-2 py-0.5 text-[10px] ${activeFilters.includes('hedge') ? 'ring-1 ring-purple-500 text-purple-400' : ''}`}
+          >Hedge Funds</button>
+          <button
+            onClick={() => setActiveFilters(prev => prev.includes('pendingReview') ? prev.filter(f => f !== 'pendingReview') : [...prev, 'pendingReview'])}
+            className={'btn btn-ghost text-xs ' + (activeFilters.includes('pendingReview') ? 'ring-1 ring-amber-400 text-amber-300' : '')}
+          >Pending Review</button>
+          <button
+            onClick={() => { setActiveFilters(prev => prev.includes('duplicates') ? prev.filter(f => f !== 'duplicates') : [...prev, 'duplicates']); setShowDuplicatePanel(true); }}
+            className={'btn btn-ghost text-xs ' + (activeFilters.includes('duplicates') ? 'ring-1 ring-amber-400 text-amber-300' : '')}
+          >Duplicates</button>
+        </div>
+
+        <button onClick={() => setShowAdvancedFilters(!showAdvancedFilters)} className={`btn btn-ghost text-xs ${showAdvancedFilters ? 'ring-1 ring-blue-500' : ''}`}>Advanced Filters</button>
+        <button onClick={() => { setSearch(''); setSortMode('heat-high'); setActiveFilters([]); setShowAdvancedFilters(false); setShowDuplicatePanel(false); setCurrentListId(null); setSelectedSegment(null); }} className="btn btn-ghost text-xs">Clear Filters</button>
+        <button onClick={() => setSelectedBuyerIds(filtered.map(b => b.id))} className="btn btn-ghost text-xs">Select All</button>
+        <button onClick={() => setSelectedBuyerIds([])} className="btn btn-ghost text-xs">Deselect All</button>
+      </div>
+      )}
+
+      {/* Simple Advanced Filters Panel */}
+      {showAdvancedFilters && (
+        <div className="mb-3 p-3 bg-[#171B26] rounded text-xs">
+          <div className="flex flex-wrap gap-2">
+            <select className="select text-xs py-1 w-40" value={activeFilters.find(f => f.startsWith('state:'))?.split(':')[1] || 'All States'} onChange={e => {
+              const val = e.target.value;
+              if (val === 'All States') {
+                setActiveFilters(prev => prev.filter(x => !x.startsWith('state:')));
+              } else {
+                setActiveFilters(prev => [...new Set([...prev.filter(x => !x.startsWith('state:')), `state:${val}`])]);
+              }
+            }}>
+              <option value="All States">All States</option>
+              <option value="Nationwide">Nationwide</option>
+              <option value="Any">Any</option>
+              <option value="AL">AL</option><option value="AK">AK</option><option value="AZ">AZ</option><option value="AR">AR</option>
+              <option value="CA">CA</option><option value="CO">CO</option><option value="CT">CT</option><option value="DE">DE</option>
+              <option value="FL">FL</option><option value="GA">GA</option><option value="HI">HI</option><option value="ID">ID</option>
+              <option value="IL">IL</option><option value="IN">IN</option><option value="IA">IA</option><option value="KS">KS</option>
+              <option value="KY">KY</option><option value="LA">LA</option><option value="ME">ME</option><option value="MD">MD</option>
+              <option value="MA">MA</option><option value="MI">MI</option><option value="MN">MN</option><option value="MS">MS</option>
+              <option value="MO">MO</option><option value="MT">MT</option><option value="NE">NE</option><option value="NV">NV</option>
+              <option value="NH">NH</option><option value="NJ">NJ</option><option value="NM">NM</option><option value="NY">NY</option>
+              <option value="NC">NC</option><option value="ND">ND</option><option value="OH">OH</option><option value="OK">OK</option>
+              <option value="OR">OR</option><option value="PA">PA</option><option value="RI">RI</option><option value="SC">SC</option>
+              <option value="SD">SD</option><option value="TN">TN</option><option value="TX">TX</option><option value="UT">UT</option>
+              <option value="VT">VT</option><option value="VA">VA</option><option value="WA">WA</option><option value="WV">WV</option>
+              <option value="WI">WI</option><option value="WY">WY</option>
+            </select>
+            <select className="select text-xs py-1 w-40" value={activeFilters.find(f => f.startsWith('asset:'))?.split(':')[1] || 'All Asset Types'} onChange={e => {
+              const val = e.target.value;
+              if (val === 'All Asset Types') {
+                setActiveFilters(prev => prev.filter(x => !x.startsWith('asset:')));
+              } else {
+                setActiveFilters(prev => [...new Set([...prev.filter(x => !x.startsWith('asset:')), `asset:${val}`])]);
+              }
+            }}>
+              <option value="All Asset Types">All Asset Types</option>
+              <option value="Single Family">Single Family</option>
+              <option value="Multifamily">Multifamily</option>
+              <option value="Small Multifamily">Small Multifamily</option>
+              <option value="Mobile Home Park">Mobile Home Park</option>
+              <option value="Hotel">Hotel</option>
+              <option value="Retail">Retail</option>
+              <option value="Storage">Storage</option>
+              <option value="Land">Land</option>
+              <option value="Mixed Use">Mixed Use</option>
+              <option value="Commercial">Commercial</option>
+              <option value="Industrial">Industrial</option>
+              <option value="Office">Office</option>
+              <option value="Development">Development</option>
+              <option value="Build-to-Rent">Build-to-Rent</option>
+              <option value="Notes">Notes</option>
+              <option value="Creative Finance">Creative Finance</option>
+            </select>
+            <button onClick={() => setActiveFilters([])} className="btn btn-ghost text-xs">Clear All Filters</button>
+          </div>
+          <div className="text-[10px] text-[#8B92A3] mt-1">Active: {activeFilters.length ? activeFilters.join(', ') : 'None'} (search + buttons also apply)</div>
+        </div>
+      )}
+
+      {showDuplicatePanel && (
+        <div className="mb-3 card p-3 border border-amber-500/40 bg-amber-500/10">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+            <div>
+              <div className="font-semibold text-amber-300">Duplicate Review</div>
+              <div className="text-xs text-[#8B92A3]">Email matches are strongest. Phone matches are strong. Name + market matches are review-only, so merge carefully.</div>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setActiveFilters(prev => prev.includes('duplicates') ? prev : [...prev, 'duplicates'])} className="btn btn-ghost text-xs">Show Only Duplicates</button>
+              <button onClick={() => { setShowDuplicatePanel(false); setActiveFilters(prev => prev.filter(f => f !== 'duplicates')); }} className="btn btn-ghost text-xs">Close</button>
+            </div>
+          </div>
+
+          {duplicateGroups.length === 0 ? (
+            <div className="text-sm text-[#8B92A3]">No duplicate groups found.</div>
+          ) : (
+            <div className="space-y-3 max-h-[420px] overflow-auto pr-1">
+              {duplicateGroups.slice(0, 50).map(group => (
+                <div key={group.key} className="rounded-lg border border-[#252A38] bg-[#0F131D] p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                    <div className="text-sm font-semibold">{group.label} <span className="text-xs text-[#8B92A3]">({group.buyers.length} records)</span></div>
+                    <button onClick={() => setSelectedBuyerIds(group.buyers.map((buyer: any) => buyer.id))} className="btn btn-ghost text-xs px-2 py-1">Select Group</button>
+                  </div>
+                  <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-2">
+                    {group.buyers.map((buyer: any) => (
+                      <div key={buyer.id} className="rounded border border-[#252A38] p-2 text-xs bg-[#111827]">
+                        <div className="font-semibold text-white">{getDisplayName(buyer)}</div>
+                        <div className="text-blue-400 truncate">{buyer.email || 'Email Missing'}</div>
+                        <div className="text-[#8B92A3]">{getDisplayPhone(buyer) || 'Phone Missing'}</div>
+                        <div className="text-[#8B92A3] truncate">{getMarketDisplayList(buyer.markets, buyer.targetMarkets, buyer.target_markets, buyer.states, buyer.locations, buyer.target_states).join(', ') || 'Market Missing'}</div>
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          <button onClick={() => { const hydrated = hydrateBuyerForEdit(buyer); setSelectedBuyer(hydrated as any); setEditBuyer(hydrated); }} className="btn btn-ghost px-2 py-1 text-[10px]">Open</button>
+                          <button onClick={() => mergeBuyerRecords(buyer, group.buyers.filter((row: any) => row.id !== buyer.id))} className="btn btn-ghost px-2 py-1 text-[10px] text-[#22C55E]">Keep + Merge Others</button>
+                          <button onClick={() => deleteDuplicateRecord(buyer)} className="btn btn-ghost px-2 py-1 text-[10px] text-red-400">Delete</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              {duplicateGroups.length > 50 && <div className="text-xs text-[#8B92A3]">Showing first 50 duplicate groups. Use search/filter to narrow more.</div>}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Bulk Actions Toolbar */}
+      {selectedBuyerIds.length > 0 && (
+        <div className="mb-3 flex flex-wrap gap-2 text-xs bg-[#171B26] p-2 rounded">
+          <span className="text-[#8B92A3] mr-2">{selectedBuyerIds.length} selected</span>
+          <button onClick={() => { /* export BCC */ const emails = buyers.filter(b => selectedBuyerIds.includes(b.id)).map(b => b.email).join(', '); navigator.clipboard.writeText(emails); toast.success('BCC copied'); }} className="btn btn-ghost px-2 py-0.5">Export BCC</button>
+          <button onClick={downloadSelectedBuyerProfiles} className="btn btn-ghost px-2 py-0.5 text-[#22C55E]">Download Profiles</button>
+          <button onClick={() => { selectedBuyerIds.forEach(id => { const b = buyers.find(x => x.id === id); if (b) addToSuppression(b.email); }); setSelectedBuyerIds([]); toast.success('Suppressed selected'); }} className="btn btn-ghost px-2 py-0.5 text-amber-400">Suppress Selected</button>
+          <button onClick={async () => {
+            const idsToDelete = Array.from(new Set<string>(selectedBuyerIds.filter(Boolean) as string[]))
+            if (idsToDelete.length === 0) return
+
+            if (confirm(`Delete ${idsToDelete.length} selected buyer(s) from this app AND Supabase? This cannot be undone.`)) {
+              const removeSet = new Set(idsToDelete)
+
+              const result = await deleteBuyersFromSupabase(idsToDelete)
+              if (!result.ok) {
+                toast.error('Supabase delete failed: ' + result.error)
+                return
+              }
+
+              useAppStore.setState((state: any) => {
+                const nextBuyerResponses = { ...(state.buyerResponses || {}) }
+                idsToDelete.forEach(id => delete nextBuyerResponses[id])
+
+                const nextDealSuppressions: any = {}
+                Object.entries(state.dealSuppressions || {}).forEach(([dealId, rows]: any) => {
+                  nextDealSuppressions[dealId] = Array.isArray(rows)
+                    ? rows.filter((row: any) => !removeSet.has(row.buyerId))
+                    : rows
+                })
+
+                return {
+                  buyers: (state.buyers || []).filter((b: any) => !removeSet.has(b.id)),
+                  viewedBuyerIds: (state.viewedBuyerIds || []).filter((id: string) => !removeSet.has(id)),
+                  buyerResponses: nextBuyerResponses,
+                  dealSuppressions: nextDealSuppressions,
+                  followUps: (state.followUps || []).filter((f: any) => !removeSet.has(f.buyerId)),
+                }
+              })
+
+              setBuyerLists(prev => prev.map(list => ({
+                ...list,
+                buyerIds: (list.buyerIds || []).filter((id: string) => !removeSet.has(id)),
+                updatedAt: Date.now()
+              })))
+
+              setSelectedBuyerIds([])
+              if (selectedBuyer && removeSet.has(selectedBuyer.id)) setSelectedBuyer(null)
+
+              toast.success(`Deleted ${idsToDelete.length} buyer${idsToDelete.length === 1 ? "" : "s"} from Supabase`)
+            }
+          }} className="btn btn-ghost px-2 py-0.5 text-red-400">Delete Selected</button>
+          {selectedBuyerIds.length === buyers.length && buyers.length > 0 && (
+            <button onClick={async () => {
+              const allIds = (buyers || []).map((b: any) => b.id).filter(Boolean)
+              if (!allIds.length) return
+              if (!confirm('CLEAR ALL buyers from Supabase and the app? This is permanent.')) return
+
+              const result = await deleteAllBuyersFromSupabase()
+              if (!result.ok) {
+                toast.error('Supabase clear failed: ' + result.error)
+                return
+              }
+
+              useAppStore.setState((state: any) => ({
+                buyers: [],
+                viewedBuyerIds: [],
+                buyerResponses: {},
+                followUps: (state.followUps || []).filter((f: any) => !allIds.includes(f.buyerId)),
+              }))
+              setSelectedBuyerIds([])
+              setSelectedBuyer(null)
+              setBuyerLists(prev => prev.map(list => ({ ...list, buyerIds: [], updatedAt: Date.now() })))
+              toast.success('Cleared all buyers from Supabase')
+            }} className="btn btn-ghost px-2 py-0.5 text-red-300">Clear ALL Buyers</button>
+          )}
+          <button onClick={() => { setShowListModal(true); }} className="btn btn-ghost px-2 py-0.5 text-[#22C55E]">Add to List</button>
+          {currentListId && <button onClick={() => {
+            const list = buyerLists.find(l => l.id === currentListId);
+            if (!list) return;
+            const updatedLists = buyerLists.map(l => l.id === currentListId ? { ...l, buyerIds: (l.buyerIds || []).filter((id: string) => !selectedBuyerIds.includes(id)), updatedAt: Date.now() } : l);
+            setBuyerLists(updatedLists);
+            setSelectedBuyerIds([]);
+            toast.success('Removed from list');
+          }} className="btn btn-ghost px-2 py-0.5 text-red-400">Remove from List</button>}
+          <button onClick={() => setSelectedBuyerIds([])} className="btn btn-ghost px-2 py-0.5">Clear Selection</button>
+        </div>
+      )}
+
+      {(activeTab === 'all' || (activeTab === 'lists' && currentListId) || (activeTab === 'segments' && selectedSegment)) && (
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {filtered.map(b => {
+          const isSelected = selectedBuyerIds.includes(b.id);
+          const buyerData: any = b && typeof (b as any).data === 'object' && (b as any).data ? (b as any).data : {};
+          const buyerAny: any = {
+            ...(b as any),
+            ...buyerData,
+            id: (b as any).id || buyerData.id,
+            email: (b as any).email || buyerData.email || '',
+            name: buyerData.name || (b as any).name,
+            company: buyerData.company || (b as any).company,
+            phone: buyerData.phone || (b as any).phone,
+            markets: Array.isArray(buyerData.markets) && buyerData.markets.length ? buyerData.markets : (b as any).markets,
+            targetMarkets: Array.isArray(buyerData.markets) && buyerData.markets.length ? buyerData.markets : (b as any).targetMarkets,
+            assetTypes: Array.isArray(buyerData.assetTypes) && buyerData.assetTypes.length ? buyerData.assetTypes : (b as any).assetTypes,
+            assetFocus: Array.isArray(buyerData.assetTypes) && buyerData.assetTypes.length ? buyerData.assetTypes : (b as any).assetFocus,
+            budgetMin: buyerData.budgetMin ?? (b as any).budgetMin,
+            budgetMax: buyerData.budgetMax ?? (b as any).budgetMax,
+            creativeFinance: buyerData.creativeFinance ?? (b as any).creativeFinance,
+            sellerFinance: buyerData.sellerFinance ?? (b as any).sellerFinance,
+            cashBuyer: buyerData.cashBuyer ?? (b as any).cashBuyer,
+            notes: buyerData.notes || (b as any).notes || '',
+            type: buyerData.type || (b as any).type || 'Buyer',
+            buyerType: buyerData.type || (b as any).buyerType || (b as any).type || 'Buyer'
+          };
+          const strategyLabelsForCard = getBuyerStrategyLabelsForCard(buyerAny);
+const company = getDisplayCompany(buyerAny) || 'Company Missing';
+          const phone = getDisplayPhone(buyerAny) || 'Phone Missing';
+          const assetTypesSafe = getDisplayList(
+            buyerAny.assetTypes,
+            buyerAny.asset_types,
+            buyerAny.assetFocus,
+            buyerAny.asset_focus,
+            buyerAny.propertyTypes,
+            buyerAny.property_types
+          );
+          const marketsSafe = (typeof getMarketDisplayList === 'function' ? getMarketDisplayList : getDisplayList)(
+            buyerAny.markets,
+            buyerAny.targetMarkets,
+            buyerAny.target_markets,
+            buyerAny.states,
+            buyerAny.locations,
+            buyerAny.target_states
+          );
+          const heatScore = useAppStore.getState().getBuyerHeatScore(b.id);
+          const strScore = b.strengthScore || 65;
+
+          return (
+            <div key={b.id} className={`card interactive-border buyer p-4 hover:border-[#3B82F6]/40 relative group flex flex-col ${selectedBuyerIds.includes(b.id) ? 'is-selected' : ''}`} style={{ '--border-color': getBuyerBorderColor(b) } as any}>
+              {/* HEADER */}
+              <div className="flex items-start justify-between mb-1.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button onClick={(e) => { e.stopPropagation(); toggleBuyerSelection(b.id); }} className="text-[#8B92A3] hover:text-white">
+                    {isSelected ? <CheckSquare size={16} className="text-[#22C55E]" /> : <Square size={16} />}
+                  </button>
+                  <div className="font-semibold text-base">{getBuyerFullNameForCard(buyerAny)}</div>
+                </div>
+                {isNewBuyer(b.id) && <span className="badge bg-[#22C55E] text-black text-[10px] px-1.5 py-0">NEW</span>}
+                {(b.status === 'Hot') && <span className="badge bg-orange-500 text-black text-[10px] px-1.5 py-0">HOT</span>}
+                {(() => {
+                  const count = buyerLists.filter(l => (l.buyerIds || []).includes(b.id)).length;
+                  return count > 0 ? <span className="text-[9px] text-[#8B92A3] ml-1">Lists:{count}</span> : null;
+                })()}
+              </div>
+
+              {/* CONTACT */}
+              <div className="text-xs text-[#8B92A3] truncate">{company}</div>
+              <div className="text-sm text-[#3B82F6] truncate">{b.email}</div>
+              <div className="text-xs text-[#8B92A3] mb-1">{phone}</div>
+
+              {/* TARGET MARKETS  up to 3 rows (collapse only on 4th row) */}
+              <div className="mt-3">
+                <div className="text-[10px] uppercase tracking-[1px] text-[#8B92A3] mb-1 font-medium">Target Markets</div>
+                <div className="flex flex-wrap gap-1.5 min-h-[18px]">
+                  {(() => {
+                    const states = marketsSafe.filter((m: string) => !/^(any|market missing)$/i.test(String(m || '').trim()));
+                    const visible = (states.length ? states : ['Market Missing']).slice(0, 15);
+                    const extra = Math.max(0, states.length - 15);
+                    return (
+                      <>
+                        {visible.map((m: string, i: number) => (
+                          <span key={i} className="badge bg-[#1F2937] text-[#93C5FD] text-[10px] px-1.5 py-0 flex items-center gap-0.5 border border-[#334155]">
+                            <MapPin size={10} /> {m}
+                          </span>
+                        ))}
+                        {extra > 0 && (
+                          <Tooltip content={states.slice(15).join(', ')} position="top">
+                            <span className="badge bg-[#1F2937] text-[#93C5FD] text-[10px] px-1.5 py-0 cursor-help border border-[#334155]">+{extra} more</span>
+                          </Tooltip>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* ASSET FOCUS  SHOW ALL (up to 3 rows, no collapse) */}
+              <div className="mt-3">
+                <div className="text-[10px] uppercase tracking-[1px] text-[#8B92A3] mb-1 font-medium">Asset Focus</div>
+                <div className="flex flex-wrap gap-1.5 min-h-[18px]">
+                  {(() => {
+                    const buyerTextForAssets = [buyerAny.assetTypes, buyerAny.asset_types, buyerAny.assetFocus, buyerAny.asset_focus, buyerAny.propertyTypes, buyerAny.property_types, buyerAny.notes, buyerAny.rawText].flat().filter(Boolean).join(' ');
+                    const assets = assetTypesSafe.filter((t: string) => {
+                      const v = String(t || '').trim();
+                      if (!v || /creative|seller finance|cash|hedge/i.test(v)) return false;
+                      if (/^(sfh|sfr|single family)$/i.test(v) && !/\b(sfh|sfr|single\s*family|house|houses|1\s*-\s*4)\b/i.test(buyerTextForAssets)) return false;
+                      return true;
+                    });
+
+                    const normalize = (s: string) => safeLower(s).replace(/[^a-z0-9]/g, '');
+                    const iconMap: Record<string, any> = {
+                      'SFH': Home, 'Single Family': Home, 'SingleFamily': Home,
+                      'Multifamily': Building2, 'Multi Family': Building2,
+                      'Small Multifamily': Building2, 'SmallMulti': Building2,
+                      'MHP': Warehouse, 'Mobile Home': Warehouse,
+                      'Hotel': Hotel,
+                      'Retail': Store,
+                      'Storage': Warehouse, 'Self Storage': Warehouse,
+                      'Land': MapPin,
+                      'Mixed Use': Building2, 'Mixed-Use': Building2, 'MixedUse': Building2,
+                      'Commercial': Building,
+                      'Value-Add': TrendingUp, 'Value Add': TrendingUp, 'ValueAdd': TrendingUp,
+                      'Fix & Flip': Flame, 'Fix and Flip': Flame, 'FixFlip': Flame,
+                    };
+
+                    const getAssetStyle = (t: string) => {
+                      const k = normalize(t);
+                      if (k.startsWith('sf') || k.includes('single')) return 'bg-blue-500/15 text-blue-300 ring-1 ring-blue-400/30';
+                      if (k.includes('smallmulti') || k.includes('smallmf')) return 'bg-indigo-500/15 text-indigo-300 ring-1 ring-indigo-400/30';
+                      if (k.includes('multi')) return 'bg-purple-500/15 text-purple-300 ring-1 ring-purple-400/30';
+                      if (k === 'mhp' || k.includes('mobile')) return 'bg-teal-500/15 text-teal-300 ring-1 ring-teal-400/30';
+                      if (k.includes('hotel')) return 'bg-pink-500/15 text-pink-300 ring-1 ring-pink-400/30';
+                      if (k.includes('retail')) return 'bg-orange-500/15 text-orange-300 ring-1 ring-orange-400/30';
+                      if (k.includes('storage')) return 'bg-cyan-500/15 text-cyan-300 ring-1 ring-cyan-400/30';
+                      if (k.includes('land')) return 'bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-400/30';
+                      if (k.includes('mixed')) return 'bg-violet-500/15 text-violet-300 ring-1 ring-violet-400/30';
+                      if (k.includes('commercial')) return 'bg-slate-400/15 text-slate-300 ring-1 ring-slate-400/30';
+                      if (k.includes('value')) return 'bg-amber-500/15 text-amber-300 ring-1 ring-amber-400/30';
+                      if (k.includes('fix') || k.includes('flip')) return 'bg-red-500/15 text-red-300 ring-1 ring-red-400/30';
+                      return 'bg-[#1F2937] text-[#CBD5E1] ring-1 ring-[#334155]';
+                    };
+                    const getIconFor = (t: string) => {
+                      const k = normalize(t);
+                      if (k.startsWith('sf') || k.includes('single')) return Home;
+                      if (k.includes('multi')) return Building2;
+                      if (k === 'mhp' || k.includes('mobile')) return Warehouse;
+                      if (k.includes('hotel')) return Hotel;
+                      if (k.includes('retail')) return Store;
+                      if (k.includes('storage')) return Warehouse;
+                      if (k.includes('land')) return MapPin;
+                      if (k.includes('mixed')) return Building2;
+                      if (k.includes('commercial')) return Building;
+                      if (k.includes('value')) return TrendingUp;
+                      if (k.includes('fix') || k.includes('flip')) return Flame;
+                      return Landmark;
+                    };
+
+                    return (
+                      <>
+                        {assets.map((t: string, i: number) => {
+                          const IconComp = getIconFor(t) || iconMap[t];
+                          const style = getAssetStyle(t);
+                          const label = t.length > 14 ? t.slice(0, 12) + '...' : t;
+                          return (
+                            <span
+                              key={i}
+                              className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium border ${style}`}
+                              title={t}
+                            >
+                              {IconComp ? <IconComp size={13} /> : null}
+                              <span>{label}</span>
+                            </span>
+                          );
+                        })}
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* STRATEGY  up to 3 rows (collapse only on 4th row) */}
+              <div className="mt-3">
+                <div className="text-[10px] uppercase tracking-[1px] text-[#8B92A3] mb-1 font-medium">Strategy</div>
+                <div className="flex flex-wrap gap-1.5 min-h-[18px]">
+                  {strategyLabelsForCard
+                    .filter((strategy: string) => strategy && strategy !== 'Strategy Missing')
+                    .slice(0, 6)
+                    .map((strategy: string) => (
+                      <span key={strategy} className="badge bg-sky-500/25 text-sky-100 ring-1 ring-sky-400/50 text-[10px] px-1.5 py-0.5 flex items-center gap-1 border border-sky-400/30">
+                        {strategy}
+                      </span>
+                    ))}
+                  {strategyLabelsForCard.filter((strategy: string) => strategy && strategy !== 'Strategy Missing').length > 6 && (
+                    <span className="badge bg-[#1F2937] text-[#C5CAD6] text-[10px] px-1.5 py-0.5 border border-[#374151]">
+                      +{strategyLabelsForCard.filter((strategy: string) => strategy && strategy !== 'Strategy Missing').length - 6} more
+                    </span>
+                  )}
+                  {strategyLabelsForCard.includes('Strategy Missing') && (
+                    <span className="badge bg-[#1F2937] text-[#94A3B8] text-[10px] px-1.5 py-0.5 border border-[#334155]">
+                      Strategy Missing
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* BUDGET  polished centered green bar */}
+              <div className="mt-auto">
+                <div className="mt-3">
+                  <div className="w-full rounded-xl bg-emerald-500/10 border border-emerald-900/50 px-4 py-2.5 text-center">
+                    <div className="text-[10px] uppercase tracking-[1px] text-emerald-400/70 mb-0.5">Budget</div>
+                    <div className="text-base font-semibold text-[#22C55E]">
+                      {getBuyerBudgetDisplay(buyerAny)}
+                    </div>
+                  </div>
+                </div>
+
+                {/* HEAT / STR  glowing pills below budget */}
+                <div className="mt-3 flex items-center gap-2">
+                  <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 ring-1 ring-emerald-400/40 shadow-[0_0_4px_rgba(52,211,153,0.2)]">Heat {heatScore}</span>
+                  <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 ring-1 ring-emerald-400/40 shadow-[0_0_4px_rgba(52,211,153,0.2)]">STR {strScore}</span>
+                </div>
+
+                {/* ACTIONS  full width at bottom */}
+                <div className="mt-3 pt-3">
+                <button
+                  onClick={(e) => { e.stopPropagation(); markBuyerViewed(b.id); const hydrated = hydrateBuyerForEdit(b); setSelectedBuyer(hydrated as any); setEditBuyer(hydrated); }}
+                  className="btn btn-ghost text-xs w-full py-2"
+                >
+                  Review &amp; Edit Profile
+                </button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      )}
+
+      {currentListId && (
+        <div className="mb-2 text-xs bg-[#171B26] p-2 rounded flex items-center justify-between">
+          Viewing list: <strong>{buyerLists.find(l => l.id === currentListId)?.name}</strong>
+          <button onClick={() => setCurrentListId(null)} className="btn btn-ghost text-xs px-2 py-0.5">Show All</button>
+        </div>
+      )}
+      {filtered.length === 0 && <div className="empty-state text-[#8B92A3]">No buyers match your search.</div>}
+
+      {/* Buyer Segments - only in segments tab */}
+      {activeTab === 'segments' && (
+      <div className="mt-8">
+        <div className="font-medium mb-3 flex items-center justify-between">
+          <span>Saved Buyer Segments</span>
+          {selectedSegment && <button onClick={() => setSelectedSegment(null)} className="btn btn-ghost text-xs">Show All Segments</button>}
+        </div>
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
+          {[
+            { name: 'Alabama Buyers', filter: (b: any) => (b.markets ?? []).some((m: string) => m.includes('AL')) },
+            { name: 'Nationwide Buyers', filter: (b: any) => (b.markets ?? []).some((m: string) => ['Nationwide','Any'].includes(m)) },
+            { name: 'Creative Finance Buyers', filter: (b: any) => b.creativeFinance || b.sellerFinance },
+            { name: 'Seller Finance Buyers', filter: (b: any) => b.sellerFinance },
+            { name: 'Cash Buyers', filter: (b: any) => !b.creativeFinance && !b.sellerFinance },
+            { name: 'Hot Buyers', filter: (b: any) => b.status === 'Hot' },
+            { name: 'High Budget Buyers', filter: (b: any) => (b.budgetMax || 0) >= 1000000 },
+            { name: 'Multifamily Buyers', filter: (b: any) => (b.assetTypes ?? []).includes('Multifamily') },
+          ].map(seg => {
+            const count = buyers.filter(seg.filter).length
+            return (
+              <div key={seg.name} className="card p-3">
+                <div className="flex justify-between">
+                  <div>{seg.name}</div>
+                  <div className="text-[#22C55E]">{count}</div>
+                </div>
+                <button onClick={() => {
+                  const list = buyers.filter(seg.filter).map(b => b.email).join(', ')
+                  navigator.clipboard.writeText(list)
+                  toast.success(`${count} emails copied for ${seg.name}`)
+                }} className="btn btn-ghost text-xs mt-2">Copy Gmail BCC</button>
+                <button onClick={() => setSelectedSegment(seg.name)} className="btn btn-ghost text-xs mt-2">View Buyers</button>
+              </div>
+            )
+          })}
+        </div>
+        <div className="text-xs text-[#8B92A3] mt-2">Segments auto-update. Use in Blast Builder by filtering buyers first.</div>
+      </div>
+      )}
+
+      {/* Buyer Custom Lists - only in lists tab */}
+      {activeTab === 'lists' && (
+      <div className="mt-8">
+        <div className="font-medium mb-3 flex items-center justify-between">
+          <span>Buyer Lists</span>
+          <button onClick={() => { setCurrentListId(null); }} className="btn btn-ghost text-xs">Show All Buyers</button>
+        </div>
+        {buyerLists.length === 0 ? (
+          <div className="text-xs text-[#8B92A3]">No custom lists yet. Select buyers and use "Add to List".</div>
+        ) : (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
+            {buyerLists.map(list => (
+              <div key={list.id} className="card p-3">
+                <div className="font-medium">{list.name}</div>
+                <div className="text-xs text-[#8B92A3]">{(list.buyerIds || []).length} buyers - {new Date(list.createdAt).toLocaleDateString()}</div>
+                {list.description && <div className="text-xs mt-1">{list.description}</div>}
+                <div className="flex flex-wrap gap-2 mt-2 text-xs">
+                  <button onClick={() => {
+                    const emails = buyers.filter(b => (list.buyerIds || []).includes(b.id)).map(b => b.email).join(', ');
+                    navigator.clipboard.writeText(emails);
+                    toast.success(`BCC copied for ${list.name}`);
+                  }} className="btn btn-ghost px-2 py-0.5">Copy BCC</button>
+                  <button onClick={() => setCurrentListId(list.id)} className="btn btn-ghost px-2 py-0.5">View List</button>
+                  <button onClick={() => {
+                    if (confirm(`Delete list "${list.name}"?`)) {
+                      setBuyerLists(prev => prev.filter(l => l.id !== list.id));
+                      if (currentListId === list.id) setCurrentListId(null);
+                    }
+                  }} className="btn btn-ghost px-2 py-0.5 text-red-400">Delete</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      )}
+
+      {/* Buyer Profile Drawer - Upgraded Flow-style Intelligence Profile */}
+      {selectedBuyer && (
+        <div className="fixed inset-0 bg-black/70 z-[200] flex items-center justify-center p-4" onClick={() => setSelectedBuyer(null)}>
+          <div className="card w-full max-w-4xl max-h-[92vh] overflow-auto p-6" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between mb-4">
+              <div>
+                <div className="text-2xl font-semibold">{getBuyerFullNameForCard(editBuyer || selectedBuyer)}</div>
+                <div className="text-[#3B82F6]">{editBuyer.email || selectedBuyer.email}</div>
+                <div className="text-xs mt-0.5 flex gap-3">
+                  <span className="text-[#22C55E]">Heat: {useAppStore.getState().getBuyerHeatScore?.(selectedBuyer.id) ?? ''}</span>
+                  <span>STR: {editBuyer.strengthScore || 65}</span>
+                  <span className="text-amber-400">Status: {editBuyer.status || selectedBuyer.status}</span>
+                </div>
+                {/* Member of Lists */}
+                {(() => {
+                  const memberLists = buyerLists.filter(l => (l.buyerIds || []).includes(selectedBuyer.id));
+                  if (memberLists.length === 0) return null;
+                  return (
+                    <div className="text-xs mt-1 text-[#8B92A3]">Member of: {memberLists.map(l => l.name).join(', ')}</div>
+                  );
+                })()}
+              </div>
+              <button onClick={() => setSelectedBuyer(null)}><X size={20} /></button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 text-sm">
+              {/* A. Core Information */}
+              <div>
+                <div className="font-semibold mb-2 text-base">Core Information</div>
+                <div className="grid grid-cols-1 gap-2">
+                  <div><div className="text-xs text-[#8B92A3]">Buyer Name</div><input className="input" value={editBuyer.name || editBuyer.buyerName || editBuyer.fullName || ''} onChange={e => setEditBuyer({...editBuyer, name: e.target.value, buyerName: e.target.value, fullName: e.target.value})} placeholder={getDisplayName(selectedBuyer)} /></div>
+                  <div><div className="text-xs text-[#8B92A3]">Company / Entity</div><input className="input" value={editBuyer.company || ''} onChange={e => setEditBuyer({...editBuyer, company: e.target.value})} placeholder="Company / Entity" /></div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div><div className="text-xs text-[#8B92A3]">Phone</div><input className="input" value={editBuyer.phone || ''} onChange={e => setEditBuyer({...editBuyer, phone: e.target.value})} placeholder="Phone" /></div>
+                    <div><div className="text-xs text-[#8B92A3]">Mobile</div><input className="input" value={editBuyer.mobile || ''} onChange={e => setEditBuyer({...editBuyer, mobile: e.target.value})} /></div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div><div className="text-xs text-[#8B92A3]">Buyer Type</div><input className="input" value={editBuyer.type || ''} onChange={e => setEditBuyer({...editBuyer, type: e.target.value})} /></div>
+                    <div><div className="text-xs text-[#8B92A3]">Status</div>
+                      <select className="select min-w-[220px]" value={editBuyer.status || 'Active'} onChange={e => setEditBuyer({...editBuyer, status: e.target.value})}>
+                        <option>Active</option><option>Hot</option><option>New</option><option>Inactive</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div><div className="text-xs text-[#8B92A3]">Lead Source / Channel</div><input className="input" value={editBuyer.leadSource || ''} onChange={e => setEditBuyer({...editBuyer, leadSource: e.target.value})} /></div>
+
+                  <div>
+                    <div className="text-xs text-[#8B92A3] mb-1">Strategy <span className="text-red-400">*</span></div>
+                    <div className="flex flex-wrap gap-1 text-[10px] border border-[#252A38] rounded-xl p-2 bg-[#070A0F]">
+                      {BUYER_STRATEGY_OPTIONS.map(strategy => {
+                        const current = getSelectedBuyerStrategies(editBuyer)
+
+                        const active = current.includes(strategy)
+
+                        return (
+                          <button
+                            key={strategy}
+                            type="button"
+                            onClick={() => {
+                              const next = active
+                                ? current.filter((x: string) => x !== strategy)
+                                : [...current, strategy]
+
+                              setEditBuyer(buildBuyerStrategyUpdate({
+                                ...editBuyer,
+                                strategies: next,
+                                strategy: next.join(', '),
+                                exitStrategy: next.join(', '),
+                              }))
+                            }}
+                            className={`px-2 py-0.5 rounded border ${active ? 'bg-[#22C55E] text-black border-[#22C55E]' : 'bg-[#171B26] border-[#252A38] hover:border-[#3B82F6]'}`}
+                          >
+                            {strategy}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    {getSelectedBuyerStrategies(editBuyer).length === 0 && (
+                      <div className="text-[10px] text-red-300 mt-1">Select at least one strategy before saving.</div>
+                    )}
+                  </div>
+                  <div>
+<div className="text-xs text-[#8B92A3]">Notes / Buy Box Summary</div><textarea className="input h-20" value={editBuyer.notes || ''} onChange={e => setEditBuyer({...editBuyer, notes: e.target.value})} /></div>
+                </div>
+              </div>
+
+              {/* B. Buy Box & Criteria */}
+              <div>
+                <div className="font-semibold mb-2 text-base">Buy Box & Criteria</div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div><div className="text-xs text-[#8B92A3]">Budget Min</div><input className="input" type="number" value={displayBudgetInputValue(editBuyer.budgetMin)} onChange={e => setEditBuyer({...editBuyer, budgetMin: parseInt(e.target.value)||0})} /></div>
+                  <div><div className="text-xs text-[#8B92A3]">Budget Max</div><input className="input" type="number" value={editBuyer.budgetMax || ''} onChange={e => setEditBuyer({...editBuyer, budgetMax: parseInt(e.target.value)||0})} /></div>
+                </div>
+                <div className="mt-1 text-center text-sm font-medium text-[#22C55E]">
+                  {getBuyerBudgetDisplay(editBuyer)}
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                  <label className="flex items-center gap-1"><input type="checkbox" checked={!!editBuyer.creativeFinance} onChange={e => setEditBuyer({...editBuyer, creativeFinance: e.target.checked})} /> Creative Finance</label>
+                  <label className="flex items-center gap-1"><input type="checkbox" checked={!!editBuyer.sellerFinance} onChange={e => setEditBuyer({...editBuyer, sellerFinance: e.target.checked})} /> Seller Finance</label>
+                  <label className="flex items-center gap-1"><input type="checkbox" checked={!!editBuyer.cashBuyer} onChange={e => setEditBuyer({...editBuyer, cashBuyer: e.target.checked})} /> Cash Buyer</label>
+                  <label className="flex items-center gap-1"><input type="checkbox" checked={!!editBuyer.nationwide} onChange={e => setEditBuyer({...editBuyer, nationwide: e.target.checked})} /> Nationwide</label>
+                </div>
+              </div>
+
+              {/* C. Target States - All 50 + Nationwide/Any */}
+              <div className="lg:col-span-2">
+                <div className="font-semibold mb-1.5 text-base">Target States</div>
+                <div className="flex flex-wrap gap-1 text-[10px]">
+                  {['Any','Nationwide','AL','AK','AZ','AR','CA','CO','CT','DE','DC','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'].map(st => {
+                    const active = (editBuyer.markets || []).includes(st);
+                    return <button key={st} type="button" onClick={() => {
+                      const cur = editBuyer.markets || [];
+                      const next = active ? cur.filter((x:string) => x !== st) : [...cur, st];
+                      setEditBuyer({...editBuyer, markets: next});
+                    }} className={`px-2 py-0.5 rounded border ${active ? 'bg-[#22C55E] text-black border-[#22C55E]' : 'bg-[#171B26] border-[#252A38] hover:border-[#3B82F6]'}`}>{st}</button>;
+                  })}
+                </div>
+              </div>
+
+              {/* D. Asset Focus */}
+              <div className="lg:col-span-2">
+                <div className="font-semibold mb-1.5 text-base">Asset Focus</div>
+                <div className="flex flex-wrap gap-1 text-[10px]">
+                  {['SFH','Multifamily','MHP','Hotel','Retail','Storage','Land','Mixed-Use','Commercial','Any'].map(t => {
+                    const active = (editBuyer.assetTypes || []).includes(t);
+                    return <button key={t} type="button" onClick={() => {
+                      const cur = editBuyer.assetTypes || [];
+                      const next = active ? cur.filter((x:string)=>x!==t) : [...cur, t];
+                      setEditBuyer({...editBuyer, assetTypes: next});
+                    }} className={`px-2 py-0.5 rounded border ${active ? 'bg-[#22C55E] text-black border-[#22C55E]' : 'bg-[#171B26] border-[#252A38] hover:border-[#3B82F6]'}`}>{t}</button>;
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Match History */}
+            <div className="mt-5">
+              <div className="font-medium text-sm mb-2">Match History</div>
+              <div className="space-y-1 text-xs max-h-48 overflow-auto">
+                {getBuyerMatchHistory(selectedBuyer.id).length === 0 && <div className="text-[#8B92A3]">No match history yet.</div>}
+                {getBuyerMatchHistory(selectedBuyer.id).slice(0, 6).map((h: any, idx: number) => (
+                  <div key={idx} className="panel p-2 flex justify-between text-[10px]">
+                    <span onClick={() => { setSelectedBuyer(null); useAppStore.getState().safeOpenDeal(h.deal.id); }} className="cursor-pointer hover:text-[#3B82F6]">{h.deal.property.address}</span>
+                    <span className="text-[#22C55E]">{h.score}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex flex-wrap gap-2 mt-5 pt-4 border-t border-[#252A38]">
+              <button onClick={async () => {
+                const selectedStrategies = Array.isArray(editBuyer.strategies)
+                  ? editBuyer.strategies
+                  : normalizeBuyerStrategies(editBuyer)
+
+                if (!selectedStrategies.length) {
+                  toast.error('Select at least one buyer strategy before saving.')
+                  return
+                }
+
+                const finalStatus = editBuyer.verificationStatus || editBuyer.status || selectedBuyer.status
+                await persistBuyerUpdate(selectedBuyer.id, {
+                  ...editBuyer,
+                  id: selectedBuyer.id,
+                  strategies: selectedStrategies,
+                  strategy: selectedStrategies.join(', '),
+                  exitStrategy: selectedStrategies.join(', '),
+                  name: cleanBuyerName(editBuyer.name || selectedBuyer.name, editBuyer.email || selectedBuyer.email),
+                  status: finalStatus,
+                  verificationStatus: finalStatus,
+                  blastEligible: finalStatus === 'Verified Buyer' || finalStatus === 'VIP Buyer'
+                } as any, 'Buyer updated in Supabase')
+              }} className="btn btn-primary">Save Changes</button>
+              <button onClick={async () => { await persistBuyerUpdate(selectedBuyer.id, { status: 'Hot' }, 'Marked Hot'); }} className="btn btn-ghost">Mark Hot</button>
+              <button onClick={async () => { await persistBuyerUpdate(selectedBuyer.id, { status: 'Verified Buyer', verificationStatus: 'Verified Buyer', blastEligible: true } as any, 'Marked Verified'); }} className="btn btn-ghost text-[#22C55E]">Mark Verified</button>
+              <button onClick={async () => { await persistBuyerUpdate(selectedBuyer.id, { status: 'VIP Buyer', verificationStatus: 'VIP Buyer', blastEligible: true } as any, 'Marked VIP'); }} className="btn btn-ghost text-purple-300">Mark VIP</button>
+              <button onClick={async () => { await persistBuyerUpdate(selectedBuyer.id, { status: 'Needs More Info', verificationStatus: 'Needs More Info', blastEligible: true } as any, 'Marked Needs More Info'); }} className="btn btn-ghost text-amber-300">Needs More Info</button>
+              <button onClick={async () => { await persistBuyerUpdate(selectedBuyer.id, { status: 'Do Not Blast', verificationStatus: 'Do Not Blast', blastEligible: true } as any, 'Marked Do Not Blast'); }} className="btn btn-ghost text-red-400">Do Not Blast</button>
+              <button onClick={() => { if (confirm(`Suppress ${selectedBuyer.name}?`)) { addToSuppression(selectedBuyer.email); toast.success('Suppressed'); } }} className="btn btn-ghost text-amber-400">Suppress</button>
+              <button onClick={async () => { if (confirm(`Delete ${selectedBuyer.name || "this buyer"} from Supabase?`)) { await removeBuyersEverywhere([selectedBuyer.id], "Buyer deleted from Supabase"); } }} className="btn btn-ghost text-red-400">Delete</button>
+              <button onClick={() => { setShowListModal(true); }} className="btn btn-ghost text-[#22C55E]">Add to List</button>
+              <button onClick={() => setSelectedBuyer(null)} className="btn btn-ghost ml-auto">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
+      {/* ADD BUYER MODAL */}
+      {showAddBuyer && (
+        <div className="fixed inset-0 bg-black/70 z-[300] flex items-center justify-center p-4" onClick={() => setShowAddBuyer(false)}>
+          <div className="card w-full max-w-4xl max-h-[92vh] overflow-auto p-6" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <div className="text-xl font-semibold">Add Buyer</div>
+                <div className="text-xs text-[#8B92A3]">Manual, quick, detailed, or multiple buyer entry</div>
+              </div>
+              <button onClick={() => setShowAddBuyer(false)}><X size={20} /></button>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-5 text-sm">
+              {[
+                ['quick','Quick Add Buyer'],
+                ['manual','Manual Add Buyer'],
+                ['detailed','Detailed Add Buyer'],
+                ['multi','Add Multiple Buyers'],
+                ['text','Paste Text / Auto Parse']
+              ].map(([mode,label]) => (
+                <button key={mode} type="button" onClick={() => setAddBuyerMode(mode as any)} className={`rounded-xl border px-3 py-2 ${addBuyerMode === mode ? 'bg-[#22C55E] text-black border-[#22C55E] font-semibold' : 'bg-[#0B0F17] border-[#252A38] text-[#E6E8EE] hover:border-[#3B82F6]'}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {addBuyerMode === 'text' ? (
+              <div>
+                <div className="text-sm text-[#8B92A3] mb-2">Paste buyer text, emails, or buy box notes. The app will auto-detect email, states, asset types, and buyer type when possible.</div>
+                <textarea className="input h-56" value={buyerPasteText} onChange={e => setBuyerPasteText(e.target.value)} placeholder="Example: dmitri@polascapital.com, Memphis TN  SFH, Max , Cash Buyer" />
+                <div className="flex gap-2 mt-4">
+                  <button onClick={savePastedBuyers} className="btn btn-primary flex-1">Parse & Add Buyers</button>
+                  <button onClick={() => setShowAddBuyer(false)} className="btn btn-ghost flex-1">Cancel</button>
+                </div>
+              </div>
+            ) : addBuyerMode === 'multi' ? (
+              <div>
+                <div className="text-sm text-[#8B92A3] mb-2">For multiple buyers, use the Import Buyers button for CSV / TXT review and approval.</div>
+                <button onClick={() => { setShowAddBuyer(false); setShowImport(true); }} className="btn btn-primary">Open Import Buyers</button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <div className="text-xs text-[#8B92A3] mb-1">Name</div>
+                  <input className="input" value={manualBuyer.name} onChange={e => setManualBuyer({ ...manualBuyer, name: e.target.value })} />
+                </div>
+                <div>
+                  <div className="text-xs text-[#8B92A3] mb-1">Email</div>
+                  <input className="input" value={manualBuyer.email} onChange={e => setManualBuyer({ ...manualBuyer, email: e.target.value })} />
+                </div>
+                <div>
+                  <div className="text-xs text-[#8B92A3] mb-1">Phone</div>
+                  <input className="input" value={manualBuyer.phone} onChange={e => setManualBuyer({ ...manualBuyer, phone: e.target.value })} />
+                </div>
+                <div>
+                  <div className="text-xs text-[#8B92A3] mb-1">Company</div>
+                  <input className="input" value={manualBuyer.company} onChange={e => setManualBuyer({ ...manualBuyer, company: e.target.value })} />
+                </div>
+
+                <div className="md:col-span-2">
+                  <div className="text-xs text-[#8B92A3] mb-2">Buyer Type</div>
+                  <div className="flex flex-wrap gap-2">
+                    {['Cash Buyer','Creative Buyer','Seller Finance','Subto','Hedge Fund','Institutional','Private Equity','JV Partner','Broker','Agent','Wholesaler','Hotel Buyer','Land Buyer','MHP Buyer','Other'].map(type => (
+                      <button key={type} type="button" onClick={() => setManualBuyer({ ...manualBuyer, type })} className={`px-3 py-1 rounded-lg border text-xs ${manualBuyer.type === type ? 'bg-[#22C55E] text-black border-[#22C55E]' : 'bg-[#0B0F17] border-[#252A38] text-[#E6E8EE]'}`}>
+                        {type}
+                      </button>
+                    ))}
+                  </div>
+                  {manualBuyer.type === 'Other' && (
+                    <input className="input mt-2" placeholder="Custom buyer type" onChange={e => setManualBuyer({ ...manualBuyer, type: e.target.value })} />
+                  )}
+                </div>
+
+                <div className="md:col-span-2">
+                  <div className="text-xs text-[#8B92A3] mb-2">Markets / States</div>
+                  <div className="flex flex-wrap gap-1.5 max-h-[180px] overflow-y-auto border border-[#252A38] rounded-xl p-3 bg-[#070A0F]">
+                    {['Nationwide','AL','AK','AZ','AR','CA','CO','CT','DE','DC','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY','Other'].map(st => {
+                      const active = (manualBuyer.markets || []).includes(st)
+                      return (
+                        <button key={st} type="button" onClick={() => toggleManualBuyerArray('markets', st)} className={`px-2.5 py-1 rounded-lg border text-[10px] ${active ? 'bg-[#22C55E] text-black border-[#22C55E] font-semibold' : 'bg-[#0B0F17] border-[#252A38] text-[#E6E8EE]'}`}>
+                          {st}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                <div className="md:col-span-2">
+                  <div className="text-xs text-[#8B92A3] mb-2">Asset Types</div>
+                  <div className="flex flex-wrap gap-2">
+                    {['SFH','Multifamily','Small Multifamily','Apartment','Land','Hotel','Retail','Office','Industrial','Storage','Mixed Use','Mobile Home Park','RV Park','Build To Rent','Notes','Commercial','Development','Other'].map(asset => {
+                      const active = (manualBuyer.assetTypes || []).includes(asset)
+                      return (
+                        <button key={asset} type="button" onClick={() => toggleManualBuyerArray('assetTypes', asset)} className={`px-3 py-1 rounded-lg border text-xs ${active ? 'bg-[#22C55E] text-black border-[#22C55E] font-semibold' : 'bg-[#0B0F17] border-[#252A38] text-[#E6E8EE]'}`}>
+                          {asset}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {addBuyerMode === 'detailed' && (
+                  <>
+                    <div>
+                      <div className="text-xs text-[#8B92A3] mb-1">Budget Min</div>
+                      <input className="input" type="number" value={manualBuyer.budgetMin} onChange={e => setManualBuyer({ ...manualBuyer, budgetMin: normalizeBuyerBudgetMin(e.target.value) })} />
+                    </div>
+                    <div>
+                      <div className="text-xs text-[#8B92A3] mb-1">Budget Max</div>
+                      <input className="input" type="number" value={manualBuyer.budgetMax} onChange={e => setManualBuyer({ ...manualBuyer, budgetMax: e.target.value })} />
+                    </div>
+                    <div className="md:col-span-2">
+                      <div className="text-xs text-[#8B92A3] mb-1">Notes / Buy Box</div>
+                      <textarea className="input h-24" value={manualBuyer.notes} onChange={e => setManualBuyer({ ...manualBuyer, notes: e.target.value })} />
+                    </div>
+                  </>
+                )}
+
+                <div className="md:col-span-2 flex gap-2 pt-2">
+                  <button onClick={saveManualBuyer} className="btn btn-primary flex-1">Save Buyer</button>
+                  <button onClick={() => setShowAddBuyer(false)} className="btn btn-ghost flex-1">Cancel</button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      {/* Buyer Custom Lists Modal */}
+      {showListModal && (
+        <div className="fixed inset-0 bg-black/70 z-[300] flex items-center justify-center p-4" onClick={() => { setShowListModal(false); setNewListName(''); }}>
+          <div className="card w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+            <div className="text-lg font-semibold mb-4">Add to Buyer List</div>
+
+            {buyerLists.length > 0 && (
+              <div className="mb-4">
+                <div className="text-xs text-[#8B92A3] mb-1">Existing Lists</div>
+                {buyerLists.map(list => (
+                  <button key={list.id} onClick={() => {
+                    const idsToAdd = selectedBuyer ? [selectedBuyer.id] : selectedBuyerIds;
+                    const updated = buyerLists.map(l => l.id === list.id ? { ...l, buyerIds: Array.from(new Set([...(l.buyerIds || []), ...idsToAdd])) , updatedAt: Date.now() } : l);
+                    setBuyerLists(updated);
+                    setShowListModal(false);
+                    setSelectedBuyerIds([]);
+                    toast.success(`Added to ${list.name}`);
+                  }} className="w-full text-left btn btn-ghost px-3 py-1 mb-1 text-sm border border-[#252A38]">
+                    {list.name} <span className="text-[#8B92A3] text-xs">({(list.buyerIds || []).length})</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="border-t border-[#252A38] pt-4">
+              <div className="text-xs text-[#8B92A3] mb-1">Create New List</div>
+              <input className="input mb-2" placeholder="List name (e.g. Alabama Buyers)" value={newListName} onChange={e => setNewListName(e.target.value)} />
+              <button onClick={() => {
+                if (!newListName.trim()) return;
+                const newList = {
+                  id: 'list_' + Date.now(),
+                  name: newListName.trim(),
+                  description: '',
+                  buyerIds: selectedBuyer ? [selectedBuyer.id] : selectedBuyerIds,
+                  tags: [],
+                  createdAt: Date.now(),
+                  updatedAt: Date.now()
+                };
+                setBuyerLists([...buyerLists, newList]);
+                setShowListModal(false);
+                setNewListName('');
+                setSelectedBuyerIds([]);
+                toast.success(`Created list "${newListName}" and added buyers`);
+              }} className="btn btn-primary w-full" disabled={!newListName.trim()}>Create & Add</button>
+            </div>
+
+            <button onClick={() => { setShowListModal(false); setNewListName(''); }} className="btn btn-ghost w-full mt-3">Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* BUYER PORTAL REVIEW MODAL - separate from CSV/TXT import review. */}
+      {showPortalReview && (
+        <div className="fixed inset-0 bg-black/70 z-[220] flex items-center justify-center p-4">
+          <div className="card w-full max-w-5xl max-h-[92vh] overflow-auto p-6">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <div className="font-semibold text-xl">Buyer Portal Review Center</div>
+                <div className="text-xs text-[#8B92A3] mt-1">
+                  Portal submissions stay pending here until you approve or dismiss them. CSV/TXT uploads are separate.
+                </div>
+              </div>
+              <button onClick={() => { setShowPortalReview(false); void refreshBuyerPortalQueueCount() }}><X /></button>
+            </div>
+
+            {pendingPortalImport.length === 0 ? (
+              <div className="border border-dashed border-[#252A38] rounded-xl p-8 text-center">
+                <div className="mb-2">No buyer portal submissions loaded.</div>
+                <button onClick={importBuyerPortalQueue} className="btn btn-primary mt-3">Refresh Buyer Portal Queue</button>
+              </div>
+            ) : (
+              <>
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-4 border-b border-[#252A38] pb-4">
+                  <div>
+                    <div className="text-sm font-medium">{pendingPortalImport.length} portal buyer{pendingPortalImport.length === 1 ? '' : 's'} pending approval</div>
+                    <div className="text-[10px] text-[#8B92A3]">These are separate from uploaded CSV/TXT buyers.</div>
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    <button onClick={() => { void clearPortalPendingRows() }} className="btn btn-ghost px-3 py-1">Clear Portal Queue</button>
+                    <button onClick={cleanAllPortalBuyerNames} className="btn btn-ghost px-3 py-1 text-[#22C55E]">Auto-Fix Names</button>
+                    <button onClick={skipPortalInvalid} className="btn btn-ghost px-3 py-1">Skip Dups &amp; Invalid</button>
+                    <button onClick={approveAllPortalValid} className="btn btn-green px-3 py-1">Approve Portal Buyers</button>
+                  </div>
+                </div>
+
+                <div className="space-y-5 max-h-[62vh] overflow-auto pr-1">
+                  {pendingPortalImport.map((row, idx) => {
+                    const rowMarkets = Array.isArray(row.markets) ? row.markets : []
+                    const rowAssets = Array.isArray(row.assetTypes) ? row.assetTypes : []
+
+                    // PORTAL_FULL_REVIEW_PATCH_V1
+                    const rawPortalBuyer = row.buyerPortalSubmission && typeof row.buyerPortalSubmission === 'object'
+                      ? row.buyerPortalSubmission
+                      : {}
+
+                    const portalFirst = (...values: any[]) => {
+                      for (const value of values) {
+                        if (Array.isArray(value)) {
+                          const joined = value.map(v => String(v ?? '').trim()).filter(Boolean).join(', ')
+                          if (joined) return joined
+                        }
+
+                        if (value !== undefined && value !== null && String(value).trim()) {
+                          return String(value).trim()
+                        }
+                      }
+
+                      return ''
+                    }
+
+                    const portalBool = (...values: any[]) => {
+                      for (const value of values) {
+                        if (value === true) return 'Yes'
+                        if (value === false) return 'No'
+                        if (value !== undefined && value !== null && String(value).trim()) return String(value).trim()
+                      }
+
+                      return ''
+                    }
+
+                    const portalProofFiles = (() => {
+                      const buckets = [
+                        row.proofFiles,
+                        row.uploadedFiles,
+                        row.files,
+                        rawPortalBuyer.proofFiles,
+                        rawPortalBuyer.uploadedFiles,
+                        rawPortalBuyer.files,
+                        rawPortalBuyer.documents,
+                      ]
+
+                      const files = buckets.flatMap((bucket: any) => Array.isArray(bucket) ? bucket : [])
+                      const seen = new Set<string>()
+
+                      return files.filter((file: any) => {
+                        const key = [
+                          file?.id,
+                          file?.storagePath,
+                          file?.publicUrl,
+                          file?.fileDataUrl,
+                          file?.url,
+                          file?.fileName || file?.name || file?.filename,
+                          file?.fileSize || file?.size,
+                        ].filter(Boolean).join('|') || JSON.stringify(file || {})
+
+                        if (seen.has(key)) return false
+                        seen.add(key)
+                        return true
+                      })
+                    })()
+
+                    const portalFormatFileSize = (size?: number) => {
+                      const n = Number(size || 0)
+                      if (!n || Number.isNaN(n)) return ''
+                      if (n >= 1024 * 1024) return (n / (1024 * 1024)).toFixed(1) + ' MB'
+                      if (n >= 1024) return Math.round(n / 1024) + ' KB'
+                      return n + ' B'
+                    }
+
+                    const portalFullFields = [
+                      ['Website / LinkedIn / Company Profile', portalFirst(row.website, row.linkedin, row.companyProfile, row.company_profile, rawPortalBuyer.website, rawPortalBuyer.linkedin, rawPortalBuyer.companyProfile, rawPortalBuyer.company_profile)],
+                      ['Target Cities / Counties', portalFirst(row.targetCities, row.target_cities, row.cities, row.counties, rawPortalBuyer.targetCities, rawPortalBuyer.target_cities, rawPortalBuyer.cities, rawPortalBuyer.counties)],
+                      ['Bed Requirement', portalFirst(row.bedRequirement, rawPortalBuyer.bedRequirement, rawPortalBuyer.beds)],
+                      ['Bath Requirement', portalFirst(row.bathRequirement, rawPortalBuyer.bathRequirement, rawPortalBuyer.baths)],
+                      ['Unit Requirement', portalFirst(row.unitRequirement, rawPortalBuyer.unitRequirement, rawPortalBuyer.units)],
+                      ['Down Payment Max', portalFirst(row.downPaymentMax, rawPortalBuyer.downPaymentMax, rawPortalBuyer.downPayment)],
+                      ['Monthly Payment Max', portalFirst(row.monthlyPaymentMax, rawPortalBuyer.monthlyPaymentMax, rawPortalBuyer.monthlyPayment)],
+                      ['Interest Rate Max', portalFirst(row.interestRateMax, rawPortalBuyer.interestRateMax, rawPortalBuyer.interestRate)],
+                      ['Balloon Term', portalFirst(row.balloonTerm, rawPortalBuyer.balloonTerm, rawPortalBuyer.balloon)],
+                      ['Cap Rate Target', portalFirst(row.capRateTarget, rawPortalBuyer.capRateTarget, rawPortalBuyer.capRate)],
+                      ['Creative Structure', portalFirst(row.creativeStructure, rawPortalBuyer.creativeStructure)],
+                      ['Consent Confirmed', portalBool(row.consent, row.consentConfirmed, rawPortalBuyer.consent, rawPortalBuyer.consentConfirmed)],
+                    ].filter(([, value]) => String(value || '').trim())
+
+                    return (
+                      <div key={row._id} className={`rounded-2xl border p-5 bg-[#111623] ${row._valid === false ? 'border-red-500/50' : row._dup ? 'border-amber-500/50' : 'border-[#252A38]'}`}>
+                        <div className="flex flex-wrap justify-between items-start gap-3 mb-4">
+                          <div>
+                            <div className="text-lg font-semibold">{row.name || 'Name Missing'}</div>
+                            <div className="text-sm text-blue-400">{row.email || 'Email Missing'}</div>
+                            <div className="text-xs text-[#22C55E] mt-1">Portal Review #{idx + 1}</div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button onClick={() => updatePortalPendingRow(row._id, { _valid: true })} className="btn btn-ghost text-xs px-3 py-1">Valid</button>
+                            <button onClick={() => updatePortalPendingRow(row._id, { status: 'Hot' })} className="btn btn-ghost text-xs px-3 py-1">Mark Hot</button>
+                            <button onClick={() => { void removePortalPendingRow(row._id) }} className="btn btn-ghost text-xs px-3 py-1">Remove</button>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                          <div>
+                            <div className="text-sm font-semibold mb-3">Core Information</div>
+                            <div className="grid grid-cols-1 gap-3 text-xs">
+                              <label>
+                                <div className="text-[#8B92A3] mb-1">Buyer Name</div>
+                                <input className="input" value={row.name || ''} onChange={e => updatePortalPendingRow(row._id, { name: e.target.value })} />
+                              </label>
+                              <label>
+                                <div className="text-[#8B92A3] mb-1">Email</div>
+                                <input className="input" value={row.email || ''} onChange={e => updatePortalPendingRow(row._id, { email: e.target.value, _valid: !!e.target.value })} />
+                              </label>
+                              <label>
+                                <div className="text-[#8B92A3] mb-1">Company / Entity</div>
+                                <input className="input" value={row.company || ''} onChange={e => updatePortalPendingRow(row._id, { company: e.target.value })} />
+                              </label>
+                              <label>
+                                <div className="text-[#8B92A3] mb-1">Phone</div>
+                                <input className="input" value={row.phone || ''} onChange={e => updatePortalPendingRow(row._id, { phone: e.target.value })} />
+                              </label>
+                            </div>
+                          </div>
+
+                          <div>
+                            <div className="text-sm font-semibold mb-3">Buy Box & Criteria</div>
+                            <div className="grid grid-cols-2 gap-3 text-xs">
+                              <label>
+                                <div className="text-[#8B92A3] mb-1">Budget Min</div>
+                                <input className="input" value={row.budgetMin || ''} onChange={e => updatePortalPendingRow(row._id, { budgetMin: normalizeBuyerBudgetMin(e.target.value) })} />
+                              </label>
+                              <label>
+                                <div className="text-[#8B92A3] mb-1">Budget Max</div>
+                                <input className="input" value={row.budgetMax || ''} onChange={e => updatePortalPendingRow(row._id, { budgetMax: Number(e.target.value) || 0 })} />
+                              </label>
+                              <label>
+                                <div className="text-[#8B92A3] mb-1">Buyer Type</div>
+                                <select className="input" value={row.type || row.buyerType || 'Cash Buyer'} onChange={e => updatePortalPendingRow(row._id, { type: e.target.value, buyerType: e.target.value })}>
+                                  {['Cash Buyer','Creative Buyer','JV Partner','Wholesaler','Agent/Broker','Lender','Other'].map(x => <option key={x}>{x}</option>)}
+                                </select>
+                              </label>
+                              <label>
+                                <div className="text-[#8B92A3] mb-1">Status</div>
+                                <select className="input" value={row.status || 'Submitted / Pending Review'} onChange={e => updatePortalPendingRow(row._id, { status: e.target.value, verificationStatus: e.target.value })}>
+                                  {['Submitted / Pending Review','Active','Verified Buyer','VIP Buyer','Hot','Needs More Info','Do Not Blast'].map(x => <option key={x}>{x}</option>)}
+                                </select>
+                              </label>
+                            </div>
+
+                            <div className="mt-3 text-xs">
+                              <div className="text-[#8B92A3] mb-1">Markets</div>
+                              <input className="input" value={rowMarkets.join(', ')} onChange={e => updatePortalPendingRow(row._id, { markets: e.target.value.split(',').map(x => x.trim()).filter(Boolean), targetMarkets: e.target.value.split(',').map(x => x.trim()).filter(Boolean) })} />
+                            </div>
+
+                            <div className="mt-3 text-xs">
+                              <div className="text-[#8B92A3] mb-1">Asset Types</div>
+                              <input className="input" value={rowAssets.join(', ')} onChange={e => updatePortalPendingRow(row._id, { assetTypes: e.target.value.split(',').map(x => x.trim()).filter(Boolean), assetFocus: e.target.value.split(',').map(x => x.trim()).filter(Boolean) })} />
+                            </div>
+
+                            <div className="mt-3 text-xs">
+                              <div className="text-[#8B92A3] mb-1">Strategy <span className="text-red-400">*</span></div>
+                              <div className="flex flex-wrap gap-1 border border-[#252A38] rounded-xl p-2 bg-[#070A0F]">
+                                {BUYER_STRATEGY_OPTIONS.map(strategy => {
+                                  const current = Array.isArray(row.strategies) ? row.strategies : normalizeBuyerStrategies(row)
+                                  const active = current.includes(strategy)
+
+                                  return (
+                                    <button
+                                      key={strategy}
+                                      type="button"
+                                      onClick={() => {
+                                        const next = active ? current.filter((x: string) => x !== strategy) : [...current, strategy]
+                                        updatePortalPendingRow(row._id, {
+                                          strategies: next,
+                                          strategy: next.join(', '),
+                                          exitStrategy: next.join(', '),
+                                          creativeFinance: next.includes('Creative Finance') || next.includes('Seller Finance') || next.includes('SubTo') || next.includes('Wrap') || next.includes('Lease Option'),
+                                          sellerFinance: next.includes('Seller Finance'),
+                                          cashBuyer: next.includes('Fix & Flip') || next.includes('BRRRR') || next.includes('Buy & Hold') || next.includes('Section 8') || next.includes('Wholesale') || next.includes('DSCR Rental')
+                                        })
+                                      }}
+                                      className={`px-2 py-0.5 rounded border ${active ? 'bg-[#22C55E] text-black border-[#22C55E]' : 'bg-[#171B26] border-[#252A38] hover:border-[#3B82F6]'}`}
+                                    >
+                                      {strategy}
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                              {normalizeBuyerStrategies(row).length === 0 && (
+                                <div className="text-[10px] text-red-300 mt-1">Required before approval.</div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="mt-5 grid grid-cols-1 lg:grid-cols-2 gap-4">
+                          <div className="rounded-xl border border-[#252A38] bg-[#0B0F17] p-3">
+                            <div className="text-sm font-semibold mb-3 text-[#22C55E]">Full Portal Submission Details</div>
+
+                            {portalFullFields.length > 0 ? (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                                {portalFullFields.map(([label, value]) => (
+                                  <div key={label} className="rounded-lg border border-[#252A38] bg-[#070A0F] p-2">
+                                    <div className="text-[#8B92A3] mb-1">{label}</div>
+                                    <div className="text-white break-words">{String(value)}</div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="text-xs text-amber-300">No extra portal fields found on this submission.</div>
+                            )}
+
+                            <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                              <label>
+                                <div className="text-[#8B92A3] mb-1">Beds</div>
+                                <select className="input" value={getRequirementValue(row, 'bedRequirement')} onChange={e => updatePortalPendingRow(row._id, { bedRequirement: e.target.value })}>
+                                  {BED_REQUIREMENT_OPTIONS.map(option => <option key={option} value={option}>{option}</option>)}
+                                </select>
+                              </label>
+                              <label>
+                                <div className="text-[#8B92A3] mb-1">Baths</div>
+                                <select className="input" value={getRequirementValue(row, 'bathRequirement')} onChange={e => updatePortalPendingRow(row._id, { bathRequirement: e.target.value })}>
+                                  {BATH_REQUIREMENT_OPTIONS.map(option => <option key={option} value={option}>{option}</option>)}
+                                </select>
+                              </label>
+                              <label>
+                                <div className="text-[#8B92A3] mb-1">Units</div>
+                                <select className="input" value={getRequirementValue(row, 'unitRequirement')} onChange={e => updatePortalPendingRow(row._id, { unitRequirement: e.target.value })}>
+                                  {UNIT_REQUIREMENT_OPTIONS.map(option => <option key={option} value={option}>{option}</option>)}
+                                </select>
+                              </label>
+                            </div>
+
+                            <label className="block mt-3 text-xs">
+                              <div className="text-[#8B92A3] mb-1">Additional Notes / Buy Box</div>
+                              <textarea
+                                className="input h-24"
+                                value={row.notes || rawPortalBuyer.notes || rawPortalBuyer.buyBox || ''}
+                                onChange={e => {
+                                  const nextNotes = e.target.value
+                                  const parsed = parsePropertyRequirements(nextNotes)
+                                  updatePortalPendingRow(row._id, {
+                                    notes: nextNotes,
+                                    bedRequirement: row.bedRequirement && row.bedRequirement !== 'Any' ? row.bedRequirement : parsed.bedRequirement,
+                                    bathRequirement: row.bathRequirement && row.bathRequirement !== 'Any' ? row.bathRequirement : parsed.bathRequirement,
+                                    unitRequirement: row.unitRequirement && row.unitRequirement !== 'Any' ? row.unitRequirement : parsed.unitRequirement,
+                                  })
+                                }}
+                              />
+                            </label>
+                          </div>
+
+                          <div className="rounded-xl border border-[#252A38] bg-[#0B0F17] p-3">
+                            <div className="text-sm font-semibold mb-3 text-[#22C55E]">Buyer Verification / Proof Files</div>
+
+                            {portalProofFiles.length > 0 ? (
+                              <div className="space-y-2">
+                                {portalProofFiles.map((file: any, fileIndex: number) => {
+                                  const fileName = file.fileName || file.name || file.filename || 'Uploaded proof file'
+                                  const fileType = file.proofType || file.fileType || file.type || file.mimeType || 'file'
+                                  const fileSizeLabel = portalFormatFileSize(file.fileSize || file.size)
+                                  const canOpenFile = !!(file.storagePath || file.publicUrl || file.fileDataUrl || file.dataUrl || file.url || file.downloadUrl)
+
+                                  return (
+                                    <div key={fileIndex} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#252A38] bg-[#070A0F] p-2 text-xs">
+                                      <div>
+                                        <div className="font-medium text-white break-all">{fileName}</div>
+                                        <div className="text-[#8B92A3]">{fileType}{fileSizeLabel ? ' · ' + fileSizeLabel : ''}</div>
+                                      </div>
+
+                                      {canOpenFile ? (
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            void openBuyerProofFile(file).catch((error) => {
+                                              console.error('Could not open proof file:', error)
+                                              toast.error('Could not open this proof file. Check Supabase Storage permissions.')
+                                            })
+                                          }}
+                                          className="btn btn-ghost text-xs px-2 py-1 border border-[#3B82F6]/40 text-[#93C5FD]"
+                                        >
+                                          View File
+                                        </button>
+                                      ) : (
+                                        <span className="text-[10px] text-amber-300">Metadata only</span>
+                                      )}
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            ) : (
+                              <div className="text-xs text-amber-300">
+                                No uploaded proof file found on this queued submission.
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                <div className="flex gap-2 mt-5 pt-4 border-t border-[#252A38]">
+                  <button onClick={approvePortalSelected} className="btn btn-green flex-1">Approve Portal Buyers</button>
+                  <button onClick={() => { setShowPortalReview(false); void refreshBuyerPortalQueueCount() }} className="btn btn-ghost flex-1">Close, Keep Pending</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* IMPORT MODAL - Profile-style review screen before any store write. */}
+      {showImport && (
+        <div className="fixed inset-0 bg-black/70 z-[200] flex items-center justify-center p-4">
+          <div className="card w-full max-w-5xl max-h-[92vh] overflow-auto p-6">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <div className="font-semibold text-xl">Import Buyers - Review & Approve</div>
+                <div className="text-xs text-[#8B92A3] mt-1">
+                  Review each buyer exactly like the Global Buyer Database profile before saving.
+                </div>
+              </div>
+              <button onClick={() => { setShowImport(false); void refreshBuyerPortalQueueCount() }}><X /></button>
+            </div>
+
+            {pendingImport.length === 0 && !importResult && (
+              <div className="border border-dashed border-[#252A38] rounded-xl p-8 text-center">
+                <Upload className="mx-auto mb-3" />
+                <div className="mb-2">Drop or click to upload CSV/TXT</div>
+                <div className="text-xs text-[#8B92A3] mb-4">Multiple uploads allowed. Review, edit, remove, merge dups, then approve.</div>
+                <input
+                  type="file"
+                  accept=".csv,.txt"
+                  multiple
+                  onChange={(e) => {
+                    const files = Array.from(e.currentTarget.files || []) as File[]
+                    files.forEach(file => handleFile(file))
+                    e.currentTarget.value = ''
+                  }}
+                  className="hidden"
+                  id="csv-upload"
+                />
+                <label htmlFor="csv-upload" className="btn btn-primary cursor-pointer">Choose Files</label>
+                <div className="text-[10px] text-[#8B92A3] mt-3">Columns auto-mapped: Email/Name/Markets/Property_Types/Budget/Finance_Type etc.</div>
+              </div>
+            )}
+
+            {pendingImport.length > 0 && (
+              <>
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-4 border-b border-[#252A38] pb-4">
+                  <div>
+                    <div className="text-sm font-medium">{pendingImport.length} buyer{pendingImport.length === 1 ? '' : 's'} ready for review</div>
+                    <div className="text-[10px] text-[#8B92A3]">Only approved buyers are written to the buyer database.</div>
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    <button onClick={() => { void clearPendingImportRows() }} className="btn btn-ghost px-3 py-1">Clear All</button>
+                    <button onClick={cleanAllPendingBuyerNames} className="btn btn-ghost px-3 py-1 text-[#22C55E]">Auto-Fix Names</button>
+                    <button onClick={skipInvalid} className="btn btn-ghost px-3 py-1">Skip Dups &amp; Invalid</button>
+                    <button onClick={approveAllValid} className="btn btn-green px-3 py-1">Approve All Valid</button>
+                  </div>
+                </div>
+
+                <div className="space-y-5 max-h-[62vh] overflow-auto pr-1">
+                  {pendingImport.map((row, idx) => {
+                    const marketOptions = ['Any','Nationwide','AL','AK','AZ','AR','CA','CO','CT','DE','DC','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY']
+                    const assetOptions = ['SFH','Multifamily','Small Multifamily','MHP','Mobile Home Park','RV Park','Hotel','Retail','Office','Industrial','Storage','Land','Mixed Use','Mixed-Use','Commercial','Development','Build-to-Rent','Any']
+                    const rowMarkets = Array.isArray(row.markets) ? row.markets : []
+                    const rowAssets = Array.isArray(row.assetTypes) ? row.assetTypes : []
+
+                    return (
+                      <div key={row._id} className={`rounded-2xl border p-5 bg-[#111623] ${row._valid === false ? 'border-red-500/50' : row._dup ? 'border-amber-500/50' : 'border-[#252A38]'}`}>
+                        <div className="flex flex-wrap justify-between items-start gap-3 mb-4">
+                          <div>
+                            <div className="text-lg font-semibold">{row.name || 'Unknown Buyer'}</div>
+                            <div className="text-[#3B82F6] text-sm">{row.email || 'Email Missing'}</div>
+                            <div className="text-xs mt-1 flex flex-wrap gap-2">
+                              <span className="text-[#22C55E]">Review #{idx + 1}</span>
+                              {row._dup && <span className="text-amber-400">Possible Duplicate</span>}
+                              {row._valid === false && <span className="text-red-400">Marked Invalid</span>}
+                              {row.status && <span className="text-amber-400">Status: {row.status}</span>}
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap gap-2 text-xs">
+                            <button onClick={() => updatePendingRow(row._id, { _valid: !(row._valid === false) })} className="btn btn-ghost px-3 py-1">
+                              {row._valid === false ? 'Mark Valid' : 'Valid'}
+                            </button>
+                            <button onClick={() => toggleMergePending(row._id)} className="btn btn-ghost px-3 py-1 text-amber-400">
+                              {row._merge ? 'Unmerge Dup' : 'Merge Dup'}
+                            </button>
+                            <button onClick={() => updatePendingRow(row._id, {status: row.status === 'Hot' ? 'Active' : 'Hot'})} className="btn btn-ghost px-3 py-1">
+                              {row.status === 'Hot' ? 'Unmark Hot' : 'Mark Hot'}
+                            </button>
+                            <button onClick={() => { void removePendingRow(row._id) }} className="btn btn-ghost px-3 py-1 text-red-400">Remove</button>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 text-sm">
+                          <div>
+                            <div className="font-semibold mb-2 text-base">Core Information</div>
+                            <div className="grid grid-cols-1 gap-2">
+                              <div>
+                                <div className="text-xs text-[#8B92A3]">Buyer Name</div>
+                                <input
+                                  className="input"
+                                  value={row.name ?? ''}
+                                  onChange={e => updatePendingRow(row._id, { name: autoCapBuyerName(e.target.value), buyerName: autoCapBuyerName(e.target.value) })}
+                                  placeholder="Buyer Name"
+                                  autoComplete="off"
+                                />
+                                
+                              </div>
+                              <div>
+                                <div className="text-xs text-[#8B92A3]">Email</div>
+                                <input className="input" value={row.email || ''} onChange={e => updatePendingRow(row._id, { email: e.target.value })} placeholder="Email" />
+                              </div>
+                              <div>
+                                <div className="text-xs text-[#8B92A3]">Company / Entity</div>
+                                <input className="input" value={row.company || ''} onChange={e => updatePendingRow(row._id, { company: e.target.value })} placeholder="Company Missing" />
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <div className="text-xs text-[#8B92A3]">Phone</div>
+                                  <input className="input" value={row.phone || ''} onChange={e => updatePendingRow(row._id, { phone: e.target.value })} placeholder="Phone Missing" />
+                                </div>
+                                <div>
+                                  <div className="text-xs text-[#8B92A3]">Mobile</div>
+                                  <input className="input" value={row.mobile || ''} onChange={e => updatePendingRow(row._id, { mobile: e.target.value })} />
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <div className="text-xs text-[#8B92A3]">Buyer Type</div>
+                                  <select className="input" value={row.type || ''} onChange={e => updatePendingRow(row._id, { type: e.target.value })}>
+                                            <option value="">Select buyer type</option>
+                                            <option value="Cash Buyer">Cash Buyer</option>
+                                            <option value="Creative Buyer">Creative Buyer</option>
+                                            <option value="Seller Finance Buyer">Seller Finance Buyer</option>
+                                            <option value="Owner Finance Buyer">Owner Finance Buyer</option>
+                                            <option value="Subject-To Buyer">Subject-To Buyer</option>
+                                            <option value="Notes Buyer">Notes Buyer</option>
+                                            <option value="Fix & Flip Buyer">Fix & Flip Buyer</option>
+                                            <option value="Buy & Hold Buyer">Buy & Hold Buyer</option>
+                                            <option value="BRRRR Buyer">BRRRR Buyer</option>
+                                            <option value="Multifamily Buyer">Multifamily Buyer</option>
+                                            <option value="Commercial Buyer">Commercial Buyer</option>
+                                            <option value="Land Buyer">Land Buyer</option>
+                                            <option value="Developer">Developer</option>
+                                            <option value="Builder">Builder</option>
+                                            <option value="Fund / Institutional Buyer">Fund / Institutional Buyer</option>
+                                            <option value="Broker / Realtor">Broker / Realtor</option>
+                                            <option value="Wholesaler">Wholesaler</option>
+                                            <option value="JV Partner">JV Partner</option>
+                                            <option value="Lender">Lender</option>
+                                            <option value="Other">Other</option>
+                                          </select>
+                                </div>
+                                <div>
+                                  <div className="text-xs text-[#8B92A3]">Status</div>
+                                  <select className="select min-w-[220px]" value={row.status || 'Active'} onChange={e => updatePendingRow(row._id, { status: e.target.value })}>
+                                    <option>Active</option><option>Hot</option><option>New</option><option>Inactive</option>
+                                  </select>
+                                </div>
+                              </div>
+                              {safeLower(row.type || '').includes('creative') && (
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <div className="text-xs text-[#8B92A3]">Down Payment Max</div>
+                                    <input className="input" value={row.downPaymentMax || ''} onChange={e => updatePendingRow(row._id, { downPaymentMax: e.target.value })} onBlur={e => updatePendingRow(row._id, { downPaymentMax: formatDownPaymentField(e.target.value) })} placeholder="$10K" />
+                                  </div>
+                                  <div>
+                                    <div className="text-xs text-[#8B92A3]">Monthly Payment Max</div>
+                                    <input className="input" value={row.monthlyPaymentMax || ''} onChange={e => updatePendingRow(row._id, { monthlyPaymentMax: e.target.value })} onBlur={e => updatePendingRow(row._id, { monthlyPaymentMax: formatMonthlyPaymentField(e.target.value) })} placeholder="$1,300/mo" />
+                                  </div>
+                                  <div>
+                                    <div className="text-xs text-[#8B92A3]">Interest Rate Max</div>
+                                    <select className="input" value={row.interestRateMax || ''} onChange={e => updatePendingRow(row._id, { interestRateMax: e.target.value })}>
+                                      <option value="">Select rate</option>
+                                      <option value="0%">0%</option><option value="3%">3%</option><option value="5%">5%</option><option value="6%">6%</option><option value="7%">7%</option><option value="8%">8%</option><option value="10%">10%</option><option value="Other">Other</option>
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <div className="text-xs text-[#8B92A3]">Cap Rate Target</div>
+                                    <select className="input" value={row.capRateTarget || ''} onChange={e => updatePendingRow(row._id, { capRateTarget: e.target.value })}>
+                                      <option value="">Select cap</option>
+                                      <option value="5% cap">5% cap</option><option value="6% cap">6% cap</option><option value="7% cap">7% cap</option><option value="8% cap">8% cap</option><option value="9% cap">9% cap</option><option value="10% cap">10% cap</option><option value="Other">Other</option>
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <div className="text-xs text-[#8B92A3]">Balloon Term</div>
+                                    <select className="input" value={row.balloonTerm || ''} onChange={e => updatePendingRow(row._id, { balloonTerm: e.target.value })}>
+                                      <option value="">Select balloon</option>
+                                      <option value="No balloon">No balloon</option><option value="3 years">3 years</option><option value="5 years">5 years</option><option value="7 years">7 years</option><option value="10 years">10 years</option><option value="Other">Other</option>
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <div className="text-xs text-[#8B92A3]">Creative Structure</div>
+                                    <input className="input" value={row.creativeStructure || ''} onChange={e => updatePendingRow(row._id, { creativeStructure: e.target.value })} placeholder="Seller Finance, Subject-To" />
+                                  </div>
+                                </div>
+                              )}
+
+                              <div>
+                                
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="text-xs text-gray-400">Down Payment Max</label>
+                                <input
+                                  className="w-full mt-1 rounded-lg border border-gray-800 bg-gray-950 px-3 py-2 text-sm text-white"
+                                  value={row.downPaymentMax || row.downPayment || ''}
+                                  onChange={e => updatePendingRow(row._id, { downPaymentMax: e.target.value, downPayment: e.target.value })}
+                                  placeholder="$10K"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="text-xs text-gray-400">Monthly Payment Max</label>
+                                <input
+                                  className="w-full mt-1 rounded-lg border border-gray-800 bg-gray-950 px-3 py-2 text-sm text-white"
+                                  value={row.monthlyPaymentMax || row.monthlyPayment || ''}
+                                  onChange={e => updatePendingRow(row._id, { monthlyPaymentMax: e.target.value, monthlyPayment: e.target.value })}
+                                  placeholder="$1,000/mo"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="text-xs text-gray-400">Interest Rate Max</label>
+                                <input
+                                  className="w-full mt-1 rounded-lg border border-gray-800 bg-gray-950 px-3 py-2 text-sm text-white"
+                                  value={row.interestRateMax || row.interestRate || ''}
+                                  onChange={e => updatePendingRow(row._id, { interestRateMax: e.target.value, interestRate: e.target.value })}
+                                  placeholder="7%"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="text-xs text-gray-400">Cap Rate Target</label>
+                                <input
+                                  className="w-full mt-1 rounded-lg border border-gray-800 bg-gray-950 px-3 py-2 text-sm text-white"
+                                  value={row.capRateTarget || row.capRate || ''}
+                                  onChange={e => updatePendingRow(row._id, { capRateTarget: e.target.value, capRate: e.target.value })}
+                                  placeholder="8% cap"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="text-xs text-gray-400">Balloon Term</label>
+                                <input
+                                  className="w-full mt-1 rounded-lg border border-gray-800 bg-gray-950 px-3 py-2 text-sm text-white"
+                                  value={row.balloonTerm || ''}
+                                  onChange={e => updatePendingRow(row._id, { balloonTerm: e.target.value })}
+                                  placeholder="5 years"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="text-xs text-gray-400">Creative Structure</label>
+                                <input
+                                  className="w-full mt-1 rounded-lg border border-gray-800 bg-gray-950 px-3 py-2 text-sm text-white"
+                                  value={row.creativeStructure || ''}
+                                  onChange={e => updatePendingRow(row._id, { creativeStructure: e.target.value })}
+                                  placeholder="Seller Finance, Subto, Wrap"
+                                />
+                              </div>
+                            </div>
+
+<div className="text-xs text-[#8B92A3]">Notes / Buy Box Summary</div>
+                                <textarea className="input h-24" value={row.notes || ''} onChange={e => {
+                                  const nextNotes = e.target.value
+                                  const parsed = parsePropertyRequirements(nextNotes)
+                                  updatePendingRow(row._id, {
+                                    notes: nextNotes,
+                                    bedRequirement: row.bedRequirement && row.bedRequirement !== 'Any' ? row.bedRequirement : parsed.bedRequirement,
+                                    bathRequirement: row.bathRequirement && row.bathRequirement !== 'Any' ? row.bathRequirement : parsed.bathRequirement,
+                                    unitRequirement: row.unitRequirement && row.unitRequirement !== 'Any' ? row.unitRequirement : parsed.unitRequirement,
+                                  })
+                                }} />
+                              </div>
+
+                              {(() => {
+                                const proofFiles = Array.isArray((row as any).proofFiles)
+                                  ? (row as any).proofFiles
+                                  : Array.isArray((row as any).uploadedFiles)
+                                    ? (row as any).uploadedFiles
+                                    : Array.isArray((row as any).files)
+                                      ? (row as any).files
+                                      : []
+
+                                const formatFileSize = (size?: number) => {
+                                  if (!size || Number.isNaN(size)) return ''
+                                  if (size >= 1024 * 1024) return (size / (1024 * 1024)).toFixed(1) + ' MB'
+                                  if (size >= 1024) return Math.round(size / 1024) + ' KB'
+                                  return size + ' B'
+                                }
+
+                                return (
+                                  <div className="rounded-lg border border-[#252A38] bg-[#0B0F17] p-3">
+                                    <div className="text-xs font-semibold text-[#22C55E] mb-2">Buyer Verification / Proof Files</div>
+
+                                    {proofFiles.length > 0 ? (
+                                      <div className="space-y-2">
+                                        {proofFiles.map((file: any, fileIndex: number) => {
+                                          const fileName = file.fileName || file.name || file.filename || 'Uploaded file'
+                                          const fileType = file.fileType || file.type || file.mimeType || 'file'
+                                          const fileSize = file.fileSize || file.size
+                                          const fileSizeLabel = formatFileSize(fileSize)
+                                          const canOpenFile = !!(file.storagePath || file.publicUrl || file.fileDataUrl || file.dataUrl || file.url || file.downloadUrl)
+
+                                          return (
+                                            <div key={fileIndex} className="flex flex-wrap items-center justify-between gap-2 text-xs border border-[#252A38] rounded p-2">
+                                              <div>
+                                                <div className="font-medium text-white">{fileName}</div>
+                                                <div className="text-[#8B92A3]">
+                                                  {fileType}{fileSizeLabel ? ' - ' + fileSizeLabel : ''}
+                                                </div>
+                                              </div>
+
+                                              <div className="flex flex-wrap items-center gap-2">
+                                                {canOpenFile ? (
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                      void openBuyerProofFile(file).catch((error) => {
+                                                        console.error('Could not open proof file:', error)
+                                                        toast.error('Could not open this proof file. Check Supabase Storage permissions.')
+                                                      })
+                                                    }}
+                                                    className="btn btn-ghost text-xs px-2 py-1 border border-[#3B82F6]/40 text-[#93C5FD]"
+                                                  >
+                                                    Open File
+                                                  </button>
+                                                ) : (
+                                                  <span className="text-[10px] text-amber-300">Metadata only</span>
+                                                )}
+
+                                                <span className="badge bg-[#22C55E]/15 text-[#22C55E] border border-[#22C55E]/30">Submitted</span>
+                                              </div>
+                                            </div>
+                                          )
+                                        })}
+                                      </div>
+                                    ) : (
+                                      <div className="text-xs text-amber-300">
+                                        No uploaded proof file found on this queued submission.
+                                      </div>
+                                    )}
+                                  </div>
+                                )
+                              })()}
+                            </div>
+                          </div>
+
+                          <div>
+                            <div className="font-semibold mb-2 text-base">Buy Box &amp; Criteria</div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <div className="text-xs text-[#8B92A3]">Budget Min</div>
+                                <input className="input" type="number" value={row.budgetMin || ''} onChange={e => updatePendingRow(row._id, { budgetMin: parseInt(e.target.value) || 0 })} />
+                              </div>
+                              <div>
+                                <div className="text-xs text-[#8B92A3]">Budget Max</div>
+                                <input className="input" type="number" value={row.budgetMax || ''} onChange={e => updatePendingRow(row._id, { budgetMax: parseInt(e.target.value) || 0 })} />
+                              </div>
+                            </div>
+
+                            <div className="mt-2 text-center text-sm font-medium text-[#22C55E]">
+                              {formatBudget(row.budgetMin, row.budgetMax)}
+                            </div>
+
+                            <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                              <label className="flex items-center gap-1">
+                                <input type="checkbox" checked={!!row.creativeFinance} onChange={e => updatePendingRow(row._id, { creativeFinance: e.target.checked })} /> Creative Finance
+                              </label>
+                              <label className="flex items-center gap-1">
+                                <input type="checkbox" checked={!!row.sellerFinance} onChange={e => updatePendingRow(row._id, { sellerFinance: e.target.checked })} /> Seller Finance
+                              </label>
+                              <label className="flex items-center gap-1">
+                                <input type="checkbox" checked={!!row.cashBuyer} onChange={e => updatePendingRow(row._id, { cashBuyer: e.target.checked })} /> Cash Buyer
+                              </label>
+                              <label className="flex items-center gap-1">
+                                <input type="checkbox" checked={rowMarkets.includes('Nationwide')} onChange={e => {
+                                  const next = e.target.checked ? [...new Set([...rowMarkets, 'Nationwide'])] : rowMarkets.filter((x:string) => x !== 'Nationwide')
+                                  updatePendingRow(row._id, { markets: next })
+                                }} /> Nationwide
+                              </label>
+                            </div>
+
+                            <div data-testid="buyer-property-requirements-review" className="mt-4 rounded-xl border border-[#252A38] bg-[#0B0F17] p-3">
+                              <div className="font-semibold mb-2 text-base">Bed / Bath / Unit Requirements</div>
+                              <div className="grid grid-cols-3 gap-2">
+                                <div>
+                                  <div className="text-xs text-[#8B92A3] mb-1">Beds</div>
+                                  <select
+                                    className="input"
+                                    value={getRequirementValue(row, 'bedRequirement')}
+                                    onChange={e => updatePendingRow(row._id, { bedRequirement: e.target.value })}
+                                  >
+                                    {BED_REQUIREMENT_OPTIONS.map(option => (
+                                      <option key={option} value={option}>{option}</option>
+                                    ))}
+                                  </select>
+                                </div>
+
+                                <div>
+                                  <div className="text-xs text-[#8B92A3] mb-1">Baths</div>
+                                  <select
+                                    className="input"
+                                    value={getRequirementValue(row, 'bathRequirement')}
+                                    onChange={e => updatePendingRow(row._id, { bathRequirement: e.target.value })}
+                                  >
+                                    {BATH_REQUIREMENT_OPTIONS.map(option => (
+                                      <option key={option} value={option}>{option}</option>
+                                    ))}
+                                  </select>
+                                </div>
+
+                                <div>
+                                  <div className="text-xs text-[#8B92A3] mb-1">Units</div>
+                                  <select
+                                    className="input"
+                                    value={getRequirementValue(row, 'unitRequirement')}
+                                    onChange={e => updatePendingRow(row._id, { unitRequirement: e.target.value })}
+                                  >
+                                    {UNIT_REQUIREMENT_OPTIONS.map(option => (
+                                      <option key={option} value={option}>{option}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                              </div>
+                              <div className="text-[10px] text-[#8B92A3] mt-2">
+                                Leave as Any when unknown. Only selected values count as buyer requirements.
+                              </div>
+                            </div>
+                          </div>
+
+                          
+                          <div className="lg:col-span-2">
+                            <div className="font-semibold mb-1.5 text-base">Target States</div>
+                            <div className="flex flex-wrap gap-1 text-[10px]">
+                              {marketOptions.map(st => {
+                                const active = rowMarkets.includes(st)
+                                return (
+                                  <button key={st} type="button" onClick={() => {
+                                    const next = active ? rowMarkets.filter((x:string) => x !== st) : [...rowMarkets, st]
+                                    updatePendingRow(row._id, { markets: next })
+                                  }} className={`px-2 py-0.5 rounded border ${active ? 'bg-[#22C55E] text-black border-[#22C55E]' : 'bg-[#171B26] border-[#252A38] hover:border-[#3B82F6]'}`}>
+                                    {st}
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          </div>
+
+                          <div className="lg:col-span-2">
+                            <div className="font-semibold mb-1.5 text-base">Asset Focus</div>
+                            <div className="flex flex-wrap gap-1 text-[10px]">
+                              {assetOptions.map(t => {
+                                const active = rowAssets.includes(t)
+                                return (
+                                  <button key={t} type="button" onClick={() => {
+                                    const next = active ? rowAssets.filter((x:string) => x !== t) : [...rowAssets, t]
+                                    updatePendingRow(row._id, { assetTypes: next })
+                                  }} className={`px-2 py-0.5 rounded border ${active ? 'bg-[#22C55E] text-black border-[#22C55E]' : 'bg-[#171B26] border-[#252A38] hover:border-[#3B82F6]'}`}>
+                                    {t}
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                <div className="flex gap-2 mt-5 pt-4 border-t border-[#252A38]">
+                  <button onClick={approveSelected} className="btn btn-green flex-1">Approve Selected / All Valid Buyers</button>
+                  <button onClick={() => { setShowImport(false); void refreshBuyerPortalQueueCount() }} className="btn btn-ghost flex-1">Cancel &amp; Close (no import)</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+

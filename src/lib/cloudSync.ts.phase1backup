@@ -1,0 +1,56 @@
+﻿import { supabase } from './supabase'
+
+const STORAGE_KEY = 'dealblastpro-v1'
+
+export async function uploadLocalAppDataToCloud() {
+  const { data: sessionData, error: sessionError } = await supabase.auth.getUser()
+  if (sessionError || !sessionData.user) throw new Error('You must be logged in first.')
+
+  const raw = localStorage.getItem(STORAGE_KEY)
+  if (!raw) throw new Error('No local Deal Blast Pro data found.')
+
+  const snapshot = JSON.parse(raw)
+
+  const { error } = await supabase
+    .from('cloud_snapshots')
+    .upsert({
+      user_id: sessionData.user.id,
+      storage_key: STORAGE_KEY,
+      snapshot,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id,storage_key' })
+
+  if (error) throw error
+  return true
+}
+
+export async function loadCloudAppDataToLocal(options?: { reload?: boolean; silentMissing?: boolean }) {
+  const reload = options?.reload ?? true
+  const silentMissing = options?.silentMissing ?? false
+
+  const { data: sessionData, error: sessionError } = await supabase.auth.getUser()
+  if (sessionError || !sessionData.user) throw new Error('You must be logged in first.')
+
+  const { data, error } = await supabase
+    .from('cloud_snapshots')
+    .select('snapshot')
+    .eq('user_id', sessionData.user.id)
+    .eq('storage_key', STORAGE_KEY)
+    .maybeSingle()
+
+  if (error) throw error
+
+  if (!data?.snapshot) {
+    if (silentMissing) return false
+    throw new Error('No cloud backup found.')
+  }
+
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data.snapshot))
+  window.dispatchEvent(new Event('dealblastpro:storage-sync'))
+
+  if (reload) window.location.reload()
+
+  return true
+}
+
+

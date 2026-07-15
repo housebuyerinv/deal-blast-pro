@@ -1,0 +1,64 @@
+﻿import { supabase } from './supabaseClient'
+
+export const BUYER_PORTAL_SUBMISSIONS_TABLE = 'buyer_portal_submissions'
+
+const requireSupabase = () => {
+  if (!supabase) {
+    throw new Error('Supabase is not configured. Check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.')
+  }
+
+  return supabase
+}
+
+export const createBuyerPortalSubmission = async (buyerData: any) => {
+  const client = requireSupabase()
+
+  const { data, error } = await client
+    .from(BUYER_PORTAL_SUBMISSIONS_TABLE)
+    .insert({
+      status: 'pending_review',
+      buyer_data: buyerData,
+    })
+    .select('id')
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}
+
+export const listPendingBuyerPortalSubmissions = async () => {
+  const client = requireSupabase()
+
+  const { data, error } = await client
+    .from(BUYER_PORTAL_SUBMISSIONS_TABLE)
+    .select('id, status, buyer_data, created_at')
+    .eq('status', 'pending_review')
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    throw error
+  }
+
+  return data || []
+}
+
+export const markBuyerPortalSubmissionsImported = async (ids: string[]) => {
+  if (!ids.length) return
+
+  const client = requireSupabase()
+
+  const { error } = await client
+    .from(BUYER_PORTAL_SUBMISSIONS_TABLE)
+    .update({
+      status: 'imported',
+      imported_at: new Date().toISOString(),
+    })
+    .in('id', ids)
+
+  if (error) {
+    throw error
+  }
+}

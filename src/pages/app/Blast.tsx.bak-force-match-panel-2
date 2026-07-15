@@ -1,0 +1,418 @@
+
+﻿import { useState, useMemo } from 'react'
+import { useAppStore } from '../../store/useAppStore'
+import { copyToClipboard, downloadCSV, downloadText } from '../../lib/utils'
+import { toast } from 'sonner'
+
+const safeLower = (value: any) => String(value ?? '').toLowerCase();
+
+const TEMPLATES: Record<string, { subject: string; body: string }> = {
+  'Strong Buyer': {
+    subject: 'Off-Market {{type}} in {{city}}, {{state}} — Strong Numbers',
+    body: `Hi {{buyer}},\n\nWe have a clean off-market opportunity in {{city}}.\n\nAddress: {{address}}\nAsking: {{asking}}\nARV: {{arv}} | Rehab: {{rehab}}\n\nStrong buyer fit for your criteria.\n\nReply for full package + access instructions.\n\nBest,\nDeal Blast Pro`
+  },
+  'Soft Buyer': {
+    subject: 'New {{type}} Opportunity — {{city}}',
+    body: `Hello,\n\nNew inventory just hit our desk in {{city}}, {{state}}.\n\nPlease see attached for details and let me know if you have any interest.\n\nThanks`
+  },
+  'Creative Finance': {
+    subject: 'Seller Finance Available — {{address}}',
+    body: `Creative terms available.\n\nDown Payment: {{down}}\nMonthly: {{monthly}} | Rate: {{rate}}%\n\nPerfect for buyers seeking flexible structures. Full terms attached.`
+  },
+  'Multifamily': {
+    subject: '{{units}} Unit {{type}} | {{city}} | {{cap}}% Cap',
+    body: `Stabilized / value-add multifamily.\n\nGross Monthly: {{gross}}\nNOI: {{noi}}\n\nFull T12 + rent roll available.`
+  },
+  'Portfolio': {
+    subject: 'Portfolio Opportunity — {{city}}',
+    body: `Bundled assets available in {{city}}. Contact for full tape and pricing.`
+  },
+  'Follow-up': {
+    subject: 'Follow-up: {{address}} — Still Available',
+    body: `Just checking in — the {{address}} opportunity is still available and ready for a quick close.`
+  },
+  'NDA / BIO Request': {
+    subject: 'NDA + BIO Required for {{address}}',
+    body: `To receive the full package on {{address}}, please reply with signed NDA and proof of funds / buyer bio.`
+  }
+}
+
+export default function Blast() {
+  const { 
+    deals, getMatchesForDeal, recordBlast, getDeal, logActivity, 
+    recordBlastLog, getBlastLogs, dealSuppressions, scheduleFollowUp 
+  } = useAppStore()
+
+  const [dealId, setDealId] = useState(deals[0]?.id || '')
+  const [templateKey, setTemplateKey] = useState('Strong Buyer')
+  const [subject, setSubject] = useState('')
+  const [body, setBody] = useState('')
+  const [ndaRequired, setNdaRequired] = useState(true)
+  const [selectedBuyers, setSelectedBuyers] = useState<string[]>([])
+  const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]) // for buyer-facing attachments
+  const [sortMode, setSortMode] = useState<'score' | 'heat' | 'budget-high' | 'budget-low'>('score')
+
+  const deal = getDeal(dealId)
+  const allMatches = getMatchesForDeal(dealId)
+
+  // Live preview tokens
+  const previewSubject = useMemo(() => {
+    if (!deal) return subject
+    return (subject || TEMPLATES[templateKey]?.subject || '')
+      .replace(/{{city}}/g, deal.property.city)
+      .replace(/{{state}}/g, deal.property.state)
+      .replace(/{{address}}/g, deal.property.address)
+      .replace(/{{type}}/g, deal.property.type)
+      .replace(/{{asking}}/g, deal.pricing.askingPrice ? '$' + deal.pricing.askingPrice.toLocaleString() : '—')
+      .replace(/{{arv}}/g, deal.pricing.arv ? '$' + deal.pricing.arv.toLocaleString() : '—')
+      .replace(/{{rehab}}/g, deal.pricing.rehab ? '$' + deal.pricing.rehab.toLocaleString() : '—')
+  }, [subject, templateKey, deal])
+
+  const previewBody = useMemo(() => {
+    if (!deal) return body
+    const base = body || TEMPLATES[templateKey]?.body || ''
+    return base
+      .replace(/{{buyer}}/g, 'there')
+      .replace(/{{city}}/g, deal.property.city)
+      .replace(/{{state}}/g, deal.property.state)
+      .replace(/{{address}}/g, deal.property.address)
+      .replace(/{{type}}/g, deal.property.type)
+      .replace(/{{asking}}/g, deal.pricing.askingPrice ? '$' + deal.pricing.askingPrice.toLocaleString() : '—')
+      .replace(/{{arv}}/g, deal.pricing.arv ? '$' + deal.pricing.arv.toLocaleString() : '—')
+      .replace(/{{rehab}}/g, deal.pricing.rehab ? '$' + deal.pricing.rehab.toLocaleString() : '—')
+      .replace(/{{down}}/g, deal.pricing.downPayment ? '$' + deal.pricing.downPayment.toLocaleString() : '—')
+      .replace(/{{monthly}}/g, deal.pricing.monthlyPayment ? '$' + deal.pricing.monthlyPayment.toLocaleString() : '—')
+      .replace(/{{rate}}/g, String(deal.pricing.interestRate || '—'))
+      .replace(/{{units}}/g, String(deal.property.units || '—'))
+      .replace(/{{gross}}/g, deal.pricing.grossMonthly ? '$' + deal.pricing.grossMonthly.toLocaleString() : '—')
+      .replace(/{{noi}}/g, deal.pricing.noi ? '$' + deal.pricing.noi.toLocaleString() : '—')
+      .replace(/{{cap}}/g, String(deal.pricing.capRate || '—'))
+  }, [body, templateKey, deal])
+
+  const applyTemplate = (key: string) => {
+    setTemplateKey(key)
+    const t = TEMPLATES[key]
+    if (t) {
+      setSubject(t.subject)
+      setBody(t.body)
+    }
+  }
+
+  const toggleBuyer = (id: string) => {
+    setSelectedBuyers(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
+
+  const selectedMatches = allMatches.filter(m => selectedBuyers.includes(m.buyer.id))
+
+  // Suppression + dedupe enforcement (global + deal-specific)
+  const suppressionList = useAppStore(s => s.suppressionList)
+  const currentDealSuppressions = dealSuppressions[dealId] || []
+  const filteredMatches = allMatches.filter(m => 
+    !suppressionList.includes(safeLower(m.buyer.email)) &&
+    !currentDealSuppressions.some(s => s.buyerId === m.buyer.id)
+  )
+
+  // Simple client-side sort for the recipients list (surgical)
+  const sortedMatches = [...filteredMatches].sort((a, b) => {
+    if (sortMode === 'score') return b.score - a.score;
+    if (sortMode === 'heat') return (b.buyer.strengthScore || 0) - (a.buyer.strengthScore || 0);
+    if (sortMode === 'budget-high') return (b.buyer.budgetMax || 0) - (a.buyer.budgetMax || 0);
+    if (sortMode === 'budget-low') return (a.buyer.budgetMax || 0) - (b.buyer.budgetMax || 0);
+    return b.score - a.score;
+  });
+
+  const dedupedSelected = Array.from(new Set(selectedBuyers)).filter(id => filteredMatches.some(m => m.buyer.id === id))
+
+  const exportBCC = () => {
+    const list = selectedMatches.length ? selectedMatches : allMatches.slice(0, 12)
+    if (list.length > 450) {
+      toast.error('Over Gmail safe limit (450). Use "Export Batches" below.')
+      return
+    }
+    const bcc = list.map(m => m.buyer.email).join(', ')
+    copyToClipboard(bcc)
+    toast.success(`Gmail-ready BCC copied — ${list.length} recipients`)
+  }
+
+  const exportBatches = () => {
+    const list = selectedMatches.length ? selectedMatches : allMatches
+    const BATCH_SIZE = 450
+    const batches: any[][] = []
+    for (let i = 0; i < list.length; i += BATCH_SIZE) {
+      batches.push(list.slice(i, i + BATCH_SIZE))
+    }
+
+    batches.forEach((batch, idx) => {
+      const bcc = batch.map(m => m.buyer.email).join(', ')
+      if (idx === 0) {
+        copyToClipboard(bcc)
+        toast.success(`Batch ${idx + 1}/${batches.length} copied (${batch.length} recipients)`)
+      } else {
+        // Demo: log for user to copy manually if needed
+        console.info(`Batch ${idx + 1} BCC:`, bcc)
+      }
+    })
+    if (batches.length > 1) toast(`Total ${batches.length} batches created. First batch copied.`)
+  }
+
+  const sendBlast = () => {
+    const toSend = dedupedSelected.length ? dedupedSelected : selectedMatches.map(m => m.buyer.id)
+    if (!dealId || toSend.length === 0) {
+      toast.error('Select a deal and at least one buyer')
+      return
+    }
+
+    const attachedDocs = (useAppStore.getState().documents[dealId] || [])
+      .filter(d => selectedDocIds.includes(d.id))
+      .map(d => d.name)
+
+    recordBlast(dealId, toSend)
+
+    // Record rich blast log
+    recordBlastLog(dealId, {
+      template: templateKey,
+      subject: previewSubject || subject,
+      recipientCount: toSend.length,
+      suppressedCount: allMatches.length - filteredMatches.length,
+      duplicateCount: selectedMatches.length - dedupedSelected.length,
+      selectedDocNames: attachedDocs,
+      ndaRequired: ndaRequired,
+      status: 'Sent'
+    })
+
+    const attached = selectedDocIds.length
+    logActivity?.(dealId, 'Blast Sent', `Blast sent to ${toSend.length} buyers${attached ? ` with ${attached} attached docs` : ''}`)
+
+    toast.success(`Blast sent to ${toSend.length} buyers (duplicates & suppressed removed).`)
+
+    // Offer immediate follow-up scheduling
+    if (confirm('Schedule a follow-up reminder for this blast?')) {
+      scheduleFollowUp(dealId, undefined, 3, 'Follow-up on blast responses')
+      toast.success('Follow-up scheduled for 3 days')
+    }
+
+    setSelectedDocIds([])
+  }
+
+  const downloadRecipients = (fmt: 'csv' | 'txt') => {
+    const list = selectedMatches.length ? selectedMatches : allMatches.slice(0, 20)
+    const rows = list.map(m => [m.buyer.name, m.buyer.email, m.score + '%', m.tier])
+    if (fmt === 'csv') {
+      downloadCSV(`blast-recipients-${dealId}.csv`, [['Name','Email','Score','Tier'], ...rows])
+    } else {
+      downloadText(`blast-recipients-${dealId}.txt`, rows.map(r => r.join('\t')).join('\n'))
+    }
+  }
+
+  return (
+    <div className="max-w-6xl">
+      <div className="text-2xl font-semibold mb-1">Deal Blast Builder</div>
+      <div className="text-[#8B92A3] mb-6">Create targeted emails • Live preview • Gmail-ready BCC export</div>
+
+      {/* Safety Warnings */}
+      {deal && (
+        <div className="mb-3">
+          {(!deal.docs || deal.docs.length < 2) && (
+            <div className="text-xs bg-amber-500/10 border border-amber-500/40 text-amber-400 px-3 py-1 rounded mb-1">âš  This deal has few documents uploaded. Consider adding key files before blasting.</div>
+          )}
+          {!deal.submitter.consent && (
+            <div className="text-xs bg-red-500/10 border border-red-500/40 text-red-400 px-3 py-1 rounded">âš  Submitter consent not recorded — verify proof of control before sending.</div>
+          )}
+        </div>
+      )}
+
+      <div className="grid lg:grid-cols-5 gap-4">
+        {/* Controls */}
+        <div className="lg:col-span-2 space-y-4">
+          <div className="card p-4">
+            <div className="text-xs text-[#8B92A3] mb-1">SELECT DEAL</div>
+            <select className="select w-full" value={dealId} onChange={e => setDealId(e.target.value)}>
+              {deals.map(d => <option key={d.id} value={d.id}>{d.property.address} — {d.property.city}</option>)}
+            </select>
+            <div className="mt-2 flex gap-2">
+              <button 
+                onClick={() => useAppStore.getState().safeOpenDeal(dealId)}
+                className="btn btn-ghost text-xs flex-1"
+                disabled={!dealId}
+              >
+                View Deal Details
+              </button>
+              <button 
+                onClick={() => {
+                  useAppStore.getState().safeOpenDeal(dealId);
+                  // Drawer will open; user can switch to edit mode inside
+                }}
+                className="btn btn-ghost text-xs flex-1"
+                disabled={!dealId}
+              >
+                Edit Deal
+              </button>
+            </div>
+          </div>
+
+          <div className="card p-4">
+            <div className="text-xs text-[#8B92A3] mb-1.5">TEMPLATES</div>
+            <div className="flex flex-wrap gap-2">
+              {Object.keys(TEMPLATES).map(k => (
+                <button key={k} onClick={() => applyTemplate(k)} className={`btn text-xs px-3 py-1 ${templateKey === k ? 'btn-primary' : 'btn-ghost'}`}>{k}</button>
+              ))}
+            </div>
+          </div>
+
+          <div className="card p-4 space-y-3">
+            <div>
+              <div className="text-xs text-[#8B92A3] mb-1">SUBJECT</div>
+              <input className="input" value={subject} onChange={e => setSubject(e.target.value)} />
+            </div>
+            <div>
+              <div className="text-xs text-[#8B92A3] mb-1">EMAIL BODY</div>
+              <textarea className="input h-48 font-mono text-xs" value={body} onChange={e => setBody(e.target.value)} />
+            </div>
+            <label className="flex gap-2 text-xs"><input type="checkbox" checked={ndaRequired} onChange={e => setNdaRequired(e.target.checked)} /> NDA / BIO required</label>
+          </div>
+
+          <div className="flex gap-2">
+            <button onClick={exportBCC} className="btn btn-ghost flex-1">Copy Gmail BCC</button>
+            <button onClick={exportBatches} className="btn btn-ghost flex-1">Export Batches (450 max)</button>
+            <button onClick={() => downloadRecipients('csv')} className="btn btn-ghost flex-1">Download CSV</button>
+          </div>
+          <button onClick={sendBlast} className="btn btn-green w-full py-3 text-base">SEND BLAST + LOG ACTIVITY</button>
+
+          <button 
+            onClick={() => {
+              scheduleFollowUp(dealId, undefined, 3, 'Manual follow-up')
+              toast.success('Follow-up task created for 3 days from now')
+            }} 
+            className="btn btn-ghost w-full mt-2 text-sm"
+          >
+            Create Follow-Up Email (3 days)
+          </button>
+        </div>
+
+        {/* Preview + Recipients */}
+        <div className="lg:col-span-3 space-y-4">
+          {/* Blast History for selected deal */}
+          {getBlastLogs(dealId).length > 0 && (
+            <div className="card p-4">
+              <div className="text-xs text-[#8B92A3] mb-2">RECENT BLASTS FOR THIS DEAL</div>
+              {getBlastLogs(dealId).slice(0, 3).map(log => (
+                <div key={log.id} className="text-xs border-b border-[#252A38] py-1">
+                  {new Date(log.sentAt).toLocaleDateString()} — {log.template} • {log.recipientCount} recipients • {log.status}
+                  {log.selectedDocNames.length > 0 && <span className="text-[#22C55E]"> +{log.selectedDocNames.length} docs</span>}
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="card p-4">
+            <div className="text-xs text-[#8B92A3] mb-1">LIVE PREVIEW</div>
+            <div className="bg-[#0A0C12] p-4 rounded border border-[#252A38] text-sm">
+              <div className="font-semibold mb-1">{previewSubject || '(subject)'}</div>
+              <div className="whitespace-pre-wrap text-[#C5CAD6] text-xs leading-relaxed">{previewBody || '(email body)'}</div>
+              {selectedDocIds.length > 0 && <div className="text-[10px] mt-2 text-[#22C55E]">Attachments: {selectedDocIds.length} buyer-facing docs selected</div>}
+            </div>
+          </div>
+
+          <div className="card p-4">
+            {/* Recipients Controls Toolbar */}
+            <div className="mb-3">
+              <div className="flex flex-wrap items-center gap-2 mb-2">
+                <div className="text-sm font-medium mr-2">Recipients</div>
+                <button 
+                  onClick={() => useAppStore.getState().safeOpenDeal(dealId)} 
+                  className="btn btn-ghost text-xs px-2 py-0.5"
+                  disabled={!dealId}
+                >
+                  View Deal Details
+                </button>
+                
+                <button onClick={() => setSelectedBuyers(filteredMatches.map(m => m.buyer.id))} className="btn btn-ghost text-xs px-2 py-0.5">Select All</button>
+                <button onClick={() => setSelectedBuyers([])} className="btn btn-ghost text-xs px-2 py-0.5">Deselect All</button>
+                <button onClick={() => setSelectedBuyers(sortedMatches.slice(0, 25).map(m => m.buyer.id))} className="btn btn-ghost text-xs px-2 py-0.5">Top 25</button>
+                <button onClick={() => setSelectedBuyers(sortedMatches.slice(0, 50).map(m => m.buyer.id))} className="btn btn-ghost text-xs px-2 py-0.5">Top 50</button>
+                <button onClick={() => setSelectedBuyers(sortedMatches.slice(0, 100).map(m => m.buyer.id))} className="btn btn-ghost text-xs px-2 py-0.5">Top 100</button>
+
+                <select 
+                  value={sortMode} 
+                  onChange={(e) => setSortMode(e.target.value as any)}
+                  className="text-xs select py-0.5 px-1"
+                >
+                  <option value="score">Sort: Match High→Low</option>
+                  <option value="heat">Sort: Heat High→Low</option>
+                  <option value="budget-high">Sort: Budget High→Low</option>
+                  <option value="budget-low">Sort: Budget Low→High</option>
+                </select>
+
+                <div className="flex gap-1 text-xs">
+                  <button onClick={() => { /* creative filter demo */ const creative = filteredMatches.filter(m => m.buyer.creativeFinance).map(m=>m.buyer.id); setSelectedBuyers(creative.slice(0,30)); }} className="btn btn-ghost px-1.5 py-0.5">Creative</button>
+                  <button onClick={() => { const hot = filteredMatches.filter(m => m.buyer.status === 'Hot').map(m=>m.buyer.id); setSelectedBuyers(hot.slice(0,30)); }} className="btn btn-ghost px-1.5 py-0.5">Hot</button>
+                  <button onClick={() => setSelectedBuyers(filteredMatches.filter(m => !suppressionList.includes(safeLower(m.buyer.email))).map(m=>m.buyer.id).slice(0,50))} className="btn btn-ghost px-1.5 py-0.5">Unsuppressed</button>
+                </div>
+              </div>
+
+              <div className="text-xs text-[#8B92A3] flex gap-3">
+                <span>Visible: {filteredMatches.length}</span>
+                <span>Selected: {selectedBuyers.length}</span>
+                {currentDealSuppressions.length > 0 && <span className="text-amber-400">Suppressed: {currentDealSuppressions.length}</span>}
+              </div>
+            </div>
+
+            <div className="max-h-72 overflow-auto space-y-1 text-sm">
+              {sortedMatches.slice(0, 25).map(m => {
+                const positive = (m.reasons || []).slice(0, 2);
+                const negatives = (m.missing || []).slice(0, 2);
+                return (
+                  <label key={m.buyer.id} className="flex items-center gap-3 panel p-2 cursor-pointer">
+                    <input type="checkbox" checked={selectedBuyers.includes(m.buyer.id)} onChange={() => toggleBuyer(m.buyer.id)} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span>{m.buyer.name}</span>
+                        <span className="text-[#22C55E] text-xs font-medium">{m.score}%</span>
+                        <span className="text-[10px] text-[#8B92A3]">{m.buyer.type || ''}</span>
+                      </div>
+                      <div className="text-[10px] mt-0.5 text-[#8B92A3] truncate">{m.buyer.email} • {m.buyer.budgetMax ? '$' + Math.round(m.buyer.budgetMax/1000) + 'K max' : 'Budget n/a'}</div>
+                      {/* Minimal qualification reasoning */}
+                      <div className="mt-0.5 text-[9px] space-x-1">
+                        {positive.map((r,i) => <span key={i} className="text-emerald-400">âœ… {r.split('(')[0].trim()}</span>)}
+                        {negatives.map((r,i) => <span key={i} className="text-red-400">âŒ {r}</span>)}
+                      </div>
+                    </div>
+                    <div className="text-xs text-[#8B92A3] text-right">
+                      {m.buyer.strengthScore ? `Heat ${m.buyer.strengthScore}` : ''}
+                    </div>
+                    {selectedBuyers.includes(m.buyer.id) && (
+                      <div className="flex gap-1 text-[10px] whitespace-nowrap">
+                        <button onClick={(e) => { e.preventDefault(); window.location.href = `/app/buyers?buyer=${m.buyer.id}`; }} className="text-[#3B82F6] hover:underline">View Profile</button>
+                        <button onClick={(e) => { e.preventDefault(); useAppStore.getState().suppressBuyerFromDeal?.(dealId, m.buyer.id, 'From Blast'); toast.success('Suppressed from deal'); }} className="text-amber-400 hover:underline">Suppress</button>
+                        <button onClick={(e) => { e.preventDefault(); setSelectedBuyers(prev => prev.filter(id => id !== m.buyer.id)); }} className="text-red-400 hover:underline">Remove</button>
+                      </div>
+                    )}
+                  </label>
+                );
+              })}
+            </div>
+
+            {/* Buyer-Facing Document Attachments */}
+            {deal && (
+              <div className="mt-4">
+                <div className="text-xs text-[#8B92A3] mb-1">Attach Buyer-Facing Documents (from deal vault)</div>
+                <div className="text-xs space-y-1 max-h-24 overflow-auto">
+                  {(useAppStore.getState().documents[dealId] || []).filter(d => d.isBuyerFacing || !d.requiresNDA || ndaRequired).map(doc => (
+                    <label key={doc.id} className="flex gap-2 items-center">
+                      <input type="checkbox" checked={selectedDocIds.includes(doc.id)} onChange={() => setSelectedDocIds(prev => prev.includes(doc.id) ? prev.filter(id => id !== doc.id) : [...prev, doc.id])} />
+                      <span>{doc.name} <span className="text-[#8B92A3]">({doc.category})</span></span>
+                      {doc.requiresNDA && !ndaRequired && <span className="text-red-400 text-[10px]"> (NDA mode required)</span>}
+                    </label>
+                  ))}
+                </div>
+                {selectedDocIds.length === 0 && <div className="text-amber-400 text-xs mt-1">âš  No buyer-facing docs selected — consider adding some in the deal terminal before blasting.</div>}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+

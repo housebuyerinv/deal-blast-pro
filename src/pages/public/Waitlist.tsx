@@ -1,0 +1,106 @@
+import { useState } from 'react'
+import PublicNav from '../../components/layout/PublicNav'
+import { submitWaitlistEntry } from '../../lib/waitlistStorage'
+
+const businessTypes = [
+  'Wholesaler',
+  'Investor',
+  'Agent',
+  'Lender',
+  'Transaction coordinator',
+  'Dispositions manager',
+  'Acquisitions manager',
+  'Other',
+]
+
+export default function Waitlist() {
+  const [form, setForm] = useState({
+    fullName: '',
+    email: '',
+    phone: '',
+    primaryMarket: '',
+    businessType: '',
+    notes: '',
+  })
+  const [loading, setLoading] = useState(false)
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
+
+  const update = (key: keyof typeof form, value: string) => {
+    setForm(current => ({ ...current, [key]: value }))
+  }
+
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault()
+    setLoading(true)
+    setMessage('')
+    setError('')
+
+    const result = await submitWaitlistEntry(form)
+    setLoading(false)
+
+    if (!result.ok) {
+      setError(result.error || 'Waitlist submission failed.')
+      return
+    }
+
+    setMessage('You are on the Deal Blast Pro waitlist. We will reach out when prerelease access is ready.')
+    setForm({ fullName: '', email: '', phone: '', primaryMarket: '', businessType: '', notes: '' })
+  }
+
+  return (
+    <div className="min-h-screen bg-[#0A0C12] text-[#E6E8EE]">
+      <PublicNav />
+      <main className="max-w-3xl mx-auto px-6 py-12">
+        <div className="mb-8 text-center">
+          <div className="text-sm font-semibold tracking-[1px] text-[#22C55E]">PRERELEASE ACCESS</div>
+          <h1 className="mt-2 text-4xl font-semibold">Join the Deal Blast Pro Waitlist</h1>
+          <p className="mt-3 text-[#8B92A3]">
+            We are preparing a controlled prerelease for real estate operators. Approved test-account login remains available.
+          </p>
+        </div>
+
+        <form onSubmit={submit} className="card p-6 space-y-4">
+          {message && <div className="rounded border border-[#22C55E]/30 bg-[#22C55E]/10 p-3 text-sm text-[#86EFAC]">{message}</div>}
+          {error && <div className="rounded border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">{error}</div>}
+
+          <div className="grid md:grid-cols-2 gap-4">
+            <label className="block">
+              <span className="text-xs text-[#8B92A3]">Full name *</span>
+              <input className="input mt-1" value={form.fullName} onChange={e => update('fullName', e.target.value)} required />
+            </label>
+            <label className="block">
+              <span className="text-xs text-[#8B92A3]">Email address *</span>
+              <input className="input mt-1" type="email" value={form.email} onChange={e => update('email', e.target.value)} required />
+            </label>
+            <label className="block">
+              <span className="text-xs text-[#8B92A3]">Phone number</span>
+              <input className="input mt-1" value={form.phone} onChange={e => update('phone', e.target.value)} />
+            </label>
+            <label className="block">
+              <span className="text-xs text-[#8B92A3]">Primary market</span>
+              <input className="input mt-1" placeholder="City, state, or region" value={form.primaryMarket} onChange={e => update('primaryMarket', e.target.value)} />
+            </label>
+          </div>
+
+          <label className="block">
+            <span className="text-xs text-[#8B92A3]">Business type or role</span>
+            <select className="input mt-1" value={form.businessType} onChange={e => update('businessType', e.target.value)}>
+              <option value="">Select one</option>
+              {businessTypes.map(type => <option key={type} value={type}>{type}</option>)}
+            </select>
+          </label>
+
+          <label className="block">
+            <span className="text-xs text-[#8B92A3]">Optional notes</span>
+            <textarea className="input mt-1 min-h-[110px]" value={form.notes} onChange={e => update('notes', e.target.value)} />
+          </label>
+
+          <button type="submit" disabled={loading} className="btn btn-green w-full py-3">
+            {loading ? 'Joining Waitlist...' : 'Join the Deal Blast Pro Waitlist'}
+          </button>
+        </form>
+      </main>
+    </div>
+  )
+}

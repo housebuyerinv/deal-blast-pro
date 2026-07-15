@@ -1,0 +1,139 @@
+import { useState } from 'react'
+import { useAppStore } from '../../store/useAppStore'
+import { useNavigate } from 'react-router-dom'
+
+type Plan = 'Starter' | 'Pro' | 'Agency' | 'Enterprise'
+
+export default function Upgrade() {
+  const { trial, upgradeToPlan } = useAppStore()
+  const navigate = useNavigate()
+  const [billing, setBilling] = useState<'monthly' | 'annual'>('monthly')
+  const [selected, setSelected] = useState<Plan>('Pro')
+  const [step, setStep] = useState<'select' | 'payment' | 'success' | 'contact'>('select')
+  const [successPlan, setSuccessPlan] = useState('')
+
+  const current = trial.plan || (trial.isPaid ? 'Pro' : 'Free Demo')
+  const isPaid = current !== 'Free Demo'
+
+  const plans: { name: Plan; price: number; desc: string; popular?: boolean; custom?: boolean }[] = [
+    { name: 'Starter', price: 47, desc: 'For solo wholesalers and small dispo operators getting organized.' },
+    { name: 'Pro', price: 97, desc: 'Most Popular - For active deal finders sending regular buyer blasts.', popular: true },
+    { name: 'Agency', price: 197, desc: 'For teams, VAs, and dispo operators managing multiple deals.' },
+    { name: 'Enterprise', price: 297, desc: 'For high-volume teams needing custom workflows, onboarding, and integrations.', custom: true }
+  ]
+
+  const getPrice = (p: number, name?: string) => {
+    if (billing === 'monthly') return p
+    if (name === 'Starter') return 42
+    if (name === 'Pro') return 84
+    if (name === 'Agency') return 167
+    if (name === 'Enterprise') return '250 or Custom'
+    return 0 // fallback (unreached)
+  }
+  const getNote = () => billing === 'monthly' ? '/mo' : '/mo billed annually'
+
+  const currentPlanLabel = isPaid ? current : 'Free Demo'
+
+  const goPayment = () => {
+    if (selected === 'Enterprise') {
+      setStep('contact')
+      return
+    }
+    setStep('payment')
+  }
+
+  const simulate = () => {
+    upgradeToPlan(selected)
+    setSuccessPlan(selected)
+    setStep('success')
+    setTimeout(() => navigate('/app/dashboard'), 1600)
+  }
+
+  const doContact = () => {
+    alert('Thank you. Sales will contact you for Enterprise custom setup. (Billing integration coming with production launch.)')
+    navigate('/app/settings')
+  }
+
+  const cancel = () => setStep('select')
+
+  return (
+    <div className="max-w-4xl mx-auto p-6">
+      <div className="mb-6">
+        <div className="text-2xl font-semibold">Upgrade Plan</div>
+        <div className="text-[#8B92A3]">Current: <span className="text-white font-medium">{currentPlanLabel}</span> • Demo only. Payment integration coming with production launch. No real charges.</div>
+      </div>
+
+      {step === 'select' && (
+        <>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="inline-flex rounded border border-[#252A38] p-0.5">
+              <button onClick={() => setBilling('monthly')} className={`px-3 py-1 text-sm rounded ${billing === 'monthly' ? 'bg-[#22C55E] text-black' : 'text-[#8B92A3]'}`}>Monthly</button>
+              <button onClick={() => setBilling('annual')} className={`px-3 py-1 text-sm rounded ${billing === 'annual' ? 'bg-[#22C55E] text-black' : 'text-[#8B92A3]'}`}>Annual (save ~15%)</button>
+            </div>
+            <div className="text-xs text-[#64748B]">Prices shown for demo simulation</div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+            {plans.map(p => (
+              <div
+                key={p.name}
+                onClick={() => setSelected(p.name)}
+                className={`card p-4 cursor-pointer transition border ${selected === p.name ? 'border-[#22C55E] ring-1 ring-[#22C55E]/40' : 'border-[#252A38]'} ${p.popular ? 'ring-1 ring-[#22C55E]/30' : ''}`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="font-semibold text-lg">{p.name}</div>
+                  {p.popular && <span className="text-[10px] px-1.5 py-0.5 bg-[#22C55E] text-black rounded">Most Popular</span>}
+                </div>
+                <div className="mt-1 text-2xl font-semibold tabular-nums">${getPrice(p.price, p.name)}<span className="text-sm font-normal text-[#8B92A3]">{getNote()}</span></div>
+                <div className="text-xs text-[#8B92A3] mt-1 min-h-[2.2em]">{p.desc}</div>
+                {p.custom && <div className="mt-1 text-amber-400 text-xs">Contact Sales / Custom Setup available</div>}
+                {current === p.name && <div className="mt-1 text-emerald-400 text-xs">Current plan</div>}
+              </div>
+            ))}
+          </div>
+
+          <div className="flex gap-3">
+            <button onClick={goPayment} className="btn btn-green px-6">Continue to Payment</button>
+            <button onClick={() => navigate(-1)} className="btn btn-ghost">Cancel</button>
+            <button onClick={() => navigate('/app/settings')} className="text-sm text-[#8B92A3] underline ml-auto">Back to Settings</button>
+          </div>
+          <div className="mt-3 text-xs text-[#64748B]">Public users cannot reset trials. Real billing + payments launch with production. Existing records remain safe.</div>
+        </>
+      )}
+
+      {step === 'payment' && (
+        <div className="card p-6 max-w-md">
+          <div className="text-xl font-semibold mb-2">Checkout — {selected} ({billing})</div>
+          <div className="text-sm text-[#8B92A3] mb-4">Payment integration coming with production launch.<br />This is a simulated demo checkout. No card will be charged.</div>
+          <div className="text-sm mb-4">Plan: {selected} • ${getPrice(plans.find(pp=>pp.name===selected)!.price, selected)}{getNote()}</div>
+          <div className="flex flex-col gap-2">
+            <button onClick={simulate} className="btn btn-green">Simulate Payment Success</button>
+            <button onClick={cancel} className="btn btn-ghost">Cancel</button>
+          </div>
+          <div className="text-[10px] text-amber-400 mt-3">Demo mode only. In production this would connect to Stripe/ billing provider.</div>
+        </div>
+      )}
+
+      {step === 'contact' && (
+        <div className="card p-6 max-w-md">
+          <div className="text-xl font-semibold mb-2">Enterprise — Custom</div>
+          <div className="text-sm mb-4">For custom pricing, onboarding, SLA, integrations: contact sales.<br />$297/mo mode available for standard Enterprise sim.</div>
+          <div className="flex gap-2 mb-3">
+            <button onClick={() => { setSelected('Enterprise'); setStep('payment') }} className="btn btn-ghost flex-1">Simulate $297/mo Enterprise</button>
+            <button onClick={doContact} className="btn btn-green flex-1">Contact Sales / Submit Request</button>
+          </div>
+          <button onClick={cancel} className="text-sm underline">Back</button>
+        </div>
+      )}
+
+      {step === 'success' && (
+        <div className="card p-8 text-center max-w-md mx-auto">
+          <div className="text-3xl font-semibold text-[#22C55E] mb-2">Upgrade Complete</div>
+          <div className="text-lg">Your plan has been updated to {successPlan}.</div>
+          <div className="text-[#8B92A3] mt-2">Redirecting to Command Center...</div>
+          <div className="text-xs mt-4 text-[#64748B]">Limits and features now reflect your new plan in this demo session.</div>
+        </div>
+      )}
+    </div>
+  )
+}

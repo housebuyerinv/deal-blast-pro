@@ -1,0 +1,227 @@
+﻿@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --accent-green: #22C55E;
+  --accent-blue: #3B82F6;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* Premium dark SaaS styles */
+.card {
+  @apply bg-[#12151F] border border-[#252A38] rounded-2xl;
+}
+
+.panel {
+  @apply bg-[#171B26] border border-[#252A38] rounded-xl;
+}
+
+.input {
+  @apply bg-[#0A0C12] border border-[#252A38] rounded-lg px-3.5 py-2.5 text-sm 
+         placeholder:text-[#8B92A3] focus:border-[#3B82F6] focus:ring-1 focus:ring-[#3B82F6]/30 
+         transition-colors outline-none w-full;
+}
+
+.input:focus {
+  border-color: var(--accent-blue);
+}
+
+.select {
+  @apply bg-[#0A0C12] border border-[#252A38] rounded-lg px-3.5 py-2.5 text-sm 
+         focus:border-[#3B82F6] focus:ring-1 focus:ring-[#3B82F6]/30 transition-colors;
+}
+
+.btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium 
+         transition-all active:scale-[0.985] disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.btn-primary {
+  @apply bg-[#3B82F6] hover:bg-[#2563EB] text-white;
+}
+
+.btn-green {
+  @apply bg-[#22C55E] hover:bg-[#16A34A] text-black font-semibold;
+}
+
+.btn-ghost {
+  @apply border border-[#252A38] hover:bg-[#252A38] text-[#E6E8EE];
+}
+
+.badge {
+  @apply inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium;
+}
+
+.status-draft { @apply bg-[#3F3F46] text-[#A1A1AA]; }
+.status-submitted { @apply bg-[#3B82F6]/20 text-[#60A5FA]; }
+.status-approved { @apply bg-[#22C55E]/20 text-[#4ADE80]; }
+.status-active { @apply bg-[#22C55E]/30 text-[#4ADE80]; }
+.status-blasted { @apply bg-[#F59E0B]/20 text-[#FBBF24]; }
+.status-offers { @apply bg-[#8B5CF6]/20 text-[#A78BFA]; }
+.status-contract { @apply bg-[#F97316]/20 text-[#FB923C]; }
+.status-closing { @apply bg-[#EC4899]/20 text-[#F472B6]; }
+.status-sold { @apply bg-[#22C55E] text-black; }
+.status-dead { @apply bg-[#EF4444]/20 text-[#F87171]; }
+
+.drawer {
+  @apply fixed inset-y-0 right-0 w-full md:w-[920px] lg:w-[1020px] bg-[#0A0C12] border-l border-[#252A38] 
+         shadow-2xl z-[100] overflow-hidden flex flex-col;
+}
+
+.stepper {
+  @apply flex items-center gap-1.5 overflow-x-auto pb-2;
+}
+
+.step {
+  @apply flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap;
+}
+
+.step-active {
+  @apply bg-[#3B82F6] text-white;
+}
+
+.step-complete {
+  @apply text-[#22C55E];
+}
+
+.step-incomplete {
+  @apply text-[#8B92A3] hover:text-[#E6E8EE];
+}
+
+/* Number / currency inputs that never reset to zero */
+.currency-input {
+  font-variant-numeric: tabular-nums;
+}
+
+.table-row {
+  @apply border-b border-[#252A38] hover:bg-[#171B26] transition-colors;
+}
+
+/* Toast overrides for sonner in dark */
+[data-sonner-toast] {
+  background: #12151F !important;
+  border: 1px solid #252A38 !important;
+  color: #E6E8EE !important;
+}
+
+/* Mobile sidebar */
+@media (max-width: 1023px) {
+  .sidebar-mobile {
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+  }
+  .sidebar-mobile.open {
+    transform: translateX(0);
+  }
+}
+
+/* Deal card polish */
+.deal-card {
+  @apply card p-4 hover:border-[#3B82F6]/50 cursor-pointer transition-all hover:-translate-y-px;
+}
+
+.deal-card .new-badge {
+  @apply absolute -top-1 -right-1 bg-[#22C55E] text-black text-[10px] font-bold px-1.5 py-px rounded;
+}
+
+.creative-badge {
+  @apply absolute top-3 right-3 bg-[#F59E0B] text-black text-[10px] font-bold px-1.5 rounded;
+}
+
+/* Wizard specific */
+.wizard-field {
+  @apply space-y-1.5;
+}
+
+.wizard-label {
+  @apply text-xs font-medium text-[#8B92A3] flex items-center gap-1.5;
+}
+
+.required::after {
+  content: " *";
+  color: #EF4444;
+}
+
+/* Empty states */
+.empty-state {
+  @apply flex flex-col items-center justify-center py-12 text-center;
+}
+
+/* Simple SaaS loading skeletons */
+.skeleton {
+  @apply animate-pulse bg-[#252A38] rounded;
+}
+
+/* Premium Interactive Card Borders - Deal Blast Pro */
+.interactive-border {
+  position: relative;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), 
+              box-shadow 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+.interactive-border::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: conic-gradient(
+    from var(--angle, 0deg),
+    transparent 0deg,
+    var(--border-color, #3b82f6) 8%,
+    transparent 16%
+  );
+  -webkit-mask: 
+    linear-gradient(#fff 0 0) content-box, 
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: premium-border-rotate 3s linear infinite paused;
+  opacity: 0.25;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.interactive-border:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+}
+
+.interactive-border:hover::before {
+  animation-play-state: running;
+  opacity: 0.65;
+}
+
+.interactive-border.is-selected {
+  box-shadow: 0 0 0 2px var(--border-color, #22c55e);
+}
+
+.interactive-border.is-selected::before {
+  opacity: 0.5;
+}
+
+@property --angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes premium-border-rotate {
+  to {
+    --angle: 360deg;
+  }
+}
+
+/* Theme variants */
+.interactive-border.property {
+  --border-color: #3b82f6;
+}
+
+.interactive-border.buyer {
+  --border-color: #22c55e;
+}
+

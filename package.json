@@ -1,0 +1,37 @@
+{
+  "name": "deal-blast-pro",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build --config vite.config.mjs --configLoader native",
+    "preview": "vite preview",
+    "lint": "eslint .",
+    "seed": "echo 'Seed data is baked into the app on first load'"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.108.1",
+    "date-fns": "^3.6.0",
+    "framer-motion": "^11.11.17",
+    "lucide-react": "^0.460.0",
+    "papaparse": "^5.4.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0",
+    "sonner": "^1.7.0",
+    "zod": "^3.23.8",
+    "zustand": "^5.0.1"
+  },
+  "devDependencies": {
+    "@types/papaparse": "^5.3.15",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.15",
+    "typescript": "~5.6.3",
+    "vite": "^6.0.1"
+  }
+}

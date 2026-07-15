@@ -1,0 +1,137 @@
+import { Link } from 'react-router-dom'
+import PublicNav from '../../components/layout/PublicNav'
+
+const features = [
+  {
+    title: 'Structured seller intake',
+    desc: 'Collect property details, seller notes, photos, and documents through a clean public form.'
+  },
+  {
+    title: 'Buyer interest capture',
+    desc: 'Let qualified buyers share markets, budget, funding type, and acquisition preferences.'
+  },
+  {
+    title: 'Smarter deal outreach',
+    desc: 'Prepare cleaner buyer blasts with the details serious investors expect before they respond.'
+  },
+  {
+    title: 'Follow-up discipline',
+    desc: 'Keep the team focused on next steps after a seller submits a deal or a buyer raises their hand.'
+  }
+]
+
+const steps = ['Submit a deal', 'Review details', 'Match the right buyers', 'Send outreach', 'Track responses']
+
+export default function Landing() {
+  return (
+    <div className="min-h-screen bg-[#0A0C12] text-[#E6E8EE]">
+      <PublicNav />
+
+      <main>
+        <section className="max-w-6xl mx-auto px-6 pt-20 pb-16">
+          <div className="max-w-3xl">
+            <div className="inline-block mb-4 px-4 py-1 rounded-full bg-[#22C55E]/10 text-[#22C55E] text-xs font-semibold tracking-[1.5px]">
+              REAL ESTATE DEAL FLOW, MADE CLEANER
+            </div>
+            <h1 className="text-5xl lg:text-7xl font-semibold leading-[0.95] mb-6">
+              Deal Blast Pro
+            </h1>
+            <p className="text-xl text-[#C5CAD6] mb-8">
+              A public intake and buyer signup front door for real estate teams that need cleaner deal details, better buyer signals, and faster follow-up.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Link to="/portal" className="btn btn-green text-lg px-8 py-3">Submit a Deal</Link>
+              <Link to="/buyer-portal" className="btn btn-ghost text-lg px-8 py-3">Join as a Buyer</Link>
+              <Link to="/pricing" className="btn btn-ghost text-lg px-8 py-3">View Pricing</Link>
+            </div>
+          </div>
+        </section>
+
+        <section className="border-y border-[#252A38] bg-[#12151F]">
+          <div className="max-w-6xl mx-auto px-6 py-5 grid gap-3 text-sm text-[#8B92A3] sm:grid-cols-3">
+            <div>Public deal submission at /portal</div>
+            <div>Public buyer signup at /buyer-portal</div>
+            <div>Admin access stays behind login</div>
+          </div>
+        </section>
+
+        <section className="max-w-6xl mx-auto px-6 py-14">
+          <div className="mb-8">
+            <div className="text-[#22C55E] text-sm font-semibold tracking-[1px]">WHAT IT HELPS WITH</div>
+            <h2 className="text-3xl font-semibold mt-2">A calmer front door for sellers, buyers, and your team.</h2>
+          </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {features.map((feature) => (
+              <div key={feature.title} className="card p-5">
+                <h3 className="font-semibold mb-2">{feature.title}</h3>
+                <p className="text-sm text-[#8B92A3]">{feature.desc}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="max-w-6xl mx-auto px-6 pb-14">
+          <div className="grid lg:grid-cols-[0.9fr_1.1fr] gap-8 items-start">
+            <div>
+              <div className="text-[#22C55E] text-sm font-semibold tracking-[1px]">PUBLIC WORKFLOW</div>
+              <h2 className="text-3xl font-semibold mt-2">Built around the two public actions that matter.</h2>
+              <p className="text-[#8B92A3] mt-4">
+                Sellers and deal finders can submit opportunities without an account. Buyers can share acquisition criteria through a separate signup path. Admin-only work remains behind admin login.
+              </p>
+            </div>
+            <div className="grid sm:grid-cols-5 gap-3">
+              {steps.map((step, index) => (
+                <div key={step} className="card p-4 text-sm">
+                  <div className="text-[#22C55E] font-bold mb-2">{String(index + 1).padStart(2, '0')}</div>
+                  <div>{step}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="bg-[#12151F] border-y border-[#252A38]">
+          <div className="max-w-6xl mx-auto px-6 py-14">
+            <div className="grid md:grid-cols-3 gap-4">
+              <div className="card p-5">
+                <div className="text-sm text-[#8B92A3] mb-2">For sellers</div>
+                <div className="text-xl font-semibold mb-2">Submit details once</div>
+                <p className="text-sm text-[#8B92A3]">The public form gathers the core deal facts and supporting files in one pass.</p>
+              </div>
+              <div className="card p-5">
+                <div className="text-sm text-[#8B92A3] mb-2">For buyers</div>
+                <div className="text-xl font-semibold mb-2">Share buying criteria</div>
+                <p className="text-sm text-[#8B92A3]">Buyers can send market, budget, proof-of-funds, and financing preferences.</p>
+              </div>
+              <div className="card p-5">
+                <div className="text-sm text-[#8B92A3] mb-2">For admins</div>
+                <div className="text-xl font-semibold mb-2">Sign in separately</div>
+                <p className="text-sm text-[#8B92A3]">Internal tools are not linked from public pages and remain protected by admin access.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="max-w-3xl mx-auto px-6 py-14 text-center">
+          <h2 className="text-3xl font-semibold mb-4">Ready to collect better deal and buyer information?</h2>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Link to="/portal" className="btn btn-green px-8 py-3 text-lg">Submit a Deal</Link>
+            <Link to="/buyer-portal" className="btn btn-ghost px-8 py-3 text-lg">Buyer Signup</Link>
+            <Link to="/contact" className="btn btn-ghost px-8 py-3 text-lg">Contact Sales</Link>
+          </div>
+        </section>
+      </main>
+
+      <footer className="border-t border-[#252A38] py-8 text-center text-xs text-[#8B92A3]">
+        Deal Blast Pro<br />
+        <Link to="/pricing" className="hover:text-white">Pricing</Link> -{' '}
+        <Link to="/portal" className="hover:text-white">Submit Deal</Link> -{' '}
+        <Link to="/buyer-portal" className="hover:text-white">Buyer Portal</Link> -{' '}
+        <Link to="/contact" className="hover:text-white">Contact</Link> -{' '}
+        <Link to="/privacy" className="hover:text-white">Privacy</Link> -{' '}
+        <Link to="/terms" className="hover:text-white">Terms</Link> -{' '}
+        <Link to="/security" className="hover:text-white">Security</Link>
+      </footer>
+    </div>
+  )
+}

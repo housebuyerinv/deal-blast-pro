@@ -1,0 +1,499 @@
+import { useState, useEffect } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { useAppStore } from '../../store/useAppStore'
+import { Plus, Users, Upload, Send, Building2, Clock, FileText, DollarSign, AlertTriangle } from 'lucide-react'
+
+export default function Dashboard() {
+  const [commandCenterBuyerQueueCount, setCommandCenterBuyerQueueCount] = useState(0)
+
+  useEffect(() => {
+    const refreshBuyerQueueCount = () => {
+      try {
+        const raw = localStorage.getItem('dealblastpro-buyer-portal-queue')
+        const queue = raw ? JSON.parse(raw) : []
+        setCommandCenterBuyerQueueCount(Array.isArray(queue) ? queue.length : 0)
+      } catch {
+        setCommandCenterBuyerQueueCount(0)
+      }
+    }
+
+    refreshBuyerQueueCount()
+    const id = window.setInterval(refreshBuyerQueueCount, 3000)
+
+
+    return () => window.clearInterval(id)
+  }, [])
+
+  const { getInventoryDeals, getSubmissionsQueue, deals, buyers } = useAppStore()
+  const navigate = useNavigate()
+  const inventory = getInventoryDeals()
+  const submissions = getSubmissionsQueue()
+
+  const liveDealIds = new Set((deals || []).map((d: any) => d.id))
+  const liveOffers = Object.entries(useAppStore.getState().offers || {})
+    .filter(([dealId]) => liveDealIds.has(dealId))
+    .flatMap(([, offs]) => Array.isArray(offs) ? offs : [])
+  const pendingLiveOffers = liveOffers.filter((o: any) => o.status === 'New' || o.status === 'Reviewing')
+
+  const buyerResponses = useAppStore.getState().buyerResponses || {}
+  const responseList = Object.values(buyerResponses).flatMap((responsesByDeal: any) =>
+    Object.values(responsesByDeal || {})
+  ) as any[]
+
+  const responseAnalytics = {
+    interested: responseList.filter((r: any) => r.status === 'Interested').length,
+    passed: responseList.filter((r: any) => r.status === 'Passed').length,
+    noResponse: responseList.filter((r: any) => r.status === 'No Response').length,
+    offers: liveOffers.length,
+    responseRate: buyers.length > 0 ? Math.round((responseList.length / buyers.length) * 100) : 0,
+    conversionRate: responseList.length > 0 ? Math.round((liveOffers.length / responseList.length) * 100) : 0,
+  }
+
+  const kpis = [
+    { label: 'Total / Active Deals', value: inventory.length, link: '/app/inventory', color: 'text-[#22C55E]' },
+    { label: 'Submissions', value: submissions.length, link: '/app/submissions', color: 'text-[#3B82F6]' },
+    { label: 'Buyer Matches', value: buyers.length, link: '/app/buyers', color: 'text-[#22C55E]' },
+    { label: 'Offers Received', value: pendingLiveOffers.length, link: '/app/pipeline', color: 'text-amber-400' },
+    { label: 'Pending Docs', value: deals.filter(d => (d.docs?.length || 0) < 2).length, link: '/app/inventory', color: 'text-[#F59E0B]' },
+  ]
+
+  const pendingBuyerVerificationCount = buyers.filter((buyer: any) =>
+    buyer?.buyerPortalSubmission ||
+    buyer?.verificationStatus === 'Submitted / Pending Review' ||
+    String(buyer?.status || '') === 'Submitted / Pending Review'
+  ).length
+
+  const totalBuyerReviewNotifications = commandCenterBuyerQueueCount + pendingBuyerVerificationCount
+
+  return (
+    <div>
+      <div className="flex items-end justify-between mb-6">
+        <div>
+          <div className="text-xs uppercase tracking-[2px] text-[#8B92A3]">COMMAND CENTER</div>
+          <div className="text-3xl font-semibold tracking-tight">Marcel Command Center</div>
+        </div>
+        <div className="flex gap-2">
+          <Link to="/app/intake" className="btn btn-ghost flex items-center gap-2"><Plus size={16} /> Manual Intake</Link>
+          <Link to="/app/buyers" className="btn btn-ghost flex items-center gap-2"><Users size={16} /> Import Buyers</Link>
+          <Link to="/app/inventory" className="btn btn-primary flex items-center gap-2"><Building2 size={16} /> View Inventory</Link>
+          <button 
+            onClick={() => {
+              const result = useAppStore.getState().runSampleWorkflow()
+              setTimeout(() => useAppStore.getState().safeOpenDeal(result.dealId), 600)
+            }} 
+            className="btn btn-green flex items-center gap-2"
+          >
+            Run Sample Workflow
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+        {kpis.map((k, i) => {
+          // Stronger dark premium SaaS color identity (tinted bg + heavy border + subtle glow)
+          // Icons and inner structure unchanged
+          const accent = [
+            // Total / Active Deals - Dark blue filled gradient
+            { 
+              bg: 'bg-gradient-to-br from-[#0B1120] to-[#1E3A5F]', 
+              border: 'border border-[#3B82F6]/60 border-l-[3px] border-l-[#3B82F6]', 
+              glow: 'shadow-[0_0_14px_rgba(59,130,246,0.15)]', 
+              hover: 'hover:scale-[1.03] hover:shadow-xl hover:ring-1 hover:ring-offset-1 hover:ring-[#3B82F6]/40', 
+              icon: Building2, 
+              iconColor: 'text-[#3B82F6]/80' 
+            },
+            // Submissions - Dark amber/gold filled gradient
+            { 
+              bg: 'bg-gradient-to-br from-[#1C1917] to-[#78350F]', 
+              border: 'border border-[#F59E0B]/60 border-l-[3px] border-l-[#F59E0B]', 
+              glow: 'shadow-[0_0_14px_rgba(245,158,11,0.15)]', 
+              hover: 'hover:scale-[1.03] hover:shadow-xl hover:ring-1 hover:ring-offset-1 hover:ring-[#F59E0B]/40', 
+              icon: FileText, 
+              iconColor: 'text-[#F59E0B]/80' 
+            },
+            // Buyer Matches - Dark green filled gradient
+            { 
+              bg: 'bg-gradient-to-br from-[#0F172A] to-[#14532D]', 
+              border: 'border border-[#22C55E]/60 border-l-[3px] border-l-[#22C55E]', 
+              glow: 'shadow-[0_0_14px_rgba(34,197,94,0.15)]', 
+              hover: 'hover:scale-[1.03] hover:shadow-xl hover:ring-1 hover:ring-offset-1 hover:ring-[#22C55E]/40', 
+              icon: Users, 
+              iconColor: 'text-[#22C55E]/80' 
+            },
+            // Offers Received - Dark purple filled gradient
+            { 
+              bg: 'bg-gradient-to-br from-[#1E1135] to-[#3B0764]', 
+              border: 'border border-[#A855F7]/60 border-l-[3px] border-l-[#A855F7]', 
+              glow: 'shadow-[0_0_14px_rgba(168,85,247,0.15)]', 
+              hover: 'hover:scale-[1.03] hover:shadow-xl hover:ring-1 hover:ring-offset-1 hover:ring-[#A855F7]/40', 
+              icon: DollarSign, 
+              iconColor: 'text-[#A855F7]/80' 
+            },
+            // Pending Docs - Dark red/orange filled gradient
+            { 
+              bg: 'bg-gradient-to-br from-[#1C1917] to-[#431407]', 
+              border: 'border border-[#EF4444]/60 border-l-[3px] border-l-[#EF4444]', 
+              glow: 'shadow-[0_0_14px_rgba(239,68,68,0.15)]', 
+              hover: 'hover:scale-[1.03] hover:shadow-xl hover:ring-1 hover:ring-offset-1 hover:ring-[#EF4444]/40', 
+              icon: AlertTriangle, 
+              iconColor: 'text-[#EF4444]/80' 
+            },
+          ][i] || { bg: 'bg-[#0A0C12]', border: 'border-l-[#3B82F6]/40', glow: '', hover: '', icon: Building2, iconColor: 'text-[#3B82F6]/60' };
+
+          const Icon = accent.icon;
+
+          return (
+            <Link
+              key={i}
+              to={k.link || '#'}
+              className={`card p-4 transition-all duration-200 cursor-pointer ${accent.bg} ${accent.border} ${accent.glow} ${accent.hover || ''}`}
+            >
+              <div className="flex items-start justify-between">
+                <div className="text-3xl font-semibold tabular-nums mb-0.5">{k.value}</div>
+                <Icon size={15} className={accent.iconColor} />
+              </div>
+              <div className="text-sm text-[#8B92A3]">{k.label}</div>
+            </Link>
+          );
+        })}
+      </div>
+
+      {/* Quick Navigation Links (kept as useful top navigation, not part of the main widget rows) */}
+      <div className="mb-6">
+        <div className="text-sm font-medium mb-2 text-[#8B92A3]">Quick Links</div>
+        <div className="flex flex-wrap gap-2">
+          <Link to="/app/intake" className="btn btn-ghost text-sm">Internal Intake Center</Link>
+          <Link to="/portal" className="btn btn-ghost text-sm">Public Submission Portal</Link>
+          <Link to="/buyer-portal" target="_blank" className="btn btn-ghost text-sm">Verified Buyer Portal</Link>
+          <Link to="/app/inventory" className="btn btn-ghost text-sm">Inventory Hub</Link>
+          <Link to="/app/submissions" className="btn btn-ghost text-sm">Deal Submissions Queue</Link>
+          <Link to="/app/blast" className="btn btn-ghost text-sm">Blast Builder</Link>
+        </div>
+      </div>
+
+      {/* Command Center - Exact required 4-row balanced layout (no duplicates, no empty space) */}
+      <div className="space-y-6">
+
+        {/* Top Row: KPI cards only (already rendered above, kept for balance) */}
+        {/* (The KPI grid at lines ~44 is the Top Row) */}
+
+        {totalBuyerReviewNotifications > 0 && (
+          <div
+            data-testid="command-center-buyer-review-alert"
+            className="card p-4 mb-4 border border-amber-500/40 bg-amber-500/10 flex flex-wrap items-center justify-between gap-3 cursor-pointer hover:border-amber-400/70"
+            onClick={() => navigate('/app/buyers')}
+          >
+            <div>
+              <div className="text-amber-300 font-semibold">Buyer submissions need review</div>
+              <div className="text-xs text-[#8B92A3] mt-1">
+                {commandCenterBuyerQueueCount > 0 && (
+                  <span>{commandCenterBuyerQueueCount} portal submission{commandCenterBuyerQueueCount === 1 ? '' : 's'} waiting in queue</span>
+                )}
+                {commandCenterBuyerQueueCount > 0 && pendingBuyerVerificationCount > 0 && <span> • </span>}
+                {pendingBuyerVerificationCount > 0 && (
+                  <span>{pendingBuyerVerificationCount} buyer{pendingBuyerVerificationCount === 1 ? '' : 's'} pending verification</span>
+                )}
+              </div>
+            </div>
+            <button className="btn btn-primary text-xs" onClick={(e) => { e.stopPropagation(); navigate('/app/buyers') }}>
+              Review Buyer Submissions
+            </button>
+          </div>
+        )}
+
+        {/* Second Row: System Status + Live Operational Stream (wider) + Needs Attention */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4">
+          {/* System Status / Time Date (near top as required) */}
+          <div className="card p-4 lg:col-span-3">
+            <div className="flex items-center gap-2 mb-2 text-sm font-medium">
+              <Clock size={16} className="text-[#22C55E]" /> System Status
+            </div>
+            <TimeDateWidget />
+            <div className="mt-2 pt-2 border-t border-[#252A38] text-[10px] text-[#8B92A3] space-y-0.5">
+              <div>Demo Mode: <span className="text-[#22C55E]">Active</span></div>
+              <div>LocalStorage: <span className="text-[#22C55E]">Healthy</span></div>
+              <div>Public Portal: <Link to="/portal" className="text-[#3B82F6] hover:underline">Active</Link></div>
+            </div>
+          </div>
+
+          {/* Live Operational Stream - wider and readable */}
+          <div className="card p-4 lg:col-span-6">
+            <div className="font-medium text-sm mb-2">Live Operational Stream</div>
+            <LiveOperationalStream />
+          </div>
+
+          {/* Needs Attention */}
+          <div className="card p-4 cursor-pointer hover:border-[#3B82F6]/40 lg:col-span-3" onClick={() => navigate('/app/inventory')}>
+            <div className="font-medium text-sm mb-2 flex items-center justify-between text-amber-400">
+              <span>Needs Attention</span>
+              <button onClick={(e) => { 
+                e.stopPropagation(); 
+                deals.forEach(d => {
+                  const issues = useAppStore.getState().getDealAttentionItems(d)
+                  if (issues.length > 0) useAppStore.getState().dismissDealAttention(d.id, issues)
+                })
+                alert('Needs Attention cleared (session)');
+              }} className="text-[10px] btn btn-ghost px-1 py-0">Clear All</button>
+            </div>
+            <div className="space-y-1 text-sm">
+              {deals.filter(d => useAppStore.getState().getDealAttentionItems(d).length > 0).slice(0, 3).map(d => {
+                const issues = useAppStore.getState().getDealAttentionItems(d)
+                return (
+                  <div key={d.id} className="cursor-pointer hover:text-[#3B82F6] flex justify-between items-center text-xs" onClick={(e) => { e.stopPropagation(); useAppStore.getState().safeOpenDeal(d.id); }}>
+                    <span>{d.property.address} <span className="text-[#8B92A3]">({d.status})</span></span>
+                    <span className="flex items-center gap-1">
+                      <span className="text-[10px] text-amber-400">{issues.length}</span>
+                      <button onClick={(e) => { e.stopPropagation(); useAppStore.getState().dismissDealAttention(d.id, issues); }} className="btn btn-ghost text-[9px] px-1 py-0">Clear</button>
+                    </span>
+                  </div>
+                )
+              })}
+              {deals.filter(d => useAppStore.getState().getDealAttentionItems(d).length > 0).length === 0 && <div className="text-xs text-[#8B92A3]">All clear. No deals need attention.</div>}
+            </div>
+          </div>
+        </div>
+
+        {/* Third Row: Hot Buyers, Recent Blasts, Offers, Closing, Follow-Up */}
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          {/* Hot Buyers */}
+          <div className="card p-4 cursor-pointer hover:border-[#3B82F6]/40" onClick={() => navigate('/app/buyers')}>
+            <div className="font-medium text-sm mb-2 text-red-400"> Hot Buyers</div>
+            <div className="space-y-1 text-sm">
+              {buyers.filter(b => b.status === 'Hot').slice(0, 4).map(b => (
+                <div key={b.id} onClick={(e) => { e.stopPropagation(); navigate(`/app/buyers?buyer=${b.id}`); }} className="flex justify-between hover:text-[#3B82F6]">
+                  <span>{b.name}</span><span className="text-xs text-[#8B92A3]">{b.markets?.[0]}</span>
+                </div>
+              ))}
+              {buyers.filter(b => b.status === 'Hot').length === 0 && <div className="text-xs text-[#8B92A3]">No hot buyers</div>}
+            </div>
+          </div>
+
+          {/* Recent Blasts */}
+          <div className="card p-4 cursor-pointer hover:border-[#3B82F6]/40" onClick={() => navigate('/app/blast')}>
+            <div className="font-medium text-sm mb-2">Recent Blasts</div>
+            <div className="space-y-1 text-sm text-[#8B92A3]">
+              {deals.filter(d => d.status === 'Blasted' || d.status === 'Offers Received').slice(0, 3).map(d => (
+                <div key={d.id} onClick={(e) => { e.stopPropagation(); useAppStore.getState().safeOpenDeal(d.id); }} className="cursor-pointer hover:text-white">{d.property.address}</div>
+              ))}
+              {deals.filter(d => d.status === 'Blasted' || d.status === 'Offers Received').length === 0 && <div className="text-xs">No recent blasts</div>}
+            </div>
+          </div>
+
+          {/* Offers Needing Response */}
+          <div className="card p-4 cursor-pointer hover:border-[#3B82F6]/40" onClick={() => navigate('/app/pipeline')}>
+            <div className="font-medium text-sm mb-2">Offers Needing Response</div>
+            {Object.entries(useAppStore.getState().offers || {}).flatMap(([did, offs]: any) => liveDealIds.has(did) && Array.isArray(offs) ? offs.filter((o: any) => o.status === 'New' || o.status === 'Reviewing').map((o: any) => ({did, o})) : []).slice(0, 3).map(({did, o}: any) => (
+              <div key={o.id} onClick={(e) => { e.stopPropagation(); useAppStore.getState().safeOpenDeal(did); }} className="text-sm cursor-pointer hover:text-[#3B82F6]">{o.buyerName} — {o.amount.toLocaleString()}</div>
+            ))}
+            {pendingLiveOffers.length === 0 && <div className="text-xs text-[#8B92A3]">No pending offers</div>}
+          </div>
+
+          {/* Closing Pipeline */}
+          <div className="card p-4 cursor-pointer hover:border-[#3B82F6]/40" onClick={() => navigate('/app/inventory')}>
+            <div className="font-medium text-sm mb-2 text-[#22C55E]">Closing Pipeline</div>
+            <div className="text-sm">
+              {deals.filter(d => d.status === 'Closing' || d.status === 'Under Contract').length} deals in flight
+              <div className="text-xs text-[#8B92A3] mt-1">Open terminal from Closing tab</div>
+            </div>
+          </div>
+
+          {/* Follow-Up Needed */}
+          <div className="card p-4 cursor-pointer hover:border-[#3B82F6]/40" onClick={() => navigate('/app/followups')}>
+            <div className="font-medium text-sm mb-2 text-amber-400">Follow-Up Needed</div>
+            <div className="text-sm">
+              {useAppStore.getState().getPendingFollowUps().length} pending
+              <div className="text-xs text-[#8B92A3] mt-1">Schedule after blasts</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Fourth Row: Response Analytics + Quick Actions + Recent Activity */}
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-12 gap-4">
+          {/* Response Analytics */}
+          <div className="card p-4 cursor-pointer hover:border-[#3B82F6]/40 lg:col-span-4" onClick={() => navigate('/app/analytics')}>
+            <div className="font-medium text-sm mb-1">Response Analytics</div>
+            <div className="grid grid-cols-2 gap-x-3 text-[11px]">
+              <div>Interested: <span className="text-[#22C55E]">{responseAnalytics.interested}</span></div>
+              <div>Offers: <span className="text-[#22C55E]">{responseAnalytics.offers}</span></div>
+              <div>Passed: {responseAnalytics.passed}</div>
+              <div>No Response: {responseAnalytics.noResponse}</div>
+              <div className="col-span-2 mt-1 text-xs text-[#8B92A3]">
+                Response Rate {responseAnalytics.responseRate}% - Conversion {responseAnalytics.conversionRate}%
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Actions (only one) */}
+          <div className="lg:col-span-4 card p-5">
+            <div className="font-medium mb-3">Quick Actions</div>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <Link to="/portal" className="btn btn-ghost justify-start"><Plus size={15} /> Add New Deal</Link>
+              <Link to="/app/buyers" className="btn btn-ghost justify-start"><Upload size={15} /> Import Buyers CSV</Link>
+              <Link to="/app/blast" className="btn btn-ghost justify-start"><Send size={15} /> Send Deal Blast</Link>
+              <Link to="/app/inventory" className="btn btn-ghost justify-start"><Building2 size={15} /> Open Inventory Hub</Link>
+            </div>
+            <div className="text-[11px] text-[#8B92A3] mt-4">Pro tip: Use the Public Portal link in Inventory Hub to let external submitters self-serve.</div>
+          </div>
+
+          {/* Recent Activity (only one) */}
+          <div className="lg:col-span-4 card p-5">
+            <div className="font-medium mb-3 flex justify-between">Recent Activity <Link to="/app/settings" className="text-xs text-[#3B82F6]">View all</Link></div>
+            <div className="space-y-2 text-sm">
+              {deals.slice(0, 4).map(d => (
+                <div key={d.id} onClick={() => useAppStore.getState().safeOpenDeal(d.id)} className="flex justify-between p-2 -mx-2 rounded hover:bg-[#171B26] cursor-pointer">
+                  <div>{d.property.address} <span className="text-[#8B92A3]">({d.status})</span></div>
+                  <div className="text-xs text-[#8B92A3]">{new Date(d.updatedAt).toLocaleDateString()}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      {/* Alerts */}
+      <div className="mt-4 panel p-4 text-sm border-l-4 border-[#F59E0B]">
+        <span className="font-semibold text-[#FBBF24]">ALERT:</span>{' '}
+        {submissions.length > 0
+          ? `${submissions.length} deal${submissions.length === 1 ? '' : 's'} in submissions queue need review before they can be blasted.`
+          : 'No submissions currently require review.'}
+        {submissions.length > 0 && (
+          <Link to="/app/submissions" className="ml-2 underline">Review now</Link>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* Time + Date Widget with Timezone (persisted to localStorage) */
+function TimeDateWidget() {
+  const [tz, setTz] = useState(() => {
+    try { return localStorage.getItem('dbp_timezone') || 'America/New_York' } catch { return 'America/New_York' }
+  })
+  const [now, setNow] = useState(new Date())
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000) // every second for live seconds
+    return () => clearInterval(id)
+  }, [])
+
+  const tzOptions = [
+    { label: 'Eastern', value: 'America/New_York' },
+    { label: 'Central', value: 'America/Chicago' },
+    { label: 'Mountain', value: 'America/Denver' },
+    { label: 'Pacific', value: 'America/Los_Angeles' },
+    { label: 'UTC', value: 'UTC' },
+  ]
+
+  const handleTzChange = (newTz: string) => {
+    setTz(newTz)
+    try { localStorage.setItem('dbp_timezone', newTz) } catch {}
+  }
+
+  const timeStr = now.toLocaleTimeString('en-US', { timeZone: tz, hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  const dateStr = now.toLocaleDateString('en-US', { timeZone: tz, weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+
+  return (
+    <div className="text-sm">
+      <div className="text-2xl font-semibold tabular-nums tracking-tighter">{timeStr}</div>
+      <div className="text-[#8B92A3] text-xs">{dateStr}</div>
+
+      <select
+        className="select text-xs mt-2 w-full"
+        value={tz}
+        onChange={(e) => handleTzChange(e.target.value)}
+      >
+        {tzOptions.map(o => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
+    </div>
+  )
+}
+
+/* Live Operational Stream Widget - pulls from store activities + key events */
+function LiveOperationalStream() {
+  const [activities, setActivities] = useState<any[]>([])
+
+  // Collect recent global activity (surgical: read from store on mount + poll lightly)
+  useEffect(() => {
+    const load = () => {
+      try {
+        const store = useAppStore.getState()
+        const allActs: any[] = []
+        Object.entries(store.activities || {}).forEach(([dealId, acts]) => {
+          (acts as any[]).slice(0, 5).forEach(a => allActs.push({ ...a, dealId: dealId === '__global' ? null : dealId }))
+        })
+        // Also synthesize buyer portal queue items waiting for review
+        try {
+          const queueRaw = localStorage.getItem('dealblastpro-buyer-portal-queue')
+          const buyerQueue = queueRaw ? JSON.parse(queueRaw) : []
+          if (Array.isArray(buyerQueue)) {
+            buyerQueue.slice(0, 10).forEach((b: any) => {
+              allActs.push({
+                type: 'Buyer Verification Pending',
+                desc: (b.name || b.email || 'New buyer') + ' waiting for review',
+                ts: b.createdAt || b.submittedAt || new Date().toISOString(),
+                dealId: null
+              })
+            })
+          }
+        } catch {}
+
+        // Also synthesize from recent deals for key events
+        const deals = store.deals || []
+        deals.slice(0, 10).forEach((d: any) => {
+          if (d.status === 'Submitted') allActs.push({ type: 'New deal submitted', desc: d.property.address, ts: d.createdAt, dealId: d.id })
+          if (d.status === 'Approved') allActs.push({ type: 'Deal approved', desc: d.property.address, ts: d.updatedAt, dealId: d.id })
+          if (d.status === 'Closing') allActs.push({ type: 'Deal moved to closing', desc: d.property.address, ts: d.updatedAt, dealId: d.id })
+        })
+        // Sort by time desc, take latest 12
+        const sorted = allActs
+          .sort((a,b) => new Date(b.ts || b.timestamp || 0).getTime() - new Date(a.ts || a.timestamp || 0).getTime())
+          .slice(0, 12)
+        setActivities(sorted)
+      } catch {}
+    }
+    load()
+    const id = setInterval(load, 15000) // light poll
+    return () => clearInterval(id)
+  }, [])
+
+  const getIcon = (_type?: string) => {
+    return ''
+  }
+
+  if (activities.length === 0) {
+    return (
+      <div className="card p-4 hidden lg:block text-xs">
+        <div className="font-medium mb-1">Live Operational Stream</div>
+        <div className="text-[#8B92A3]">No recent activity yet. Run Sample Workflow or add a deal to populate the stream.</div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="card p-4 hidden lg:block text-xs max-h-[220px] overflow-auto">
+      <div className="font-medium mb-2">Live Operational Stream</div>
+      <div className="space-y-1">
+        {activities.map((a, i) => (
+          <div key={i} 
+               className="flex items-start gap-2 p-1 -mx-1 rounded hover:bg-[#171B26] cursor-pointer"
+               onClick={() => a.dealId && useAppStore.getState().safeOpenDeal(a.dealId)}>
+            <span>{getIcon(a.type || a.description || '')}</span>
+            <div className="flex-1 min-w-0">
+              <div className="truncate">{a.type || a.description || 'Activity'}</div>
+              <div className="text-[10px] text-[#8B92A3] truncate">{a.desc || a.description} - {a.ts ? new Date(a.ts).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : ''}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+
+
+
+
+
