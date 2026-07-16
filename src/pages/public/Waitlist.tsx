@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import PublicFooter from '../../components/layout/PublicFooter'
 import PublicNav from '../../components/layout/PublicNav'
 import { submitWaitlistEntry } from '../../lib/waitlistStorage'
 
@@ -116,6 +117,7 @@ export default function Waitlist() {
           </button>
         </form>
       </main>
+      <PublicFooter />
     </div>
   )
 }

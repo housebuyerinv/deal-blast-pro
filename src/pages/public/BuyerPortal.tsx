@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { uploadBuyerProofFile, type BuyerProofFileMeta } from '../../lib/buyerProofStorage'
 import { createBuyerPortalSubmission } from '../../lib/buyerPortalSubmissionStorage'
 import { useAppStore } from '../../store/useAppStore'
+import PublicFooter from '../../components/layout/PublicFooter'
 import PublicNav from '../../components/layout/PublicNav'
 const BUYER_TYPES = [
   'Cash Buyer',
@@ -706,11 +707,8 @@ const [submitted, setSubmitted] = useState(false)
           </div>
         </form>
 
-        <footer className="border-t border-[#252A38] mt-10 py-7 text-center text-xs text-[#8B92A3]">
-          House Buyer Investments - Deal Blast Pro<br />
-          Verified Buyer Portal
-        </footer>
       </div>
+      <PublicFooter />
     </div>
   )
 }

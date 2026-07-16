@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useAppStore } from '../../store/useAppStore'
 import { submitDealToSupabase } from '../../lib/dealSubmissionStorage'
+import PublicFooter from '../../components/layout/PublicFooter'
 import PublicNav from '../../components/layout/PublicNav'
 
 
@@ -888,11 +889,8 @@ Estimated review: 24-48 hours. Check email for updates.              </div>
           </div>
         )}
 
-        <footer className="border-t border-[#252A38] mt-10 py-7 text-center text-xs text-[#8B92A3]">
-          House Buyer Investments - Deal Blast Pro<br />
-          Public Submission Portal
-        </footer>
       </div>
+      <PublicFooter />
     </div>
   )
 }
