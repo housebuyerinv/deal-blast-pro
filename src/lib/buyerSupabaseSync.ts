@@ -30,10 +30,23 @@ const buyerScopeColumns = [
 
 let resolvedBuyerScopeColumn: string | null = null
 
+async function getActiveSupabaseSession() {
+  if (!supabase) return null
+
+  const { data: sessionData } = await supabase.auth.getSession()
+  if (sessionData?.session?.access_token) return sessionData.session
+
+  const { data: refreshData } = await supabase.auth.refreshSession()
+  return refreshData?.session?.access_token ? refreshData.session : null
+}
+
 async function getBuyerScope(): Promise<BuyerScope | null> {
   if (!supabase) return null
 
-  const { data, error } = await supabase.auth.getUser()
+  const session = await getActiveSupabaseSession()
+  if (!session?.access_token) return null
+
+  const { data, error } = await supabase.auth.getUser(session.access_token)
   if (error || !data.user) return null
 
   const { data: plan } = await supabase
@@ -51,6 +64,57 @@ async function getBuyerScope(): Promise<BuyerScope | null> {
     workspaceId,
     planName: String(plan?.plan_name || 'Free').trim(),
   }
+}
+
+async function importBuyersThroughApi(buyers: any[]): Promise<BuyerSyncResult<any[]> | null> {
+  if (!supabase || typeof fetch === 'undefined') return null
+
+  const session = await getActiveSupabaseSession()
+  if (!session?.access_token) {
+    return {
+      ok: false,
+      error: 'Your session has expired. Please sign in again.',
+    }
+  }
+
+  try {
+    const response = await fetch('/api/import-buyers', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ buyers }),
+    })
+    const payload = await response.json().catch(() => ({}))
+
+    if (!response.ok || payload?.ok === false) {
+      return {
+        ok: false,
+        error: payload?.error || classifyBuyerImportError(payload?.code),
+      }
+    }
+
+    return {
+      ok: true,
+      data: Array.isArray(payload?.data) ? payload.data : [],
+    }
+  } catch {
+    return {
+      ok: false,
+      error: 'Buyer import could not reach the server. Please try again.',
+    }
+  }
+}
+
+function classifyBuyerImportError(code?: string) {
+  if (code === 'auth_required' || code === 'invalid_session') return 'Your session has expired. Please sign in again.'
+  if (code === 'missing_workspace') return 'We could not identify your Deal Blast Pro workspace. Please refresh or contact support.'
+  if (code === 'capacity_exceeded') return 'Your selected buyers exceed the remaining capacity for your plan.'
+  if (code === 'permission_denied') return 'You do not have permission to add buyers to this workspace.'
+  if (code === 'network_error') return 'Buyer import could not reach the server. Please try again.'
+  if (code === 'validation_failed') return 'Some selected buyers could not be imported. Review the highlighted rows.'
+  return 'Buyer import failed. No buyers were added.'
 }
 
 function getBuyerScopeFilters(scope: BuyerScope): BuyerScopeFilter[] {
@@ -595,8 +659,14 @@ export async function upsertBuyersToSupabase(buyers: any[]): Promise<BuyerSyncRe
   try {
     if (!supabase) return { ok: false, error: 'Supabase client missing' }
 
+    const incoming = dedupeBuyersBeforeSupabaseSave(buyers || [])
+    if (!incoming.length) return { ok: true, data: [] }
+
+    const apiResult = await importBuyersThroughApi(incoming)
+    if (apiResult) return apiResult
+
     const scope = await getBuyerScope()
-    if (!scope) return { ok: false, error: 'Sign in before saving buyers to Supabase' }
+    if (!scope) return { ok: false, error: 'Your session has expired. Please sign in again.' }
 
     const scopeFilter = await resolveBuyerScopeFilter(scope)
     if (!scopeFilter) {
@@ -605,9 +675,6 @@ export async function upsertBuyersToSupabase(buyers: any[]): Promise<BuyerSyncRe
         error: 'Buyer sync requires an owner-scoped buyers table before cloud buyer saves are enabled.',
       }
     }
-
-    const incoming = dedupeBuyersBeforeSupabaseSave(buyers || [])
-    if (!incoming.length) return { ok: true, data: [] }
 
     // First look up existing buyer rows and reuse their ids when the email already exists.
     // This keeps approvals working even before the database has a UNIQUE(email) constraint.

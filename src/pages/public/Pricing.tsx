@@ -2,9 +2,9 @@
 import { Link } from 'react-router-dom'
 import PublicFooter from '../../components/layout/PublicFooter'
 import PublicNav from '../../components/layout/PublicNav'
+import LaunchPromoCode from '../../components/LaunchPromoCode'
 import { PLAN_ENTITLEMENTS } from '../../lib/planEntitlements'
 import {
-  LAUNCH_ANNUAL_PROMOTION_COPY,
   PRICING_PLAN_ORDER,
   PLAN_PRICING,
   getPriceDisplay,
@@ -117,7 +117,6 @@ export default function Pricing() {
           <p className="mt-3 text-[#8B92A3]">Start small, then upgrade when your deal flow and buyer outreach need more room.</p>
           <p className="mt-2 text-sm text-[#C5CAD6]">Start with Free, Starter, or Pro. Agency and Enterprise options are available by request.</p>
           <p className="mt-2 text-xs text-[#8B92A3]">Features labeled Coming Soon are not yet available for customer use. Plan limits and feature availability are enforced by account and workspace.</p>
-          <p className="mt-3 text-xs font-medium text-[#FBBF24]">{LAUNCH_ANNUAL_PROMOTION_COPY}</p>
           <div className="mt-5 grid gap-2 md:hidden">
             <Link to="/waitlist" className="btn btn-green w-full justify-center py-3 text-sm">
               Join Waitlist
@@ -186,6 +185,9 @@ export default function Pricing() {
                         <span className={tier.highlight ? 'text-[#22C55E]' : 'text-[#64748B]'}>-</span> {point}
                       </div>
                     ))}
+                  </div>
+                  <div className="mt-4">
+                    <LaunchPromoCode plan={tier.name} billing={billing} compact />
                   </div>
                 </div>
 

@@ -136,3 +136,28 @@ export const LAUNCH_ANNUAL_PROMOTION_COPY =
 
 export const LAUNCH_ANNUAL_PROMOTION_FALLBACK_COPY =
   'Launch pricing will be applied to eligible early-access annual accounts. Available for eligible Pro annual purchases. Contact us about higher-volume annual plans.'
+
+export const LAUNCH_ANNUAL_PROMOTION = {
+  enabled: true,
+  code: 'LAUNCH10',
+  discountLabel: '10%',
+  expiresAt: '2027-01-02T04:59:59.999Z',
+  eligiblePlans: ['Pro', 'Agency', 'Enterprise'] as PricingPlanName[],
+  firstPaymentOnly: true,
+} as const
+
+export function isLaunchAnnualPromotionActive(now = new Date()) {
+  return LAUNCH_ANNUAL_PROMOTION.enabled && now.getTime() <= new Date(LAUNCH_ANNUAL_PROMOTION.expiresAt).getTime()
+}
+
+export function canShowLaunchAnnualPromotion(planName: PricingPlanName, billing: 'monthly' | 'annual', now = new Date()) {
+  if (billing !== 'annual') return false
+  if (!isLaunchAnnualPromotionActive(now)) return false
+  if (!LAUNCH_ANNUAL_PROMOTION.eligiblePlans.includes(planName)) return false
+  if (planName === 'Enterprise' && PLAN_PRICING.Enterprise.annualCents === null) return false
+  return true
+}
+
+export function getLaunchAnnualPromotionCodeForCheckout(planName: PricingPlanName, billing: 'monthly' | 'annual', now = new Date()) {
+  return canShowLaunchAnnualPromotion(planName, billing, now) ? LAUNCH_ANNUAL_PROMOTION.code : ''
+}

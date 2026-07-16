@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { DEFAULT_SETTINGS } from '../../lib/constants'
 import { useAppStore } from '../../store/useAppStore'
 import { buildStripeCheckoutUrl, getBillingSetupWithLaunchDefaults, getPlanPaymentLink, isValidPaymentUrl, type BillingFrequency } from '../../lib/billingLinks'
+import LaunchPromoCode from '../../components/LaunchPromoCode'
 import {
-  LAUNCH_ANNUAL_PROMOTION_COPY,
   PAID_PRICING_PLAN_ORDER,
   PLAN_PRICING,
   getPriceDisplay,
@@ -84,10 +84,6 @@ export default function Upgrade() {
             </div>
             <div className="text-xs text-[#64748B]">Annual plans save 2 months compared to monthly billing.</div>
           </div>
-          <div className="mb-4 rounded border border-amber-500/30 bg-amber-500/10 p-3 text-xs font-medium text-amber-200">
-            {LAUNCH_ANNUAL_PROMOTION_COPY}
-          </div>
-
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
             {plans.map(p => {
               const priceDisplay = getPriceDisplay(p.name, billing)
@@ -104,6 +100,9 @@ export default function Upgrade() {
                   <div className="mt-1 text-2xl font-semibold tabular-nums">{priceDisplay.price}</div>
                   <div className="mt-1 text-xs text-[#8B92A3]">{priceDisplay.noteLines.map(line => <div key={line}>{line}</div>)}</div>
                   <div className="text-xs text-[#8B92A3] mt-1 min-h-[2.2em] break-words">{p.description}</div>
+                  <div className="mt-2">
+                    <LaunchPromoCode plan={p.name} billing={billing} compact />
+                  </div>
                   {!p.activeRelease && <div className="mt-1 text-amber-400 text-xs">{agencyEnterpriseEnabled ? 'Available by approval' : 'Coming Soon / Contact Support'}</div>}
                   {current === p.name && <div className="mt-1 text-emerald-400 text-xs">Current plan</div>}
                 </div>

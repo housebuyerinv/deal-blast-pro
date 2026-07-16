@@ -1,4 +1,5 @@
 import type { TrialState } from './types'
+import { getLaunchAnnualPromotionCodeForCheckout } from './planPricing'
 
 export type BillingFrequency = 'monthly' | 'annual'
 export type PaidPlan = Exclude<TrialState['plan'], 'Free' | 'Free Demo'>
@@ -109,6 +110,8 @@ export function buildStripeCheckoutUrl(
     if (userId) url.searchParams.set('dealBlastUserId', userId)
     url.searchParams.set('selectedPlan', context.plan)
     url.searchParams.set('billingFrequency', context.billingFrequency)
+    const promoCode = getLaunchAnnualPromotionCodeForCheckout(context.plan, context.billingFrequency)
+    if (promoCode) url.searchParams.set('prefilled_promo_code', promoCode)
 
     return url.toString()
   } catch {

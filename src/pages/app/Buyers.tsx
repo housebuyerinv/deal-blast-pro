@@ -3847,9 +3847,9 @@ const cleanBuyerName = (value: any, emailValue = '') => {
       const message = String(saveResult.error || 'Buyer import failed.')
       const friendly = message.includes('buyer_plan_limit_exceeded')
         ? 'Approval failed. This workspace has reached its buyer capacity. No buyers were imported.'
-        : 'Approval failed before Supabase save. No buyers were imported.'
+        : message
       setImportApprovalSummary(friendly)
-      toast.error(friendly + ' ' + message)
+      toast.error(friendly)
       return
     }
 
