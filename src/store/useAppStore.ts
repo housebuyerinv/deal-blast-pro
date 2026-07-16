@@ -225,6 +225,10 @@ const STORAGE_KEY = 'dealblastpro-v1'
 
 const IS_PRODUCTION = import.meta.env.PROD
 const shouldPersistBuyersLocally = !IS_PRODUCTION
+const isLegacyDemoEmail = (email: string) => {
+  const [name, domain] = email.split('@')
+  return name === 'demo' && domain === 'dealblast.pro'
+}
 
 const normalizeWorkspaceEmail = (email: any) => String(email || '').trim().toLowerCase()
 const makeWorkspaceDataScopeKey = (user?: any) => {
@@ -599,6 +603,21 @@ export const useAppStore = create<AppStore>()(
 
         // Recover from corrupt or partial storage without creating demo/sample records.
         const current = get()
+        const persistedEmail = normalizeWorkspaceEmail(current.user?.email)
+        if (IS_PRODUCTION && (!current.user?.id || isLegacyDemoEmail(persistedEmail))) {
+          set({
+            ...cleanWorkspaceState(),
+            user: null,
+            workspaceInstanceId: null,
+            workspaceOwnerId: null,
+            workspaceOwnerEmail: null,
+            workspaceDataScopeKey: null,
+            trial: TRIAL_DEFAULT,
+            settings: DEFAULT_SETTINGS,
+          })
+          safeLocalStorage.removeItem(STORAGE_KEY)
+          return
+        }
         if (!Array.isArray(current.deals)) set({ deals: [] })
         if (!Array.isArray(current.buyers)) set({ buyers: [] })
         if (current.user && !privateWorkspaceScopeMatchesUser(current, current.user)) {
@@ -682,6 +701,7 @@ export const useAppStore = create<AppStore>()(
       logout: () => set({
         ...cleanWorkspaceState(),
         user: null,
+        trial: TRIAL_DEFAULT,
         workspaceInstanceId: null,
         workspaceOwnerId: null,
         workspaceOwnerEmail: null,
@@ -2008,7 +2028,7 @@ export const useAppStore = create<AppStore>()(
         const canPersistPrivateState = privateWorkspaceScopeMatchesUser(state, state.user)
 
         return {
-          user: state.user,
+          user: IS_PRODUCTION ? null : state.user,
           workspaceInstanceId: state.workspaceInstanceId,
           workspaceOwnerId: state.workspaceOwnerId,
           workspaceOwnerEmail: state.workspaceOwnerEmail,
@@ -2060,7 +2080,8 @@ function syncStoreFromPersistedStorage() {
       return
     }
 
-    const nextUser = currentState.user ?? persistedUser
+    const nextUser = IS_PRODUCTION ? currentState.user : (currentState.user ?? persistedUser)
+    if (IS_PRODUCTION && !nextUser) return
     const canUsePersistedPrivateState =
       Boolean(nextUser) &&
       privateWorkspaceScopeMatchesUser(persistedState, nextUser)

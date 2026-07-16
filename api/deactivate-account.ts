@@ -29,6 +29,14 @@ export default async function handler(req: any, res: any) {
       })
     }
 
+    if (account.isOwnerAdmin) {
+      return send(res, 403, {
+        ok: false,
+        error: 'Contact support or use the secure owner shutdown process.',
+        code: 'owner_admin_deactivation_blocked',
+      })
+    }
+
     const now = new Date().toISOString()
     const reason = cleanString(body.reason || 'User requested account deactivation')
     const workspaceId = account.workspace?.id || account.plan?.workspace_id || null

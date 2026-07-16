@@ -441,8 +441,8 @@ export default function Settings() {
   const isPaidCancellationStatus = currentBillingStatus === 'Paid Active' || currentBillingStatus === 'Comped'
   const deletionActionLabel = 'Deactivate Account'
   const deletionModalMessage = isPaidCancellationStatus
-    ? 'This will deactivate this Deal Blast Pro workspace/account and block app access. It does not hard-delete records and does not cancel or change Stripe billing automatically.'
-    : 'This will deactivate this workspace/account in Deal Blast Pro. It does not hard-delete buyers, deals, submissions, inventory, settings, or files.'
+    ? 'This will deactivate this user access and workspace account in Deal Blast Pro. It does not immediately hard-delete buyers, deals, submissions, files, or settings, and it does not cancel or change Stripe billing automatically. You will be signed out after the backend confirms deactivation.'
+    : 'This will deactivate this user access and workspace account in Deal Blast Pro. It does not immediately hard-delete buyers, deals, submissions, inventory, settings, or files. You will be signed out after the backend confirms deactivation.'
 
   const requestAccountDeletion = async () => {
     if (deleteAccountText !== 'DELETE MY ACCOUNT' || deleteAccountLoading) return
@@ -497,7 +497,7 @@ export default function Settings() {
       logout()
       window.localStorage.removeItem('dealblastpro-v1')
       window.sessionStorage.clear()
-      window.location.href = '/login?account=deactivated'
+      window.location.href = '/admin-login?account=deactivated'
     } catch (error: any) {
       const message = error?.message || 'Account deactivation failed.'
       setDeleteAccountError(message)
@@ -873,7 +873,7 @@ export default function Settings() {
             </div>
           )}
         </div>
-        <button onClick={openDeleteAccountRequest} className="btn btn-ghost text-red-300 border-red-500/40 md:w-auto">
+        <button type="button" onClick={openDeleteAccountRequest} className="btn btn-ghost text-red-300 border-red-500/40 md:w-auto">
           {deletionActionLabel}
         </button>
       </div>
@@ -3523,7 +3523,7 @@ export default function Settings() {
                   </div>
                 )}
               </div>
-              <button onClick={openDeleteAccountRequest} className="btn btn-ghost text-red-300 border-red-500/40 md:w-auto">
+              <button type="button" onClick={openDeleteAccountRequest} className="btn btn-ghost text-red-300 border-red-500/40 md:w-auto">
                 Request Account Deletion
               </button>
             </div>
@@ -4103,8 +4103,8 @@ export default function Settings() {
                   Deal Blast Pro only updates the current workspace/account status. This request does not delete global records or other users&apos; data.
                 </div>
                 <div className="mt-5 flex flex-wrap justify-end gap-2">
-                  <button onClick={closeDeleteAccountRequest} className="btn btn-ghost">Cancel</button>
-                  <button onClick={() => setDeleteAccountConfirmed(true)} className="btn btn-ghost text-red-300 border-red-500/40">Continue</button>
+                  <button type="button" onClick={closeDeleteAccountRequest} className="btn btn-ghost">Cancel</button>
+                  <button type="button" onClick={() => setDeleteAccountConfirmed(true)} className="btn btn-ghost text-red-300 border-red-500/40">Continue</button>
                 </div>
               </div>
             ) : (
@@ -4125,8 +4125,9 @@ export default function Settings() {
                   </div>
                 )}
                 <div className="mt-5 flex flex-wrap justify-end gap-2">
-                  <button onClick={closeDeleteAccountRequest} disabled={deleteAccountLoading} className="btn btn-ghost disabled:opacity-50">Cancel</button>
+                  <button type="button" onClick={closeDeleteAccountRequest} disabled={deleteAccountLoading} className="btn btn-ghost disabled:opacity-50">Cancel</button>
                   <button
+                    type="button"
                     onClick={requestAccountDeletion}
                     disabled={deleteAccountText !== 'DELETE MY ACCOUNT' || deleteAccountLoading}
                     className="btn btn-ghost text-red-300 border-red-500/40 disabled:opacity-50 disabled:cursor-not-allowed"

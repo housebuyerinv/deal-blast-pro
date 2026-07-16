@@ -1,6 +1,7 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAppStore } from './store/useAppStore'
+import { supabase } from './lib/supabase'
 
 import Portal from './pages/public/Portal'
 import BuyerPortal from './pages/public/BuyerPortal'
@@ -39,9 +40,101 @@ import { loadCloudTrialActivation } from './lib/cloudSync'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const user = useAppStore(s => s.user)
+  const login = useAppStore(s => s.login)
+  const logout = useAppStore(s => s.logout)
   const location = useLocation()
+  const currentUserId = user?.id
+  const currentUserEmail = user?.email
+  const [checkingSession, setCheckingSession] = useState(true)
+  const [authorized, setAuthorized] = useState(false)
+  const [deactivated, setDeactivated] = useState(false)
 
-  if (!user) {
+  useEffect(() => {
+    let cancelled = false
+
+    const verifySession = async () => {
+      setCheckingSession(true)
+      setAuthorized(false)
+      setDeactivated(false)
+
+      try {
+        const { data } = await supabase.auth.getSession()
+        const session = data.session
+        const token = session?.access_token
+
+        if (!token || !session?.user) {
+          await supabase.auth.signOut().catch(() => {})
+          logout()
+          if (!cancelled) setCheckingSession(false)
+          return
+        }
+
+        const response = await fetch('/api/account-status', {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        const payload = await response.json().catch(() => ({}))
+
+        if (response.status === 403 || payload?.deactivated) {
+          await supabase.auth.signOut().catch(() => {})
+          logout()
+          if (!cancelled) {
+            setDeactivated(true)
+            setCheckingSession(false)
+          }
+          return
+        }
+
+        if (!response.ok || payload?.ok === false) {
+          await supabase.auth.signOut().catch(() => {})
+          logout()
+          if (!cancelled) setCheckingSession(false)
+          return
+        }
+
+        const email = session.user.email || ''
+        const fullName =
+          session.user.user_metadata?.full_name ||
+          session.user.user_metadata?.name ||
+          email.split('@')[0] ||
+          'User'
+
+        if (!currentUserId || currentUserId !== session.user.id || currentUserEmail !== email.toLowerCase()) {
+          login(email, fullName, { id: session.user.id, preserveWorkspace: true })
+        }
+
+        if (!cancelled) {
+          setAuthorized(true)
+          setCheckingSession(false)
+        }
+      } catch {
+        await supabase.auth.signOut().catch(() => {})
+        logout()
+        if (!cancelled) setCheckingSession(false)
+      }
+    }
+
+    void verifySession()
+
+    return () => {
+      cancelled = true
+    }
+  }, [location.pathname, location.search, login, logout, currentUserId, currentUserEmail])
+
+  if (checkingSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0A0C12] text-[#E6E8EE]">
+        <div className="rounded border border-[#252A38] bg-[#0F111A] px-4 py-3 text-sm text-[#8B92A3]">
+          Verifying secure session...
+        </div>
+      </div>
+    )
+  }
+
+  if (deactivated) {
+    return <Navigate to="/admin-login?account=deactivated" state={{ from: location }} replace />
+  }
+
+  if (!authorized) {
     return <Navigate to="/admin-login" state={{ from: location }} replace />
   }
 
@@ -105,11 +198,11 @@ function App() {
         <Route path="/portal" element={<Portal />} />
         <Route path="/buyer-portal" element={<BuyerPortal />} />
         <Route path="/admin-login" element={<Login />} />
-        <Route path="/admin-register" element={<Register />} />
+        <Route path="/admin-register" element={import.meta.env.PROD ? <Navigate to="/waitlist" replace /> : <Register />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/login" element={<Navigate to="/admin-login" replace />} />
-        <Route path="/register" element={<Navigate to="/admin-register" replace />} />
+        <Route path="/register" element={<Navigate to={import.meta.env.PROD ? '/waitlist' : '/admin-register'} replace />} />
         <Route path="/upgrade" element={<Navigate to="/pricing" replace />} />
 
         <Route

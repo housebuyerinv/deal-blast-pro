@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react'
 import { isSuperAdmin } from '../../lib/accessControl'
 import { getOwnerPreviewPlan, isOwnerPreviewActive } from '../../lib/planAccess'
 import { PlanStatusBadge } from '../billing/PlanStatusBadge'
+import { supabase } from '../../lib/supabase'
 
 export default function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const { user, trial, logout, settings } = useAppStore()
@@ -14,6 +15,15 @@ export default function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const superAdmin = isSuperAdmin(user)
   const previewActive = isOwnerPreviewActive(user, settings)
   const previewPlan = getOwnerPreviewPlan(settings)
+  const handleLogout = async () => {
+    await supabase.auth.signOut().catch(() => {})
+    logout()
+    try {
+      window.localStorage.removeItem('dealblastpro-v1')
+      window.sessionStorage.removeItem('dealblastpro:start-new-account')
+    } catch {}
+    navigate('/admin-login')
+  }
 
   // Shared live date/time (compact format for header, same live source style as Command Center)
   const [now, setNow] = useState(new Date())
@@ -56,7 +66,7 @@ export default function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
             <div className="text-sm font-medium leading-none">{user?.name}</div>
             <div className="text-[10px] text-[#8B92A3]">{user?.email}</div>
           </div>
-          <button onClick={() => { logout(); navigate('/admin-login') }} className="btn btn-ghost p-2" title="Logout">
+          <button type="button" onClick={handleLogout} className="btn btn-ghost p-2" title="Logout">
             <LogOut size={16} />
           </button>
         </div>

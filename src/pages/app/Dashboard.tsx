@@ -69,6 +69,13 @@ export default function Dashboard() {
   const billingNotice = getBillingNotice(trial, settings.deletionRequest)
   const ownerPreviewActive = isOwnerPreviewActive(user, settings)
   const showBillingNotice = (!isSuperAdmin(user) || ownerPreviewActive) && billingNotice.kind !== 'none'
+  const firstName = String(user?.name || '').trim().split(/\s+/)[0]
+  const workspaceName = String(user?.company || '').trim()
+  const commandCenterTitle = firstName
+    ? `${firstName} Command Center`
+    : workspaceName
+      ? `${workspaceName} Command Center`
+      : 'Command Center'
   const inventory = getInventoryDeals()
   const submissions = getSubmissionsQueue()
   const totalDealSubmissionNotifications = Math.max(submissions.length, pendingDealSubmissionCount)
@@ -112,7 +119,7 @@ export default function Dashboard() {
       <div className="flex items-end justify-between mb-6">
         <div>
           <div className="text-xs uppercase tracking-[2px] text-[#8B92A3]">COMMAND CENTER</div>
-          <div className="text-3xl font-semibold tracking-tight">Marcel Command Center</div>
+          <div className="text-3xl font-semibold tracking-tight">{commandCenterTitle}</div>
         </div>
         <div className="flex gap-2">
           <Link to="/app/intake" className="btn btn-ghost flex items-center gap-2"><Plus size={16} /> Manual Intake</Link>
@@ -269,7 +276,7 @@ export default function Dashboard() {
             </div>
             <TimeDateWidget />
             <div className="mt-2 pt-2 border-t border-[#252A38] text-[10px] text-[#8B92A3] space-y-0.5">
-              <div>Demo Mode: <span className="text-[#22C55E]">Active</span></div>
+              <div>Workspace: <span className="text-[#22C55E]">Authenticated</span></div>
               <div>LocalStorage: <span className="text-[#22C55E]">Healthy</span></div>
               <div>Public Portal: <Link to="/portal" className="text-[#3B82F6] hover:underline">Active</Link></div>
             </div>

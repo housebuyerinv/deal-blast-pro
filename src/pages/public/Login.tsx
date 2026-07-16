@@ -63,11 +63,13 @@ export default function Login() {
     }
   }
 
-  const useLocalDemo = () => {
-    login('demo@dealblast.pro', 'Demo User', { preserveWorkspace: true })
-    toast('Local demo login active. Data will only exist in this browser.')
-    navigate('/app/dashboard')
-  }
+  const useLocalDemo = import.meta.env.DEV
+    ? () => {
+        login('demo@dealblast.pro', 'Demo User', { preserveWorkspace: true })
+        toast('Local demo login active. Data will only exist in this browser.')
+        navigate('/app/dashboard')
+      }
+    : undefined
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#0A0C12] p-6">
@@ -81,7 +83,7 @@ export default function Login() {
 
         <div className="card p-8">
           <div className="text-2xl font-semibold mb-1">Welcome back</div>
-          <div className="text-[#8B92A3] mb-6">Sign in to your real workspace</div>
+          <div className="text-[#8B92A3] mb-6">Sign in to your Deal Blast Pro workspace</div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -107,15 +109,19 @@ export default function Login() {
           <div className="mt-4 text-center text-sm">
             <Link to="/forgot-password" className="text-[#3B82F6]">Forgot password?</Link>
             <span className="mx-2 text-[#8B92A3]">-</span>
-            <Link to="/admin-register" className="text-[#3B82F6]">Create account</Link>
+            <Link to="/waitlist" className="text-[#3B82F6]">Join Waitlist</Link>
             <span className="mx-2 text-[#8B92A3]">-</span>
             <Link to="/pricing" className="text-[#3B82F6]">Pricing</Link>
           </div>
         </div>
 
         <div className="mt-6 text-center">
-          <button onClick={useLocalDemo} className="btn btn-ghost w-full mb-3">Use Local Demo Only</button>
-          <div className="text-xs text-amber-400 mb-2">Local demo data does not sync across devices.</div>
+          {import.meta.env.DEV && useLocalDemo && (
+            <>
+              <button type="button" onClick={useLocalDemo} className="btn btn-ghost w-full mb-3">Use Local Demo Only</button>
+              <div className="text-xs text-amber-400 mb-2">Local demo data does not sync across devices.</div>
+            </>
+          )}
           <Link to="/portal" className="text-sm text-[#3B82F6]">Submit a Deal Without Logging In</Link>
         </div>
 
