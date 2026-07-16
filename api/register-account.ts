@@ -34,6 +34,11 @@ function isInternalTestRequest(req: any, body: any) {
   return Boolean(configuredKey && providedKey && providedKey === configuredKey && body.internalTestMode === true)
 }
 
+function isPublicRegistrationEnabled() {
+  if (process.env.DEALBLAST_PUBLIC_REGISTRATION_ENABLED === 'true') return true
+  return process.env.VERCEL_ENV !== 'production' && process.env.NODE_ENV !== 'production'
+}
+
 function publicDiagnostics(input: RegistrationDiagnostics, includeDetails: boolean) {
   return Object.fromEntries(
     Object.entries(input).map(([key, value]) => [
@@ -214,6 +219,17 @@ export default async function handler(req: any, res: any) {
     const plan = cleanString(body.plan) || 'Free Demo'
     const internalTestMode = isInternalTestRequest(req, body)
     const includeDiagnostics = internalTestMode || body.includeDiagnostics === true
+
+    if (!internalTestMode && !isPublicRegistrationEnabled()) {
+      diagnostics.validation = { status: 'failed', detail: 'Public registration is waitlist-only in production' }
+      return send(res, 403, {
+        ok: false,
+        error: 'Deal Blast Pro is currently waitlist-only. Join the waitlist to request access.',
+        code: 'registration_waitlist_only',
+        waitlistUrl: '/waitlist',
+        diagnostics: publicDiagnostics(diagnostics, includeDiagnostics),
+      })
+    }
 
     if (!name || !email || !password) {
       diagnostics.validation = { status: 'failed', detail: 'Name, email, and password are required' }
