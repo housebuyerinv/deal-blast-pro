@@ -14,7 +14,7 @@ interface WizardProps {
 
 export default function DealIntakeWizard({ onComplete, initialDeal, isPortal, submissionSource = 'Internal Intake' }: WizardProps) {
   const addDeal = useAppStore(s => s.addDeal)
-  const useTrial = useAppStore(s => s.useTrialAction)
+  const runTrialAction = useAppStore(s => s.useTrialAction)
   const settings = useAppStore(s => s.settings)
 
   // Memoize initial data (do not recreate inline every render)
@@ -213,7 +213,7 @@ export default function DealIntakeWizard({ onComplete, initialDeal, isPortal, su
       return
     }
 
-    const canSubmit = useTrial('dealsSubmitted')
+    const canSubmit = runTrialAction('dealsSubmitted')
     if (!canSubmit) {
       toast.error('Trial limit reached. Upgrade in Settings to continue.')
       return

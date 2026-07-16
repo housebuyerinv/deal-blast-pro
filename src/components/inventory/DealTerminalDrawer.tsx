@@ -29,10 +29,8 @@ export default function DealTerminalDrawer({ dealId, onClose }: Props) {
   const deal = useAppStore(s => s.getDeal(dealId))
   const navigate = useNavigate()
 
-  if (!deal) return null
-
   // Local read-only safe object only (never mutated, no normalization side effects)
-  const safeDeal = deal
+  const safeDeal: any = deal || {}
 
   // === UPLOAD TRACE / DUAL SOURCE MERGE (for bug fix) ===
   // Some paths write to deal.docs (wizard on submit), others to store.documents[dealId] (Blast, drawer edit uploads).
@@ -89,6 +87,8 @@ export default function DealTerminalDrawer({ dealId, onClose }: Props) {
 
   // Ref to the drawer"™s internal scroll container (for Back to Top only)
   const drawerScrollRef = useRef<HTMLDivElement>(null)
+
+  if (!deal) return null
 
   const formatVal = (v: any) => (v === undefined || v === null || v === '' ? 'Not Provided' : v)
 
@@ -1072,5 +1072,3 @@ export default function DealTerminalDrawer({ dealId, onClose }: Props) {
     </div>
   )
 }
-
-

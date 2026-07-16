@@ -62,7 +62,7 @@ export default function Waitlist() {
           <div className="text-sm font-semibold tracking-[1px] text-[#22C55E]">PRERELEASE ACCESS</div>
           <h1 className="mt-2 text-4xl font-semibold">Join the Deal Blast Pro Waitlist</h1>
           <p className="mt-3 text-[#8B92A3]">
-            We are preparing a controlled prerelease for real estate operators. Approved test-account login remains available.
+            We&apos;re preparing Deal Blast Pro for early access. Join the waitlist and we&apos;ll notify you when access becomes available.
           </p>
         </div>
 
