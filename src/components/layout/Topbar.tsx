@@ -62,8 +62,8 @@ export default function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
           </div>
         )}
 
-        <div className="flex items-center gap-2 pl-2 border-l border-[#252A38]">
-          <div className="text-right">
+        <div className="flex items-center gap-2 pl-2 border-l border-[#252A38] min-w-0">
+          <div className="hidden sm:block text-right min-w-0">
             <div className="text-sm font-medium leading-none">{user?.displayName || user?.name || user?.fullName || 'User'}</div>
             <div className="text-[10px] text-[#8B92A3]">{user?.email}</div>
           </div>
