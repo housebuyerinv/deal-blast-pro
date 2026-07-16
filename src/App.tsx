@@ -3,6 +3,8 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAppStore } from './store/useAppStore'
 import { supabase } from './lib/supabase'
 import { profileToUserNames } from './lib/accountProfile'
+import { DEFAULT_SETTINGS } from './lib/constants'
+import type { TrialState } from './lib/types'
 
 import Portal from './pages/public/Portal'
 import BuyerPortal from './pages/public/BuyerPortal'
@@ -91,6 +93,35 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
           logout()
           if (!cancelled) setCheckingSession(false)
           return
+        }
+
+        const serverPlan = (payload?.planName === 'Free Demo' ? 'Free' : payload?.planName) as TrialState['plan'] | undefined
+        if (serverPlan) {
+          const state = useAppStore.getState()
+          const billingStatus = (payload?.billingStatus || (serverPlan === 'Free' ? 'Free Active' : 'Trial Active')) as NonNullable<TrialState['billingStatus']>
+          state.activateManualPlan({
+            plan: serverPlan,
+            billingStatus,
+            billingFrequency: payload?.billingInterval || 'monthly',
+            paymentProvider: 'Stripe',
+            billingPeriodStart: state.trial.billingPeriodStart || '',
+            billingPeriodEnd: payload?.currentPeriodEnd || state.trial.billingPeriodEnd || '',
+            billingAdminNote: 'Synced from authenticated account status.',
+          })
+          const onboarding = {
+            ...DEFAULT_SETTINGS.onboarding!,
+            ...(state.settings.onboarding || {}),
+          }
+          if (!onboarding.planSelectionCompleted || onboarding.selectedPlan !== serverPlan) {
+            state.updateSettings({
+              onboarding: {
+                ...onboarding,
+                planSelectionCompleted: true,
+                selectedPlan: serverPlan,
+                updatedAt: new Date().toISOString(),
+              },
+            })
+          }
         }
 
         const email = session.user.email || ''
