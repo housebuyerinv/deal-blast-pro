@@ -4,16 +4,17 @@ import { DEFAULT_SETTINGS } from '../lib/constants'
 import { useAppStore } from '../store/useAppStore'
 import type { TrialState } from '../lib/types'
 import { buildStripeCheckoutUrl, getBillingSetupWithLaunchDefaults, getPlanPaymentLink, isValidPaymentUrl, type BillingFrequency, type PaidPlan } from '../lib/billingLinks'
+import {
+  LAUNCH_ANNUAL_PROMOTION_COPY,
+  PLAN_PRICING,
+  PRICING_PLAN_ORDER,
+  getPriceDisplay,
+  type PricingPlanName,
+} from '../lib/planPricing'
 
 type PlanName = TrialState['plan']
 
-const plans: { name: PlanName; monthly: string; annual: string; annualNote: string; desc: string; activeRelease: boolean; popular?: boolean }[] = [
-  { name: 'Free', monthly: '$0', annual: '$0', annualNote: 'free plan', desc: 'For testing public submission flows and exploring Deal Blast Pro with permanent limited access.', activeRelease: true },
-  { name: 'Starter', monthly: '$47/mo', annual: '$470/yr', annualNote: '$470 billed annually', desc: 'For solo wholesalers and investors who need organized deal and buyer management.', activeRelease: true },
-  { name: 'Pro', monthly: '$97/mo', annual: '$970/yr', annualNote: '$970 billed annually', desc: 'For active operators who need buyer matching, deal blasts, advanced calculators, Property Intelligence, and stronger follow-up tools.', activeRelease: true, popular: true },
-  { name: 'Agency', monthly: '$197/mo', annual: '$1,970/yr', annualNote: '$1,970 billed annually', desc: 'For teams managing higher deal volume, shared buyer activity, and multiple users.', activeRelease: false },
-  { name: 'Enterprise', monthly: '$297/mo or Custom', annual: 'Custom annual pricing', annualNote: 'contact sales', desc: 'For custom onboarding, higher-volume workflows, integrations, and tailored support.', activeRelease: false },
-]
+const plans = PRICING_PLAN_ORDER.map(name => PLAN_PRICING[name])
 
 export default function FirstLoginSetup() {
   const { user, settings, updateSettings, activateManualPlan } = useAppStore()
@@ -110,26 +111,30 @@ export default function FirstLoginSetup() {
             <button onClick={() => setBillingFrequency('annual')} className={`px-4 py-1 text-sm rounded ${billingFrequency === 'annual' ? 'bg-[#22C55E] text-black' : 'text-[#8B92A3]'}`}>Annual</button>
           </div>
           <div className="mt-2 text-xs text-[#8B92A3]">Annual plans save 2 months compared to monthly billing.</div>
+          <div className="mt-2 text-xs font-medium text-[#FBBF24]">{LAUNCH_ANNUAL_PROMOTION_COPY}</div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
           {plans.map(plan => {
             const releaseActive = plan.activeRelease || agencyEnterpriseEnabled
             const selected = selectedPlan === plan.name
+            const priceDisplay = getPriceDisplay(plan.name, billingFrequency)
             return (
               <button
                 key={plan.name}
                 type="button"
-                onClick={() => setSelectedPlan(plan.name)}
+                onClick={() => setSelectedPlan(plan.name as PricingPlanName)}
                 className={`text-left rounded border p-4 bg-[#0F111A] transition min-h-[250px] overflow-hidden ${selected ? 'border-[#22C55E] ring-1 ring-[#22C55E]/40' : 'border-[#252A38] hover:border-[#3B82F6]/50'}`}
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="font-semibold text-lg">{plan.name}</div>
-                  {plan.popular && <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#22C55E] text-black">Popular</span>}
+                  {plan.badge && <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#22C55E] text-black">Popular</span>}
                 </div>
-                <div className="mt-2 text-2xl font-semibold">{billingFrequency === 'monthly' ? plan.monthly : plan.annual}</div>
-                {billingFrequency === 'annual' && <div className="mt-1 text-xs text-[#8B92A3]">{plan.annualNote}</div>}
-                <div className="mt-2 text-sm text-[#8B92A3] min-h-[4.5rem] break-words">{plan.desc}</div>
+                <div className="mt-2 text-2xl font-semibold">{priceDisplay.price}</div>
+                <div className="mt-1 text-xs text-[#8B92A3]">
+                  {priceDisplay.noteLines.map(line => <div key={line}>{line}</div>)}
+                </div>
+                <div className="mt-2 text-sm text-[#8B92A3] min-h-[4.5rem] break-words">{plan.description}</div>
                 <div className={`mt-3 text-xs ${releaseActive ? 'text-[#22C55E]' : 'text-amber-300'}`}>
                   {releaseActive ? 'Available' : 'Coming Soon / Contact Support'}
                 </div>

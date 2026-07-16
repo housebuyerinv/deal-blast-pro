@@ -1,5 +1,6 @@
 import type { AppSettings, TrialState, User } from './types'
 import { isSuperAdmin } from './accessControl'
+import { getPastDueEffectivePlan, getPastDuePolicyMessage, getPastDueStage } from './accountLifecycle'
 
 export type PlanName = TrialState['plan'] | 'Owner Admin'
 export type AppRoute =
@@ -57,6 +58,8 @@ export function getEffectivePlan(
   settings?: Pick<AppSettings, 'ownerPreviewPlan'> | null,
 ): PlanName {
   if (isSuperAdmin(user)) return getOwnerPreviewPlan(settings)
+  const pastDuePlan = getPastDueEffectivePlan(trial.plan || (trial.isPaid ? 'Pro' : 'Free'), getPastDueStage(trial))
+  if (pastDuePlan === 'Free') return 'Free'
   return trial.plan === 'Free Demo' ? 'Free' : trial.plan || (trial.isPaid ? 'Pro' : 'Free')
 }
 
@@ -83,8 +86,6 @@ export function getRequiredPlanForRoute(route: string): 'Starter' | 'Pro' {
   if (PLAN_ROUTE_ACCESS.Starter.includes(route as AppRoute)) return 'Starter'
   return 'Pro'
 }
-
-export const PAST_DUE_GRACE_DAYS = 3
 
 export type BillingNoticeKind =
   | 'none'
@@ -130,14 +131,12 @@ export function getBillingNotice(
   }
 
   if (billingStatus === 'Past Due') {
-    const updatedDays = getDaysUntil(trial.billingUpdatedAt || '')
-    const graceEnded = updatedDays !== null ? Math.abs(Math.min(updatedDays, 0)) > PAST_DUE_GRACE_DAYS : false
+    const stage = getPastDueStage(trial)
+    const graceEnded = stage !== 'read-only'
     return {
       kind: graceEnded ? 'past-due-grace-ended' as BillingNoticeKind : 'past-due' as BillingNoticeKind,
       title: 'Payment past due',
-      message: graceEnded
-        ? 'Your payment is past due and the grace period has ended. Paid features are blocked until payment is completed.'
-        : 'Your payment is past due. Complete payment to keep access to your paid plan.',
+      message: getPastDuePolicyMessage(stage),
       action: 'Complete Payment',
     }
   }

@@ -92,20 +92,24 @@ export function canUseBuyerPortalReview(plan?: PlanName | string | null) {
   return getPlanEntitlement(plan).buyerPortalReview === 'available'
 }
 
-export function getBuyerCapacity(plan: PlanName | string | null | undefined, savedBuyerCount: number) {
+export function getBuyerCapacity(plan: PlanName | string | null | undefined, savedBuyerCount: number, purchasedCapacity = 0) {
   const entitlement = getPlanEntitlement(plan)
   const limit = entitlement.buyerLimit
+  const purchased = Math.max(0, Number(purchasedCapacity) || 0)
+  const effectiveLimit = limit === null ? null : limit + purchased
   const current = Math.max(0, Number(savedBuyerCount) || 0)
-  const remaining = limit === null ? Number.POSITIVE_INFINITY : Math.max(0, limit - current)
+  const remaining = effectiveLimit === null ? Number.POSITIVE_INFINITY : Math.max(0, effectiveLimit - current)
 
   return {
     plan: normalizePlanName(plan),
-    limit,
-    limitLabel: entitlement.buyerLimitLabel,
+    limit: effectiveLimit,
+    baseLimit: limit,
+    purchasedCapacity: purchased,
+    limitLabel: purchased > 0 && limit !== null ? `${entitlement.buyerLimitLabel} + ${purchased.toLocaleString()} purchased` : entitlement.buyerLimitLabel,
     current,
     remaining,
-    isUnlimited: limit === null,
-    isAtLimit: limit !== null && current >= limit,
+    isUnlimited: effectiveLimit === null,
+    isAtLimit: effectiveLimit !== null && current >= effectiveLimit,
   }
 }
 

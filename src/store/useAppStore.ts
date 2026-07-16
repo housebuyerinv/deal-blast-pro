@@ -13,6 +13,7 @@ import { isApiMode } from '../services/storage'
 import { isSuperAdmin } from '../lib/accessControl'
 import { getOwnerPreviewPlan, isOwnerPreviewActive } from '../lib/planAccess'
 import { getBuyerCapacity, getPlanEntitlement } from '../lib/planEntitlements'
+import { getPastDuePolicyMessage, getPastDueStage } from '../lib/accountLifecycle'
 
 // Module-level guard so initialize is truly one-shot even if called multiple times from effects or StrictMode
 const safeLower = (value: any) => String(value ?? '').toLowerCase();
@@ -799,7 +800,8 @@ export const useAppStore = create<AppStore>()(
           return false
         }
         if (billingStatus === 'Past Due') {
-          toast.error('Billing is past due. Complete payment or contact admin to restore activity.')
+          const stage = getPastDueStage(effectiveTrial)
+          toast.error(getPastDuePolicyMessage(stage))
           return false
         }
         if (billingStatus === 'Cancelled') {

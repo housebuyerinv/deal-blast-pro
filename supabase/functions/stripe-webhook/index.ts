@@ -281,7 +281,33 @@ const saveBillingEvent = async (
     }),
   })
 
-  return response.ok
+  if (!response.ok) return false
+
+  const workspaceId = String(state.workspaceInstanceId || state.settings?.workspaceInstanceId || '').trim()
+  if (workspaceId) {
+    const isPastDue = outcome.billingStatus === 'Past Due'
+    const isRecovered = outcome.billingStatus === 'Paid Active'
+    await fetch(`${supabaseUrl}/rest/v1/workspace_plan_assignments?workspace_id=eq.${encodeURIComponent(workspaceId)}`, {
+      method: 'PATCH',
+      headers: {
+        apikey: serviceKey,
+        Authorization: `Bearer ${serviceKey}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal',
+      },
+      body: JSON.stringify({
+        plan_name: outcome.isPaid ? nextPlan : existingTrial.plan || nextPlan,
+        billing_status: outcome.billingStatus,
+        payment_status: outcome.paymentStatus,
+        past_due_since: isPastDue ? existingTrial.billingUpdatedAt || now : null,
+        payment_recovered_at: isRecovered ? now : null,
+        subscription_access_ends_at: outcome.billingStatus === 'Cancelled' ? nextPeriodEnd || now : null,
+        updated_at: now,
+      }),
+    })
+  }
+
+  return true
 }
 
 Deno.serve(async req => {

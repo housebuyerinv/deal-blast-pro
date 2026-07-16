@@ -3,67 +3,26 @@ import { Link } from 'react-router-dom'
 import PublicFooter from '../../components/layout/PublicFooter'
 import PublicNav from '../../components/layout/PublicNav'
 import { PLAN_ENTITLEMENTS } from '../../lib/planEntitlements'
+import {
+  LAUNCH_ANNUAL_PROMOTION_COPY,
+  PRICING_PLAN_ORDER,
+  PLAN_PRICING,
+  getPriceDisplay,
+} from '../../lib/planPricing'
 
-const tiers = [
-  {
-    name: 'Free',
-    monthly: '$0',
-    annual: '$0',
-    annualNote: 'annual plan',
-    positioning: 'For limited public submission access and exploring Deal Blast Pro.',
-    points: ['Public submission access', 'ARV calculator', 'Up to 25 buyers'],
-    cta: 'Join Waitlist',
-    to: '/waitlist',
-    highlight: false
-  },
-  {
-    name: 'Starter',
-    monthly: '$47/mo',
-    annual: '$470/yr',
-    annualNote: '$470 billed annually',
-    positioning: 'For solo wholesalers and investors who need organized deal and buyer management.',
-    points: ['Deal and buyer management', 'Core starter calculators', 'Up to 250 buyers'],
-    cta: 'Join Waitlist',
-    to: '/waitlist',
-    highlight: false
-  },
-  {
-    name: 'Pro',
-    monthly: '$97/mo',
-    annual: '$970/yr',
-    annualNote: '$970 billed annually',
-    positioning: 'For active operators who need buyer matching, deal blasts, advanced calculators, Property Intelligence, and stronger follow-up tools.',
-    points: ['Advanced buyer matching', 'All calculators', '25 Property Intelligence lookups monthly', 'Up to 1,000 buyers'],
-    cta: 'Join Waitlist',
-    to: '/waitlist',
-    highlight: true,
-    badge: 'Most Popular'
-  },
-  {
-    name: 'Agency',
-    monthly: '$197/mo',
-    annual: '$1,970/yr',
-    annualNote: '$1,970 billed annually',
-    positioning: 'For teams managing higher deal volume, shared buyer activity, and multiple users.',
-    points: ['Higher monthly limits', '100 Property Intelligence lookups monthly', 'Up to 2,000 buyers', 'Team features coming soon'],
-    cta: 'Contact Admin',
-    to: '/contact',
-    highlight: false,
-    releaseStatus: 'Coming Soon / Contact Admin'
-  },
-  {
-    name: 'Enterprise',
-    monthly: '$297/mo or Custom',
-    annual: 'Custom annual pricing',
-    annualNote: 'Contact Admin',
-    positioning: 'For custom onboarding, higher-volume workflows, integrations, and tailored support.',
-    points: ['Up to 5,000 buyers', 'Custom Property Intelligence limits', 'Custom workflows and support'],
-    cta: 'Contact Sales',
-    to: '/contact',
-    highlight: false,
-    releaseStatus: 'Coming Soon / Contact Sales'
-  }
-]
+const tierPoints: Record<string, string[]> = {
+  Free: ['Public submission access', 'ARV calculator', 'Up to 25 buyers'],
+  Starter: ['Deal and buyer management', 'Core starter calculators', 'Up to 250 buyers'],
+  Pro: ['Advanced buyer matching', 'All calculators', '25 Property Intelligence lookups monthly', 'Up to 1,000 buyers'],
+  Agency: ['Higher monthly limits', '100 Property Intelligence lookups monthly', 'Up to 2,000 buyers', 'Team features coming soon'],
+  Enterprise: ['Up to 5,000 buyers', 'Custom Property Intelligence limits', 'Custom workflows and support'],
+}
+
+const tiers = PRICING_PLAN_ORDER.map(name => ({
+  ...PLAN_PRICING[name],
+  points: tierPoints[name],
+  positioning: PLAN_PRICING[name].description,
+}))
 
 const featureRows = [
   {
@@ -146,24 +105,6 @@ const statusClass = (status: string) => {
   return 'text-[#8B92A3]'
 }
 
-const getPlanPriceDisplay = (tier: typeof tiers[number], billing: 'monthly' | 'annual') => {
-  if (billing === 'monthly') {
-    return {
-      price: tier.monthly,
-      noteLines: tier.monthly.includes('Custom') ? ['or Custom'] : ['monthly plan']
-    }
-  }
-
-  if (tier.name === 'Enterprise') {
-    return { price: 'Custom annual pricing', noteLines: ['Contact Admin'] }
-  }
-
-  return {
-    price: tier.annual,
-    noteLines: tier.annual === '$0' ? ['annual plan'] : [tier.annualNote || 'billed annually']
-  }
-}
-
 export default function Pricing() {
   const [billing, setBilling] = React.useState<'monthly' | 'annual'>('monthly')
 
@@ -176,6 +117,7 @@ export default function Pricing() {
           <p className="mt-3 text-[#8B92A3]">Start small, then upgrade when your deal flow and buyer outreach need more room.</p>
           <p className="mt-2 text-sm text-[#C5CAD6]">Start with Free, Starter, or Pro. Agency and Enterprise options are available by request.</p>
           <p className="mt-2 text-xs text-[#8B92A3]">Features labeled Coming Soon are not yet available for customer use. Plan limits and feature availability are enforced by account and workspace.</p>
+          <p className="mt-3 text-xs font-medium text-[#FBBF24]">{LAUNCH_ANNUAL_PROMOTION_COPY}</p>
           <div className="mt-5 grid gap-2 md:hidden">
             <Link to="/waitlist" className="btn btn-green w-full justify-center py-3 text-sm">
               Join Waitlist
@@ -211,7 +153,7 @@ export default function Pricing() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-16">
           {tiers.map((tier) => {
-            const priceDisplay = getPlanPriceDisplay(tier, billing)
+            const priceDisplay = getPriceDisplay(tier.name, billing)
 
             return (
               <div

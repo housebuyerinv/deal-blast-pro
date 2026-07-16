@@ -12,6 +12,7 @@ import OnboardingTour from '../OnboardingTour'
 import { buildStripeCheckoutUrl, getBillingSetupWithLaunchDefaults, getPlanPaymentLink, isValidPaymentUrl, type BillingFrequency, type PaidPlan } from '../../lib/billingLinks'
 import { isInternalAdmin, isSuperAdmin } from '../../lib/accessControl'
 import { canAccessRoute, getEffectivePlan, getOwnerPreviewPlan, getRequiredPlanForRoute, isOwnerPreviewActive } from '../../lib/planAccess'
+import { getPastDuePolicyMessage, getPastDueStage } from '../../lib/accountLifecycle'
 import { canUseLaunchedFeature, getFeatureLockedMessage } from '../../lib/featureLaunch'
 import { supabase } from '../../lib/supabase'
 
@@ -177,7 +178,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   const isPaymentPending = billingStatus === 'Payment Pending'
-  const billingStatusBlocksAccess = isPaymentPending || billingStatus === 'Past Due'
+  const pastDueStage = getPastDueStage(trial)
+  const billingStatusBlocksAccess = isPaymentPending || pastDueStage === 'restricted'
 
   if (user && !hasOwnerAdminAccess && billingStatusBlocksAccess) {
     const selectedPlan = trial.plan && !['Free', 'Free Demo'].includes(trial.plan) ? trial.plan as PaidPlan : 'Pro'
@@ -226,7 +228,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <p className="text-sm leading-6 text-[#C5CAD6]">
             {isPaymentPending
               ? 'If you completed payment, Stripe will confirm your access after the webhook is verified. If you closed checkout before paying, complete payment or choose Free.'
-              : 'Complete payment or contact support to restore access. Your data remains safe.'}
+              : getPastDuePolicyMessage(pastDueStage)}
           </p>
 
           <div className="mt-4 rounded border border-[#252A38] bg-[#0A0C12] p-3 text-sm text-[#8B92A3]">

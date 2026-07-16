@@ -24,7 +24,9 @@ import {
 } from '../../lib/emailNotificationSettings'
 import { isSuperAdmin, isRegularUser } from '../../lib/accessControl'
 import { canAccessCalculatorTab } from '../../lib/calculatorAccess'
-import { getBillingNotice, getOwnerPreviewPlan, isOwnerPreviewActive, PAST_DUE_GRACE_DAYS, PLAN_ROUTE_ACCESS, type PlanName } from '../../lib/planAccess'
+import { getBillingNotice, getOwnerPreviewPlan, isOwnerPreviewActive, PLAN_ROUTE_ACCESS, type PlanName } from '../../lib/planAccess'
+import { PAST_DUE_READ_ONLY_DAYS, PAST_DUE_RESTRICTED_DAYS } from '../../lib/accountLifecycle'
+import { PLAN_PRICING, PRICING_PLAN_ORDER, getPriceDisplay, type PricingPlanName } from '../../lib/planPricing'
 import {
   parseBuyerRecoveryImportFile,
   prepareRecoveredBuyers,
@@ -860,7 +862,7 @@ export default function Settings() {
             <div className="font-semibold">{billingNotice.title}</div>
             <div className="mt-1">{billingNotice.message}</div>
             {billingNotice.kind.includes('past-due') && (
-              <div className="mt-1 text-xs">Grace period: {PAST_DUE_GRACE_DAYS} days after missed payment. Data is preserved.</div>
+              <div className="mt-1 text-xs">Past-due policy: days 1-{PAST_DUE_READ_ONLY_DAYS} read-only, days 7-{PAST_DUE_RESTRICTED_DAYS} restricted, 30+ effective Free access. Data and billing records are preserved.</div>
             )}
           </div>
         )}
@@ -879,7 +881,7 @@ export default function Settings() {
 
         {!ownerPreviewActive && currentBillingStatus === 'Past Due' && (
           <div className="mb-4 rounded border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-200">
-            Payment is past due. Complete payment or contact support to restore access.
+            Payment is past due. Complete payment, cancel, deactivate, or contact support. Paid access is staged without deleting invoices, files, buyers, deals, submissions, or settings.
           </div>
         )}
 
@@ -1740,9 +1742,9 @@ export default function Settings() {
       { key: 'proFeatureMapActive', name: 'Pro feature map active', status: PLAN_ROUTE_ACCESS.Pro.includes('/app/analytics') && PLAN_ROUTE_ACCESS.Pro.includes('/app/resources') ? 'pass' : 'fail', label: PLAN_ROUTE_ACCESS.Pro.includes('/app/analytics') && PLAN_ROUTE_ACCESS.Pro.includes('/app/resources') ? 'Active' : 'Needs Fix', detail: 'Pro route map unlocks reporting/analytics and resource workflows.' },
       { key: 'stripePlanMappingActive', name: 'Stripe plan mapping active', status: isValidPaymentUrl(getPlanPaymentLink(billingSetup, 'Starter', 'monthly')) && isValidPaymentUrl(getPlanPaymentLink(billingSetup, 'Starter', 'annual')) && isValidPaymentUrl(getPlanPaymentLink(billingSetup, 'Pro', 'monthly')) && isValidPaymentUrl(getPlanPaymentLink(billingSetup, 'Pro', 'annual')) ? 'pass' : 'warning', label: 'Mapped', detail: 'Starter Monthly, Starter Annual, Pro Monthly, and Pro Annual links map to selected plan and billing frequency.' },
       { key: 'paymentSuccessUnlocksCorrectPlan', name: 'Payment success unlocks correct plan', status: 'pass', label: 'Mapped', detail: 'Webhook activation preserves Starter/Pro plan and monthly/annual frequency from Stripe metadata, client reference, or safe amount inference.' },
-      { key: 'paymentFailureBlocksPaidAccess', name: 'Payment failure blocks paid access', status: 'pass', label: 'Blocked', detail: 'Stripe failed or past-due events set Past Due and block paid access for regular users.' },
-      { key: 'pastDueGracePeriodActive', name: 'Past due grace period active', status: 'pass', label: `${PAST_DUE_GRACE_DAYS} Days`, detail: 'Billing notices use a conservative grace period before treating past-due access as grace-ended.' },
-      { key: 'pastDueDowngradeBlockActive', name: 'Past due downgrade/block active', status: 'pass', label: 'Blocked', detail: 'Past Due users are blocked from normal app access and shown payment recovery actions; data is preserved.' },
+      { key: 'paymentFailureBlocksPaidAccess', name: 'Payment failure stages paid access', status: 'pass', label: 'Staged', detail: 'Stripe failed or past-due events set Past Due and move through read-only, restricted, then effective-Free access without deleting data.' },
+      { key: 'pastDueStagedPolicyActive', name: 'Past due staged policy active', status: 'pass', label: `1-${PAST_DUE_READ_ONLY_DAYS} / 7-${PAST_DUE_RESTRICTED_DAYS} / 30+`, detail: 'Billing notices distinguish read-only, restricted, and effective-Free past-due stages.' },
+      { key: 'pastDueDataPreserved', name: 'Past due data preservation active', status: 'pass', label: 'Preserved', detail: 'Past Due does not erase invoices, plans, files, buyers, deals, submissions, or settings.' },
       { key: 'upcomingPaymentNoticesActive', name: 'Upcoming payment notices active', status: 'pass', label: 'Active', detail: 'Command Center and Billing Center show due-soon notices at 7, 3, and 1 day windows.' },
       { key: 'userBillingNoticesClean', name: 'User billing notices hidden from admin-only internals', status: 'pass', label: 'Clean', detail: 'Regular billing notices show plan/payment actions without webhook payloads, secrets, or owner diagnostics.' },
       { key: 'regularUsersCannotBypassPlanGates', name: 'Regular users cannot bypass plan gates', status: 'pass', label: 'Enforced', detail: 'Sidebar and AppShell use the same centralized route access map.' },
@@ -2237,13 +2239,13 @@ export default function Settings() {
     toast.success('Plan cancellation recorded. Workspace returned to Free.')
   }
 
-  const planPositioning = [
-    { name: 'Free', monthly: '$0', annual: '$0', annualNote: 'free plan', text: 'For limited public submission flows and exploring Deal Blast Pro.', release: 'Public release' },
-    { name: 'Starter', monthly: '$47/mo', annual: '$470/yr', annualNote: '$470 billed annually', text: 'For solo wholesalers and investors who need organized deal and buyer management.', release: 'Public release' },
-    { name: 'Pro', monthly: '$97/mo', annual: '$970/yr', annualNote: '$970 billed annually', text: 'For active operators who need buyer matching, deal blasts, advanced calculators, Property Intelligence, and stronger follow-up tools.', release: 'Public release' },
-    { name: 'Agency', monthly: '$197/mo', annual: '$1,970/yr', annualNote: '$1,970 billed annually', text: 'For teams managing higher deal volume, shared buyer activity, and multiple users.', release: onboardingSettings.agencyEnterpriseEnabled ? 'Admin enabled' : 'Coming Soon / Contact Admin' },
-    { name: 'Enterprise', monthly: '$297/mo or Custom', annual: 'Custom annual pricing', annualNote: 'Contact Sales', text: 'For custom onboarding, higher-volume workflows, integrations, and tailored support.', release: onboardingSettings.agencyEnterpriseEnabled ? 'Admin enabled' : 'Coming Soon / Contact Sales' },
-  ]
+  const planPositioning = PRICING_PLAN_ORDER.map(name => ({
+    ...PLAN_PRICING[name],
+    text: PLAN_PRICING[name].description,
+    release: name === 'Agency' || name === 'Enterprise'
+      ? (onboardingSettings.agencyEnterpriseEnabled ? 'Admin enabled' : PLAN_PRICING[name].releaseStatus || 'Contact Admin')
+      : 'Public release',
+  }))
 
   const planComparisonRows = [
     ['Public Deal Submission Portal', 'Included', 'Included', 'Included', 'Included', 'Included'],
@@ -2838,6 +2840,7 @@ export default function Settings() {
               {planPositioning.map(plan => {
                 const planName = plan.name as 'Free' | PaidPlan
                 const selectedForUpgrade = settingsSelectedPlan === planName
+                const priceDisplay = getPriceDisplay(plan.name as PricingPlanName, settingsBillingFrequency)
                 return (
                   <div
                     key={plan.name}
@@ -2846,8 +2849,8 @@ export default function Settings() {
                   >
                     <div className="text-sm font-semibold text-[#E6E8EE]">{plan.name}</div>
                     <div className={`text-[10px] ${plan.release.includes('Public') || plan.release.includes('Admin') ? 'text-[#22C55E]' : 'text-amber-300'}`}>{plan.release}</div>
-                    <div className="text-emerald-400 font-medium tabular-nums">{settingsBillingFrequency === 'monthly' ? plan.monthly : plan.annual}</div>
-                    {settingsBillingFrequency === 'annual' && <div className="text-[10px] text-[#8B92A3]">{plan.annualNote}</div>}
+                    <div className="text-emerald-400 font-medium tabular-nums">{priceDisplay.price}</div>
+                    <div className="text-[10px] text-[#8B92A3]">{priceDisplay.noteLines.map(line => <div key={line}>{line}</div>)}</div>
                     <div className="text-xs text-[#64748B] leading-tight break-words">{plan.text}</div>
                     <button
                       type="button"
@@ -2874,7 +2877,8 @@ export default function Settings() {
                 </thead>
                 <tbody className="text-[#E6E8EE]">
                   <tr className="border-t border-[#252A38]/60 bg-[#11151F]"><td className="py-0.5 pr-2 font-medium text-[#22C55E] w-1/6 text-xs">Pricing (demo)</td>{planPositioning.map(plan => {
-                    return <td key={plan.name} className="py-0.5 px-1 text-center font-semibold w-1/6 text-xs break-words">{settingsBillingFrequency === 'monthly' ? plan.monthly : `${plan.annual}, ${plan.annualNote}`}</td>
+                    const priceDisplay = getPriceDisplay(plan.name as PricingPlanName, settingsBillingFrequency)
+                    return <td key={plan.name} className="py-0.5 px-1 text-center font-semibold w-1/6 text-xs break-words">{[priceDisplay.price, ...priceDisplay.noteLines].join(', ')}</td>
                   })}</tr>
                   {renderPlanComparisonRows()}
                 </tbody>

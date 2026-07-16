@@ -1291,6 +1291,7 @@ const [showImport, setShowImport] = useState(false)
   const [collapsedImportRows, setCollapsedImportRows] = useState<Record<string, boolean>>({})
   const [importApprovalStatus, setImportApprovalStatus] = useState<Record<string, 'approving' | 'approved' | 'failed'>>({})
   const [importApprovalSummary, setImportApprovalSummary] = useState('')
+  const [selectedImportRowIds, setSelectedImportRowIds] = useState<Record<string, true>>({})
   const [showPortalReview, setShowPortalReview] = useState(false)
   const [pendingPortalImport, setPendingPortalImport] = useState<any[]>([]) // buyer portal submissions only, kept separate from CSV/TXT imports
   const [portalApprovalStatus, setPortalApprovalStatus] = useState<Record<string, 'approving' | 'approved' | 'failed'>>({})
@@ -3422,6 +3423,15 @@ const cleanBuyerName = (value: any, emailValue = '') => {
   const updatePendingRow = (id: string, changes: any) => {
     setPendingImport(prev => prev.map(r => r._id === id ? { ...r, ...changes } : r))
   }
+
+  useEffect(() => {
+    const pendingIds = new Set(pendingImport.map((row: any) => row._id))
+    setSelectedImportRowIds(prev => {
+      const next = Object.fromEntries(Object.entries(prev).filter(([id]) => pendingIds.has(id))) as Record<string, true>
+      return Object.keys(next).length === Object.keys(prev).length ? prev : next
+    })
+  }, [pendingImport])
+
   const removePendingRow = async (id: string) => {
     const row = pendingImport.find((r: any) => r._id === id)
 
@@ -3438,6 +3448,11 @@ const cleanBuyerName = (value: any, emailValue = '') => {
           setShowImport(false)
         }
 
+        return next
+      })
+      setSelectedImportRowIds(prev => {
+        const next = { ...prev }
+        delete next[id]
         return next
       })
 
@@ -3463,6 +3478,7 @@ const cleanBuyerName = (value: any, emailValue = '') => {
       }
 
       setPendingImport([])
+      setSelectedImportRowIds({})
       setImportResult(null)
 
       if (submissionIds.length) {
@@ -3810,9 +3826,17 @@ const cleanBuyerName = (value: any, emailValue = '') => {
       ...Object.fromEntries(toApprove.map((row: any) => [row._id, 'approving']))
     }))
 
-    const buyersToApprove = toApprove.map(({_id, _dup, _valid, _merge, buyerPortalSubmissionId, buyerPortalSubmission, rawPortalSubmission, ...rest}) =>
-      buildBuyerStrategyUpdate(normalizeBuyerBeforeApproval(rest))
-    )
+    const buyersToApprove = toApprove.map((row: any) => {
+      const rest = { ...row }
+      delete rest._id
+      delete rest._dup
+      delete rest._valid
+      delete rest._merge
+      delete rest.buyerPortalSubmissionId
+      delete rest.buyerPortalSubmission
+      delete rest.rawPortalSubmission
+      return buildBuyerStrategyUpdate(normalizeBuyerBeforeApproval(rest))
+    })
 
     const saveResult = await upsertBuyersToSupabase(buyersToApprove)
     if (!saveResult.ok) {
@@ -3850,15 +3874,18 @@ const cleanBuyerName = (value: any, emailValue = '') => {
     if (Array.isArray(rowsOverride)) {
       const approvedIds = new Set(toApprove.map((row: any) => row._id))
       setPendingImport(prev => prev.filter((row: any) => !approvedIds.has(row._id)))
+      setSelectedImportRowIds(prev => {
+        const next = { ...prev }
+        approvedIds.forEach(id => delete next[id])
+        return next
+      })
     } else {
       setPendingImport([])
+      setSelectedImportRowIds({})
     }
     setImportResult(null)
     if (!Array.isArray(rowsOverride)) setShowImport(false)
   }
-  const approveAllValid = () => approveSelected()
-
-
   const downloadSelectedBuyerProfiles = () => {
     const selectedBuyers = buyers.filter((buyer: any) => selectedBuyerIds.includes(buyer.id))
 
@@ -4007,14 +4034,71 @@ const cleanBuyerName = (value: any, emailValue = '') => {
     missingBudget: pendingImport.filter((row: any) => !(Number(row.budgetMax || 0) > 0 || Number(row.budgetMin || 0) > 0)).length,
     ready: pendingImport.filter((row: any) => row._valid !== false).length,
   }
+  const isExistingBuyerImportRow = (row: any) =>
+    buyers.some((buyer: any) => safeLower(buyer.email).trim() === safeLower(row.email).trim())
+
+  const isSelectableImportRow = (row: any) =>
+    row._valid !== false && importApprovalStatus[row._id] !== 'approved'
+
   const importNewRowsReady = pendingImport.filter((row: any) =>
     row._valid !== false &&
-    !buyers.some((buyer: any) => safeLower(buyer.email).trim() === safeLower(row.email).trim())
+    !isExistingBuyerImportRow(row)
   ).length
-  const importWouldExceedCapacity = !buyerCapacity.isUnlimited && importNewRowsReady > buyerCapacity.remaining
+  const selectedImportRows = pendingImport.filter((row: any) => selectedImportRowIds[row._id] && isSelectableImportRow(row))
+  const selectedImportNewRows = selectedImportRows.filter((row: any) => !isExistingBuyerImportRow(row)).length
+  const importSelectableRows = pendingImport.filter(isSelectableImportRow)
+  const importWouldExceedCapacity = !buyerCapacity.isUnlimited && selectedImportNewRows > buyerCapacity.remaining
+  const importCapacityReached = !buyerCapacity.isUnlimited && selectedImportNewRows >= buyerCapacity.remaining
+  const importCapacityLabel = buyerCapacity.isUnlimited ? 'Custom' : buyerCapacity.limit?.toLocaleString()
+  const importAvailableLabel = buyerCapacity.isUnlimited ? 'Unlimited' : buyerCapacity.remaining.toLocaleString()
 
-  const approveVisibleImportRows = async () => {
-    await approveSelected(importReviewRows)
+  const canSelectImportRow = (row: any) => {
+    if (!isSelectableImportRow(row)) return false
+    if (selectedImportRowIds[row._id]) return true
+    if (buyerCapacity.isUnlimited || isExistingBuyerImportRow(row)) return true
+    return selectedImportNewRows < buyerCapacity.remaining
+  }
+
+  const toggleImportRowSelection = (row: any) => {
+    if (!canSelectImportRow(row)) {
+      toast.warning('Buyer capacity reached. Deselect another new buyer or upgrade before selecting more rows.')
+      return
+    }
+
+    setSelectedImportRowIds(prev => {
+      const next = { ...prev }
+      if (next[row._id]) {
+        delete next[row._id]
+      } else {
+        next[row._id] = true
+      }
+      return next
+    })
+  }
+
+  const selectImportRowsUpToCapacity = (rows: any[] = pendingImport) => {
+    let remainingSlots = buyerCapacity.isUnlimited ? Number.POSITIVE_INFINITY : buyerCapacity.remaining
+    const next: Record<string, true> = {}
+
+    rows.filter(isSelectableImportRow).forEach((row: any) => {
+      const isNew = !isExistingBuyerImportRow(row)
+      if (isNew && remainingSlots <= 0) return
+      next[row._id] = true
+      if (isNew) remainingSlots -= 1
+    })
+
+    setSelectedImportRowIds(prev => ({ ...prev, ...next }))
+  }
+
+  const clearImportSelection = () => setSelectedImportRowIds({})
+
+  const approveSelectedImportRows = async () => {
+    if (!selectedImportRows.length) {
+      toast.error('Select at least one valid buyer row to import.')
+      return
+    }
+
+    await approveSelected(selectedImportRows)
   }
 
   return (
@@ -5645,6 +5729,8 @@ const company = getDisplayCompany(buyerAny) || 'Company Missing';
                     </div>
                     <div className="flex flex-wrap gap-2 text-xs">
                       <button onClick={() => { void clearPendingImportRows() }} className="btn btn-ghost px-3 py-1">Clear All</button>
+                      <button onClick={() => selectImportRowsUpToCapacity()} className="btn btn-ghost px-3 py-1 text-[#22C55E]">Select Up to {buyerCapacity.isUnlimited ? 'All' : buyerCapacity.remaining.toLocaleString()}</button>
+                      <button onClick={clearImportSelection} className="btn btn-ghost px-3 py-1">Clear Selection</button>
                       <button onClick={cleanAllPendingBuyerNames} className="btn btn-ghost px-3 py-1 text-[#22C55E]">Auto-Fix Names</button>
                       <button onClick={skipInvalid} className="btn btn-ghost px-3 py-1">Skip Dups &amp; Invalid</button>
                     </div>
@@ -5660,10 +5746,25 @@ const company = getDisplayCompany(buyerAny) || 'Company Missing';
                     <div className="rounded-lg border border-[#252A38] bg-[#070A0F] p-2"><div className="text-[#8B92A3]">Budget Unknown</div><div className="font-semibold">{importSummary.missingBudget}</div></div>
                   </div>
 
-                  <div className={'mt-3 rounded-lg border px-3 py-2 text-xs ' + (importWouldExceedCapacity ? 'border-red-500/30 bg-red-500/10 text-red-200' : 'border-[#252A38] bg-[#070A0F] text-[#C5CAD6]')}>
-                    Buyer capacity: {buyerCapacity.current.toLocaleString()} saved / {buyerCapacity.isUnlimited ? 'Custom' : buyerCapacity.limit?.toLocaleString()} allowed.
-                    {' '}{buyerCapacity.isUnlimited ? 'No capacity limit applies.' : `${buyerCapacity.remaining.toLocaleString()} new slot${buyerCapacity.remaining === 1 ? '' : 's'} remaining.`}
-                    {' '}This review contains {importNewRowsReady.toLocaleString()} new buyer{importNewRowsReady === 1 ? '' : 's'} plus duplicates or merges.
+                  <div className={'mt-3 rounded-lg border px-3 py-2 text-xs ' + (importWouldExceedCapacity || importCapacityReached ? 'border-amber-500/30 bg-amber-500/10 text-amber-100' : 'border-[#252A38] bg-[#070A0F] text-[#C5CAD6]')}>
+                    <div className="font-semibold text-[#E6E8EE]">Buyer capacity</div>
+                    <div className="mt-1 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+                      <div><span className="text-[#8B92A3]">Plan:</span> {effectivePlan}</div>
+                      <div><span className="text-[#8B92A3]">Saved:</span> {buyerCapacity.current.toLocaleString()}</div>
+                      <div><span className="text-[#8B92A3]">Capacity:</span> {importCapacityLabel}</div>
+                      <div><span className="text-[#8B92A3]">Available:</span> {importAvailableLabel}</div>
+                      <div><span className="text-[#8B92A3]">Valid rows:</span> {importSelectableRows.length.toLocaleString()}</div>
+                      <div><span className="text-[#8B92A3]">Selected:</span> {selectedImportRows.length.toLocaleString()}</div>
+                      <div><span className="text-[#8B92A3]">Not selected:</span> {(importSelectableRows.length - selectedImportRows.length).toLocaleString()}</div>
+                    </div>
+                    {importCapacityReached && !buyerCapacity.isUnlimited && (
+                      <div className="mt-2 text-amber-200">
+                        Capacity reached for new buyers. Deselect a new buyer or upgrade before selecting more rows; existing-buyer merges do not consume new slots.
+                      </div>
+                    )}
+                    <div className="mt-1 text-[#8B92A3]">
+                      This review contains {importNewRowsReady.toLocaleString()} new buyer{importNewRowsReady === 1 ? '' : 's'} plus duplicates or merges. You can import any selected valid rows up to the remaining capacity.
+                    </div>
                   </div>
 
                   {importApprovalSummary && (
@@ -5721,15 +5822,30 @@ const company = getDisplayCompany(buyerAny) || 'Company Missing';
                     const rowApprovalStatus = importApprovalStatus[row._id]
                     const confidence = row.parserConfidence || {}
                     const missingCriteria = importRowMissingCriteria(row)
+                    const rowSelected = Boolean(selectedImportRowIds[row._id])
+                    const rowSelectable = canSelectImportRow(row)
 
                     return (
                       <div key={row._id} className={`rounded-2xl border p-5 bg-[#111623] ${row._valid === false ? 'border-red-500/50' : row._dup ? 'border-amber-500/50' : 'border-[#252A38]'}`}>
                         <div className="flex flex-wrap justify-between items-start gap-3 mb-4">
-                          <div>
-                            <div className="text-lg font-semibold">{row.name || 'Unknown Buyer'}</div>
-                            <div className="text-[#3B82F6] text-sm">{row.email || 'Email Missing'}</div>
+                          <div className="flex min-w-0 gap-3">
+                            <label className="mt-1 flex h-6 w-6 shrink-0 items-center justify-center">
+                              <input
+                                type="checkbox"
+                                className="h-4 w-4"
+                                checked={rowSelected}
+                                disabled={!rowSelectable && !rowSelected}
+                                onChange={() => toggleImportRowSelection(row)}
+                                aria-label={`Select ${row.name || row.email || 'buyer row'} for import`}
+                              />
+                            </label>
+                            <div className="min-w-0">
+                              <div className="text-lg font-semibold">{row.name || 'Unknown Buyer'}</div>
+                              <div className="text-[#3B82F6] text-sm">{row.email || 'Email Missing'}</div>
                             <div className="text-xs mt-1 flex flex-wrap gap-2">
                               <span className="text-[#22C55E]">Review #{idx + 1}</span>
+                              {rowSelected && <span className="text-[#22C55E]">Selected for import</span>}
+                              {!rowSelectable && !rowSelected && row._valid !== false && <span className="text-amber-300">Capacity reached</span>}
                               {row._dup && <span className="text-amber-400">Possible Duplicate</span>}
                               {row._valid === false && <span className="text-red-400">Marked Invalid</span>}
                               {row.status && <span className="text-amber-400">Status: {row.status}</span>}
@@ -5742,6 +5858,7 @@ const company = getDisplayCompany(buyerAny) || 'Company Missing';
                                   {key}: {confidence[key] || 'Missing'}
                                 </span>
                               ))}
+                            </div>
                             </div>
                           </div>
 
@@ -6121,10 +6238,12 @@ const company = getDisplayCompany(buyerAny) || 'Company Missing';
                 </div>
 
                 <div className="sticky bottom-0 bg-[#0F131D] flex gap-2 mt-5 pt-4 border-t border-[#252A38]">
-                  <button onClick={() => { void approveVisibleImportRows() }} disabled={Object.values(importApprovalStatus).includes('approving') || importWouldExceedCapacity} className="btn btn-green flex-1 disabled:opacity-60">
-                    {Object.values(importApprovalStatus).includes('approving') ? 'Approving...' : 'Approve Visible'}
+                  <button onClick={() => selectImportRowsUpToCapacity(importReviewRows)} className="btn btn-ghost flex-1">
+                    Select Visible Up to Capacity
                   </button>
-                  <button onClick={approveAllValid} disabled={Object.values(importApprovalStatus).includes('approving') || importWouldExceedCapacity} className="btn btn-green flex-1 disabled:opacity-60">Approve All Valid</button>
+                  <button onClick={() => { void approveSelectedImportRows() }} disabled={Object.values(importApprovalStatus).includes('approving') || importWouldExceedCapacity || selectedImportRows.length === 0} className="btn btn-green flex-1 disabled:opacity-60">
+                    {Object.values(importApprovalStatus).includes('approving') ? 'Importing...' : `Import Selected Buyers (${selectedImportRows.length})`}
+                  </button>
                   <button onClick={() => { setShowImport(false); void refreshBuyerPortalQueueCount() }} className="btn btn-ghost flex-1">Cancel &amp; Close (no import)</button>
                 </div>
               </>
