@@ -6,11 +6,11 @@ import { buildStripeCheckoutUrl, getBillingSetupWithLaunchDefaults, getPlanPayme
 
 type Plan = 'Starter' | 'Pro' | 'Agency' | 'Enterprise'
 
-const plans: { name: Plan; monthly: string; annual: string; annualNote: string; promoAnnual?: string; promoLabel?: string; promoAnnualNote?: string; desc: string; popular?: boolean; custom?: boolean }[] = [
-  { name: 'Starter', monthly: '$47/mo', annual: '$40/mo', annualNote: '$470 billed annually', desc: 'For solo operators collecting deals and buyer interest.' },
-  { name: 'Pro', monthly: '$97/mo', annual: '$81/mo', annualNote: '$970 billed annually', promoAnnual: '$73/mo', promoLabel: 'with LAUNCH10', promoAnnualNote: '$873 first annual payment', desc: 'For one active operator who needs buyer matching, match scoring, deal blast exports, and regular buyer outreach.', popular: true },
-  { name: 'Agency', monthly: '$197/mo', annual: '$165/mo', annualNote: '$1,970 billed annually', promoAnnual: '$148/mo', promoLabel: 'with LAUNCH10', promoAnnualNote: '$1,773 first annual payment', desc: 'For heavier dispo workflows, saved buyer segments, stronger matching, follow-up systems, and future team/VA workflows.', custom: true },
-  { name: 'Enterprise', monthly: '$297/mo or Custom', annual: 'Custom annual pricing', annualNote: 'contact admin', desc: 'For custom onboarding, integrations, production support, higher-volume needs, and custom team workflows.', custom: true },
+const plans: { name: Plan; monthly: string; annual: string; annualNote: string; desc: string; popular?: boolean; custom?: boolean }[] = [
+  { name: 'Starter', monthly: '$47/mo', annual: '$470/yr', annualNote: '$470 billed annually', desc: 'For solo wholesalers and investors who need organized deal and buyer management.' },
+  { name: 'Pro', monthly: '$97/mo', annual: '$970/yr', annualNote: '$970 billed annually', desc: 'For active operators who need buyer matching, deal blasts, advanced calculators, Property Intelligence, and stronger follow-up tools.', popular: true },
+  { name: 'Agency', monthly: '$197/mo', annual: '$1,970/yr', annualNote: '$1,970 billed annually', desc: 'For teams managing higher deal volume, shared buyer activity, and multiple users.', custom: true },
+  { name: 'Enterprise', monthly: '$297/mo or Custom', annual: 'Custom annual pricing', annualNote: 'contact sales', desc: 'For custom onboarding, higher-volume workflows, integrations, and tailored support.', custom: true },
 ]
 
 export default function Upgrade() {
@@ -40,7 +40,6 @@ export default function Upgrade() {
     isValidPaymentUrl(paymentLink)
   const currentPlanLabel = isPaid ? current : 'Free Demo'
   const selectedPlanDetails = plans.find(pp => pp.name === selected)
-  const selectedUsesAnnualPromo = billing === 'annual' && selectedPlanDetails && (selected === 'Pro' || (selected === 'Agency' && agencyEnterpriseEnabled)) && selectedPlanDetails.promoAnnual
 
   const goPayment = () => {
     if ((selected === 'Agency' || selected === 'Enterprise') && !agencyEnterpriseEnabled) {
@@ -85,13 +84,8 @@ export default function Upgrade() {
             <div className="text-xs text-[#64748B]">Annual plans save 2 months compared to monthly billing.</div>
           </div>
 
-          <div className="mb-4 rounded border border-amber-500/30 bg-amber-500/10 text-amber-200 p-3 text-sm">
-            Launch promo: Use code LAUNCH10 for 10% off your first annual payment on Pro annual and higher annual plans through 01/01/2027.
-          </div>
-
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
             {plans.map(p => {
-              const showAnnualPromo = billing === 'annual' && (p.name === 'Pro' || (p.name === 'Agency' && agencyEnterpriseEnabled)) && p.promoAnnual
               return (
                 <div
                   key={p.name}
@@ -102,22 +96,8 @@ export default function Upgrade() {
                     <div className="font-semibold text-lg">{p.name}</div>
                     {p.popular && <span className="text-[10px] px-1.5 py-0.5 bg-[#22C55E] text-black rounded">Most Popular</span>}
                   </div>
-                  {showAnnualPromo ? (
-                    <div className="mt-1">
-                      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                        <span className="text-2xl font-semibold tabular-nums">{p.promoAnnual}</span>
-                        <span className="text-[10px] font-medium uppercase tracking-wide text-amber-300">{p.promoLabel}</span>
-                      </div>
-                      <div className="mt-1 text-xs text-[#8B92A3] line-through">Regular {p.annual}</div>
-                      <div className="mt-1 text-xs text-amber-300">{p.promoAnnualNote}</div>
-                      <div className="mt-0.5 text-xs text-[#64748B] line-through">Regular {p.annualNote}</div>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="mt-1 text-2xl font-semibold tabular-nums">{billing === 'monthly' ? p.monthly : p.annual}</div>
-                      {billing === 'annual' && <div className="mt-1 text-xs text-[#8B92A3]">{p.annualNote}</div>}
-                    </>
-                  )}
+                  <div className="mt-1 text-2xl font-semibold tabular-nums">{billing === 'monthly' ? p.monthly : p.annual}</div>
+                  {billing === 'annual' && <div className="mt-1 text-xs text-[#8B92A3]">{p.annualNote}</div>}
                   <div className="text-xs text-[#8B92A3] mt-1 min-h-[2.2em] break-words">{p.desc}</div>
                   {p.custom && <div className="mt-1 text-amber-400 text-xs">{agencyEnterpriseEnabled ? 'Available by approval' : 'Coming Soon / Contact Support'}</div>}
                   {current === p.name && <div className="mt-1 text-emerald-400 text-xs">Current plan</div>}
@@ -146,9 +126,7 @@ export default function Upgrade() {
           <div className="text-xl font-semibold mb-2">Payment Pending - {selected}</div>
           <div className="text-sm text-[#8B92A3] mb-4">Complete payment through Stripe. Deal Blast Pro does not collect card, bank, routing, CVV, API key, OAuth token, or provider login credentials here.</div>
           <div className="text-sm mb-4">
-            Plan: {selected} - {selectedUsesAnnualPromo
-              ? `${selectedPlanDetails?.promoAnnual}, ${selectedPlanDetails?.promoAnnualNote}`
-              : `${selectedPlanDetails?.[billing]}${billing === 'annual' ? `, ${selectedPlanDetails?.annualNote}` : ''}`}
+            Plan: {selected} - {`${selectedPlanDetails?.[billing]}${billing === 'annual' ? `, ${selectedPlanDetails?.annualNote}` : ''}`}
           </div>
           <div className="rounded border border-amber-500/30 bg-amber-500/10 text-amber-200 p-3 text-sm mb-4">
             Your plan remains blocked while payment is pending. After Stripe confirms successful payment, Deal Blast Pro can activate paid access automatically.

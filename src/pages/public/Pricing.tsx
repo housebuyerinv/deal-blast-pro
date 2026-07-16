@@ -9,7 +9,8 @@ const tiers = [
     monthly: '$0',
     annual: '$0',
     annualNote: 'annual plan',
-    positioning: 'For quick testing of the public submission flow.',
+    positioning: 'For testing public submission flows and exploring Deal Blast Pro.',
+    points: ['Public intake testing', 'Basic evaluation limits'],
     cta: 'Join Waitlist',
     to: '/waitlist',
     highlight: false
@@ -17,9 +18,10 @@ const tiers = [
   {
     name: 'Starter',
     monthly: '$47/mo',
-    annual: '$40/mo',
+    annual: '$470/yr',
     annualNote: '$470 billed annually',
-    positioning: 'For solo operators collecting deals and buyer interest.',
+    positioning: 'For solo wholesalers and investors who need organized deal and buyer management.',
+    points: ['Deal and buyer management', 'Core starter calculators'],
     cta: 'Join Waitlist',
     to: '/waitlist',
     highlight: false
@@ -27,12 +29,10 @@ const tiers = [
   {
     name: 'Pro',
     monthly: '$97/mo',
-    annual: '$81/mo',
+    annual: '$970/yr',
     annualNote: '$970 billed annually',
-    promoAnnual: '$73/mo',
-    promoLabel: 'with LAUNCH10',
-    promoAnnualNote: '$873 first annual payment',
-    positioning: 'For one active operator who needs buyer matching, match scoring, deal blast exports, and regular buyer outreach.',
+    positioning: 'For active operators who need buyer matching, deal blasts, advanced calculators, Property Intelligence, and stronger follow-up tools.',
+    points: ['Advanced buyer matching', 'All core calculators', 'Property Intelligence limits', 'Custom portals'],
     cta: 'Join Waitlist',
     to: '/waitlist',
     highlight: true,
@@ -41,12 +41,10 @@ const tiers = [
   {
     name: 'Agency',
     monthly: '$197/mo',
-    annual: '$165/mo',
+    annual: '$1,970/yr',
     annualNote: '$1,970 billed annually',
-    promoAnnual: '$148/mo',
-    promoLabel: 'with LAUNCH10',
-    promoAnnualNote: '$1,773 first annual payment',
-    positioning: 'For heavier dispo workflows, saved buyer segments, stronger matching, follow-up systems, and future team/VA workflows. Team/VA features may require setup before use.',
+    positioning: 'For teams managing higher deal volume, shared buyer activity, and multiple users.',
+    points: ['Higher monthly limits', 'Team workspace planning', 'Contact-based setup'],
     cta: 'Contact Admin',
     to: '/contact',
     highlight: false,
@@ -57,131 +55,77 @@ const tiers = [
     monthly: '$297/mo or Custom',
     annual: 'Custom annual pricing',
     annualNote: 'Contact Admin',
-    positioning: 'For custom onboarding, integrations, production support, higher-volume needs, and custom team workflows.',
+    positioning: 'For custom onboarding, higher-volume workflows, integrations, and tailored support.',
+    points: ['Custom volume', 'Custom roles and scale', 'Tailored support'],
     cta: 'Contact Sales',
     to: '/contact',
     highlight: false,
-    releaseStatus: 'Coming Soon / Contact Admin'
+    releaseStatus: 'Coming Soon / Contact Sales'
   }
 ]
 
 const featureRows = [
   {
-    feature: 'Public deal intake',
+    feature: 'Public Deal Submission Portal',
     statuses: ['Included', 'Included', 'Included', 'Included', 'Included']
   },
   {
-    feature: 'Public buyer signup',
+    feature: 'Public Buyer Signup Portal',
     statuses: ['Included', 'Included', 'Included', 'Included', 'Included']
   },
   {
-    feature: 'Buyer criteria capture',
-    statuses: ['Basic', 'Included', 'Included', 'Included', 'Included']
+    feature: 'Deal and Submission Management',
+    statuses: ['Limited', 'Included', 'Advanced', 'Advanced', 'Custom']
   },
   {
-    feature: 'Document uploads',
-    statuses: ['Limited', 'Included', 'Included', 'Included', 'Included']
+    feature: 'Buyer Database',
+    statuses: ['Limited', 'Included', 'Advanced', 'Advanced', 'Custom']
   },
   {
-    feature: 'ARV Calculator',
-    statuses: ['Included', 'Included', 'Included', 'Included', 'Included']
+    feature: 'Buyer Matching',
+    statuses: ['Not included', 'Basic', 'Advanced', 'Advanced', 'Custom']
   },
   {
-    feature: 'Rehab Calculator',
-    statuses: ['-', 'Included', 'Included', 'Included', 'Included']
+    feature: 'Deal Blast Builder',
+    statuses: ['Not included', 'Basic', 'Included', 'Advanced', 'Custom']
   },
   {
-    feature: 'MAO / Offer Calculator',
-    statuses: ['-', 'Included', 'Included', 'Included', 'Included']
+    feature: 'Follow-Up Task Center',
+    statuses: ['Not included', 'Basic', 'Included', 'Advanced', 'Custom']
   },
   {
-    feature: 'Rental Deal Calculator',
-    statuses: ['-', '-', 'Included', 'Included', 'Included']
-  },
-  {
-    feature: 'Creative Finance Calculator',
-    statuses: ['-', '-', 'Included', 'Included', 'Included']
+    feature: 'Core Deal Calculators',
+    statuses: ['ARV only', 'ARV, Rehab, MAO', 'All calculators', 'All calculators', 'All calculators']
   },
   {
     feature: 'Property Intelligence',
-    statuses: ['-', 'Limited Preview', 'Included with limits', 'Advanced', 'Custom']
+    statuses: ['Not included', 'Not included', 'Included with monthly limits', 'Higher monthly limits', 'Custom']
   },
   {
-    feature: 'Custom buyer and deal portals',
-    statuses: ['-', '-', 'Pro and higher', 'Coming Soon', 'Custom']
+    feature: 'Custom Buyer and Deal Portals',
+    statuses: ['Not included', 'Not included', 'Included', 'Included', 'Custom']
   },
   {
-    feature: 'Global Buyer Hub verified network',
-    statuses: ['-', '-', 'Coming Soon', 'Coming Soon', 'Custom']
+    feature: 'Global Buyer Hub',
+    statuses: ['Not included', 'Not included', 'Coming Soon', 'Coming Soon', 'Custom']
   },
   {
-    feature: 'Submit buyers to Global Buyer Hub',
-    statuses: ['-', 'Paid submit only', 'Coming Soon', 'Coming Soon', 'Custom']
+    feature: 'Team and Multi-User Access',
+    statuses: ['Not included', 'Not included', 'Single user', 'Team access', 'Custom roles and scale']
   },
   {
-    feature: 'Deal Blast Pro Community',
-    statuses: ['-', 'Coming Soon', 'Coming Soon', 'Coming Soon', 'Custom']
-  },
-  {
-    feature: 'Buyer matching',
-    statuses: ['-', 'Basic', 'Included', 'Advanced', 'Custom']
-  },
-  {
-    feature: 'Match score / heat tags',
-    statuses: ['-', 'Basic', 'Included', 'Advanced', 'Custom']
-  },
-  {
-    feature: 'Saved buyer segments',
-    statuses: ['-', '-', 'Included', 'Advanced', 'Custom']
-  },
-  {
-    feature: 'Buyer outreach exports',
-    statuses: ['-', 'Basic', 'Included', 'Advanced', 'Custom']
-  },
-  {
-    feature: 'Deal blast templates',
-    statuses: ['-', 'Basic', 'Included', 'Advanced', 'Custom']
-  },
-  {
-    feature: 'Follow-up task tools',
-    statuses: ['-', '-', 'Included', 'Advanced', 'Custom']
-  },
-  {
-    feature: 'Basic reporting',
-    statuses: ['-', '-', 'Included', 'Included', 'Included']
-  },
-  {
-    feature: 'Data export',
-    statuses: ['-', '-', 'Included', 'Included', 'Included']
-  },
-  {
-    feature: 'Team / VA access',
-    statuses: ['-', '-', 'Planned', 'Priority Roadmap', 'Custom']
-  },
-  {
-    feature: 'Role permissions',
-    statuses: ['-', '-', 'Planned', 'Priority Roadmap', 'Custom']
-  },
-  {
-    feature: 'Email notifications',
-    statuses: ['-', 'Planned', 'Planned', 'Priority Roadmap', 'Custom']
-  },
-  {
-    feature: 'Custom onboarding',
-    statuses: ['-', '-', '-', 'Optional Setup', 'Custom']
-  },
-  {
-    feature: 'Integration support',
-    statuses: ['-', '-', '-', 'Optional Setup', 'Custom']
+    feature: 'Usage and Workspace Scale',
+    statuses: ['Evaluation limits', 'Solo operator', 'Active operator', 'Team workspace', 'Custom volume']
   }
 ]
 
 const statusClass = (status: string) => {
   if (status === 'Included') return 'text-[#22C55E]'
-  if (status === 'Planned' || status === 'Priority Roadmap' || status === 'Coming Soon' || status.includes('Coming Soon')) return 'text-[#FBBF24]'
+  if (status === 'Planned' || status === 'Coming Soon' || status.includes('Coming Soon')) return 'text-[#FBBF24]'
   if (status === 'Custom') return 'text-[#60A5FA]'
   if (status === 'Advanced') return 'text-[#A78BFA]'
-  if (status === 'Basic' || status === 'Limited' || status === 'Limited Preview' || status === 'Included with limits' || status === 'Optional Setup') return 'text-[#C5CAD6]'
+  if (status === 'Not included' || status === '-') return 'text-[#64748B]'
+  if (status === 'Basic' || status === 'Limited' || status.includes('limits') || status.includes('operator') || status.includes('workspace') || status.includes('user') || status.includes('ARV') || status.includes('calculator')) return 'text-[#C5CAD6]'
   return 'text-[#8B92A3]'
 }
 
@@ -195,17 +139,6 @@ const getPlanPriceDisplay = (tier: typeof tiers[number], billing: 'monthly' | 'a
 
   if (tier.name === 'Enterprise') {
     return { price: 'Custom annual pricing', noteLines: ['Contact Admin'] }
-  }
-
-  if (tier.name === 'Pro' || tier.name === 'Agency') {
-    return {
-      price: tier.promoAnnual || tier.annual,
-      noteLines: [],
-      promoLabel: tier.promoLabel,
-      regularPrice: tier.annual,
-      annualPayment: tier.promoAnnualNote,
-      regularAnnualPayment: tier.annualNote,
-    }
   }
 
   return {
@@ -224,8 +157,7 @@ export default function Pricing() {
         <div className="text-center mb-6">
           <h1 className="text-4xl font-semibold tracking-tight">Simple, transparent pricing</h1>
           <p className="mt-3 text-[#8B92A3]">Start small, then upgrade when your deal flow and buyer outreach need more room.</p>
-          <p className="mt-2 text-sm text-[#C5CAD6]">Public release tiers: Free Demo, Starter, and Pro. Agency and Enterprise are Coming Soon / Contact Admin.</p>
-          <p className="mx-auto mt-2 max-w-3xl text-sm leading-5 text-amber-300">Launch promo: Use code LAUNCH10 for 10% off your first annual payment on Pro annual and higher annual plans through 01/01/2027.</p>
+          <p className="mt-2 text-sm text-[#C5CAD6]">Start with Free, Starter, or Pro. Agency and Enterprise options are available by request.</p>
           <div className="mt-5 grid gap-2 md:hidden">
             <Link to="/waitlist" className="btn btn-green w-full justify-center py-3 text-sm">
               Join Waitlist
@@ -283,20 +215,17 @@ export default function Pricing() {
                   <div className="mt-5">
                     <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                       <span className="text-3xl font-semibold leading-none tabular-nums">{priceDisplay.price}</span>
-                      {'promoLabel' in priceDisplay && priceDisplay.promoLabel && (
-                        <span className="text-[11px] font-medium uppercase tracking-wide text-amber-300">{priceDisplay.promoLabel}</span>
-                      )}
                     </div>
-                    {'regularPrice' in priceDisplay && priceDisplay.regularPrice && (
-                      <div className="mt-1 text-xs text-[#8B92A3] line-through">Regular {priceDisplay.regularPrice}</div>
-                    )}
                     <div className="mt-2 text-[11px] leading-4 text-[#8B92A3] break-words">
                       {priceDisplay.noteLines.map(line => <div key={line}>{line}</div>)}
-                      {'annualPayment' in priceDisplay && priceDisplay.annualPayment && <div className="text-amber-300">{priceDisplay.annualPayment}</div>}
-                      {'regularAnnualPayment' in priceDisplay && priceDisplay.regularAnnualPayment && (
-                        <div className="text-[#64748B] line-through">Regular {priceDisplay.regularAnnualPayment}</div>
-                      )}
                     </div>
+                  </div>
+                  <div className="mt-4 space-y-1.5">
+                    {tier.points.map(point => (
+                      <div key={point} className="text-xs leading-4 text-[#C5CAD6]">
+                        <span className={tier.highlight ? 'text-[#22C55E]' : 'text-[#64748B]'}>-</span> {point}
+                      </div>
+                    ))}
                   </div>
                 </div>
 
@@ -341,7 +270,7 @@ export default function Pricing() {
             </table>
           </div>
           <p className="mt-3 text-center text-xs text-[#8B92A3]">
-            Matching, exports, templates, calculators, and follow-up tools are core Deal Blast Pro workflows. Property Intelligence requires provider setup and is not advertised as fully live until licensed production data sources are connected.
+            Property Intelligence starts on Pro with monthly limits. Agency and Enterprise remain contact-based while higher-volume workflows are prepared.
           </p>
         </section>
 

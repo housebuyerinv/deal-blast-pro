@@ -7,12 +7,12 @@ import { buildStripeCheckoutUrl, getBillingSetupWithLaunchDefaults, getPlanPayme
 
 type PlanName = TrialState['plan']
 
-const plans: { name: PlanName; monthly: string; annual: string; annualNote: string; promoAnnual?: string; promoLabel?: string; promoAnnualNote?: string; desc: string; activeRelease: boolean; popular?: boolean }[] = [
-  { name: 'Free Demo', monthly: '$0', annual: '$0', annualNote: 'free demo', desc: 'Start immediately with the public submission flow and demo limits.', activeRelease: true },
-  { name: 'Starter', monthly: '$47/mo', annual: '$40/mo', annualNote: '$470 billed annually', desc: 'For solo operators collecting deals and buyer interest.', activeRelease: true },
-  { name: 'Pro', monthly: '$97/mo', annual: '$81/mo', annualNote: '$970 billed annually', promoAnnual: '$73/mo', promoLabel: 'with LAUNCH10', promoAnnualNote: '$873 first annual payment', desc: 'For one active operator who needs buyer matching, match scoring, deal blast exports, and regular buyer outreach.', activeRelease: true, popular: true },
-  { name: 'Agency', monthly: '$197/mo', annual: '$165/mo', annualNote: '$1,970 billed annually', promoAnnual: '$148/mo', promoLabel: 'with LAUNCH10', promoAnnualNote: '$1,773 first annual payment', desc: 'For heavier dispo workflows and future team/VA workflows.', activeRelease: false },
-  { name: 'Enterprise', monthly: '$297/mo or Custom', annual: 'Custom annual pricing', annualNote: 'contact support', desc: 'For custom onboarding, integrations, production support, and higher-volume needs.', activeRelease: false },
+const plans: { name: PlanName; monthly: string; annual: string; annualNote: string; desc: string; activeRelease: boolean; popular?: boolean }[] = [
+  { name: 'Free Demo', monthly: '$0', annual: '$0', annualNote: 'free demo', desc: 'For testing public submission flows and exploring Deal Blast Pro.', activeRelease: true },
+  { name: 'Starter', monthly: '$47/mo', annual: '$470/yr', annualNote: '$470 billed annually', desc: 'For solo wholesalers and investors who need organized deal and buyer management.', activeRelease: true },
+  { name: 'Pro', monthly: '$97/mo', annual: '$970/yr', annualNote: '$970 billed annually', desc: 'For active operators who need buyer matching, deal blasts, advanced calculators, Property Intelligence, and stronger follow-up tools.', activeRelease: true, popular: true },
+  { name: 'Agency', monthly: '$197/mo', annual: '$1,970/yr', annualNote: '$1,970 billed annually', desc: 'For teams managing higher deal volume, shared buyer activity, and multiple users.', activeRelease: false },
+  { name: 'Enterprise', monthly: '$297/mo or Custom', annual: 'Custom annual pricing', annualNote: 'contact sales', desc: 'For custom onboarding, higher-volume workflows, integrations, and tailored support.', activeRelease: false },
 ]
 
 export default function FirstLoginSetup() {
@@ -105,9 +105,6 @@ export default function FirstLoginSetup() {
           <div className="text-[#8B92A3] mt-2 max-w-3xl">
             Free Demo opens immediately. Paid plans open the saved Stripe payment link and remain Payment Pending until Stripe confirms payment.
           </div>
-          <div className="mt-3 text-sm text-amber-300">
-            Launch promo: Use code LAUNCH10 for 10% off your first annual payment on Pro annual and higher annual plans through 01/01/2027.
-          </div>
           <div className="mt-4 inline-flex rounded border border-[#252A38] p-1">
             <button onClick={() => setBillingFrequency('monthly')} className={`px-4 py-1 text-sm rounded ${billingFrequency === 'monthly' ? 'bg-[#22C55E] text-black' : 'text-[#8B92A3]'}`}>Monthly</button>
             <button onClick={() => setBillingFrequency('annual')} className={`px-4 py-1 text-sm rounded ${billingFrequency === 'annual' ? 'bg-[#22C55E] text-black' : 'text-[#8B92A3]'}`}>Annual</button>
@@ -119,7 +116,6 @@ export default function FirstLoginSetup() {
           {plans.map(plan => {
             const releaseActive = plan.activeRelease || agencyEnterpriseEnabled
             const selected = selectedPlan === plan.name
-            const showAnnualPromo = billingFrequency === 'annual' && (plan.name === 'Pro' || (plan.name === 'Agency' && releaseActive)) && plan.promoAnnual
             return (
               <button
                 key={plan.name}
@@ -131,22 +127,8 @@ export default function FirstLoginSetup() {
                   <div className="font-semibold text-lg">{plan.name}</div>
                   {plan.popular && <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#22C55E] text-black">Popular</span>}
                 </div>
-                {showAnnualPromo ? (
-                  <div className="mt-2">
-                    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                      <span className="text-2xl font-semibold tabular-nums">{plan.promoAnnual}</span>
-                      <span className="text-[10px] font-medium uppercase tracking-wide text-amber-300">{plan.promoLabel}</span>
-                    </div>
-                    <div className="mt-1 text-xs text-[#8B92A3] line-through">Regular {plan.annual}</div>
-                    <div className="mt-1 text-xs text-amber-300">{plan.promoAnnualNote}</div>
-                    <div className="mt-0.5 text-xs text-[#64748B] line-through">Regular {plan.annualNote}</div>
-                  </div>
-                ) : (
-                  <>
-                    <div className="mt-2 text-2xl font-semibold">{billingFrequency === 'monthly' ? plan.monthly : plan.annual}</div>
-                    {billingFrequency === 'annual' && <div className="mt-1 text-xs text-[#8B92A3]">{plan.annualNote}</div>}
-                  </>
-                )}
+                <div className="mt-2 text-2xl font-semibold">{billingFrequency === 'monthly' ? plan.monthly : plan.annual}</div>
+                {billingFrequency === 'annual' && <div className="mt-1 text-xs text-[#8B92A3]">{plan.annualNote}</div>}
                 <div className="mt-2 text-sm text-[#8B92A3] min-h-[4.5rem] break-words">{plan.desc}</div>
                 <div className={`mt-3 text-xs ${releaseActive ? 'text-[#22C55E]' : 'text-amber-300'}`}>
                   {releaseActive ? 'Available' : 'Coming Soon / Contact Support'}

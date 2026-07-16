@@ -122,7 +122,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     tourSkipped: false,
     tourCompletedAt: '',
     agencyEnterpriseEnabled: false,
-    promoNoticeVisible: true,
+    promoNoticeVisible: false,
     updatedAt: ''
   },
   deletionRequest: {

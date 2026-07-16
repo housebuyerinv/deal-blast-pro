@@ -439,13 +439,28 @@ export default function Settings() {
   }
 
   const isPaidCancellationStatus = currentBillingStatus === 'Paid Active' || currentBillingStatus === 'Comped'
-  const platformOwnerDeactivationBlocked = hasSuperAdminAccess && !ownerPreviewActive
+  const platformOwnerDeactivationBlocked = hasSuperAdminAccess
   const deletionActionLabel = 'Deactivate Account'
   const deletionModalMessage = platformOwnerDeactivationBlocked
     ? 'Platform owner accounts cannot be deactivated from this page.'
     : isPaidCancellationStatus
-    ? 'This will deactivate this user access and workspace account in Deal Blast Pro. It does not immediately hard-delete buyers, deals, submissions, files, or settings, and it does not cancel or change Stripe billing automatically. You will be signed out after the backend confirms deactivation.'
-    : 'This will deactivate this user access and workspace account in Deal Blast Pro. It does not immediately hard-delete buyers, deals, submissions, inventory, settings, or files. You will be signed out after the backend confirms deactivation.'
+    ? 'Deactivating your account will remove access to your Deal Blast Pro workspace. This does not immediately permanently delete your deals, buyers, submissions, files, or settings.'
+    : 'Deactivating your account will remove access to your Deal Blast Pro workspace. This does not immediately permanently delete your deals, buyers, submissions, files, or settings.'
+
+  useEffect(() => {
+    if (!deleteAccountOpen || deleteAccountLoading) return
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      setDeleteAccountOpen(false)
+      setDeleteAccountConfirmed(false)
+      setDeleteAccountText('')
+      setDeleteAccountError('')
+    }
+
+    window.addEventListener('keydown', handleEscape)
+    return () => window.removeEventListener('keydown', handleEscape)
+  }, [deleteAccountOpen, deleteAccountLoading])
 
   const requestAccountDeletion = async () => {
     if (deleteAccountText !== 'DELETE MY ACCOUNT' || deleteAccountLoading) return
@@ -514,6 +529,78 @@ export default function Settings() {
     } finally {
       setDeleteAccountLoading(false)
     }
+  }
+
+  const renderDeleteAccountModal = () => {
+    if (!deleteAccountOpen) return null
+
+    return (
+      <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/75 p-4" role="dialog" aria-modal="true" aria-labelledby="deactivate-account-title">
+        <div className="card w-full max-w-2xl p-6 border border-red-500/40 shadow-2xl">
+          <div className="text-xs uppercase tracking-[2px] text-red-300 mb-2">Deactivate Account / Workspace</div>
+          <div id="deactivate-account-title" className="text-2xl font-semibold text-[#E6E8EE] mb-3">{deletionActionLabel}</div>
+          <div className="rounded border border-red-500/30 bg-red-500/10 p-4 text-sm text-[#E6E8EE] leading-6">
+            {deletionModalMessage}
+          </div>
+
+          {platformOwnerDeactivationBlocked ? (
+            <div className="mt-5">
+              <div className="text-sm text-[#8B92A3]">
+                Contact support or use the secure owner shutdown process for platform-level account changes.
+              </div>
+              <div className="mt-5 flex flex-wrap justify-end gap-2">
+                <button type="button" onClick={closeDeleteAccountRequest} className="btn btn-ghost" autoFocus>Close</button>
+              </div>
+            </div>
+          ) : !deleteAccountConfirmed ? (
+            <div className="mt-5">
+              <div className="space-y-3 text-sm text-[#8B92A3]">
+                <div>
+                  Deactivating your account will remove access to your Deal Blast Pro workspace. This does not immediately permanently delete your deals, buyers, submissions, files, or settings.
+                </div>
+                <div className="rounded border border-amber-500/30 bg-amber-500/10 p-3 text-amber-200">
+                  Deactivating your account does not automatically cancel an active paid subscription. Manage or cancel billing separately before deactivation.
+                </div>
+              </div>
+              <div className="mt-5 flex flex-wrap justify-end gap-2">
+                <button type="button" onClick={closeDeleteAccountRequest} className="btn btn-ghost">Cancel</button>
+                <button type="button" onClick={() => setDeleteAccountConfirmed(true)} className="btn btn-ghost text-red-300 border-red-500/40" autoFocus>Continue</button>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-5">
+              <label className="block">
+                <div className="text-sm text-[#8B92A3] mb-2">Type DELETE MY ACCOUNT to deactivate this account/workspace.</div>
+                <input
+                  className="input"
+                  value={deleteAccountText}
+                  onChange={e => setDeleteAccountText(e.target.value)}
+                  placeholder="DELETE MY ACCOUNT"
+                  disabled={deleteAccountLoading}
+                  autoFocus
+                />
+              </label>
+              {deleteAccountError && (
+                <div className="mt-3 rounded border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">
+                  {deleteAccountError}
+                </div>
+              )}
+              <div className="mt-5 flex flex-wrap justify-end gap-2">
+                <button type="button" onClick={closeDeleteAccountRequest} disabled={deleteAccountLoading} className="btn btn-ghost disabled:opacity-50">Cancel</button>
+                <button
+                  type="button"
+                  onClick={requestAccountDeletion}
+                  disabled={deleteAccountText !== 'DELETE MY ACCOUNT' || deleteAccountLoading}
+                  className="btn btn-ghost text-red-300 border-red-500/40 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {deleteAccountLoading ? 'Deactivating...' : 'Deactivate Account'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    )
   }
 
   const formatBillingDate = (value?: string) => {
@@ -1631,7 +1718,7 @@ export default function Settings() {
       { key: 'quickTourSkippable', name: 'Quick tour can be skipped', status: 'pass', label: 'Skippable', detail: 'Tour skip/cancel saves workspace state.' },
       { key: 'tourStateReadable', name: 'Tour completion state readable', status: tourStateReadable ? 'pass' : 'warning', label: tourStateReadable ? 'Readable' : 'Needs Review', detail: tourStateReadable ? 'Tour completion and skipped flags are readable.' : 'Tour state could not be verified.' },
       { key: 'agencyEnterpriseReleaseStatus', name: 'Agency and Enterprise release status readable', status: agencyEnterpriseStatusReadable ? 'pass' : 'warning', label: agencyEnterpriseStatusReadable ? (onboardingSettings.agencyEnterpriseEnabled ? 'Enabled' : 'Coming Soon') : 'Needs Review', detail: 'Admin setting controls whether Agency and Enterprise can be selected.' },
-      { key: 'promoDiscountNotice', name: 'Promo discount notice visible', status: promoNoticeVisible ? 'pass' : 'warning', label: promoNoticeVisible ? 'Visible' : 'Needs Review', detail: 'Annual LAUNCH10 promo note is displayed for Pro annual and higher annual plans through 01/01/2027.' },
+      { key: 'promoDiscountNotice', name: 'Promo discount notice hidden until verified', status: promoNoticeVisible ? 'warning' : 'pass', label: promoNoticeVisible ? 'Needs Verification' : 'Hidden', detail: 'Launch-code messaging stays hidden until checkout acceptance and eligibility are verified.' },
       { key: 'noPaymentSecretsStored', name: 'No payment secrets stored', status: hasSensitiveSetupFields || hasSensitiveOnboardingFields ? 'fail' : 'pass', label: hasSensitiveSetupFields || hasSensitiveOnboardingFields ? 'Needs Fix' : 'Safe Fields', detail: 'Payment setup and onboarding avoid secret credential fields.' },
       {
         key: 'upgradePaymentLink',
@@ -2080,37 +2167,27 @@ export default function Settings() {
   }
 
   const planPositioning = [
-    { name: 'Free Demo', monthly: '$0', annual: '$0', annualNote: 'annual plan', text: 'For quick testing of the public submission flow.', release: 'Public release' },
-    { name: 'Starter', monthly: '$47/mo', annual: '$40/mo', annualNote: '$470 billed annually', text: 'For solo operators collecting deals and buyer interest.', release: 'Public release' },
-    { name: 'Pro', monthly: '$97/mo', annual: '$81/mo', annualNote: '$970 billed annually', promoAnnual: '$73/mo', promoLabel: 'with LAUNCH10', promoAnnualNote: '$873 first annual payment', text: 'For one active operator who needs buyer matching, match scoring, deal blast exports, and regular buyer outreach.', release: 'Public release' },
-    { name: 'Agency', monthly: '$197/mo', annual: '$165/mo', annualNote: '$1,970 billed annually', promoAnnual: '$148/mo', promoLabel: 'with LAUNCH10', promoAnnualNote: '$1,773 first annual payment', text: 'For heavier dispo workflows, saved buyer segments, stronger matching, follow-up systems, and future team/VA workflows. Team/VA features may require setup before use.', release: onboardingSettings.agencyEnterpriseEnabled ? 'Admin enabled' : 'Coming Soon / Contact Admin' },
-    { name: 'Enterprise', monthly: '$297/mo or Custom', annual: 'Custom annual pricing', annualNote: 'Contact Admin', text: 'For custom onboarding, integrations, production support, higher-volume needs, and custom team workflows.', release: onboardingSettings.agencyEnterpriseEnabled ? 'Admin enabled' : 'Coming Soon / Contact Admin' },
+    { name: 'Free Demo', monthly: '$0', annual: '$0', annualNote: 'annual plan', text: 'For testing public submission flows and exploring Deal Blast Pro.', release: 'Public release' },
+    { name: 'Starter', monthly: '$47/mo', annual: '$470/yr', annualNote: '$470 billed annually', text: 'For solo wholesalers and investors who need organized deal and buyer management.', release: 'Public release' },
+    { name: 'Pro', monthly: '$97/mo', annual: '$970/yr', annualNote: '$970 billed annually', text: 'For active operators who need buyer matching, deal blasts, advanced calculators, Property Intelligence, and stronger follow-up tools.', release: 'Public release' },
+    { name: 'Agency', monthly: '$197/mo', annual: '$1,970/yr', annualNote: '$1,970 billed annually', text: 'For teams managing higher deal volume, shared buyer activity, and multiple users.', release: onboardingSettings.agencyEnterpriseEnabled ? 'Admin enabled' : 'Coming Soon / Contact Admin' },
+    { name: 'Enterprise', monthly: '$297/mo or Custom', annual: 'Custom annual pricing', annualNote: 'Contact Sales', text: 'For custom onboarding, higher-volume workflows, integrations, and tailored support.', release: onboardingSettings.agencyEnterpriseEnabled ? 'Admin enabled' : 'Coming Soon / Contact Sales' },
   ]
 
   const planComparisonRows = [
-    ['Public deal intake', 'Included', 'Included', 'Included', 'Included', 'Included'],
-    ['Public buyer signup', 'Included', 'Included', 'Included', 'Included', 'Included'],
-    ['Buyer criteria capture', 'Basic', 'Included', 'Included', 'Included', 'Included'],
-    ['Document uploads', 'Limited', 'Included', 'Included', 'Included', 'Included'],
-    ['ARV Calculator', 'Included', 'Included', 'Included', 'Included', 'Included'],
-    ['Rehab Calculator', '-', 'Included', 'Included', 'Included', 'Included'],
-    ['MAO / Offer Calculator', '-', 'Included', 'Included', 'Included', 'Included'],
-    ['Rental Deal Calculator', '-', '-', 'Included', 'Included', 'Included'],
-    ['Creative Finance Calculator', '-', '-', 'Included', 'Included', 'Included'],
-    ['Property Intelligence', '-', 'Limited Preview', 'Included with limits', 'Advanced', 'Custom'],
-    ['Buyer matching', '-', 'Basic', 'Included', 'Advanced', 'Custom'],
-    ['Match score / heat tags', '-', 'Basic', 'Included', 'Advanced', 'Custom'],
-    ['Saved buyer segments', '-', '-', 'Included', 'Advanced', 'Custom'],
-    ['Buyer outreach exports', '-', 'Basic', 'Included', 'Advanced', 'Custom'],
-    ['Deal blast templates', '-', 'Basic', 'Included', 'Advanced', 'Custom'],
-    ['Follow-up task tools', '-', '-', 'Included', 'Advanced', 'Custom'],
-    ['Basic reporting', '-', '-', 'Included', 'Included', 'Included'],
-    ['Data export', '-', '-', 'Included', 'Included', 'Included'],
-    ['Team / VA access', '-', '-', 'Planned', 'Priority Roadmap', 'Custom'],
-    ['Role permissions', '-', '-', 'Planned', 'Priority Roadmap', 'Custom'],
-    ['Email notifications', '-', 'Planned', 'Planned', 'Priority Roadmap', 'Custom'],
-    ['Custom onboarding', '-', '-', '-', 'Optional Setup', 'Custom'],
-    ['Integration support', '-', '-', '-', 'Optional Setup', 'Custom'],
+    ['Public Deal Submission Portal', 'Included', 'Included', 'Included', 'Included', 'Included'],
+    ['Public Buyer Signup Portal', 'Included', 'Included', 'Included', 'Included', 'Included'],
+    ['Deal and Submission Management', 'Limited', 'Included', 'Advanced', 'Advanced', 'Custom'],
+    ['Buyer Database', 'Limited', 'Included', 'Advanced', 'Advanced', 'Custom'],
+    ['Buyer Matching', 'Not included', 'Basic', 'Advanced', 'Advanced', 'Custom'],
+    ['Deal Blast Builder', 'Not included', 'Basic', 'Included', 'Advanced', 'Custom'],
+    ['Follow-Up Task Center', 'Not included', 'Basic', 'Included', 'Advanced', 'Custom'],
+    ['Core Deal Calculators', 'ARV only', 'ARV, Rehab, MAO', 'All calculators', 'All calculators', 'All calculators'],
+    ['Property Intelligence', 'Not included', 'Not included', 'Included with monthly limits', 'Higher monthly limits', 'Custom'],
+    ['Custom Buyer and Deal Portals', 'Not included', 'Not included', 'Included', 'Included', 'Custom'],
+    ['Global Buyer Hub', 'Not included', 'Not included', 'Coming Soon', 'Coming Soon', 'Custom'],
+    ['Team and Multi-User Access', 'Not included', 'Not included', 'Single user', 'Team access', 'Custom roles and scale'],
+    ['Usage and Workspace Scale', 'Evaluation limits', 'Solo operator', 'Active operator', 'Team workspace', 'Custom volume'],
   ]
 
   const renderPlanComparisonRows = () => planComparisonRows.map(([feature, free, starter, pro, agency, enterprise]) => (
@@ -2377,6 +2454,7 @@ export default function Settings() {
           <button onClick={() => window.location.href = '/contact'} className="btn btn-ghost mt-3">Contact Support</button>
         </div>
         )}
+        {renderDeleteAccountModal()}
       </div>
     )
   }
@@ -2708,7 +2786,6 @@ export default function Settings() {
             <div className="grid grid-cols-6 gap-1 mb-2">
               <div></div>
               {planPositioning.map(plan => {
-                const showAnnualPromo = settingsBillingFrequency === 'annual' && (plan.name === 'Pro' || (plan.name === 'Agency' && onboardingSettings.agencyEnterpriseEnabled)) && plan.promoAnnual
                 const planName = plan.name as 'Free Demo' | PaidPlan
                 const selectedForUpgrade = settingsSelectedPlan === planName
                 return (
@@ -2719,20 +2796,8 @@ export default function Settings() {
                   >
                     <div className="text-sm font-semibold text-[#E6E8EE]">{plan.name}</div>
                     <div className={`text-[10px] ${plan.release.includes('Public') || plan.release.includes('Admin') ? 'text-[#22C55E]' : 'text-amber-300'}`}>{plan.release}</div>
-                    {showAnnualPromo ? (
-                      <>
-                        <div className="text-emerald-400 font-medium tabular-nums">{plan.promoAnnual}</div>
-                        <div className="text-[10px] text-amber-300 uppercase tracking-wide">{plan.promoLabel}</div>
-                        <div className="text-[10px] text-[#8B92A3] line-through">Regular {plan.annual}</div>
-                        <div className="text-[10px] text-amber-300">{plan.promoAnnualNote}</div>
-                        <div className="text-[10px] text-[#64748B] line-through">Regular {plan.annualNote}</div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="text-emerald-400 font-medium tabular-nums">{settingsBillingFrequency === 'monthly' ? plan.monthly : plan.annual}</div>
-                        {settingsBillingFrequency === 'annual' && <div className="text-[10px] text-[#8B92A3]">{plan.annualNote}</div>}
-                      </>
-                    )}
+                    <div className="text-emerald-400 font-medium tabular-nums">{settingsBillingFrequency === 'monthly' ? plan.monthly : plan.annual}</div>
+                    {settingsBillingFrequency === 'annual' && <div className="text-[10px] text-[#8B92A3]">{plan.annualNote}</div>}
                     <div className="text-xs text-[#64748B] leading-tight break-words">{plan.text}</div>
                     <button
                       type="button"
@@ -2759,8 +2824,7 @@ export default function Settings() {
                 </thead>
                 <tbody className="text-[#E6E8EE]">
                   <tr className="border-t border-[#252A38]/60 bg-[#11151F]"><td className="py-0.5 pr-2 font-medium text-[#22C55E] w-1/6 text-xs">Pricing (demo)</td>{planPositioning.map(plan => {
-                    const showAnnualPromo = settingsBillingFrequency === 'annual' && (plan.name === 'Pro' || (plan.name === 'Agency' && onboardingSettings.agencyEnterpriseEnabled)) && plan.promoAnnual
-                    return <td key={plan.name} className="py-0.5 px-1 text-center font-semibold w-1/6 text-xs break-words">{settingsBillingFrequency === 'monthly' ? plan.monthly : showAnnualPromo ? `${plan.promoAnnual}, ${plan.promoAnnualNote}` : `${plan.annual}, ${plan.annualNote}`}</td>
+                    return <td key={plan.name} className="py-0.5 px-1 text-center font-semibold w-1/6 text-xs break-words">{settingsBillingFrequency === 'monthly' ? plan.monthly : `${plan.annual}, ${plan.annualNote}`}</td>
                   })}</tr>
                   {renderPlanComparisonRows()}
                 </tbody>
@@ -2961,8 +3025,8 @@ export default function Settings() {
                   <div>Tour status: <span className="text-[#E6E8EE]">{onboardingSettings.tourCompleted ? 'Completed' : onboardingSettings.tourSkipped ? 'Skipped' : 'Not started'}</span></div>
                   <div>Agency / Enterprise: <span className={onboardingSettings.agencyEnterpriseEnabled ? 'text-[#22C55E]' : 'text-amber-300'}>{onboardingSettings.agencyEnterpriseEnabled ? 'Manually enabled' : 'Coming Soon / Contact Admin'}</span></div>
                 </div>
-                <div className="mt-3 rounded border border-amber-500/30 bg-amber-500/10 text-amber-200 p-3 text-sm">
-                  Launch promo: Use code LAUNCH10 for 10% off your first annual payment on Pro annual and higher annual plans through 01/01/2027.
+                <div className="mt-3 rounded border border-[#252A38] bg-[#0A0C12] text-[#C5CAD6] p-3 text-sm">
+                  Public plan copy is kept concise until any launch-code promotion is fully verified in checkout.
                 </div>
               </div>
 
@@ -4097,68 +4161,7 @@ export default function Settings() {
         </div>
       )}
 
-      {deleteAccountOpen && (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/75 p-4">
-          <div className="card w-full max-w-2xl p-6 border border-red-500/40">
-            <div className="text-xs uppercase tracking-[2px] text-red-300 mb-2">Delete Account / Workspace</div>
-            <div className="text-2xl font-semibold text-[#E6E8EE] mb-3">{deletionActionLabel}</div>
-            <div className="rounded border border-red-500/30 bg-red-500/10 p-4 text-sm text-[#E6E8EE] leading-6">
-              {deletionModalMessage}
-            </div>
-
-            {platformOwnerDeactivationBlocked ? (
-              <div className="mt-5">
-                <div className="text-sm text-[#8B92A3]">
-                  Contact support or use the secure owner shutdown process for platform-level account changes.
-                </div>
-                <div className="mt-5 flex flex-wrap justify-end gap-2">
-                  <button type="button" onClick={closeDeleteAccountRequest} className="btn btn-ghost" autoFocus>Close</button>
-                </div>
-              </div>
-            ) : !deleteAccountConfirmed ? (
-              <div className="mt-5">
-                <div className="text-sm text-[#8B92A3]">
-                  Deal Blast Pro only updates the current workspace/account status. This request does not delete global records or other users&apos; data.
-                </div>
-                <div className="mt-5 flex flex-wrap justify-end gap-2">
-                  <button type="button" onClick={closeDeleteAccountRequest} className="btn btn-ghost">Cancel</button>
-                  <button type="button" onClick={() => setDeleteAccountConfirmed(true)} className="btn btn-ghost text-red-300 border-red-500/40" autoFocus>Continue</button>
-                </div>
-              </div>
-            ) : (
-              <div className="mt-5">
-                <label className="block">
-                  <div className="text-sm text-[#8B92A3] mb-2">Type DELETE MY ACCOUNT to deactivate this account/workspace.</div>
-                  <input
-                    className="input"
-                    value={deleteAccountText}
-                    onChange={e => setDeleteAccountText(e.target.value)}
-                    placeholder="DELETE MY ACCOUNT"
-                    disabled={deleteAccountLoading}
-                    autoFocus
-                  />
-                </label>
-                {deleteAccountError && (
-                  <div className="mt-3 rounded border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">
-                    {deleteAccountError}
-                  </div>
-                )}
-                <div className="mt-5 flex flex-wrap justify-end gap-2">
-                  <button type="button" onClick={closeDeleteAccountRequest} disabled={deleteAccountLoading} className="btn btn-ghost disabled:opacity-50">Cancel</button>
-                  <button
-                    type="button"
-                    onClick={requestAccountDeletion}
-                    disabled={deleteAccountText !== 'DELETE MY ACCOUNT' || deleteAccountLoading}
-                    className="btn btn-ghost text-red-300 border-red-500/40 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {deleteAccountLoading ? 'Deactivating...' : 'Deactivate Account'}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {renderDeleteAccountModal()}
     </div>
   )
 }
