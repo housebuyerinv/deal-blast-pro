@@ -575,6 +575,18 @@ function normalizeAppRole(role?: string | null): AppRole {
   return 'Viewer'
 }
 
+function stripPreviewSettings<T extends { settings?: AppSettings }>(state: T): T {
+  const settings = state?.settings
+  if (!settings || !Object.prototype.hasOwnProperty.call(settings, 'ownerPreviewPlan')) return state
+  const { ownerPreviewPlan: _ownerPreviewPlan, ...safeSettings } = settings
+  return {
+    ...state,
+    settings: {
+      ...safeSettings,
+      ownerPreviewPlan: 'Owner Admin',
+    },
+  }
+}
 
 export const useAppStore = create<AppStore>()(
   persist(
@@ -1968,7 +1980,7 @@ export const useAppStore = create<AppStore>()(
           buyers: state.buyers,
           offers: state.offers,
           activities: state.activities,
-          settings: state.settings,
+          settings: stripPreviewSettings({ settings: state.settings }).settings,
           trial: state.trial,
           viewedDealIds: state.viewedDealIds,
           viewedBuyerIds: state.viewedBuyerIds,
@@ -2147,7 +2159,7 @@ function syncStoreFromPersistedStorage() {
       offers: canUsePersistedPrivateState ? (persistedState.offers ?? currentState.offers) : currentState.offers,
       activities: canUsePersistedPrivateState ? (persistedState.activities ?? currentState.activities) : currentState.activities,
       documents: canUsePersistedPrivateState ? (persistedState.documents ?? currentState.documents) : currentState.documents,
-      settings: persistedState.settings ?? currentState.settings,
+      settings: stripPreviewSettings({ settings: persistedState.settings ?? currentState.settings }).settings,
       viewedDealIds: canUsePersistedPrivateState && Array.isArray(persistedState.viewedDealIds) ? persistedState.viewedDealIds : currentState.viewedDealIds,
       viewedBuyerIds: canUsePersistedBuyers && Array.isArray(persistedState.viewedBuyerIds) ? persistedState.viewedBuyerIds : [],
       suppressionList: canUsePersistedPrivateState && Array.isArray(persistedState.suppressionList) ? persistedState.suppressionList : currentState.suppressionList,

@@ -58,6 +58,23 @@ function clearPrivateSnapshotSlices(snapshot: any, user: any) {
   return safeSnapshot
 }
 
+function stripPreviewOnlyState(snapshot: any) {
+  const state = snapshot?.state
+  const settings = state?.settings
+  if (!settings || !Object.prototype.hasOwnProperty.call(settings, 'ownerPreviewPlan')) return snapshot
+  const { ownerPreviewPlan: _ownerPreviewPlan, ...safeSettings } = settings
+  return {
+    ...(snapshot || {}),
+    state: {
+      ...(state || {}),
+      settings: {
+        ...safeSettings,
+        ownerPreviewPlan: 'Owner Admin',
+      },
+    },
+  }
+}
+
 export async function uploadLocalAppDataToCloud() {
   const { data: sessionData, error: sessionError } = await supabase.auth.getUser()
   if (sessionError || !sessionData.user) throw new Error('You must be logged in first.')
@@ -66,9 +83,9 @@ export async function uploadLocalAppDataToCloud() {
   if (!raw) throw new Error('No local Deal Blast Pro data found.')
 
   const snapshot = JSON.parse(raw)
-  const safeSnapshot = snapshotMatchesSignedInUser(snapshot, sessionData.user)
+  const safeSnapshot = stripPreviewOnlyState(snapshotMatchesSignedInUser(snapshot, sessionData.user)
     ? snapshot
-    : clearPrivateSnapshotSlices(snapshot, sessionData.user)
+    : clearPrivateSnapshotSlices(snapshot, sessionData.user))
 
   const { error } = await supabase
     .from('cloud_snapshots')
@@ -104,9 +121,9 @@ export async function loadCloudAppDataToLocal(options?: { reload?: boolean; sile
     throw new Error('No cloud backup found.')
   }
 
-  const safeSnapshot = snapshotMatchesSignedInUser(data.snapshot, sessionData.user)
+  const safeSnapshot = stripPreviewOnlyState(snapshotMatchesSignedInUser(data.snapshot, sessionData.user)
     ? data.snapshot
-    : clearPrivateSnapshotSlices(data.snapshot, sessionData.user)
+    : clearPrivateSnapshotSlices(data.snapshot, sessionData.user))
 
   localStorage.setItem(STORAGE_KEY, JSON.stringify(safeSnapshot))
   window.dispatchEvent(new Event('dealblastpro:storage-sync'))
