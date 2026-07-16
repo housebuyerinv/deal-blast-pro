@@ -436,13 +436,18 @@ export default function Settings() {
     setDeleteAccountOpen(true)
   }
 
+  const returnFocusToDeleteAccountTrigger = () => {
+    window.setTimeout(() => deleteAccountTriggerRef.current?.focus(), 0)
+    window.setTimeout(() => deleteAccountTriggerRef.current?.focus(), 75)
+  }
+
   const closeDeleteAccountRequest = () => {
     if (deleteAccountLoading) return
     setDeleteAccountOpen(false)
     setDeleteAccountConfirmed(false)
     setDeleteAccountText('')
     setDeleteAccountError('')
-    window.setTimeout(() => deleteAccountTriggerRef.current?.focus(), 0)
+    returnFocusToDeleteAccountTrigger()
   }
 
   const isPaidCancellationStatus = currentBillingStatus === 'Paid Active' || currentBillingStatus === 'Comped'
@@ -466,7 +471,7 @@ export default function Settings() {
         setDeleteAccountConfirmed(false)
         setDeleteAccountText('')
         setDeleteAccountError('')
-        window.setTimeout(() => deleteAccountTriggerRef.current?.focus(), 0)
+        returnFocusToDeleteAccountTrigger()
         return
       }
 
