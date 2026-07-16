@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import PublicFooter from '../../components/layout/PublicFooter'
 import PublicNav from '../../components/layout/PublicNav'
 import LaunchPromoCode from '../../components/LaunchPromoCode'
+import { DEFAULT_BILLING_INTERVAL } from '../../lib/billingLinks'
 import { PLAN_ENTITLEMENTS } from '../../lib/planEntitlements'
 import {
   PRICING_PLAN_ORDER,
@@ -106,7 +107,7 @@ const statusClass = (status: string) => {
 }
 
 export default function Pricing() {
-  const [billing, setBilling] = React.useState<'monthly' | 'annual'>('monthly')
+  const [billing, setBilling] = React.useState<'monthly' | 'annual'>(DEFAULT_BILLING_INTERVAL)
 
   return (
     <div className="min-h-screen bg-[#0A0C12] text-[#E6E8EE]">
@@ -132,7 +133,7 @@ export default function Pricing() {
           </div>
         </div>
 
-        <div className="flex flex-col items-center justify-center gap-2 mb-8 sm:flex-row sm:gap-3">
+        <div className="flex flex-col items-center justify-center gap-2 mb-8">
           <div className="inline-flex rounded-lg border border-[#252A38] p-1">
             <button
               onClick={() => setBilling('monthly')}
@@ -147,7 +148,8 @@ export default function Pricing() {
               Annual
             </button>
           </div>
-          <div className="max-w-xs text-center text-xs leading-4 text-[#8B92A3] sm:max-w-none sm:text-left">Annual plans save 2 months compared to monthly billing.</div>
+          <div className="max-w-xs text-center text-xs leading-4 text-[#8B92A3] sm:max-w-none">Annual plans save 2 months compared to monthly billing.</div>
+          <LaunchPromoCode billing={billing} />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-16">
@@ -185,9 +187,6 @@ export default function Pricing() {
                         <span className={tier.highlight ? 'text-[#22C55E]' : 'text-[#64748B]'}>-</span> {point}
                       </div>
                     ))}
-                  </div>
-                  <div className="mt-4">
-                    <LaunchPromoCode plan={tier.name} billing={billing} compact />
                   </div>
                 </div>
 

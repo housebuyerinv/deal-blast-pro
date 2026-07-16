@@ -3,7 +3,7 @@ import { toast } from 'sonner'
 import { DEFAULT_SETTINGS } from '../lib/constants'
 import { useAppStore } from '../store/useAppStore'
 import type { TrialState } from '../lib/types'
-import { buildStripeCheckoutUrl, getBillingSetupWithLaunchDefaults, getPlanPaymentLink, isValidPaymentUrl, type BillingFrequency, type PaidPlan } from '../lib/billingLinks'
+import { DEFAULT_BILLING_INTERVAL, buildStripeCheckoutUrl, getBillingSetupWithLaunchDefaults, getPlanPaymentLink, isValidPaymentUrl, type BillingFrequency, type PaidPlan } from '../lib/billingLinks'
 import LaunchPromoCode from './LaunchPromoCode'
 import {
   PLAN_PRICING,
@@ -25,7 +25,7 @@ export default function FirstLoginSetup() {
   const billingSetup = getBillingSetupWithLaunchDefaults(settings.billingProviderSetup || DEFAULT_SETTINGS.billingProviderSetup!)
   const agencyEnterpriseEnabled = Boolean(onboarding.agencyEnterpriseEnabled)
   const [selectedPlan, setSelectedPlan] = useState<PlanName>((onboarding.selectedPlan === 'Free Demo' ? 'Free' : onboarding.selectedPlan) || 'Free')
-  const [billingFrequency, setBillingFrequency] = useState<BillingFrequency>('monthly')
+  const [billingFrequency, setBillingFrequency] = useState<BillingFrequency>(DEFAULT_BILLING_INTERVAL)
   const [message, setMessage] = useState('')
   const selectedPaymentLink = selectedPlan === 'Free'
     ? ''
@@ -111,6 +111,7 @@ export default function FirstLoginSetup() {
             <button onClick={() => setBillingFrequency('annual')} className={`px-4 py-1 text-sm rounded ${billingFrequency === 'annual' ? 'bg-[#22C55E] text-black' : 'text-[#8B92A3]'}`}>Annual</button>
           </div>
           <div className="mt-2 text-xs text-[#8B92A3]">Annual plans save 2 months compared to monthly billing.</div>
+          <LaunchPromoCode billing={billingFrequency} />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
@@ -134,7 +135,6 @@ export default function FirstLoginSetup() {
                   {priceDisplay.noteLines.map(line => <div key={line}>{line}</div>)}
                 </div>
                 <div className="mt-2 text-sm text-[#8B92A3] min-h-[4.5rem] break-words">{plan.description}</div>
-                <LaunchPromoCode plan={plan.name} billing={billingFrequency} compact />
                 <div className={`mt-3 text-xs ${releaseActive ? 'text-[#22C55E]' : 'text-amber-300'}`}>
                   {releaseActive ? 'Available' : 'Coming Soon / Contact Support'}
                 </div>

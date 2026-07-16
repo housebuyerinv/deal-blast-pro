@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { DEFAULT_SETTINGS } from '../../lib/constants'
 import { useAppStore } from '../../store/useAppStore'
-import { buildStripeCheckoutUrl, getBillingSetupWithLaunchDefaults, getPlanPaymentLink, isValidPaymentUrl, type BillingFrequency } from '../../lib/billingLinks'
+import { DEFAULT_BILLING_INTERVAL, buildStripeCheckoutUrl, getBillingSetupWithLaunchDefaults, getPlanPaymentLink, isValidPaymentUrl, type BillingFrequency } from '../../lib/billingLinks'
 import LaunchPromoCode from '../../components/LaunchPromoCode'
 import {
   PAID_PRICING_PLAN_ORDER,
@@ -17,7 +17,7 @@ const plans = PAID_PRICING_PLAN_ORDER.map(name => PLAN_PRICING[name])
 export default function Upgrade() {
   const { user, trial, settings, activateManualPlan } = useAppStore()
   const navigate = useNavigate()
-  const [billing, setBilling] = useState<BillingFrequency>('monthly')
+  const [billing, setBilling] = useState<BillingFrequency>(DEFAULT_BILLING_INTERVAL)
   const [selected, setSelected] = useState<Plan>('Pro')
   const [step, setStep] = useState<'select' | 'payment' | 'contact' | 'setup'>('select')
 
@@ -77,12 +77,13 @@ export default function Upgrade() {
 
       {step === 'select' && (
         <>
-          <div className="flex items-center gap-2 mb-4">
+          <div className="flex flex-col items-start gap-2 mb-4">
             <div className="inline-flex rounded border border-[#252A38] p-0.5">
               <button onClick={() => setBilling('monthly')} className={`px-3 py-1 text-sm rounded ${billing === 'monthly' ? 'bg-[#22C55E] text-black' : 'text-[#8B92A3]'}`}>Monthly</button>
               <button onClick={() => setBilling('annual')} className={`px-3 py-1 text-sm rounded ${billing === 'annual' ? 'bg-[#22C55E] text-black' : 'text-[#8B92A3]'}`}>Annual</button>
             </div>
             <div className="text-xs text-[#64748B]">Annual plans save 2 months compared to monthly billing.</div>
+            <LaunchPromoCode billing={billing} />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
             {plans.map(p => {
@@ -100,9 +101,6 @@ export default function Upgrade() {
                   <div className="mt-1 text-2xl font-semibold tabular-nums">{priceDisplay.price}</div>
                   <div className="mt-1 text-xs text-[#8B92A3]">{priceDisplay.noteLines.map(line => <div key={line}>{line}</div>)}</div>
                   <div className="text-xs text-[#8B92A3] mt-1 min-h-[2.2em] break-words">{p.description}</div>
-                  <div className="mt-2">
-                    <LaunchPromoCode plan={p.name} billing={billing} compact />
-                  </div>
                   {!p.activeRelease && <div className="mt-1 text-amber-400 text-xs">{agencyEnterpriseEnabled ? 'Available by approval' : 'Coming Soon / Contact Support'}</div>}
                   {current === p.name && <div className="mt-1 text-emerald-400 text-xs">Current plan</div>}
                 </div>

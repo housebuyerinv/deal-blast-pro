@@ -4,6 +4,8 @@ import { getLaunchAnnualPromotionCodeForCheckout } from './planPricing'
 export type BillingFrequency = 'monthly' | 'annual'
 export type PaidPlan = Exclude<TrialState['plan'], 'Free' | 'Free Demo'>
 
+export const DEFAULT_BILLING_INTERVAL: BillingFrequency = 'annual'
+
 export const billingLinkFields: Record<PaidPlan, Record<BillingFrequency, string>> = {
   Starter: {
     monthly: 'starterMonthlyPaymentLink',

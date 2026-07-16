@@ -2,19 +2,17 @@ import { useState } from 'react'
 import {
   LAUNCH_ANNUAL_PROMOTION,
   LAUNCH_ANNUAL_PROMOTION_COPY,
-  canShowLaunchAnnualPromotion,
-  type PricingPlanName,
+  isLaunchAnnualPromotionActive,
 } from '../lib/planPricing'
+import type { BillingFrequency } from '../lib/billingLinks'
 
 type Props = {
-  plan: PricingPlanName
-  billing: 'monthly' | 'annual'
-  compact?: boolean
+  billing: BillingFrequency
 }
 
-export default function LaunchPromoCode({ plan, billing, compact = false }: Props) {
+export default function LaunchPromoCode({ billing }: Props) {
   const [copied, setCopied] = useState(false)
-  if (!canShowLaunchAnnualPromotion(plan, billing)) return null
+  if (billing !== 'annual' || !isLaunchAnnualPromotionActive()) return null
 
   const copyCode = async () => {
     try {
@@ -40,16 +38,17 @@ export default function LaunchPromoCode({ plan, billing, compact = false }: Prop
   }
 
   return (
-    <div className={`rounded border border-amber-500/30 bg-amber-500/10 text-amber-100 ${compact ? 'p-2 text-[11px]' : 'p-3 text-xs'}`}>
-      <div className="font-medium leading-5">{LAUNCH_ANNUAL_PROMOTION_COPY}</div>
-      <div className="mt-2 flex flex-wrap items-center gap-2">
-        <span>Promo code:</span>
-        <code className="rounded bg-[#070A0F] border border-amber-400/40 px-2 py-1 font-semibold tracking-[0.12em] text-amber-200">
+    <div className="mx-auto mt-3 max-w-4xl rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm leading-5 text-amber-100 sm:px-4">
+      <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-center sm:text-left">
+        <span className="font-medium">{LAUNCH_ANNUAL_PROMOTION_COPY}</span>
+        <span className="text-amber-100">Promo code:</span>
+        <code className="rounded bg-[#070A0F] border border-amber-400/40 px-2 py-1 text-xs font-semibold tracking-[0.12em] text-amber-200">
           {LAUNCH_ANNUAL_PROMOTION.code}
         </code>
         <button type="button" onClick={copyCode} className="btn btn-ghost px-2 py-1 text-[11px]">
           {copied ? 'Copied' : 'Copy Code'}
         </button>
+        <span className="text-amber-200/90">Eligible on Pro annual and approved higher-tier annual purchases.</span>
       </div>
     </div>
   )
