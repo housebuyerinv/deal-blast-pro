@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAppStore } from '../../store/useAppStore'
 import { DEFAULT_SETTINGS, PROPERTY_TYPES } from '../../lib/constants'
 import { toast } from 'sonner'
@@ -34,6 +34,7 @@ import {
   type RecoverableBuyer,
 } from '../../lib/buyerRecovery'
 import { billingLinkFields, billingLinkLabels, buildStripeCheckoutUrl, getBillingSetupWithLaunchDefaults, getPlanPaymentLink, isValidPaymentUrl, type BillingFrequency, type PaidPlan } from '../../lib/billingLinks'
+import { AlertTriangle } from 'lucide-react'
 
 export default function Settings() {
   const { 
@@ -101,6 +102,9 @@ export default function Settings() {
   const [deleteAccountText, setDeleteAccountText] = useState('')
   const [deleteAccountLoading, setDeleteAccountLoading] = useState(false)
   const [deleteAccountError, setDeleteAccountError] = useState('')
+  const deleteAccountTriggerRef = useRef<HTMLButtonElement | null>(null)
+  const deleteAccountModalRef = useRef<HTMLDivElement | null>(null)
+  const deleteAccountConfirmInputRef = useRef<HTMLInputElement | null>(null)
   const [customerSettingsTab, setCustomerSettingsTab] = useState<'Plan & Billing' | 'Account' | 'Support'>('Plan & Billing')
   const emailWorkspaceId = workspaceInstanceId || 'default'
   const [emailSettings, setEmailSettings] = useState<EmailNotificationSettings>({
@@ -438,29 +442,72 @@ export default function Settings() {
     setDeleteAccountConfirmed(false)
     setDeleteAccountText('')
     setDeleteAccountError('')
+    window.setTimeout(() => deleteAccountTriggerRef.current?.focus(), 0)
   }
 
   const isPaidCancellationStatus = currentBillingStatus === 'Paid Active' || currentBillingStatus === 'Comped'
   const platformOwnerDeactivationBlocked = hasSuperAdminAccess
   const deletionActionLabel = 'Deactivate Account'
-  const deletionModalMessage = platformOwnerDeactivationBlocked
-    ? 'Platform owner accounts cannot be deactivated from this page.'
-    : 'Warning: You will immediately lose access to this Deal Blast Pro workspace.'
+
+  const openBillingCenterFromDeactivationModal = () => {
+    closeDeleteAccountRequest()
+    setCustomerSettingsTab('Plan & Billing')
+    window.setTimeout(() => {
+      document.getElementById('billing-center')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 0)
+  }
 
   useEffect(() => {
     if (!deleteAccountOpen || deleteAccountLoading) return
 
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return
-      setDeleteAccountOpen(false)
-      setDeleteAccountConfirmed(false)
-      setDeleteAccountText('')
-      setDeleteAccountError('')
+      if (event.key === 'Escape') {
+        setDeleteAccountOpen(false)
+        setDeleteAccountConfirmed(false)
+        setDeleteAccountText('')
+        setDeleteAccountError('')
+        window.setTimeout(() => deleteAccountTriggerRef.current?.focus(), 0)
+        return
+      }
+
+      if (event.key !== 'Tab') return
+      const modal = deleteAccountModalRef.current
+      if (!modal) return
+
+      const focusable = Array.from(
+        modal.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'
+        )
+      ).filter(element => !element.hasAttribute('aria-hidden'))
+
+      if (!focusable.length) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
     }
 
     window.addEventListener('keydown', handleEscape)
     return () => window.removeEventListener('keydown', handleEscape)
   }, [deleteAccountOpen, deleteAccountLoading])
+
+  useEffect(() => {
+    if (!deleteAccountOpen) return
+
+    window.setTimeout(() => {
+      if (deleteAccountConfirmed && !platformOwnerDeactivationBlocked) {
+        deleteAccountConfirmInputRef.current?.focus()
+        return
+      }
+      deleteAccountModalRef.current?.focus()
+    }, 0)
+  }, [deleteAccountOpen, deleteAccountConfirmed, platformOwnerDeactivationBlocked])
 
   const requestAccountDeletion = async () => {
     if (deleteAccountText !== 'DELETE' || deleteAccountLoading) return
@@ -535,80 +582,87 @@ export default function Settings() {
     if (!deleteAccountOpen) return null
 
     return (
-      <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/75 p-4" role="dialog" aria-modal="true" aria-labelledby="deactivate-account-title">
-        <div className="card w-full max-w-2xl p-6 border border-red-500/40 shadow-2xl">
-          <div className="text-xs uppercase tracking-[2px] text-red-300 mb-2">Deactivate Account / Workspace</div>
-          <div id="deactivate-account-title" className="text-2xl font-semibold text-[#E6E8EE] mb-3">{deletionActionLabel}</div>
-          <div className="rounded border border-red-500/30 bg-red-500/10 p-4 text-sm text-[#E6E8EE] leading-6">
-            <div className="font-semibold text-red-200">! {deletionModalMessage}</div>
-          </div>
-
+      <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/75 p-4">
+        <div
+          ref={deleteAccountModalRef}
+          className="card w-full max-w-xl p-6 border border-red-500/40 shadow-2xl"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="deactivate-account-title"
+          tabIndex={-1}
+        >
           {platformOwnerDeactivationBlocked ? (
-            <div className="mt-5">
-              <div className="text-sm text-[#8B92A3]">
-                Contact support or use the secure owner shutdown process for platform-level account changes.
+            <>
+              <div id="deactivate-account-title" className="text-2xl font-semibold text-[#E6E8EE] mb-3">Account Deactivation Unavailable</div>
+              <div className="rounded border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100 leading-6 flex gap-3">
+                <AlertTriangle size={20} className="mt-0.5 shrink-0 text-amber-300" aria-hidden="true" />
+                <div>Platform owner accounts cannot be deactivated from this page.</div>
               </div>
-              <div className="mt-5 flex flex-wrap justify-end gap-2">
-                <button type="button" onClick={closeDeleteAccountRequest} className="btn btn-ghost" autoFocus>Close</button>
+              <div className="mt-5 flex justify-end">
+                <button type="button" onClick={closeDeleteAccountRequest} className="btn btn-ghost">Close</button>
               </div>
-            </div>
+            </>
           ) : !deleteAccountConfirmed ? (
-            <div className="mt-5">
-              <div className="space-y-3 text-sm text-[#8B92A3]">
-                <div>This action deactivates your account. It does not immediately permanently delete your deals, buyers, submissions, files, or settings.</div>
-                <div className="rounded border border-amber-500/30 bg-amber-500/10 p-3 text-amber-200">
-                  Deactivating your account does not automatically cancel an active paid subscription. Cancel billing separately before continuing.
-                </div>
-                <div className="grid gap-2 sm:grid-cols-3">
-                  <div className="rounded border border-[#252A38] bg-[#0B0F17] p-3">
-                    <div className="font-semibold text-[#E6E8EE]">Deactivate account</div>
-                    <div className="mt-1 text-xs">Blocks access to this workspace.</div>
-                  </div>
-                  <div className="rounded border border-[#252A38] bg-[#0B0F17] p-3">
-                    <div className="font-semibold text-[#E6E8EE]">Cancel subscription</div>
-                    <div className="mt-1 text-xs">Must be handled separately through billing.</div>
-                  </div>
-                  <div className="rounded border border-[#252A38] bg-[#0B0F17] p-3">
-                    <div className="font-semibold text-[#E6E8EE]">Request data deletion</div>
-                    <div className="mt-1 text-xs">A separate permanent deletion request.</div>
-                  </div>
-                </div>
+            <>
+              <div id="deactivate-account-title" className="text-2xl font-semibold text-[#E6E8EE] mb-3">Deactivate Account</div>
+              <div className="rounded border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-100 leading-6 flex gap-3">
+                <AlertTriangle size={20} className="mt-0.5 shrink-0 text-red-300" aria-hidden="true" />
+                <div className="font-semibold">Warning: You will immediately lose access to this Deal Blast Pro workspace.</div>
+              </div>
+              <div className="mt-5 space-y-3 text-sm text-[#C5CAD6] leading-6">
+                <p>This action deactivates your account and workspace access. It does not immediately permanently delete your deals, buyers, submissions, files, or settings.</p>
+                <p>
+                  Deactivating your account does not automatically cancel an active paid subscription.{' '}
+                  <button type="button" onClick={openBillingCenterFromDeactivationModal} className="text-amber-300 underline underline-offset-4 hover:text-amber-200">
+                    Cancel your subscription separately
+                  </button>{' '}
+                  before continuing.
+                </p>
+                <p>To request permanent deletion of retained account data, contact support after deactivation.</p>
               </div>
               <div className="mt-5 flex flex-wrap justify-end gap-2">
                 <button type="button" onClick={closeDeleteAccountRequest} className="btn btn-ghost">Cancel</button>
-                <button type="button" onClick={() => setDeleteAccountConfirmed(true)} className="btn btn-ghost text-red-300 border-red-500/40" autoFocus>Continue</button>
+                <button type="button" onClick={() => setDeleteAccountConfirmed(true)} className="btn btn-ghost text-red-300 border-red-500/40">Continue</button>
               </div>
-            </div>
+            </>
           ) : (
-            <div className="mt-5">
-              <label className="block">
-                <div className="text-sm text-[#8B92A3] mb-2">Type DELETE to confirm</div>
-                <input
-                  className="input"
-                  value={deleteAccountText}
-                  onChange={e => setDeleteAccountText(e.target.value)}
-                  placeholder="DELETE"
-                  disabled={deleteAccountLoading}
-                  autoFocus
-                />
-              </label>
-              {deleteAccountError && (
-                <div className="mt-3 rounded border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">
-                  {deleteAccountError}
-                </div>
-              )}
-              <div className="mt-5 flex flex-wrap justify-end gap-2">
-                <button type="button" onClick={closeDeleteAccountRequest} disabled={deleteAccountLoading} className="btn btn-ghost disabled:opacity-50">Cancel</button>
-                <button
-                  type="button"
-                  onClick={requestAccountDeletion}
-                  disabled={deleteAccountText !== 'DELETE' || deleteAccountLoading}
-                  className="btn bg-red-600 text-white border-red-500 hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {deleteAccountLoading ? 'Deactivating...' : 'Deactivate My Account'}
-                </button>
+            <>
+              <div id="deactivate-account-title" className="text-2xl font-semibold text-[#E6E8EE] mb-3">Confirm Deactivation</div>
+              <div className="rounded border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-100 leading-6 flex gap-3">
+                <AlertTriangle size={20} className="mt-0.5 shrink-0 text-red-300" aria-hidden="true" />
+                <div>Type DELETE to confirm that you want to deactivate this account.</div>
               </div>
-            </div>
+              <div className="mt-5">
+                <label className="block">
+                  <div className="text-sm text-[#8B92A3] mb-2">Type DELETE to confirm</div>
+                  <input
+                    ref={deleteAccountConfirmInputRef}
+                    className="input"
+                    value={deleteAccountText}
+                    onChange={e => setDeleteAccountText(e.target.value)}
+                    placeholder="DELETE"
+                    disabled={deleteAccountLoading}
+                    autoComplete="off"
+                  />
+                </label>
+                {deleteAccountError && (
+                  <div className="mt-3 rounded border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">
+                    {deleteAccountError}
+                  </div>
+                )}
+                <div className="mt-5 flex flex-wrap justify-end gap-2">
+                  <button type="button" onClick={closeDeleteAccountRequest} disabled={deleteAccountLoading} className="btn btn-ghost disabled:opacity-50">Cancel</button>
+                  <button
+                    type="button"
+                    onClick={requestAccountDeletion}
+                    disabled={deleteAccountText !== 'DELETE' || deleteAccountLoading}
+                    className="btn bg-red-600 text-white border-red-500 hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {deleteAccountLoading ? 'Deactivating...' : 'Deactivate My Account'}
+                  </button>
+                </div>
+              </div>
+            </>
           )}
         </div>
       </div>
@@ -3587,7 +3641,7 @@ export default function Settings() {
                   </div>
                 )}
               </div>
-              <button type="button" onClick={openDeleteAccountRequest} className="btn btn-ghost text-red-300 border-red-500/40 md:w-auto">
+              <button type="button" ref={deleteAccountTriggerRef} onClick={openDeleteAccountRequest} className="btn btn-ghost text-red-300 border-red-500/40 md:w-auto">
                 {deletionActionLabel}
               </button>
             </div>
