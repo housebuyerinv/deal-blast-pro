@@ -4,6 +4,12 @@ import { toast } from 'sonner'
 import { supabase } from '../../lib/supabase'
 import { loadCloudAppDataToLocal } from '../../lib/cloudSync'
 import { useAppStore } from '../../store/useAppStore'
+import {
+  auditEmailChangeEvent,
+  getFriendlyEmailChangeError,
+  profileToUserNames,
+  syncVerifiedAuthEmailToProfile,
+} from '../../lib/accountProfile'
 
 export default function AuthCallback() {
   const navigate = useNavigate()
@@ -17,6 +23,8 @@ export default function AuthCallback() {
       try {
         const params = new URLSearchParams(window.location.search)
         const code = params.get('code')
+        const callbackType = params.get('type')
+        const isEmailChangeCallback = callbackType === 'email_change'
 
         if (code) {
           const { error } = await supabase.auth.exchangeCodeForSession(code)
@@ -34,27 +42,42 @@ export default function AuthCallback() {
         }
 
         const userEmail = data.user.email
-        const fullName =
-          data.user.user_metadata?.full_name ||
-          data.user.user_metadata?.name ||
-          userEmail.split('@')[0]
+        let syncedEmailResult: { verifiedEmail: string; previousEmail: string } | null = null
+        if (isEmailChangeCallback) {
+          syncedEmailResult = await syncVerifiedAuthEmailToProfile()
+        }
+
         const { data: sessionData } = await supabase.auth.getSession()
         const token = sessionData.session?.access_token
+        let statusPayload: any = {}
         if (token) {
           const statusResponse = await fetch('/api/account-status', {
             headers: { Authorization: `Bearer ${token}` },
           })
-          const statusPayload = await statusResponse.json().catch(() => ({}))
+          statusPayload = await statusResponse.json().catch(() => ({}))
           if (statusResponse.status === 403 || statusPayload?.deactivated) {
             await supabase.auth.signOut()
             throw new Error('This Deal Blast Pro account has been deactivated.')
           }
         }
 
+        const profileNames = profileToUserNames({
+          full_name: statusPayload?.profile?.fullName || data.user.user_metadata?.full_name || data.user.user_metadata?.name || '',
+          display_name: statusPayload?.profile?.displayName || '',
+          business_name: statusPayload?.profile?.businessName || statusPayload?.workspace?.name || '',
+        }, userEmail)
+        const fullName = profileNames.name
+
         const startNewAccount = window.sessionStorage.getItem('dealblastpro:start-new-account') === 'true'
         const previousAccountStatus = settings?.deletionRequest?.accountStatus
         const newWorkspace = startNewAccount || ['Deleted', 'Deactivated'].includes(String(previousAccountStatus || ''))
-        login(userEmail, fullName, { id: data.user.id, newWorkspace })
+        login(userEmail, fullName, {
+          id: data.user.id,
+          newWorkspace,
+          fullName: profileNames.fullName,
+          displayName: profileNames.displayName,
+          businessName: profileNames.businessName || statusPayload?.workspace?.name || '',
+        })
         if (startNewAccount) {
           window.sessionStorage.removeItem('dealblastpro:start-new-account')
         } else {
@@ -62,12 +85,35 @@ export default function AuthCallback() {
         }
 
         if (!cancelled) {
-          toast.success('Email verified. Welcome back.')
-          navigate('/app/dashboard', { replace: true })
+          if (isEmailChangeCallback) {
+            if (syncedEmailResult?.verifiedEmail) {
+              try {
+                localStorage.removeItem(`dbp:pending-email-change:${data.user.id}`)
+              } catch {}
+            }
+            toast.success('Email address updated successfully.')
+            navigate('/app/settings', { replace: true })
+          } else {
+            toast.success('Email verified. Welcome back.')
+            navigate('/app/dashboard', { replace: true })
+          }
         }
       } catch (err: any) {
+        try {
+          const { data } = await supabase.auth.getUser()
+          const authUser = data.user
+          if (authUser?.id) {
+            await auditEmailChangeEvent({
+              userId: authUser.id,
+              currentEmail: authUser.email || '',
+              requestedEmail: authUser.email || '',
+              status: 'failed',
+              metadata: { reason: getFriendlyEmailChangeError(err) },
+            })
+          }
+        } catch {}
         if (!cancelled) {
-          toast.error(err?.message || 'Email verified. Please sign in to continue.')
+          toast.error(getFriendlyEmailChangeError(err))
           navigate('/admin-login', { replace: true })
         }
       }

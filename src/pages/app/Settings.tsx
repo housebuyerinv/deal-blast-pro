@@ -144,6 +144,7 @@ export default function Settings() {
   const [emailChangeValue, setEmailChangeValue] = useState('')
   const [emailChangeSaving, setEmailChangeSaving] = useState(false)
   const [emailChangeMessage, setEmailChangeMessage] = useState('')
+  const [pendingEmailChange, setPendingEmailChange] = useState('')
   const [waitlistEntries, setWaitlistEntries] = useState<any[]>([])
   const [waitlistLoading, setWaitlistLoading] = useState(false)
   const [waitlistRetryingId, setWaitlistRetryingId] = useState('')
@@ -1339,6 +1340,25 @@ export default function Settings() {
     profileForm.displayName.trim() !== profileInitial.displayName.trim() ||
     profileForm.businessName.trim() !== profileInitial.businessName.trim()
 
+  const pendingEmailStorageKey = user?.id ? `dbp:pending-email-change:${user.id}` : ''
+
+  useEffect(() => {
+    if (!pendingEmailStorageKey) return
+    try {
+      const storedPendingEmail = localStorage.getItem(pendingEmailStorageKey) || ''
+      const normalizedPending = storedPendingEmail.trim().toLowerCase()
+      const verifiedEmail = String(user?.email || '').trim().toLowerCase()
+      if (normalizedPending && normalizedPending === verifiedEmail) {
+        localStorage.removeItem(pendingEmailStorageKey)
+        setPendingEmailChange('')
+      } else {
+        setPendingEmailChange(normalizedPending)
+      }
+    } catch {
+      setPendingEmailChange('')
+    }
+  }, [pendingEmailStorageKey, user?.email])
+
   const refreshAccountProfile = async () => {
     if (!user?.email) return
     setProfileLoading(true)
@@ -1353,6 +1373,10 @@ export default function Settings() {
       }
       setProfileForm(next)
       setProfileInitial(next)
+      if (pendingEmailChange && pendingEmailChange === next.email.toLowerCase()) {
+        try { localStorage.removeItem(pendingEmailStorageKey) } catch {}
+        setPendingEmailChange('')
+      }
       updateUserProfile({
         fullName: next.fullName,
         displayName: next.displayName,
@@ -1426,7 +1450,12 @@ export default function Settings() {
     setEmailChangeSaving(true)
     setEmailChangeMessage('')
     try {
-      await requestVerifiedEmailChange(emailChangeValue)
+      const result = await requestVerifiedEmailChange(emailChangeValue)
+      const requestedEmail = result.requestedEmail.toLowerCase()
+      if (pendingEmailStorageKey) {
+        try { localStorage.setItem(pendingEmailStorageKey, requestedEmail) } catch {}
+      }
+      setPendingEmailChange(requestedEmail)
       setEmailChangeMessage('Check your email to confirm this change.')
       toast.success('Check your email to confirm this change.')
       setEmailChangeValue('')
@@ -2900,8 +2929,13 @@ export default function Settings() {
                 <div className="block">
                   <span className="block text-xs text-[#8B92A3] mb-1">Email Address</span>
                   <div className="flex flex-col sm:flex-row gap-2">
-                    <div className="input flex-1 min-h-[42px] flex items-center text-[#C5CAD6] break-all">
-                      {profileForm.email || user?.email || 'Not Provided'}
+                    <div className="input flex-1 min-h-[42px] flex flex-col justify-center text-[#C5CAD6] break-all py-2">
+                      <span>{profileForm.email || user?.email || 'Not Provided'}</span>
+                      {pendingEmailChange && pendingEmailChange !== String(profileForm.email || user?.email || '').toLowerCase() && (
+                        <span className="mt-1 text-[11px] text-[#93C5FD]">
+                          Pending verification: {pendingEmailChange}
+                        </span>
+                      )}
                     </div>
                     <button
                       onClick={() => {
