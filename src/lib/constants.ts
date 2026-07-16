@@ -152,6 +152,17 @@ export const DEFAULT_SETTINGS: AppSettings = {
     latestInvoiceId: '',
     latestInvoiceHostedUrl: '',
     latestInvoicePdf: '',
+    currentPlan: 'Free',
+    effectiveAccessPlan: 'Free',
+    scheduledPlan: '',
+    scheduledPlanChangeAt: '',
+    scheduledPlanChangeReason: '',
+    billingInterval: 'monthly',
+    stripePriceId: '',
+    stripeProductId: '',
+    prorationBehavior: '',
+    lastPlanSyncAt: '',
+    planChangeSource: '',
     paymentHistory: []
   }
 }
@@ -180,7 +191,14 @@ export const TRIAL_DEFAULT = {
   billingPeriodStart: '',
   billingPeriodEnd: '',
   billingAdminNote: '',
-  billingUpdatedAt: ''
+  billingUpdatedAt: '',
+  currentPlan: 'Free' as const,
+  effectiveAccessPlan: 'Free' as const,
+  scheduledPlan: '',
+  scheduledPlanChangeAt: '',
+  scheduledPlanChangeReason: '',
+  billingInterval: 'monthly' as const,
+  stripePriceId: ''
 }
 
 

@@ -8,6 +8,14 @@ const json = (body: Record<string, unknown>, status = 200) =>
 
 const normalize = (value: unknown) => String(value || '').trim().toLowerCase()
 
+const PLAN_RANK: Record<string, number> = {
+  free: 0,
+  starter: 1,
+  pro: 2,
+  agency: 3,
+  enterprise: 4,
+}
+
 const toIso = (seconds?: number | null) => {
   if (!seconds || !Number.isFinite(seconds)) return ''
   return new Date(seconds * 1000).toISOString()
@@ -89,6 +97,20 @@ const getId = (value: unknown) => {
   return ''
 }
 
+const getPricePlan = (priceId: string) => {
+  const normalized = String(priceId || '').trim()
+  const pairs: Array<[string | undefined, string, string]> = [
+    [Deno.env.get('STRIPE_PRICE_STARTER_MONTHLY'), 'Starter', 'monthly'],
+    [Deno.env.get('STRIPE_PRICE_STARTER_ANNUAL'), 'Starter', 'annual'],
+    [Deno.env.get('STRIPE_PRICE_PRO_MONTHLY'), 'Pro', 'monthly'],
+    [Deno.env.get('STRIPE_PRICE_PRO_ANNUAL'), 'Pro', 'annual'],
+  ]
+  const match = pairs.find(([id]) => String(id || '').trim() === normalized)
+  return match ? { plan: match[1], billingFrequency: match[2] } : null
+}
+
+const rankPlan = (plan: string) => PLAN_RANK[normalize(plan)] ?? 0
+
 const addPeriodEndFallback = (periodStart: string, billingFrequency: string) => {
   if (!periodStart) return ''
   const start = new Date(periodStart)
@@ -125,9 +147,12 @@ const extractActivation = async (event: any) => {
   }
 
   const subscriptionMetadata = subscription?.metadata || {}
+  const stripePriceId = getId(subscription?.items?.data?.[0]?.price || object.lines?.data?.[0]?.price || object.price)
+  const stripeProductId = getId(subscription?.items?.data?.[0]?.price?.product || object.lines?.data?.[0]?.price?.product || object.price?.product)
+  const mappedPrice = getPricePlan(stripePriceId)
   const inferred = inferPlanAndFrequency(object.amount_total || object.amount_paid || object.amount_due || object.total)
-  const plan = String(metadata.selectedPlan || subscriptionMetadata.selectedPlan || inferred.plan || '').trim()
-  const billingFrequency = String(metadata.billingFrequency || subscriptionMetadata.billingFrequency || inferred.billingFrequency || '').trim()
+  const plan = String(mappedPrice?.plan || metadata.selectedPlan || subscriptionMetadata.selectedPlan || inferred.plan || '').trim()
+  const billingFrequency = String(mappedPrice?.billingFrequency || metadata.billingFrequency || subscriptionMetadata.billingFrequency || inferred.billingFrequency || '').trim()
   const dealBlastUserId = String(
     metadata.dealBlastUserId ||
     subscriptionMetadata.dealBlastUserId ||
@@ -167,6 +192,8 @@ const extractActivation = async (event: any) => {
     latestInvoiceStatus,
     latestInvoiceHostedUrl: String(latestInvoice?.hosted_invoice_url || object.hosted_invoice_url || '').trim(),
     latestInvoicePdf: String(latestInvoice?.invoice_pdf || object.invoice_pdf || '').trim(),
+    stripePriceId,
+    stripeProductId,
     outstandingBalance: String(event?.type || '').startsWith('invoice.paid') || String(event?.type || '') === 'invoice.payment_succeeded'
       ? 0
       : Number.isFinite(amountRemaining)
@@ -253,10 +280,19 @@ const saveBillingEvent = async (
   const now = new Date().toISOString()
   const outcome = getBillingOutcome(event)
   const eventId = String(event?.id || `stripe_${Date.now()}`)
-  const nextPlan = activation.plan || existingTrial.plan || 'Free Demo'
+  const nextPlan = outcome.billingStatus === 'Cancelled' ? 'Free' : activation.plan || existingTrial.plan || 'Free Demo'
   const nextFrequency = activation.billingFrequency || existingTrial.billingFrequency || 'monthly'
   const nextPeriodStart = activation.periodStart || existingTrial.billingPeriodStart || now
   const nextPeriodEnd = activation.periodEnd || existingTrial.billingPeriodEnd || ''
+  const currentAccessPlan = existingTrial.effectiveAccessPlan || existingTrial.plan || nextPlan
+  const isDowngrade = rankPlan(nextPlan) < rankPlan(currentAccessPlan)
+  const scheduledPlan = activation.cancelAtPeriodEnd && nextPeriodEnd
+    ? 'Free'
+    : isDowngrade && nextPeriodEnd
+      ? nextPlan
+      : ''
+  const effectiveAccessPlan = scheduledPlan && nextPeriodEnd ? currentAccessPlan : nextPlan
+  const trialPlan = scheduledPlan && nextPeriodEnd ? currentAccessPlan : nextPlan
   const historyRecord = {
     id: `stripe-${eventId}`,
     paymentDate: now,
@@ -279,12 +315,19 @@ const saveBillingEvent = async (
       ...state,
       trial: {
         ...existingTrial,
-        plan: outcome.isPaid ? nextPlan : existingTrial.plan || nextPlan,
+        plan: outcome.isPaid ? trialPlan : existingTrial.plan || nextPlan,
+        currentPlan: outcome.isPaid ? nextPlan : existingTrial.currentPlan || existingTrial.plan || nextPlan,
+        effectiveAccessPlan: outcome.isPaid ? effectiveAccessPlan : existingTrial.effectiveAccessPlan || existingTrial.plan || nextPlan,
+        scheduledPlan,
+        scheduledPlanChangeAt: scheduledPlan ? nextPeriodEnd : '',
+        scheduledPlanChangeReason: scheduledPlan ? 'period_end_downgrade' : '',
         isPaid: outcome.isPaid,
         isActive: outcome.isPaid,
         daysLeft: outcome.isPaid ? 999 : existingTrial.daysLeft,
         billingStatus: outcome.billingStatus,
         billingFrequency: nextFrequency,
+        billingInterval: nextFrequency,
+        stripePriceId: activation.stripePriceId || existingTrial.stripePriceId || '',
         paymentProvider: 'Stripe',
         billingPeriodStart: nextPeriodStart,
         billingPeriodEnd: nextPeriodEnd,
@@ -311,6 +354,17 @@ const saveBillingEvent = async (
           latestInvoiceId: activation.latestInvoiceId || existingBillingCenter.latestInvoiceId || '',
           latestInvoiceHostedUrl: activation.latestInvoiceHostedUrl || existingBillingCenter.latestInvoiceHostedUrl || '',
           latestInvoicePdf: activation.latestInvoicePdf || existingBillingCenter.latestInvoicePdf || '',
+          currentPlan: outcome.isPaid ? nextPlan : existingBillingCenter.currentPlan || existingTrial.currentPlan || existingTrial.plan || nextPlan,
+          effectiveAccessPlan: outcome.isPaid ? effectiveAccessPlan : existingBillingCenter.effectiveAccessPlan || existingTrial.effectiveAccessPlan || existingTrial.plan || nextPlan,
+          scheduledPlan,
+          scheduledPlanChangeAt: scheduledPlan ? nextPeriodEnd : '',
+          scheduledPlanChangeReason: scheduledPlan ? 'period_end_downgrade' : '',
+          billingInterval: nextFrequency,
+          stripePriceId: activation.stripePriceId || existingBillingCenter.stripePriceId || '',
+          stripeProductId: activation.stripeProductId || existingBillingCenter.stripeProductId || '',
+          prorationBehavior: scheduledPlan ? 'period_end' : '',
+          lastPlanSyncAt: now,
+          planChangeSource: 'stripe_webhook',
           paymentHistory: [historyRecord, ...existingHistory.filter((record: any) => record?.providerReference !== eventId)].slice(0, 100),
         },
       },
@@ -346,7 +400,18 @@ const saveBillingEvent = async (
         Prefer: 'return=minimal',
       },
       body: JSON.stringify({
-        plan_name: outcome.isPaid ? nextPlan : existingTrial.plan || nextPlan,
+        plan_name: outcome.isPaid ? trialPlan : existingTrial.plan || nextPlan,
+        current_plan: outcome.isPaid ? nextPlan : existingTrial.currentPlan || existingTrial.plan || nextPlan,
+        effective_access_plan: outcome.isPaid ? effectiveAccessPlan : existingTrial.effectiveAccessPlan || existingTrial.plan || nextPlan,
+        scheduled_plan: scheduledPlan || null,
+        scheduled_plan_change_at: scheduledPlan ? nextPeriodEnd : null,
+        scheduled_plan_change_reason: scheduledPlan ? 'period_end_downgrade' : null,
+        billing_interval: nextFrequency,
+        stripe_price_id: activation.stripePriceId || null,
+        stripe_product_id: activation.stripeProductId || null,
+        proration_behavior: scheduledPlan ? 'period_end' : null,
+        last_plan_sync_at: now,
+        plan_change_source: 'stripe_webhook',
         billing_status: outcome.billingStatus,
         payment_status: outcome.paymentStatus,
         past_due_since: isPastDue ? existingTrial.billingUpdatedAt || now : null,
@@ -403,10 +468,11 @@ Deno.serve(async req => {
   if (!supportedEvents.has(event.type)) return json({ ok: true, ignored: true })
 
   const activation = await extractActivation(event)
-  if (activation.plan !== 'Starter' && activation.plan !== 'Pro') {
+  const freeCancellationEvent = event.type === 'customer.subscription.deleted' || activation.cancelAtPeriodEnd
+  if (activation.plan !== 'Starter' && activation.plan !== 'Pro' && !freeCancellationEvent) {
     return json({ ok: true, needsReview: true, reason: 'Unsupported or missing plan' }, 202)
   }
-  if (activation.billingFrequency !== 'monthly' && activation.billingFrequency !== 'annual') {
+  if (activation.billingFrequency !== 'monthly' && activation.billingFrequency !== 'annual' && !freeCancellationEvent) {
     return json({ ok: true, needsReview: true, reason: 'Unsupported or missing billing frequency' }, 202)
   }
 

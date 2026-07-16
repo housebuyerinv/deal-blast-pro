@@ -19,6 +19,14 @@ export type EmailNotificationSettings = {
   notify_inventory_conversion: boolean
   notify_deal_status_change: boolean
   notify_closing_followup: boolean
+  billing_transactional_required: boolean
+  renewal_reminders: boolean
+  annual_renewal_reminders: boolean
+  payment_receipts: boolean
+  invoice_notifications: boolean
+  card_expiration_reminders: boolean
+  billing_summary: boolean
+  updated_by_user_id?: string | null
   last_test_status?: string | null
   last_test_at?: string | null
   last_test_error?: string | null
@@ -54,6 +62,13 @@ export const DEFAULT_EMAIL_NOTIFICATION_SETTINGS: EmailNotificationSettings = {
   notify_inventory_conversion: true,
   notify_deal_status_change: true,
   notify_closing_followup: true,
+  billing_transactional_required: true,
+  renewal_reminders: true,
+  annual_renewal_reminders: true,
+  payment_receipts: true,
+  invoice_notifications: true,
+  card_expiration_reminders: true,
+  billing_summary: false,
 }
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -117,6 +132,8 @@ export async function saveEmailNotificationSettings(settings: EmailNotificationS
   const row = {
     ...settings,
     user_id: userId,
+    updated_by_user_id: userId,
+    billing_transactional_required: true,
     recipients: checked.recipients,
   }
 

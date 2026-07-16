@@ -358,6 +358,13 @@ export interface TrialState {
   billingPeriodEnd?: string
   billingAdminNote?: string
   billingUpdatedAt?: string
+  currentPlan?: TrialState['plan']
+  effectiveAccessPlan?: TrialState['plan']
+  scheduledPlan?: TrialState['plan'] | string
+  scheduledPlanChangeAt?: string
+  scheduledPlanChangeReason?: string
+  billingInterval?: 'monthly' | 'annual' | ''
+  stripePriceId?: string
 }
 
 export interface AppSettings {
@@ -437,6 +444,17 @@ export interface AppSettings {
     latestInvoiceId?: string
     latestInvoiceHostedUrl?: string
     latestInvoicePdf?: string
+    currentPlan?: TrialState['plan']
+    effectiveAccessPlan?: TrialState['plan']
+    scheduledPlan?: TrialState['plan'] | string
+    scheduledPlanChangeAt?: string
+    scheduledPlanChangeReason?: string
+    billingInterval?: 'monthly' | 'annual' | ''
+    stripePriceId?: string
+    stripeProductId?: string
+    prorationBehavior?: string
+    lastPlanSyncAt?: string
+    planChangeSource?: string
     paymentHistory?: Array<{
       id: string
       paymentDate: string

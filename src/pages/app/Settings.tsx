@@ -25,6 +25,7 @@ import {
 import { isSuperAdmin, isRegularUser } from '../../lib/accessControl'
 import { canAccessCalculatorTab } from '../../lib/calculatorAccess'
 import { getBillingNotice, getOwnerPreviewPlan, isOwnerPreviewActive, PLAN_ROUTE_ACCESS, type PlanName } from '../../lib/planAccess'
+import { getBuyerCapacity, getPlanEntitlement } from '../../lib/planEntitlements'
 import { PAST_DUE_READ_ONLY_DAYS, PAST_DUE_RESTRICTED_DAYS } from '../../lib/accountLifecycle'
 import { PLAN_PRICING, PRICING_PLAN_ORDER, getPriceDisplay, type PricingPlanName } from '../../lib/planPricing'
 import {
@@ -218,6 +219,14 @@ export default function Settings() {
   const cancellationScheduledFromStripe = Boolean(billingCenter.cancelAtPeriodEnd)
   const verifiedCurrentPeriodEnd = billingCenter.currentPeriodEnd || trial.billingPeriodEnd || deletionRequest.scheduledDeletionAt || ''
   const outstandingBalanceCents = Number(billingCenter.outstandingBalance || 0)
+  const scheduledBillingPlan = billingCenter.scheduledPlan || trial.scheduledPlan || ''
+  const scheduledBillingPlanChangeAt = billingCenter.scheduledPlanChangeAt || trial.scheduledPlanChangeAt || ''
+  const effectiveAccessPlan = billingCenter.effectiveAccessPlan || trial.effectiveAccessPlan || effectivePlanForDisplay
+  const scheduledPlanActive = Boolean(scheduledBillingPlan && scheduledBillingPlanChangeAt)
+  const scheduledPlanEntitlement = scheduledBillingPlan ? getPlanEntitlement(scheduledBillingPlan) : null
+  const currentBuyerCapacityForScheduledPlan = scheduledPlanEntitlement
+    ? getBuyerCapacity(scheduledBillingPlan, buyers.length)
+    : null
 
   const handleUserFacingUpgrade = (plan: PaidPlan) => {
     if (ownerPreviewActive) {
@@ -424,11 +433,13 @@ export default function Settings() {
   }, [user?.email, user?.name, currentPlan, currentBillingStatus, trial.billingPeriodStart, trial.billingPeriodEnd, trial.billingAdminNote])
 
   useEffect(() => {
-    if (hasSuperAdminAccess) {
+    if (user?.email) {
       void refreshEmailNotificationSettings()
+    }
+    if (hasSuperAdminAccess) {
       void refreshWaitlistEntries()
     }
-  }, [hasSuperAdminAccess, emailWorkspaceId])
+  }, [hasSuperAdminAccess, emailWorkspaceId, user?.email])
 
   const updateBillingProviderSetup = (field: keyof typeof billingProviderSetup, value: string | boolean) => {
     setBillingProviderSetup(prev => ({ ...prev, [field]: value }))
@@ -969,6 +980,37 @@ export default function Settings() {
           </div>
         )}
 
+        {scheduledPlanActive && (
+          <div className="mb-4 rounded border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-100">
+            <div className="font-semibold">Scheduled Plan Change</div>
+            <div className="mt-1">Your plan will change from {effectiveAccessPlan} to {scheduledBillingPlan} on {formatBillingDate(scheduledBillingPlanChangeAt)}.</div>
+            <div>Current plan: {effectiveAccessPlan}</div>
+            <div>Scheduled plan: {scheduledBillingPlan}</div>
+            <div>{effectiveAccessPlan} access remains active until: {formatBillingDate(scheduledBillingPlanChangeAt)}</div>
+            <div>Billing interval: {(billingCenter.billingInterval || trial.billingInterval || billingFrequency || 'monthly').toString()}</div>
+            {currentBuyerCapacityForScheduledPlan && currentBuyerCapacityForScheduledPlan.limit !== null && buyers.length > currentBuyerCapacityForScheduledPlan.limit && (
+              <div className="mt-3 rounded border border-amber-500/30 bg-[#0A0C12] p-3 text-amber-100">
+                Your workspace contains {buyers.length.toLocaleString()} buyers, above the {scheduledBillingPlan} limit of {currentBuyerCapacityForScheduledPlan.limit.toLocaleString()}. You can continue viewing existing buyers, but you cannot add more until you upgrade or reduce your buyer count.
+              </div>
+            )}
+            {(scheduledBillingPlan === 'Starter' || scheduledBillingPlan === 'Free' || scheduledBillingPlan === 'Free Demo') && (
+              <div className="mt-3 rounded border border-[#252A38] bg-[#0A0C12] p-3 text-[#C5CAD6]">
+                Your Property Intelligence credits are preserved but require an active Pro or higher plan.
+              </div>
+            )}
+            {canOpenBillingPortal && (
+              <button
+                type="button"
+                onClick={() => openBillingPortal('portal')}
+                disabled={Boolean(billingPortalAction)}
+                className="btn btn-ghost text-xs mt-3 disabled:opacity-60"
+              >
+                Manage or Cancel Scheduled Downgrade
+              </button>
+            )}
+          </div>
+        )}
+
         {billingNotice.kind !== 'none' && (
           <div className={`mb-4 rounded border p-3 text-sm ${billingNotice.kind.includes('past-due') ? 'border-rose-500/30 bg-rose-500/10 text-rose-200' : 'border-amber-500/30 bg-amber-500/10 text-amber-200'}`}>
             <div className="font-semibold">{billingNotice.title}</div>
@@ -1026,6 +1068,9 @@ export default function Settings() {
         <div className="grid md:grid-cols-3 gap-3 mb-4">
           {[
             ['Current Plan', effectivePlanForDisplay],
+            ['Effective Access Plan', effectiveAccessPlan],
+            ['Scheduled Plan', scheduledBillingPlan || 'None'],
+            ['Plan Changes On', scheduledBillingPlanChangeAt ? formatBillingDate(scheduledBillingPlanChangeAt) : 'None'],
             ['Billing Status', effectiveBillingStatusForDisplay],
             ['Billing Frequency', billingFrequency === 'annual' ? 'Annual' : 'Monthly'],
             ['Billing Period Start', ownerPreviewActive ? 'Preview mode' : formatBillingDate(trial.billingPeriodStart)],
@@ -1255,6 +1300,15 @@ export default function Settings() {
     { key: 'notify_closing_followup', label: 'Closing follow-up', detail: 'Closing/follow-up tasks' },
   ]
 
+  const billingPreferenceFields: Array<{ key: keyof EmailNotificationSettings; label: string; detail: string }> = [
+    { key: 'renewal_reminders', label: 'Upcoming renewal reminder', detail: 'Monthly plans receive one reminder about 7 days before renewal.' },
+    { key: 'annual_renewal_reminders', label: 'Upcoming annual renewal reminder', detail: 'Annual plans may receive 30-day and 7-day reminders.' },
+    { key: 'payment_receipts', label: 'Payment receipt', detail: 'Stripe normally sends receipts; Deal Blast Pro avoids duplicate receipt emails.' },
+    { key: 'invoice_notifications', label: 'Invoice available', detail: 'Receive optional invoice-available notifications when enabled.' },
+    { key: 'card_expiration_reminders', label: 'Card expiring', detail: 'Stripe-hosted billing emails should handle secure card-update links.' },
+    { key: 'billing_summary', label: 'Optional billing summary', detail: 'Receive occasional Deal Blast Pro billing summaries.' },
+  ]
+
   const refreshEmailNotificationLogs = async () => {
     try {
       const rows = await loadEmailNotificationLogs(emailWorkspaceId)
@@ -1340,6 +1394,7 @@ export default function Settings() {
       const saved = await saveEmailNotificationSettings({
         ...emailSettings,
         workspace_id: emailWorkspaceId,
+        billing_transactional_required: true,
         recipients: checked.recipients,
       })
       setEmailSettings(saved)
@@ -1365,6 +1420,7 @@ export default function Settings() {
       const nextSettings = {
         ...emailSettings,
         workspace_id: emailWorkspaceId,
+        billing_transactional_required: true,
         recipients: checked.recipients,
       }
       const result = await sendEmailNotificationTest(nextSettings)
@@ -1587,6 +1643,64 @@ export default function Settings() {
       </div>
     )
   }
+
+  const renderBillingNotificationPreferences = () => (
+    <div className="card p-4 border border-[#3B82F6]/25 bg-[#0F111A]">
+      <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-3 mb-4">
+        <div>
+          <div className="text-xs uppercase tracking-[2px] text-[#8B92A3] mb-1">Billing Notifications</div>
+          <div className="text-lg font-semibold text-[#E6E8EE]">Email Preferences</div>
+          <div className="text-sm text-[#8B92A3] mt-1">Choose optional billing reminders. Critical payment, security, and account-status emails cannot be disabled.</div>
+        </div>
+        <button onClick={saveEmailNotifications} disabled={emailSettingsSaving || emailSettingsLoading} className="btn btn-primary text-xs lg:w-auto disabled:opacity-60">
+          {emailSettingsSaving ? 'Saving...' : 'Save Billing Preferences'}
+        </button>
+      </div>
+
+      <div className="grid gap-3">
+        <label className="flex items-start gap-3 rounded border border-amber-500/30 bg-amber-500/10 p-3">
+          <input
+            type="checkbox"
+            className="mt-1 accent-[#22C55E]"
+            checked
+            disabled
+            readOnly
+          />
+          <span>
+            <span className="block text-sm font-semibold text-amber-100">Critical payment and account-status emails</span>
+            <span className="block text-xs text-amber-200/90">Always on: payment failed, payment requires action, past due, restriction, downgrade, cancellation, deactivation, payment received, access restored, refunds or billing corrections, and required policy or price changes.</span>
+          </span>
+        </label>
+
+        <div className="grid md:grid-cols-2 gap-2">
+          {billingPreferenceFields.map(item => (
+            <label key={String(item.key)} className="flex items-start gap-3 rounded border border-[#252A38] bg-[#0A0C12] p-3">
+              <input
+                type="checkbox"
+                className="mt-1 accent-[#22C55E]"
+                checked={Boolean(emailSettings[item.key])}
+                onChange={e => setEmailSettings(prev => ({
+                  ...prev,
+                  billing_transactional_required: true,
+                  [item.key]: e.target.checked,
+                }))}
+              />
+              <span>
+                <span className="block text-sm font-semibold text-[#E6E8EE]">{item.label}</span>
+                <span className="block text-xs text-[#8B92A3]">{item.detail}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+
+        <div className="rounded border border-[#252A38] bg-[#0A0C12] p-3 text-sm text-[#C5CAD6]">
+          <div className="font-semibold text-[#E6E8EE] mb-1">Email responsibility split</div>
+          <div>Stripe sends payment receipts, card failure messages, payment authentication, expiring-card notices, and standard renewal reminders when configured in Stripe Billing.</div>
+          <div className="mt-1">Deal Blast Pro sends product-specific notices for access restrictions, past-due timelines, scheduled downgrades, completed downgrades, access restoration, and workspace deactivation.</div>
+        </div>
+      </div>
+    </div>
+  )
 
   const isBillingSetupReady = ['Ready for Payment Collection', 'Ready for Manual Billing', 'Payment Link Saved'].includes(String(savedBillingProviderSetup.setupStatus || ''))
   void updateManualActivation
@@ -2603,6 +2717,7 @@ export default function Settings() {
         )}
 
         {renderBillingCenter()}
+        {renderBillingNotificationPreferences()}
         </>
         )}
 
@@ -3218,6 +3333,7 @@ export default function Settings() {
           {hasSuperAdminAccess && renderEmailNotifications()}
 
           {renderBillingCenter()}
+          {renderBillingNotificationPreferences()}
 
           {!isFreeAccount && hasSuperAdminAccess && (
           <div className="card p-4 border border-[#22C55E]/25 bg-[#0F111A]">

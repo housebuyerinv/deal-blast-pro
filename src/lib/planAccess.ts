@@ -43,6 +43,15 @@ export const PLAN_ROUTE_ACCESS: Record<Exclude<PlanName, 'Owner Admin'>, AppRout
   Enterprise: ALL_APP_ROUTES,
 }
 
+function normalizeAccessPlan(plan?: string | null): Exclude<PlanName, 'Owner Admin'> {
+  const normalized = String(plan || '').trim().toLowerCase()
+  if (normalized === 'starter') return 'Starter'
+  if (normalized === 'pro') return 'Pro'
+  if (normalized === 'agency') return 'Agency'
+  if (normalized === 'enterprise') return 'Enterprise'
+  return 'Free'
+}
+
 export function getOwnerPreviewPlan(settings?: Pick<AppSettings, 'ownerPreviewPlan'> | null): PlanName {
   const previewPlan = settings?.ownerPreviewPlan || 'Owner Admin'
   return previewPlan || 'Owner Admin'
@@ -60,6 +69,14 @@ export function getEffectivePlan(
   if (isSuperAdmin(user)) return getOwnerPreviewPlan(settings)
   const pastDuePlan = getPastDueEffectivePlan(trial.plan || (trial.isPaid ? 'Pro' : 'Free'), getPastDueStage(trial))
   if (pastDuePlan === 'Free') return 'Free'
+  const scheduledPlan = trial.scheduledPlan
+  const scheduledAt = trial.scheduledPlanChangeAt ? new Date(trial.scheduledPlanChangeAt).getTime() : 0
+  if (scheduledPlan && Number.isFinite(scheduledAt) && scheduledAt > 0 && Date.now() >= scheduledAt) {
+    return normalizeAccessPlan(scheduledPlan)
+  }
+  if (trial.effectiveAccessPlan) {
+    return normalizeAccessPlan(trial.effectiveAccessPlan)
+  }
   return trial.plan === 'Free Demo' ? 'Free' : trial.plan || (trial.isPaid ? 'Pro' : 'Free')
 }
 

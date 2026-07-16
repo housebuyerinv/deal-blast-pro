@@ -25,6 +25,12 @@ export default async function handler(req: any, res: any) {
       cancelAtPeriodEnd: Boolean(account.plan?.cancel_at_period_end),
       outstandingBalance: account.plan?.outstanding_balance || 0,
       latestInvoiceStatus: account.plan?.latest_invoice_status || null,
+      currentPlan: account.plan?.current_plan || account.planName,
+      effectiveAccessPlan: account.plan?.effective_access_plan || account.planName,
+      scheduledPlan: account.plan?.scheduled_plan || null,
+      scheduledPlanChangeAt: account.plan?.scheduled_plan_change_at || null,
+      billingInterval: account.plan?.billing_interval || null,
+      stripePriceId: account.plan?.stripe_price_id || null,
       role: account.profile?.role || 'Admin',
     })
   } catch (error: any) {
