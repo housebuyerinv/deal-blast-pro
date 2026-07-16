@@ -28,6 +28,13 @@ function cleanString(value: any) {
   return String(value || '').trim()
 }
 
+function parseJsonBody(value: any) {
+  if (typeof value !== 'string') return value || {}
+  const cleaned = value.replace(/^\uFEFF/, '').trim()
+  if (!cleaned) return {}
+  return JSON.parse(cleaned)
+}
+
 function isInternalTestRequest(req: any, body: any) {
   const configuredKey = process.env.REGISTRATION_TEST_KEY
   const providedKey = cleanString(req.headers['x-dealblast-registration-test-key'] || body.registrationTestKey)
@@ -210,7 +217,19 @@ export default async function handler(req: any, res: any) {
 
   try {
     const { supabaseUrl, supabaseAnonKey, serviceRoleKey } = readSupabaseEnv()
-    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
+    let body: any = {}
+    try {
+      body = parseJsonBody(req.body)
+    } catch {
+      diagnostics.validation = { status: 'failed', detail: 'Invalid JSON body' }
+      return send(res, 400, {
+        ok: false,
+        error: 'Invalid JSON body.',
+        code: 'invalid_json',
+        diagnostics: publicDiagnostics(diagnostics, false),
+      })
+    }
+
     const name = cleanString(body.name)
     const email = cleanString(body.email).toLowerCase()
     const password = String(body.password || '')
