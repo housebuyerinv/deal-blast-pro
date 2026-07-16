@@ -82,6 +82,13 @@ const formatAmount = (amount?: number | null, currency = 'usd') => {
   return `${currency.toUpperCase()} $${formatted}`
 }
 
+const getId = (value: unknown) => {
+  if (!value) return ''
+  if (typeof value === 'string') return value
+  if (typeof value === 'object' && value && 'id' in value) return String((value as any).id || '')
+  return ''
+}
+
 const addPeriodEndFallback = (periodStart: string, billingFrequency: string) => {
   if (!periodStart) return ''
   const start = new Date(periodStart)
@@ -97,15 +104,24 @@ const extractActivation = async (event: any) => {
   const metadata = object.metadata || {}
   let subscription: any = null
   let customer: any = null
+  let latestInvoice: any = null
 
   if (object.subscription) {
-    subscription = await stripeGet(`/v1/subscriptions/${object.subscription}`)
+    subscription = await stripeGet(`/v1/subscriptions/${getId(object.subscription)}`)
   } else if (object.id && String(event?.type || '').startsWith('customer.subscription.')) {
     subscription = object
   }
 
-  if (object.customer && typeof object.customer === 'string') {
-    customer = await stripeGet(`/v1/customers/${object.customer}`)
+  if (String(event?.type || '').startsWith('invoice.')) {
+    latestInvoice = object
+  } else {
+    const latestInvoiceId = getId(subscription?.latest_invoice || object.latest_invoice)
+    if (latestInvoiceId) latestInvoice = await stripeGet(`/v1/invoices/${latestInvoiceId}`)
+  }
+
+  const customerId = getId(object.customer || subscription?.customer || latestInvoice?.customer)
+  if (customerId) {
+    customer = await stripeGet(`/v1/customers/${customerId}`)
   }
 
   const subscriptionMetadata = subscription?.metadata || {}
@@ -130,6 +146,9 @@ const extractActivation = async (event: any) => {
   const periodEnd = toIso(subscription?.current_period_end || object.period_end)
   const amount = object.amount_total || object.amount_paid || object.amount_due || object.total || subscription?.plan?.amount || null
   const currency = object.currency || subscription?.currency || 'usd'
+  const latestInvoiceStatus = String(latestInvoice?.status || object.status || '').trim()
+  const latestInvoiceId = getId(latestInvoice || (String(event?.type || '').startsWith('invoice.') ? object : null))
+  const amountRemaining = Number(latestInvoice?.amount_remaining ?? object.amount_remaining ?? 0)
 
   return {
     plan,
@@ -140,6 +159,19 @@ const extractActivation = async (event: any) => {
     periodEnd: periodEnd || addPeriodEndFallback(periodStart, billingFrequency),
     amount,
     currency,
+    stripeCustomerId: customerId,
+    stripeSubscriptionId: getId(subscription || object.subscription),
+    subscriptionStatus: String(subscription?.status || (String(event?.type || '').startsWith('customer.subscription.') ? object.status : '') || '').trim(),
+    cancelAtPeriodEnd: Boolean(subscription?.cancel_at_period_end || object.cancel_at_period_end),
+    latestInvoiceId,
+    latestInvoiceStatus,
+    latestInvoiceHostedUrl: String(latestInvoice?.hosted_invoice_url || object.hosted_invoice_url || '').trim(),
+    latestInvoicePdf: String(latestInvoice?.invoice_pdf || object.invoice_pdf || '').trim(),
+    outstandingBalance: String(event?.type || '').startsWith('invoice.paid') || String(event?.type || '') === 'invoice.payment_succeeded'
+      ? 0
+      : Number.isFinite(amountRemaining)
+        ? Math.max(0, amountRemaining)
+        : 0,
   }
 }
 
@@ -186,8 +218,16 @@ const getBillingOutcome = (event: any) => {
     return { billingStatus: 'Past Due', paymentCollectionStatus: 'Past Due', paymentStatus: 'Failed', note: 'Stripe payment failed', isPaid: false }
   }
 
+  if (type === 'invoice.payment_action_required') {
+    return { billingStatus: 'Past Due', paymentCollectionStatus: 'Payment Action Required', paymentStatus: 'Failed', note: 'Stripe payment action is required', isPaid: false }
+  }
+
   if (type === 'customer.subscription.deleted' || subscriptionStatus === 'canceled') {
     return { billingStatus: 'Cancelled', paymentCollectionStatus: 'Cancelled', paymentStatus: 'Cancelled', note: 'Stripe subscription cancelled', isPaid: false }
+  }
+
+  if (object.cancel_at_period_end) {
+    return { billingStatus: 'Paid Active', paymentCollectionStatus: 'Cancellation Scheduled', paymentStatus: 'Paid', note: 'Stripe subscription cancellation scheduled at period end', isPaid: true }
   }
 
   if (subscriptionStatus === 'past_due' || subscriptionStatus === 'unpaid') {
@@ -261,6 +301,16 @@ const saveBillingEvent = async (
           autoActivationStatus: 'Ready',
           lastStripeSyncAt: now,
           unmatchedStripePaymentCount: existingBillingCenter.unmatchedStripePaymentCount || 0,
+          stripeCustomerId: activation.stripeCustomerId || existingBillingCenter.stripeCustomerId || '',
+          stripeSubscriptionId: activation.stripeSubscriptionId || existingBillingCenter.stripeSubscriptionId || '',
+          subscriptionStatus: activation.subscriptionStatus || existingBillingCenter.subscriptionStatus || '',
+          currentPeriodEnd: nextPeriodEnd,
+          cancelAtPeriodEnd: activation.cancelAtPeriodEnd,
+          outstandingBalance: activation.outstandingBalance,
+          latestInvoiceStatus: activation.latestInvoiceStatus || existingBillingCenter.latestInvoiceStatus || '',
+          latestInvoiceId: activation.latestInvoiceId || existingBillingCenter.latestInvoiceId || '',
+          latestInvoiceHostedUrl: activation.latestInvoiceHostedUrl || existingBillingCenter.latestInvoiceHostedUrl || '',
+          latestInvoicePdf: activation.latestInvoicePdf || existingBillingCenter.latestInvoicePdf || '',
           paymentHistory: [historyRecord, ...existingHistory.filter((record: any) => record?.providerReference !== eventId)].slice(0, 100),
         },
       },
@@ -302,6 +352,17 @@ const saveBillingEvent = async (
         past_due_since: isPastDue ? existingTrial.billingUpdatedAt || now : null,
         payment_recovered_at: isRecovered ? now : null,
         subscription_access_ends_at: outcome.billingStatus === 'Cancelled' ? nextPeriodEnd || now : null,
+        subscription_cancel_at_period_end: activation.cancelAtPeriodEnd,
+        stripe_customer_id: activation.stripeCustomerId || null,
+        stripe_subscription_id: activation.stripeSubscriptionId || null,
+        subscription_status: activation.subscriptionStatus || null,
+        current_period_end: nextPeriodEnd || null,
+        cancel_at_period_end: activation.cancelAtPeriodEnd,
+        outstanding_balance: activation.outstandingBalance,
+        latest_invoice_status: activation.latestInvoiceStatus || null,
+        latest_invoice_id: activation.latestInvoiceId || null,
+        latest_invoice_hosted_url: activation.latestInvoiceHostedUrl || null,
+        latest_invoice_pdf: activation.latestInvoicePdf || null,
         updated_at: now,
       }),
     })
@@ -333,6 +394,7 @@ Deno.serve(async req => {
     'invoice.paid',
     'invoice.payment_succeeded',
     'invoice.payment_failed',
+    'invoice.payment_action_required',
     'customer.subscription.created',
     'customer.subscription.updated',
     'customer.subscription.deleted',

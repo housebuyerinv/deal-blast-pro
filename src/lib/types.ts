@@ -422,11 +422,21 @@ export interface AppSettings {
     note?: string
   }
   billingCenter?: {
-    paymentCollectionStatus?: 'Not Started' | 'Pending' | 'Active / Paid' | 'Past Due' | 'Cancelled' | 'Comped' | 'Needs Review'
+    paymentCollectionStatus?: 'Not Started' | 'Pending' | 'Active / Paid' | 'Past Due' | 'Payment Action Required' | 'Cancellation Scheduled' | 'Cancelled' | 'Comped' | 'Needs Review'
     lastStripeSyncAt?: string
     stripeWebhookStatus?: 'Configured' | 'Missing' | 'Needs Review'
     autoActivationStatus?: 'Ready' | 'Needs Review'
     unmatchedStripePaymentCount?: number
+    stripeCustomerId?: string
+    stripeSubscriptionId?: string
+    subscriptionStatus?: string
+    currentPeriodEnd?: string
+    cancelAtPeriodEnd?: boolean
+    outstandingBalance?: number
+    latestInvoiceStatus?: string
+    latestInvoiceId?: string
+    latestInvoiceHostedUrl?: string
+    latestInvoicePdf?: string
     paymentHistory?: Array<{
       id: string
       paymentDate: string

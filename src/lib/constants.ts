@@ -142,6 +142,16 @@ export const DEFAULT_SETTINGS: AppSettings = {
     stripeWebhookStatus: 'Needs Review',
     autoActivationStatus: 'Needs Review',
     unmatchedStripePaymentCount: 0,
+    stripeCustomerId: '',
+    stripeSubscriptionId: '',
+    subscriptionStatus: '',
+    currentPeriodEnd: '',
+    cancelAtPeriodEnd: false,
+    outstandingBalance: 0,
+    latestInvoiceStatus: '',
+    latestInvoiceId: '',
+    latestInvoiceHostedUrl: '',
+    latestInvoicePdf: '',
     paymentHistory: []
   }
 }

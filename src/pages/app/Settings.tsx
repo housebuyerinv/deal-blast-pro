@@ -104,6 +104,7 @@ export default function Settings() {
   const [deleteAccountText, setDeleteAccountText] = useState('')
   const [deleteAccountLoading, setDeleteAccountLoading] = useState(false)
   const [deleteAccountError, setDeleteAccountError] = useState('')
+  const [billingPortalAction, setBillingPortalAction] = useState<'' | 'portal' | 'invoice'>('')
   const deleteAccountTriggerRef = useRef<HTMLButtonElement | null>(null)
   const deleteAccountModalRef = useRef<HTMLDivElement | null>(null)
   const deleteAccountConfirmInputRef = useRef<HTMLInputElement | null>(null)
@@ -211,6 +212,12 @@ export default function Settings() {
       : effectivePlanForDisplay === 'Pro'
         ? ['All Starter features', 'Advanced buyer matching', 'Heat score / advanced tags', 'Saved buyer segments', 'Buyer outreach exports', 'Deal blast templates', 'Follow-up task tools', 'Basic analytics', 'All calculators']
         : ['Coming Soon / Contact Admin', 'Team/VA workflows may require setup', 'Custom onboarding and integrations may require setup']
+  const customerBillingStatus = String(currentBillingStatus || effectiveBillingStatusForDisplay || '')
+  const paidBillingStatuses = new Set(['Paid Active', 'Past Due', 'Payment Pending', 'Comped'])
+  const canOpenBillingPortal = !ownerPreviewActive && effectivePlanForDisplay !== 'Free' && paidBillingStatuses.has(customerBillingStatus)
+  const cancellationScheduledFromStripe = Boolean(billingCenter.cancelAtPeriodEnd)
+  const verifiedCurrentPeriodEnd = billingCenter.currentPeriodEnd || trial.billingPeriodEnd || deletionRequest.scheduledDeletionAt || ''
+  const outstandingBalanceCents = Number(billingCenter.outstandingBalance || 0)
 
   const handleUserFacingUpgrade = (plan: PaidPlan) => {
     if (ownerPreviewActive) {
@@ -457,6 +464,11 @@ export default function Settings() {
   const deletionActionLabel = 'Deactivate Account'
 
   const openBillingCenterFromDeactivationModal = () => {
+    if (canOpenBillingPortal) {
+      void openBillingPortal('portal')
+      return
+    }
+
     closeDeleteAccountRequest()
     setCustomerSettingsTab('Plan & Billing')
     window.setTimeout(() => {
@@ -625,6 +637,16 @@ export default function Settings() {
                   </button>{' '}
                   before continuing.
                 </p>
+                {canOpenBillingPortal && (
+                  <button
+                    type="button"
+                    onClick={() => openBillingPortal('portal')}
+                    disabled={Boolean(billingPortalAction)}
+                    className="btn btn-ghost text-xs border-amber-500/40 text-amber-200 disabled:opacity-60"
+                  >
+                    {billingPortalAction === 'portal' ? 'Opening...' : 'Manage Subscription'}
+                  </button>
+                )}
                 <p>To request permanent deletion of retained account data, contact support after deactivation.</p>
               </div>
               <div className="mt-5 flex flex-wrap justify-end gap-2">
@@ -680,6 +702,15 @@ export default function Settings() {
     if (!value) return 'Needs Review'
     const date = new Date(value)
     return Number.isFinite(date.getTime()) ? date.toLocaleDateString() : 'Needs Review'
+  }
+
+  const formatCurrencyFromCents = (value?: number) => {
+    const cents = Number(value || 0)
+    if (!Number.isFinite(cents) || cents <= 0) return '$0'
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(cents / 100)
   }
 
   const getPlanAmount = (plan = currentPlan, frequency: BillingFrequency = (trial.billingFrequency || 'monthly') as BillingFrequency) => {
@@ -833,6 +864,45 @@ export default function Settings() {
         ? `${billingFrequency === 'annual' ? 'Annual renewal' : 'Monthly payment'} expected ${formatBillingDate(nextPaymentDue)}.`
         : 'Needs Review'
 
+    if (!ownerPreviewActive && effectivePlanForDisplay === 'Free') {
+      return (
+        <div id="billing-center" className="card p-4 border border-[#3B82F6]/25 bg-[#0F111A]">
+          <div className="flex flex-col md:flex-row md:items-start justify-between gap-3 mb-4">
+            <div>
+              <div className="text-xs uppercase tracking-[2px] text-[#8B92A3] mb-1">Billing Center</div>
+              <div className="text-lg font-semibold text-[#E6E8EE]">Free Plan & Upgrade Options</div>
+              <div className="text-sm text-[#8B92A3] mt-1">Free accounts do not have a paid Stripe subscription to manage.</div>
+            </div>
+            <button onClick={downloadBillingSummaryPdf} className="btn btn-ghost text-xs md:w-auto">Download Billing Summary PDF</button>
+          </div>
+
+          <div className="grid md:grid-cols-4 gap-3 mb-4">
+            {[
+              ['Current Plan', 'Free'],
+              ['Billing Status', 'Free Active'],
+              ['Payment Method', 'Not required'],
+              ['Next Payment', 'None'],
+            ].map(([label, value]) => (
+              <div key={label} className="panel p-3">
+                <div className="text-xs text-[#8B92A3] mb-1">{label}</div>
+                <div className="text-sm text-[#E6E8EE] break-words">{value}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="panel p-3">
+            <div className="text-sm font-semibold mb-2">Upgrade Options</div>
+            <div className="text-sm text-[#C5CAD6] mb-3">Upgrade to Starter or Pro when you need larger limits, buyer matching, and paid workflow tools.</div>
+            <div className="flex flex-wrap gap-2">
+              <button onClick={() => openUpgradePayment('Starter', settingsBillingFrequency)} className="btn btn-green text-xs">Upgrade to Starter</button>
+              <button onClick={() => openUpgradePayment('Pro', settingsBillingFrequency)} className="btn btn-ghost text-xs">Upgrade to Pro</button>
+              <button onClick={() => window.location.href = '/pricing'} className="btn btn-ghost text-xs">View Pricing</button>
+            </div>
+          </div>
+        </div>
+      )
+    }
+
     return (
       <div id="billing-center" className="card p-4 border border-[#3B82F6]/25 bg-[#0F111A]">
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-3 mb-4">
@@ -840,13 +910,55 @@ export default function Settings() {
             <div className="text-xs uppercase tracking-[2px] text-[#8B92A3] mb-1">Billing Center</div>
             <div className="text-lg font-semibold text-[#E6E8EE]">Plan, Payment Schedule & Receipts</div>
             <div className="text-sm text-[#8B92A3] mt-1">
-              Stripe checkout links are used for customer payments. Receipts here reflect Deal Blast Pro account access records.
+              {canOpenBillingPortal
+                ? 'Update your payment method, view invoices, change billing details, or cancel renewal.'
+                : 'Stripe checkout links are used for customer payments. Receipts here reflect Deal Blast Pro account access records.'}
             </div>
           </div>
-          <button onClick={downloadBillingSummaryPdf} className="btn btn-ghost text-xs md:w-auto">Download Billing Summary PDF</button>
+          <div className="flex flex-wrap gap-2">
+            {canOpenBillingPortal && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => openBillingPortal('portal')}
+                  disabled={Boolean(billingPortalAction)}
+                  className="btn btn-green text-xs md:w-auto disabled:opacity-60"
+                >
+                  {billingPortalAction === 'portal' ? 'Opening...' : 'Manage Subscription'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openBillingPortal('invoice')}
+                  disabled={Boolean(billingPortalAction)}
+                  className="btn btn-ghost text-xs md:w-auto disabled:opacity-60"
+                >
+                  {billingPortalAction === 'invoice' ? 'Opening...' : 'View Invoices'}
+                </button>
+              </>
+            )}
+            <button onClick={downloadBillingSummaryPdf} className="btn btn-ghost text-xs md:w-auto">Download Billing Summary PDF</button>
+          </div>
         </div>
 
-        {cancelScheduled && (
+        {cancellationScheduledFromStripe && (
+          <div className="mb-4 rounded border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200">
+            <div className="font-semibold">Cancellation Scheduled</div>
+            <div>Cancels on {formatBillingDate(verifiedCurrentPeriodEnd)}.</div>
+            <div>Access remains available until {formatBillingDate(verifiedCurrentPeriodEnd)}.</div>
+            {canOpenBillingPortal && (
+              <button
+                type="button"
+                onClick={() => openBillingPortal('portal')}
+                disabled={Boolean(billingPortalAction)}
+                className="btn btn-ghost text-xs mt-3 disabled:opacity-60"
+              >
+                Resume Subscription
+              </button>
+            )}
+          </div>
+        )}
+
+        {!cancellationScheduledFromStripe && cancelScheduled && (
           <div className="mb-4 rounded border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200">
             <div className="font-semibold">Your account is scheduled for cancellation.</div>
             <div>
@@ -881,7 +993,27 @@ export default function Settings() {
 
         {!ownerPreviewActive && currentBillingStatus === 'Past Due' && (
           <div className="mb-4 rounded border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-200">
-            Payment is past due. Complete payment, cancel, deactivate, or contact support. Paid access is staged without deleting invoices, files, buyers, deals, submissions, or settings.
+            <div className="font-semibold">Payment Past Due</div>
+            <div className="mt-1">Outstanding balance: {formatCurrencyFromCents(outstandingBalanceCents)}</div>
+            <div className="mt-1">Resolve payment through Stripe. Cancelling renewal or deactivating workspace access does not erase or forgive the outstanding invoice.</div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => openBillingPortal('invoice')}
+                disabled={Boolean(billingPortalAction)}
+                className="btn btn-green text-xs disabled:opacity-60"
+              >
+                {billingPortalAction === 'invoice' ? 'Opening...' : 'Resolve Payment'}
+              </button>
+              <button
+                type="button"
+                onClick={() => openBillingPortal('portal')}
+                disabled={Boolean(billingPortalAction)}
+                className="btn btn-ghost text-xs disabled:opacity-60"
+              >
+                {billingPortalAction === 'portal' ? 'Opening...' : 'Manage Subscription'}
+              </button>
+            </div>
           </div>
         )}
 
@@ -897,13 +1029,15 @@ export default function Settings() {
             ['Billing Status', effectiveBillingStatusForDisplay],
             ['Billing Frequency', billingFrequency === 'annual' ? 'Annual' : 'Monthly'],
             ['Billing Period Start', ownerPreviewActive ? 'Preview mode' : formatBillingDate(trial.billingPeriodStart)],
-            ['Billing Period End', ownerPreviewActive ? 'Preview mode' : formatBillingDate(trial.billingPeriodEnd)],
+            ['Billing Period End', ownerPreviewActive ? 'Preview mode' : formatBillingDate(verifiedCurrentPeriodEnd || trial.billingPeriodEnd)],
             ['Next Payment Due Date', ownerPreviewActive ? 'Preview mode only' : effectivePlanForDisplay === 'Free' ? 'No paid billing history yet' : formatBillingDate(nextPaymentDue)],
-            ['Cancel Scheduled', cancelScheduled ? 'Yes' : 'No'],
-            ['Scheduled Cancellation Date', formatBillingDate(deletionRequest.cancellationRequestedAt)],
-            ['Scheduled Deletion Date', formatBillingDate(deletionRequest.scheduledDeletionAt)],
+            ['Cancel Scheduled', cancellationScheduledFromStripe || cancelScheduled ? 'Yes' : 'No'],
+            ['Scheduled Cancellation Date', cancellationScheduledFromStripe ? formatBillingDate(verifiedCurrentPeriodEnd) : formatBillingDate(deletionRequest.cancellationRequestedAt)],
+            ['Access Through', cancellationScheduledFromStripe ? formatBillingDate(verifiedCurrentPeriodEnd) : formatBillingDate(deletionRequest.scheduledDeletionAt)],
             ['Payment Provider', 'Stripe'],
             ['Payment Collection Status', ownerPreviewActive ? 'Preview Active' : billingCenter.paymentCollectionStatus || 'Needs Review'],
+            ['Outstanding Balance', formatCurrencyFromCents(outstandingBalanceCents)],
+            ['Latest Invoice Status', billingCenter.latestInvoiceStatus || 'Not available'],
             ['Last Payment Date', displayLastPayment ? formatBillingDate(displayLastPayment.paymentDate) : ownerPreviewActive ? 'Preview mode, no records changed' : 'No paid billing history yet'],
             ['Last Payment Amount', displayLastPayment?.amount || (ownerPreviewActive ? 'Preview mode, no records changed' : 'No paid billing history yet')],
             ['Next Payment Amount', nextAmount],
@@ -1518,6 +1652,41 @@ export default function Settings() {
       related: `${plan} ${frequency} link: ${paymentLink ? 'Saved but not ready' : 'Missing'}. Setup status: ${savedBillingProviderSetup.setupStatus || 'Not Started'}`,
       next: 'Choose Free now, or contact support to verify the Stripe checkout link.'
     })
+  }
+
+  async function openBillingPortal(mode: 'portal' | 'invoice' = 'portal') {
+    if (!canOpenBillingPortal) {
+      toast('No active paid subscription is available to manage.')
+      return
+    }
+
+    if (billingPortalAction) return
+
+    setBillingPortalAction(mode)
+    try {
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
+      if (sessionError) throw sessionError
+      const token = sessionData.session?.access_token
+      if (!token) throw new Error('Sign in before managing your subscription.')
+
+      const response = await fetch('/api/create-billing-portal-session', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ mode }),
+      })
+      const payload = await response.json().catch(() => null)
+      if (!response.ok || payload?.ok === false || !payload?.url) {
+        throw new Error(payload?.error || 'Stripe billing portal could not be opened.')
+      }
+
+      window.location.assign(payload.url)
+    } catch (error: any) {
+      toast.error(error?.message || 'Stripe billing portal could not be opened.')
+      setBillingPortalAction('')
+    }
   }
 
   const runBuyerRecoveryScan = async (showPreview = false) => {
@@ -2225,20 +2394,6 @@ export default function Settings() {
     toast.success('Template saved')
   }
 
-  const cancelCurrentPlan = () => {
-    if (!isPaidPlan) {
-      toast('Already on Free')
-      return
-    }
-
-    const confirmed = window.confirm('Cancel current plan and return to Free? This updates the app plan state in the current environment. External billing cancellation may still require payment-provider setup.')
-    if (!confirmed) return
-
-    upgradeToPlan('Free')
-    setSelectedDetail(null)
-    toast.success('Plan cancellation recorded. Workspace returned to Free.')
-  }
-
   const planPositioning = PRICING_PLAN_ORDER.map(name => ({
     ...PLAN_PRICING[name],
     text: PLAN_PRICING[name].description,
@@ -2689,8 +2844,8 @@ export default function Settings() {
                 <div className="mt-2 flex gap-2">
                   <button onClick={(e) => { e.stopPropagation(); openUpgradePayment(); }} className="text-sm flex-1 py-1.5 px-2 rounded bg-[#22C55E]/10 hover:bg-[#22C55E]/20 border border-[#22C55E]/30 text-[#22C55E]">Upgrade Plan</button>
                   <button onClick={(e) => { e.stopPropagation(); upgradeToPlan('Pro'); setSelectedDetail(null); }} className="text-sm flex-1 py-1.5 px-2 rounded bg-[#22C55E]/10 hover:bg-[#22C55E]/20 border border-[#22C55E]/30 text-[#22C55E]">Activate Pro Demo (Demo Only)</button>
-                  {isPaidPlan && (
-                    <button onClick={(e) => { e.stopPropagation(); cancelCurrentPlan(); }} className="text-sm flex-1 py-1.5 px-2 rounded bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300">Cancel Plan</button>
+                  {canOpenBillingPortal && (
+                    <button onClick={(e) => { e.stopPropagation(); openBillingPortal('portal'); }} className="text-sm flex-1 py-1.5 px-2 rounded bg-[#22C55E]/10 hover:bg-[#22C55E]/20 border border-[#22C55E]/30 text-[#22C55E]">Manage Subscription</button>
                   )}
                   {isAdminDemo && (
                     <div className="flex-1">
@@ -2700,7 +2855,7 @@ export default function Settings() {
                   )}
                 </div>
                 {isPaidPlan ? (
-                  <div className="mt-1 text-sm text-[#8B92A3]">Production billing cancellation may require payment-provider setup. This updates the app plan state in the current environment.</div>
+                  <div className="mt-1 text-sm text-[#8B92A3]">Stripe manages payment methods, invoices, billing details, and renewal cancellation.</div>
                 ) : (
                   <div className="mt-1 text-sm text-[#8B92A3]">Already on Free.</div>
                 )}
@@ -2969,8 +3124,8 @@ export default function Settings() {
               <div className="flex flex-wrap gap-2 items-center text-sm">
                 <button onClick={(e) => { e.stopPropagation(); openUpgradePayment(); }} className="btn btn-green text-sm px-3 py-1">Upgrade Plan</button>
                 <button onClick={(e) => { e.stopPropagation(); upgradeToPlan('Pro') }} className="btn btn-ghost text-sm px-3 py-1">Activate Pro Demo (Demo Only)</button>
-                {isPaidPlan ? (
-                  <button onClick={(e) => { e.stopPropagation(); cancelCurrentPlan() }} className="btn btn-ghost text-sm px-3 py-1 text-rose-300 border-rose-500/30 hover:border-rose-500/60">Cancel Plan</button>
+                {canOpenBillingPortal ? (
+                  <button onClick={(e) => { e.stopPropagation(); openBillingPortal('portal') }} className="btn btn-ghost text-sm px-3 py-1 text-[#22C55E] border-[#22C55E]/30 hover:border-[#22C55E]/60">Manage Subscription</button>
                 ) : (
                   <span className="text-sm text-[#8B92A3]">Already on Free</span>
                 )}
@@ -2978,7 +3133,7 @@ export default function Settings() {
                   <button onClick={(e) => { e.stopPropagation(); resetTrial() }} className="btn btn-ghost text-sm px-3 py-1">Reset Demo Trial (Admin Only)</button>
                 )}
               </div>
-              <div className="text-sm text-[#8B92A3] mt-1">Production billing cancellation may require payment-provider setup. This updates the app plan state in the current environment.</div>
+              <div className="text-sm text-[#8B92A3] mt-1">Stripe manages paid subscription changes and renewal cancellation.</div>
               {isAdminDemo && (
                 <div className="text-sm text-amber-400 mt-1">Admin Demo Tool — Internal demo/testing only. Public users cannot reset trials.</div>
               )}
@@ -2986,7 +3141,7 @@ export default function Settings() {
             </div>
           </div>
 
-          {/* Billing / Subscription - always visible cancellation area */}
+          {/* Billing / Subscription - paid management stays in Stripe */}
           <div className="card p-4 border border-[#3B82F6]/30 bg-[#0F111A]">
             <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
               <div>
@@ -2997,30 +3152,27 @@ export default function Settings() {
                   <div>Billing status: <span className={isPaidPlan ? 'text-[#22C55E]' : 'text-[#8B92A3]'}>{billingStatusLabel}</span></div>
                 </div>
                 <div className="mt-4 rounded border border-[#252A38] bg-[#0A0C12] p-3">
-                  <div className="text-sm font-semibold text-[#E6E8EE]">Cancel Plan / Membership</div>
+                  <div className="text-sm font-semibold text-[#E6E8EE]">Subscription Management</div>
                   <div className={isPaidPlan ? 'mt-1 text-sm text-rose-300' : 'mt-1 text-sm text-[#8B92A3]'}>
                     {isPaidPlan ? 'Paid plan active.' : 'No paid subscription active.'}
                   </div>
                   <div className="mt-1 text-sm text-[#8B92A3]">
                     {isPaidPlan
-                      ? 'Cancel Plan returns this workspace to Free in the current environment. No deals, buyers, documents, submissions, templates, settings, or files are deleted.'
+                      ? 'Use Stripe Customer Portal to update payment methods, view invoices, change billing details, or cancel renewal.'
                       : 'You are currently on the Free plan. There is no paid membership to cancel.'}
                   </div>
                 </div>
-                <div className="mt-1 text-sm text-[#8B92A3]">Production billing cancellation may require payment-provider setup.</div>
+                <div className="mt-1 text-sm text-[#8B92A3]">Deactivating workspace access does not automatically cancel a paid subscription.</div>
               </div>
 
               <div className="md:min-w-[220px]">
-                {isPaidPlan ? (
-                  <button onClick={cancelCurrentPlan} className="btn btn-ghost w-full text-rose-300 border-rose-500/30 hover:border-rose-500/60">
-                    Cancel Plan
+                {canOpenBillingPortal ? (
+                  <button onClick={() => openBillingPortal('portal')} className="btn btn-green w-full">
+                    Manage Subscription
                   </button>
                 ) : (
-                  <button disabled className="btn btn-ghost w-full opacity-60 cursor-not-allowed">
-                    Cancel Plan Unavailable
-                  </button>
+                  <div className="text-sm text-[#8B92A3] text-center md:text-right">No paid subscription active.</div>
                 )}
-                {!isPaidPlan && <div className="mt-2 text-xs text-[#64748B] text-center">No paid subscription active.</div>}
               </div>
             </div>
           </div>

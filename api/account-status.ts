@@ -19,6 +19,12 @@ export default async function handler(req: any, res: any) {
       workspaceId: account.workspace?.id || null,
       planName: account.planName,
       billingStatus: account.billingStatus,
+      paymentStatus: account.plan?.payment_status || null,
+      stripeSubscriptionStatus: account.plan?.subscription_status || null,
+      currentPeriodEnd: account.plan?.current_period_end || null,
+      cancelAtPeriodEnd: Boolean(account.plan?.cancel_at_period_end),
+      outstandingBalance: account.plan?.outstanding_balance || 0,
+      latestInvoiceStatus: account.plan?.latest_invoice_status || null,
       role: account.profile?.role || 'Admin',
     })
   } catch (error: any) {
