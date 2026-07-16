@@ -4,11 +4,12 @@ import { getOwnerPreviewPlan } from './planAccess'
 
 export type CalculatorTabId = 'arv' | 'rehab' | 'mao' | 'rental' | 'creative'
 type PlanName = TrialState['plan']
-type CalculatorMinimumPlan = 'Free Demo' | 'Starter' | 'Pro' | 'Agency' | 'Enterprise'
+type CalculatorMinimumPlan = 'Free' | 'Free Demo' | 'Starter' | 'Pro' | 'Agency' | 'Enterprise'
 
 export type CalculatorEntitlementId = CalculatorTabId | 'propertyIntelligence'
 
 export const PLAN_RANK: Record<CalculatorMinimumPlan, number> = {
+  Free: 0,
   'Free Demo': 0,
   Starter: 1,
   Pro: 2,
@@ -21,7 +22,7 @@ export const CALCULATOR_ENTITLEMENTS: Record<CalculatorEntitlementId, {
   minimumPlan: CalculatorMinimumPlan
   availability?: 'included' | 'limited-preview' | 'planned' | 'advanced' | 'custom'
 }> = {
-  arv: { label: 'ARV Calculator', minimumPlan: 'Free Demo', availability: 'included' },
+  arv: { label: 'ARV Calculator', minimumPlan: 'Free', availability: 'included' },
   rehab: { label: 'Rehab Calculator', minimumPlan: 'Starter', availability: 'included' },
   mao: { label: 'MAO / Offer Calculator', minimumPlan: 'Starter', availability: 'included' },
   rental: { label: 'Rental Deal Calculator', minimumPlan: 'Pro', availability: 'included' },
@@ -30,6 +31,7 @@ export const CALCULATOR_ENTITLEMENTS: Record<CalculatorEntitlementId, {
 }
 
 export const CALCULATOR_ACCESS_BY_PLAN: Record<PlanName, CalculatorTabId[]> = {
+  Free: ['arv'],
   'Free Demo': ['arv'],
   Starter: ['arv', 'rehab', 'mao'],
   Pro: ['arv', 'rehab', 'mao', 'rental', 'creative'],
@@ -46,7 +48,7 @@ export function getEffectiveCalculatorPlan(
     const previewPlan = getOwnerPreviewPlan(settings)
     return previewPlan === 'Owner Admin' ? 'Owner Admin' : previewPlan
   }
-  return trial.plan || (trial.isPaid ? 'Pro' : 'Free Demo')
+  return trial.plan === 'Free Demo' ? 'Free' : trial.plan || (trial.isPaid ? 'Pro' : 'Free')
 }
 
 export function getAllowedCalculatorTabs(
@@ -56,7 +58,7 @@ export function getAllowedCalculatorTabs(
 ): CalculatorTabId[] {
   const plan = getEffectiveCalculatorPlan(trial, user, settings)
   if (plan === 'Owner Admin') return CALCULATOR_ACCESS_BY_PLAN.Pro
-  return CALCULATOR_ACCESS_BY_PLAN[plan] || CALCULATOR_ACCESS_BY_PLAN['Free Demo']
+  return CALCULATOR_ACCESS_BY_PLAN[plan] || CALCULATOR_ACCESS_BY_PLAN.Free
 }
 
 export function canAccessCalculatorTab(
@@ -99,7 +101,7 @@ export function getCalculatorLockMessage(
 
 export function getCalculatorPlanSubtitle(plan: CalculatorMinimumPlan | 'Owner Admin') {
   if (plan === 'Owner Admin') return 'Owner Admin: all calculators'
-  if (plan === 'Free Demo') return 'Free Demo: ARV only'
+  if (plan === 'Free' || plan === 'Free Demo') return 'Free: ARV only'
   if (plan === 'Starter') return 'Starter: ARV, Rehab, MAO / Offer'
   if (plan === 'Pro') return 'Pro: All deal calculators'
   if (plan === 'Agency') return 'Agency: All calculators and advanced workflows'

@@ -11,6 +11,7 @@ import { isInternalAdmin } from '../../lib/accessControl'
 import { canAccessRoute } from '../../lib/planAccess'
 import { getEffectivePlan, isOwnerPreviewActive } from '../../lib/planAccess'
 import { canUseBuyerPortalReview } from '../../lib/planEntitlements'
+import { canUseLaunchedFeature } from '../../lib/featureLaunch'
 
 const navGroups = [
   {
@@ -57,7 +58,9 @@ export default function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean;
   const [buyerPortalQueueCount, setBuyerPortalQueueCount] = useState(0)
   const pendingFollowups = getPendingFollowUps().length
   const hasInternalAdminAccess = isInternalAdmin(user) && !isOwnerPreviewActive(user, settings)
-  const buyerPortalReviewAllowed = canUseBuyerPortalReview(getEffectivePlan(trial, user, settings))
+  const effectivePlan = getEffectivePlan(trial, user, settings)
+  const buyerPortalReviewAllowed = canUseBuyerPortalReview(effectivePlan) && canUseLaunchedFeature('buyerPortalReviewCenter', effectivePlan, hasInternalAdminAccess)
+  const dealSubmissionReviewAllowed = canUseLaunchedFeature('dealSubmissionReviewCenter', effectivePlan, hasInternalAdminAccess)
 
   const isOpen = mobileOpen !== undefined ? mobileOpen : sidebarOpen
 
@@ -128,7 +131,10 @@ export default function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean;
 
       <div className="flex-1 py-3">
         {navGroups.map(group => {
-          const visibleItems = hasInternalAdminAccess ? group.items : group.items.filter(item => canAccessRoute(item.to, trial, user, settings))
+          const visibleItems = hasInternalAdminAccess ? group.items : group.items.filter(item => {
+            if (item.to === '/app/submissions') return dealSubmissionReviewAllowed
+            return canAccessRoute(item.to, trial, user, settings)
+          })
           if (!visibleItems.length) return null
           return (
           <div key={group.label} className="mb-4">

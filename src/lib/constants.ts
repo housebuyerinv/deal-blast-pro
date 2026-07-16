@@ -117,7 +117,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   },
   onboarding: {
     planSelectionCompleted: false,
-    selectedPlan: 'Free Demo',
+    selectedPlan: 'Free',
     tourCompleted: false,
     tourSkipped: false,
     tourCompletedAt: '',
@@ -159,12 +159,12 @@ export const MOCK_USER = {
 
 export const TRIAL_DEFAULT = {
   isActive: true,
-  daysLeft: 7,
-  endDate: new Date(Date.now() + 7 * 86400000).toISOString(),
+  daysLeft: 999,
+  endDate: '',
   usage: { dealsSubmitted: 0, buyersImported: 0, blastsSent: 0, exports: 0 },
   isPaid: false,
-  plan: 'Free Demo' as const,
-  billingStatus: 'Trial Active' as const,
+  plan: 'Free' as const,
+  billingStatus: 'Free Active' as const,
   billingFrequency: 'monthly' as const,
   paymentProvider: 'Stripe' as const,
   billingPeriodStart: '',

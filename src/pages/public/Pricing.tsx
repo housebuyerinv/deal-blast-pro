@@ -81,7 +81,7 @@ const featureRows = [
   {
     feature: 'Buyer Database Capacity',
     statuses: [
-      PLAN_ENTITLEMENTS['Free Demo'].buyerLimitLabel,
+      PLAN_ENTITLEMENTS.Free.buyerLimitLabel,
       PLAN_ENTITLEMENTS.Starter.buyerLimitLabel,
       PLAN_ENTITLEMENTS.Pro.buyerLimitLabel,
       PLAN_ENTITLEMENTS.Agency.buyerLimitLabel,
@@ -89,9 +89,19 @@ const featureRows = [
     ]
   },
   {
+    feature: 'Active Deal Capacity',
+    statuses: [
+      PLAN_ENTITLEMENTS.Free.activeDealLimitLabel,
+      PLAN_ENTITLEMENTS.Starter.activeDealLimitLabel,
+      PLAN_ENTITLEMENTS.Pro.activeDealLimitLabel,
+      PLAN_ENTITLEMENTS.Agency.activeDealLimitLabel,
+      PLAN_ENTITLEMENTS.Enterprise.activeDealLimitLabel
+    ]
+  },
+  {
     feature: 'Buyer Portal Review Center',
     statuses: [
-      PLAN_ENTITLEMENTS['Free Demo'].buyerPortalReviewLabel,
+      PLAN_ENTITLEMENTS.Free.buyerPortalReviewLabel,
       PLAN_ENTITLEMENTS.Starter.buyerPortalReviewLabel,
       PLAN_ENTITLEMENTS.Pro.buyerPortalReviewLabel,
       PLAN_ENTITLEMENTS.Agency.buyerPortalReviewLabel,
@@ -119,8 +129,12 @@ const featureRows = [
     statuses: ['Not included', 'Not included', 'Included with monthly limits', 'Higher monthly limits', 'Custom']
   },
   {
+    feature: 'Deal Submission Review Center',
+    statuses: ['Not included', 'Not included', 'Coming Soon', 'Coming Soon / Contact Admin', 'Custom / Contact Admin']
+  },
+  {
     feature: 'Custom Buyer and Deal Portals',
-    statuses: ['Not included', 'Not included', 'Included', 'Included', 'Custom']
+    statuses: ['Not included', 'Not included', 'Coming Soon', 'Coming Soon', 'Custom']
   },
   {
     feature: 'Global Buyer Hub',

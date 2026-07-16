@@ -789,11 +789,11 @@ export const useAppStore = create<AppStore>()(
           ? {
             ...trial,
             plan: previewPlan === 'Owner Admin' ? trial.plan : previewPlan,
-            isPaid: previewPlan !== 'Free Demo',
-            billingStatus: previewPlan === 'Free Demo' ? 'Trial Active' as const : 'Paid Active' as const,
+            isPaid: !['Free', 'Free Demo'].includes(previewPlan),
+            billingStatus: ['Free', 'Free Demo'].includes(previewPlan) ? 'Free Active' as const : 'Paid Active' as const,
           }
           : trial
-        const billingStatus = effectiveTrial.billingStatus || (effectiveTrial.isPaid ? 'Paid Active' : 'Trial Active')
+        const billingStatus = effectiveTrial.billingStatus || (effectiveTrial.isPaid ? 'Paid Active' : 'Free Active')
         if (billingStatus === 'Payment Pending') {
           toast.error('Payment is pending. Please wait for Stripe payment confirmation before starting new public or paid activity.')
           return false
@@ -803,24 +803,26 @@ export const useAppStore = create<AppStore>()(
           return false
         }
         if (billingStatus === 'Cancelled') {
-          toast.error('This plan is cancelled. Contact admin to reactivate billing, or return to Free Demo if available.')
+          toast.error('This plan is cancelled. Contact admin to reactivate billing, or return to Free if available.')
           return false
         }
-        if (!effectiveTrial.isActive || effectiveTrial.isPaid || (effectiveTrial.plan && effectiveTrial.plan !== 'Free Demo' && effectiveTrial.plan !== 'Starter')) return true
+        if (!effectiveTrial.isActive || effectiveTrial.isPaid || (effectiveTrial.plan && !['Free', 'Free Demo', 'Starter'].includes(effectiveTrial.plan))) return true
         
         const buyerLimit = getPlanEntitlement(effectiveTrial.plan || 'Free Demo').buyerLimit ?? 999999
         const PLAN_LIMITS: Record<string, Record<keyof TrialState['usage'], number>> = {
-          'Free Demo': { dealsSubmitted: 5, buyersImported: buyerLimit, blastsSent: 5, exports: 20 },
+          Free: { dealsSubmitted: 3, buyersImported: buyerLimit, blastsSent: 0, exports: 20 },
+          'Free Demo': { dealsSubmitted: 3, buyersImported: buyerLimit, blastsSent: 0, exports: 20 },
           'Starter': { dealsSubmitted: 25, buyersImported: buyerLimit, blastsSent: 20, exports: 50 },
           'Pro': { dealsSubmitted: 999, buyersImported: buyerLimit, blastsSent: 999, exports: 999 },
           'Agency': { dealsSubmitted: 999, buyersImported: buyerLimit, blastsSent: 999, exports: 999 },
           'Enterprise': { dealsSubmitted: 999, buyersImported: buyerLimit, blastsSent: 999, exports: 999 }
         }
-        const limits = PLAN_LIMITS[effectiveTrial.plan || 'Free Demo'] || PLAN_LIMITS['Free Demo']
+        const normalizedPlan = effectiveTrial.plan === 'Free Demo' ? 'Free' : effectiveTrial.plan || 'Free'
+        const limits = PLAN_LIMITS[normalizedPlan] || PLAN_LIMITS.Free
         
         const current = effectiveTrial.usage[action]
         if (current >= limits[action]) {
-          toast.error('Free Demo limit reached. Upgrade, contact admin, or complete billing to continue creating new activity.')
+          toast.error('Free plan limit reached. Upgrade when you are ready to continue creating new activity.')
           return false // blocked
         }
 
@@ -841,32 +843,37 @@ export const useAppStore = create<AppStore>()(
         }))
       },
       upgradeToPlan: (plan) => {
-        const isPaidPlan = plan !== 'Free Demo'
+        const normalizedPlan = plan === 'Free Demo' ? 'Free' : plan
+        const isPaidPlan = normalizedPlan !== 'Free'
         set(s => ({
           trial: {
             ...s.trial,
-            plan,
+            plan: normalizedPlan,
             isPaid: isPaidPlan,
             isActive: true,
-            daysLeft: isPaidPlan ? 999 : 7,
-            billingStatus: isPaidPlan ? 'Paid Active' : 'Trial Active',
+            daysLeft: isPaidPlan ? 999 : 999,
+            endDate: isPaidPlan ? s.trial.endDate : '',
+            billingStatus: isPaidPlan ? 'Paid Active' : 'Free Active',
             billingUpdatedAt: new Date().toISOString()
           }
         }))
       },
       activateManualPlan: (updates) => {
-        const isPaidPlan = updates.plan !== 'Free Demo'
+        const normalizedPlan = updates.plan === 'Free Demo' ? 'Free' : updates.plan
+        const isPaidPlan = normalizedPlan !== 'Free'
         const isActiveBilling = updates.billingStatus === 'Paid Active' || updates.billingStatus === 'Comped'
         const isTrial = updates.billingStatus === 'Trial Active'
+        const isFree = normalizedPlan === 'Free'
 
         set(s => ({
           trial: {
             ...s.trial,
-            plan: updates.plan,
+            plan: normalizedPlan,
             isPaid: isPaidPlan && isActiveBilling,
-            isActive: isActiveBilling || isTrial,
-            daysLeft: isPaidPlan && isActiveBilling ? 999 : isTrial ? Math.max(s.trial.daysLeft || 0, 7) : 0,
-            billingStatus: updates.billingStatus,
+            isActive: isActiveBilling || isTrial || isFree,
+            daysLeft: isPaidPlan && isActiveBilling ? 999 : isFree ? 999 : isTrial ? Math.max(s.trial.daysLeft || 0, 7) : 0,
+            endDate: isFree ? '' : s.trial.endDate,
+            billingStatus: isFree ? 'Free Active' : updates.billingStatus,
             billingFrequency: updates.billingFrequency || s.trial.billingFrequency || 'monthly',
             paymentProvider: updates.paymentProvider || s.trial.paymentProvider || 'Stripe',
             billingPeriodStart: updates.billingPeriodStart || '',
@@ -1981,7 +1988,7 @@ export const useAppStore = create<AppStore>()(
             offers: data.offers || {},
             activities: data.activities || {},
             settings: data.settings || DEFAULT_SETTINGS,
-            trial: (data.trial ? { ...TRIAL_DEFAULT, ...data.trial, plan: data.trial.plan || 'Free Demo' } : TRIAL_DEFAULT),
+            trial: (data.trial ? { ...TRIAL_DEFAULT, ...data.trial, plan: data.trial.plan === 'Free Demo' ? 'Free' : data.trial.plan || 'Free' } : TRIAL_DEFAULT),
             viewedDealIds: data.viewedDealIds || [],
             viewedBuyerIds: data.viewedBuyerIds || [],
             suppressionList: data.suppressionList || [],

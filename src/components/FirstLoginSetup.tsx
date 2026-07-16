@@ -8,7 +8,7 @@ import { buildStripeCheckoutUrl, getBillingSetupWithLaunchDefaults, getPlanPayme
 type PlanName = TrialState['plan']
 
 const plans: { name: PlanName; monthly: string; annual: string; annualNote: string; desc: string; activeRelease: boolean; popular?: boolean }[] = [
-  { name: 'Free Demo', monthly: '$0', annual: '$0', annualNote: 'free demo', desc: 'For testing public submission flows and exploring Deal Blast Pro.', activeRelease: true },
+  { name: 'Free', monthly: '$0', annual: '$0', annualNote: 'free plan', desc: 'For testing public submission flows and exploring Deal Blast Pro with permanent limited access.', activeRelease: true },
   { name: 'Starter', monthly: '$47/mo', annual: '$470/yr', annualNote: '$470 billed annually', desc: 'For solo wholesalers and investors who need organized deal and buyer management.', activeRelease: true },
   { name: 'Pro', monthly: '$97/mo', annual: '$970/yr', annualNote: '$970 billed annually', desc: 'For active operators who need buyer matching, deal blasts, advanced calculators, Property Intelligence, and stronger follow-up tools.', activeRelease: true, popular: true },
   { name: 'Agency', monthly: '$197/mo', annual: '$1,970/yr', annualNote: '$1,970 billed annually', desc: 'For teams managing higher deal volume, shared buyer activity, and multiple users.', activeRelease: false },
@@ -23,20 +23,20 @@ export default function FirstLoginSetup() {
   }
   const billingSetup = getBillingSetupWithLaunchDefaults(settings.billingProviderSetup || DEFAULT_SETTINGS.billingProviderSetup!)
   const agencyEnterpriseEnabled = Boolean(onboarding.agencyEnterpriseEnabled)
-  const [selectedPlan, setSelectedPlan] = useState<PlanName>(onboarding.selectedPlan || 'Free Demo')
+  const [selectedPlan, setSelectedPlan] = useState<PlanName>((onboarding.selectedPlan === 'Free Demo' ? 'Free' : onboarding.selectedPlan) || 'Free')
   const [billingFrequency, setBillingFrequency] = useState<BillingFrequency>('monthly')
   const [message, setMessage] = useState('')
-  const selectedPaymentLink = selectedPlan === 'Free Demo'
+  const selectedPaymentLink = selectedPlan === 'Free'
     ? ''
     : getPlanPaymentLink(billingSetup, selectedPlan as PaidPlan, billingFrequency)
   const paymentSetupReady =
     ['Ready for Payment Collection', 'Ready for Manual Billing', 'Payment Link Saved'].includes(String(billingSetup.setupStatus || '')) &&
     isValidPaymentUrl(selectedPaymentLink)
-  const selectedPaidPlanReady = selectedPlan !== 'Free Demo' && paymentSetupReady
+  const selectedPaidPlanReady = !['Free', 'Free Demo'].includes(selectedPlan) && paymentSetupReady
   const selectedPaidPlanNeedsSetup = selectedPlan === 'Starter' || selectedPlan === 'Pro'
 
   const continueButtonLabel = () => {
-    if (selectedPlan === 'Free Demo') return 'Enter Free Demo'
+    if (selectedPlan === 'Free') return 'Enter Free'
     if (selectedPaidPlanReady) return 'Continue to Payment'
     if (selectedPaidPlanNeedsSetup) return 'Payment Setup Required'
     return 'Contact Support'
@@ -46,12 +46,12 @@ export default function FirstLoginSetup() {
     activateManualPlan({
       plan,
       billingStatus,
-      billingFrequency: plan === 'Free Demo' ? 'monthly' : billingFrequency,
+      billingFrequency: plan === 'Free' ? 'monthly' : billingFrequency,
       paymentProvider: 'Stripe',
       billingPeriodStart: '',
       billingPeriodEnd: '',
-      billingAdminNote: plan === 'Free Demo'
-        ? 'Selected Free Demo during first-login setup.'
+      billingAdminNote: plan === 'Free'
+        ? 'Selected Free during first-login setup.'
         : 'Selected paid plan during first-login setup. Awaiting Stripe webhook confirmation.',
     })
     updateSettings({
@@ -67,9 +67,9 @@ export default function FirstLoginSetup() {
   const continueSetup = () => {
     const gatedPlan = (selectedPlan === 'Agency' || selectedPlan === 'Enterprise') && !agencyEnterpriseEnabled
 
-    if (selectedPlan === 'Free Demo') {
-      completeSetup('Free Demo', 'Trial Active')
-      toast.success('Free Demo selected. Welcome to Deal Blast Pro.')
+    if (selectedPlan === 'Free') {
+      completeSetup('Free', 'Free Active')
+      toast.success('Free plan selected. Welcome to Deal Blast Pro.')
       return
     }
 
@@ -79,7 +79,7 @@ export default function FirstLoginSetup() {
     }
 
     if (!paymentSetupReady) {
-      setMessage('Payment setup is not active yet. Free Demo is available now. Paid plans require support to finish billing setup first.')
+      setMessage('Payment setup is not active yet. Free is available now. Paid plans require support to finish billing setup first.')
       return
     }
 
@@ -103,7 +103,7 @@ export default function FirstLoginSetup() {
           <div className="text-xs uppercase tracking-[2px] text-[#8B92A3] mb-2">First Login Setup</div>
           <div className="text-3xl font-semibold">Choose Your Deal Blast Pro Plan</div>
           <div className="text-[#8B92A3] mt-2 max-w-3xl">
-            Free Demo opens immediately. Paid plans open the saved Stripe payment link and remain Payment Pending until Stripe confirms payment.
+            Free opens immediately. Paid plans open the saved Stripe payment link and remain Payment Pending until Stripe confirms payment.
           </div>
           <div className="mt-4 inline-flex rounded border border-[#252A38] p-1">
             <button onClick={() => setBillingFrequency('monthly')} className={`px-4 py-1 text-sm rounded ${billingFrequency === 'monthly' ? 'bg-[#22C55E] text-black' : 'text-[#8B92A3]'}`}>Monthly</button>

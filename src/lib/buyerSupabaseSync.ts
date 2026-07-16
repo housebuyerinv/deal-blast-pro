@@ -49,7 +49,7 @@ async function getBuyerScope(): Promise<BuyerScope | null> {
     userId: data.user.id,
     email: String(data.user.email || '').trim().toLowerCase(),
     workspaceId,
-    planName: String(plan?.plan_name || 'Free Demo').trim(),
+    planName: String(plan?.plan_name || 'Free').trim(),
   }
 }
 

@@ -350,8 +350,8 @@ export interface TrialState {
     exports: number
   }
   isPaid: boolean
-  plan: 'Free Demo' | 'Starter' | 'Pro' | 'Agency' | 'Enterprise'
-  billingStatus?: 'Trial Active' | 'Payment Pending' | 'Paid Active' | 'Past Due' | 'Cancelled' | 'Comped'
+  plan: 'Free' | 'Free Demo' | 'Starter' | 'Pro' | 'Agency' | 'Enterprise'
+  billingStatus?: 'Free Active' | 'Trial Active' | 'Payment Pending' | 'Paid Active' | 'Past Due' | 'Cancelled' | 'Comped'
   billingFrequency?: 'monthly' | 'annual'
   paymentProvider?: 'Stripe' | 'PayPal' | 'Cash App' | 'Square' | 'ACH / Bank Transfer' | 'Manual Invoice' | 'Other'
   billingPeriodStart?: string
@@ -378,7 +378,7 @@ export interface AppSettings {
   blastTemplates: Record<string, { subject: string; body: string }>
   pipelineStatuses: DealStatus[]
   teamPermissions: Record<string, string[]>
-  ownerPreviewPlan?: 'Owner Admin' | 'Free Demo' | 'Starter' | 'Pro' | 'Agency' | 'Enterprise'
+  ownerPreviewPlan?: 'Owner Admin' | 'Free' | 'Free Demo' | 'Starter' | 'Pro' | 'Agency' | 'Enterprise'
   billingProviderSetup?: {
     provider: 'Stripe' | 'PayPal' | 'Cash App' | 'Square' | 'ACH / Bank Transfer' | 'Manual Invoice' | 'Other'
     billingMode: 'Stripe Checkout Links' | 'Payment link' | 'Autopay setup' | 'Invoice only' | 'Manual billing'

@@ -20,8 +20,8 @@ export default function Upgrade() {
   const [selected, setSelected] = useState<Plan>('Pro')
   const [step, setStep] = useState<'select' | 'payment' | 'contact' | 'setup'>('select')
 
-  const current = trial.plan || (trial.isPaid ? 'Pro' : 'Free Demo')
-  const isPaid = current !== 'Free Demo'
+  const current = trial.plan === 'Free Demo' ? 'Free' : trial.plan || (trial.isPaid ? 'Pro' : 'Free')
+  const isPaid = current !== 'Free'
   const onboarding = {
     ...DEFAULT_SETTINGS.onboarding!,
     ...(settings.onboarding || {}),
@@ -38,7 +38,7 @@ export default function Upgrade() {
   const paymentSetupReady =
     ['Ready for Payment Collection', 'Ready for Manual Billing', 'Payment Link Saved'].includes(String(billingSetup.setupStatus || '')) &&
     isValidPaymentUrl(paymentLink)
-  const currentPlanLabel = isPaid ? current : 'Free Demo'
+  const currentPlanLabel = isPaid ? current : 'Free'
   const selectedPlanDetails = plans.find(pp => pp.name === selected)
 
   const goPayment = () => {
@@ -136,19 +136,19 @@ export default function Upgrade() {
             <button
               onClick={() => {
                 activateManualPlan({
-                  plan: 'Free Demo',
-                  billingStatus: 'Trial Active',
+                  plan: 'Free',
+                  billingStatus: 'Free Active',
                   billingFrequency: 'monthly',
                   paymentProvider: 'Stripe',
                   billingPeriodStart: '',
                   billingPeriodEnd: '',
-                  billingAdminNote: 'User chose Free Demo after pending Stripe checkout.',
+                  billingAdminNote: 'User chose Free after pending Stripe checkout.',
                 })
                 navigate('/app/dashboard')
               }}
               className="btn btn-ghost"
             >
-              Choose Free Demo
+              Choose Free
             </button>
             <button onClick={() => navigate('/contact')} className="btn btn-ghost">Contact Support</button>
             <button onClick={cancel} className="btn btn-ghost">Back</button>
@@ -161,7 +161,7 @@ export default function Upgrade() {
         <div className="card p-6 max-w-md">
           <div className="text-xl font-semibold mb-2">Payment Setup Not Active</div>
           <div className="text-sm text-[#8B92A3] mb-4">
-            Payment setup is not active yet. Free Demo is available now. Paid plans require support to finish billing setup first.
+            Payment setup is not active yet. Free is available now. Paid plans require support to finish billing setup first.
           </div>
           <div className="rounded border border-[#252A38] bg-[#0A0C12] p-3 text-sm text-[#C5CAD6] mb-4">
             <div>Status: <span className="text-amber-300">{billingSetup.setupStatus || 'Not Started'}</span></div>

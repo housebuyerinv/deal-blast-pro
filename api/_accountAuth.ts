@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 
 const PLAN_RANK: Record<string, number> = {
+  free: 0,
   'free demo': 0,
   starter: 1,
   pro: 2,
@@ -10,6 +11,7 @@ const PLAN_RANK: Record<string, number> = {
 }
 
 const ACTIVE_BILLING_STATUSES = new Set([
+  'free active',
   'trial active',
   'paid active',
   'comped',
@@ -98,6 +100,9 @@ export async function getAuthenticatedAccount(req: any) {
   const deactivated = [profileStatus, workspaceStatus, accessStatus].some(status =>
     ['Deactivated', 'Deleted'].includes(status)
   )
+  const rawPlanName = cleanString(plan?.plan_name || 'Free')
+  const normalizedPlanName = rawPlanName === 'Free Demo' ? 'Free' : rawPlanName
+  const rawBillingStatus = cleanString(plan?.billing_status || (normalizedPlanName === 'Free' ? 'Free Active' : 'Trial Active'))
 
   return {
     adminClient,
@@ -109,8 +114,8 @@ export async function getAuthenticatedAccount(req: any) {
     plan,
     deactivated,
     accountStatus: deactivated ? 'Deactivated' : profileStatus,
-    planName: cleanString(plan?.plan_name || 'Free Demo'),
-    billingStatus: cleanString(plan?.billing_status || 'Trial Active'),
+    planName: normalizedPlanName,
+    billingStatus: rawBillingStatus === 'Trial Active' && normalizedPlanName === 'Free' ? 'Free Active' : rawBillingStatus,
   }
 }
 

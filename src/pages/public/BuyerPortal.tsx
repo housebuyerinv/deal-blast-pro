@@ -152,17 +152,17 @@ const FILE_UPLOAD_WARNING = 'Submission received, but file upload could not be c
 
 export default function BuyerPortal() {
   const trial = useAppStore(s => s.trial)
-  const billingStatus = trial.billingStatus || (trial.isPaid ? 'Paid Active' : 'Trial Active')
-  const paidAccessActive = billingStatus === 'Paid Active' || billingStatus === 'Comped'
+  const plan = trial.plan === 'Free Demo' ? 'Free' : trial.plan || 'Free'
+  const billingStatus = trial.billingStatus || (trial.isPaid ? 'Paid Active' : plan === 'Free' ? 'Free Active' : 'Trial Active')
   const billingAccessBlocked = billingStatus === 'Past Due' || billingStatus === 'Cancelled' || billingStatus === 'Payment Pending'
-  const publicSignupBlocked = billingAccessBlocked || (!paidAccessActive && (trial.plan || 'Free Demo') === 'Free Demo' && (!trial.isActive || (trial.daysLeft || 0) <= 0))
+  const publicSignupBlocked = billingAccessBlocked
   const publicSignupBlockedMessage = billingAccessBlocked
     ? billingStatus === 'Payment Pending'
       ? 'Buyer signup is paused while payment is pending. Please wait for admin confirmation or contact admin if payment has already been completed.'
       : billingStatus === 'Past Due'
         ? 'Buyer signup is paused because billing is past due. Please complete payment or contact admin to restore access.'
-        : 'Buyer signup is paused because the plan is cancelled. Contact admin to reactivate billing, or use Free Demo if available.'
-    : 'Buyer signup is paused because the Free Demo has expired. Please upgrade or contact admin to complete billing in Settings & Trial.'
+        : 'Buyer signup is paused because the plan is cancelled. Contact admin to reactivate billing.'
+    : ''
 const [submitted, setSubmitted] = useState(false)
   const [form, setForm] = useState(emptyForm)
   const [buyerTypes, setBuyerTypes] = useState<string[]>([])

@@ -12,10 +12,10 @@ export default async function handler(req: any, res: any) {
 
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
-    if (cleanString(body.confirmation) !== 'DELETE MY ACCOUNT') {
+    if (cleanString(body.confirmation) !== 'DELETE') {
       return send(res, 400, {
         ok: false,
-        error: 'Type DELETE MY ACCOUNT to deactivate this account.',
+        error: 'Type DELETE to deactivate this account.',
         code: 'confirmation_required',
       })
     }

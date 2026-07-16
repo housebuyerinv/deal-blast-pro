@@ -7,38 +7,58 @@ export type BuyerPortalReviewAccess = 'available' | 'locked' | 'coming-soon' | '
 export type PlanEntitlement = {
   buyerLimit: number | null
   buyerLimitLabel: string
+  activeDealLimit: number | null
+  activeDealLimitLabel: string
   buyerPortalReview: BuyerPortalReviewAccess
   buyerPortalReviewLabel: string
 }
 
 export const PLAN_ENTITLEMENTS: Record<PublicPlanName, PlanEntitlement> = {
+  Free: {
+    buyerLimit: 25,
+    buyerLimitLabel: 'Up to 25 buyers',
+    activeDealLimit: 3,
+    activeDealLimitLabel: 'Up to 3 active deals',
+    buyerPortalReview: 'locked',
+    buyerPortalReviewLabel: 'Not included',
+  },
   'Free Demo': {
     buyerLimit: 25,
     buyerLimitLabel: 'Up to 25 buyers',
+    activeDealLimit: 3,
+    activeDealLimitLabel: 'Up to 3 active deals',
     buyerPortalReview: 'locked',
     buyerPortalReviewLabel: 'Not included',
   },
   Starter: {
     buyerLimit: 100,
     buyerLimitLabel: 'Up to 100 buyers',
+    activeDealLimit: 25,
+    activeDealLimitLabel: 'Up to 25 active deals',
     buyerPortalReview: 'locked',
     buyerPortalReviewLabel: 'Not included',
   },
   Pro: {
     buyerLimit: 999,
     buyerLimitLabel: 'Up to 999 buyers',
+    activeDealLimit: 999,
+    activeDealLimitLabel: 'High-volume active deals',
     buyerPortalReview: 'coming-soon',
     buyerPortalReviewLabel: 'Coming Soon',
   },
   Agency: {
     buyerLimit: 999,
     buyerLimitLabel: 'Up to 999 buyers',
+    activeDealLimit: 999,
+    activeDealLimitLabel: 'Team active deal capacity',
     buyerPortalReview: 'coming-soon',
     buyerPortalReviewLabel: 'Coming Soon / Contact Admin',
   },
   Enterprise: {
     buyerLimit: null,
     buyerLimitLabel: 'Custom',
+    activeDealLimit: null,
+    activeDealLimitLabel: 'Custom',
     buyerPortalReview: 'custom',
     buyerPortalReviewLabel: 'Custom / Contact Admin',
   },
@@ -47,17 +67,20 @@ export const PLAN_ENTITLEMENTS: Record<PublicPlanName, PlanEntitlement> = {
 export const OWNER_ADMIN_ENTITLEMENTS: PlanEntitlement = {
   buyerLimit: null,
   buyerLimitLabel: 'Owner Admin testing',
+  activeDealLimit: null,
+  activeDealLimitLabel: 'Owner Admin testing',
   buyerPortalReview: 'available',
   buyerPortalReviewLabel: 'Owner Admin only',
 }
 
 export function normalizePlanName(plan?: string | null): PublicPlanName {
   const normalized = String(plan || '').trim().toLowerCase()
+  if (normalized === 'free' || normalized === 'free demo') return 'Free'
   if (normalized === 'starter') return 'Starter'
   if (normalized === 'pro') return 'Pro'
   if (normalized === 'agency') return 'Agency'
   if (normalized === 'enterprise') return 'Enterprise'
-  return 'Free Demo'
+  return 'Free'
 }
 
 export function getPlanEntitlement(plan?: PlanName | string | null): PlanEntitlement {
@@ -76,7 +99,7 @@ export function getBuyerCapacity(plan: PlanName | string | null | undefined, sav
   const remaining = limit === null ? Number.POSITIVE_INFINITY : Math.max(0, limit - current)
 
   return {
-    plan: plan || 'Free Demo',
+    plan: normalizePlanName(plan),
     limit,
     limitLabel: entitlement.buyerLimitLabel,
     current,

@@ -2,16 +2,15 @@ import { CreditCard } from 'lucide-react'
 import type { TrialState } from '../../lib/types'
 
 export function getPlanStatusText(trial: TrialState) {
-  const billingStatus = trial.billingStatus || (trial.isPaid ? 'Paid Active' : 'Trial Active')
-  const daysLeft = Math.max(0, Number(trial.daysLeft || 0))
-  const plan = trial.plan || 'Free Demo'
+  const plan = trial.plan === 'Free Demo' ? 'Free' : trial.plan || 'Free'
+  const billingStatus = trial.billingStatus || (trial.isPaid ? 'Paid Active' : plan === 'Free' ? 'Free Active' : 'Trial Active')
 
   if (['Payment Pending', 'Past Due', 'Cancelled'].includes(String(billingStatus))) {
     return String(billingStatus)
   }
 
-  if (plan === 'Free Demo' && !trial.isPaid) {
-    return daysLeft > 0 ? `Free Demo - ${daysLeft} days remaining` : 'Free Demo expired'
+  if (plan === 'Free' && !trial.isPaid) {
+    return 'Free Plan'
   }
 
   return `${plan} plan`
@@ -28,7 +27,8 @@ export function PlanStatusBadge({
 }) {
   const label = getPlanStatusText(trial)
   const isActionable = Boolean(onClick)
-  const isPaidPlan = Boolean(trial.isPaid || (trial.plan && trial.plan !== 'Free Demo'))
+  const plan = trial.plan === 'Free Demo' ? 'Free' : trial.plan
+  const isPaidPlan = Boolean(trial.isPaid || (plan && plan !== 'Free'))
 
   const className = `flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border ${
     isPaidPlan
@@ -39,7 +39,7 @@ export function PlanStatusBadge({
   return (
     <button type="button" onClick={onClick} disabled={!isActionable} className={className}>
       <CreditCard size={13} />
-      {compact && trial.plan === 'Free Demo' ? 'Free Demo' : label}
+      {compact && plan === 'Free' ? 'Free' : label}
     </button>
   )
 }

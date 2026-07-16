@@ -14,9 +14,10 @@ const PROVIDER_TIMEOUT_MS = 12000
 const RATE_LIMIT_WINDOW_MS = 60 * 1000
 const USER_RATE_LIMIT = 30
 const WORKSPACE_RATE_LIMIT = 90
-const CACHE_TTL_MS = 10 * 60 * 1000
+const CACHE_TTL_MS = 14 * 24 * 60 * 60 * 1000
 
 const PLAN_RANK: Record<string, number> = {
+  free: 0,
   'free demo': 0,
   starter: 1,
   pro: 2,
@@ -102,6 +103,7 @@ function categorizeProviderError(status: number, payload: any, timeout = false) 
 function providerHttpStatus(category: string, fallback = 500) {
   if (category === 'address_incomplete') return 400
   if (category === 'no_property_found') return 404
+  if (category === 'credits_exhausted') return 402
   if (category === 'provider_rate_limit' || category === 'usage_rate_limit') return 429
   if (category === 'provider_not_configured') return 503
   if (category === 'provider_timeout') return 504
@@ -114,6 +116,8 @@ function customerCode(category: string) {
   if (category === 'address_incomplete') return 'address_incomplete'
   if (category === 'no_property_found') return 'no_property_found'
   if (category === 'provider_rate_limit' || category === 'usage_rate_limit') return 'rate_limited'
+  if (category === 'credits_exhausted') return 'credits_exhausted'
+  if (category === 'usage_tracking_unavailable') return 'usage_tracking_unavailable'
   if (category === 'provider_not_configured') return 'provider_not_configured'
   if (category === 'provider_timeout') return 'provider_timeout'
   return 'provider_unavailable'
@@ -162,6 +166,24 @@ function normalizeLookupAddress(query: any) {
 
 function normalizeCacheAddress(address: string) {
   return clean(address).replace(/\s+/g, ' ').toLowerCase()
+}
+
+function getWorkspaceId(account: Awaited<ReturnType<typeof getAuthenticatedAccount>>) {
+  return clean(account.workspace?.id || account.plan?.workspace_id)
+}
+
+function planLookupLimit(planName: string, ownerAdmin: boolean) {
+  if (ownerAdmin) return 100
+  const normalized = clean(planName).toLowerCase()
+  if (normalized === 'enterprise') return 1000
+  if (normalized === 'agency') return 100
+  if (normalized === 'pro') return 25
+  return 0
+}
+
+function nextMonthlyResetDate() {
+  const now = new Date()
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1)).toISOString().slice(0, 10)
 }
 
 function normalizeAddress(record: any) {
@@ -352,6 +374,102 @@ function writeCache(key: string, value: any) {
   providerCache.set(key, { expiresAt: Date.now() + CACHE_TTL_MS, value })
 }
 
+async function readDurableLookupCache(account: Awaited<ReturnType<typeof getAuthenticatedAccount>>, normalizedAddress: string) {
+  const workspaceId = getWorkspaceId(account)
+  if (!workspaceId) return null
+  const { data, error } = await account.adminClient
+    .from('property_intelligence_cache')
+    .select('payload,provider_request_count,original_lookup_at,expires_at')
+    .eq('workspace_id', workspaceId)
+    .eq('normalized_address', normalizedAddress)
+    .gt('expires_at', new Date().toISOString())
+    .maybeSingle()
+  if (error || !data?.payload) return null
+  return {
+    ...data.payload,
+    cache: {
+      status: 'hit',
+      originalLookupAt: data.original_lookup_at,
+      expiresAt: data.expires_at,
+      creditUsed: false,
+      message: 'Cached result. No lookup credit used.',
+    },
+    usage: {
+      ...(data.payload as any).usage,
+      providerRequestCount: 0,
+      cachedProviderRequestCount: data.provider_request_count || 0,
+      creditUsed: false,
+    },
+  }
+}
+
+async function writeDurableLookupCache(
+  account: Awaited<ReturnType<typeof getAuthenticatedAccount>>,
+  normalizedAddress: string,
+  payload: any,
+  providerRequestCount: number
+) {
+  const workspaceId = getWorkspaceId(account)
+  if (!workspaceId) return
+  await account.adminClient
+    .from('property_intelligence_cache')
+    .upsert({
+      workspace_id: workspaceId,
+      normalized_address: normalizedAddress,
+      payload,
+      provider_request_count: providerRequestCount,
+      original_lookup_at: new Date().toISOString(),
+      expires_at: new Date(Date.now() + CACHE_TTL_MS).toISOString(),
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'workspace_id,normalized_address' })
+}
+
+async function reserveLookupCredit(
+  account: Awaited<ReturnType<typeof getAuthenticatedAccount>>,
+  operationId: string,
+  normalizedAddress: string
+) {
+  const workspaceId = getWorkspaceId(account)
+  if (!workspaceId) {
+    throw Object.assign(new Error('Workspace could not be verified.'), { status: 403, category: 'workspace_required' })
+  }
+  const { data, error } = await account.adminClient.rpc('reserve_property_intelligence_credit', {
+    p_workspace_id: workspaceId,
+    p_user_id: account.user.id,
+    p_operation_id: operationId,
+    p_plan_name: account.isOwnerAdmin ? 'Owner Admin' : account.planName,
+    p_normalized_address: normalizedAddress,
+  })
+  if (error) {
+    throw Object.assign(new Error('Property Intelligence usage could not be verified.'), { status: 503, category: 'usage_tracking_unavailable', payload: error })
+  }
+  if (!data?.ok) {
+    throw Object.assign(new Error('You have used all Property Intelligence lookups for this billing period.'), {
+      status: 402,
+      category: 'credits_exhausted',
+      payload: data,
+    })
+  }
+  return data
+}
+
+async function finalizeLookupCredit(account: Awaited<ReturnType<typeof getAuthenticatedAccount>>, operationUuid: string, summary: any, providerRequestCount: number) {
+  if (!operationUuid) return
+  await account.adminClient.rpc('finalize_property_intelligence_credit', {
+    p_operation_uuid: operationUuid,
+    p_result_summary: summary,
+    p_provider_request_count: providerRequestCount,
+  })
+}
+
+async function releaseLookupCredit(account: Awaited<ReturnType<typeof getAuthenticatedAccount>>, operationUuid: string, failureCode: string) {
+  if (!operationUuid) return
+  await account.adminClient.rpc('release_property_intelligence_credit', {
+    p_operation_uuid: operationUuid,
+    p_failure_code: failureCode,
+  })
+}
+
 async function rentcast(endpoint: string, params: Record<string, any>, config: ReturnType<typeof readRuntimeConfig>) {
   const url = new URL(`${RENTCAST_BASE_URL}${endpoint}`)
   Object.entries(params).forEach(([key, value]) => {
@@ -414,7 +532,7 @@ async function rentcast(endpoint: string, params: Record<string, any>, config: R
 async function getPropertyRecord(address: string, config: ReturnType<typeof readRuntimeConfig>) {
   const cacheKey = `property:${normalizeCacheAddress(address)}`
   const cached = readCache<any>(cacheKey)
-  if (cached) return cached
+  if (cached) return { ...cached, cacheHit: true }
   const result = await rentcast('/properties', { address, limit: 1 }, config)
   const row = pickFirstRecord(result.payload)
   if (!row) {
@@ -425,7 +543,7 @@ async function getPropertyRecord(address: string, config: ReturnType<typeof read
       endpoint: '/properties',
     })
   }
-  const value = { row, ...result }
+  const value = { row, ...result, cacheHit: false }
   writeCache(cacheKey, value)
   return value
 }
@@ -468,6 +586,8 @@ async function providerHealth(config: ReturnType<typeof readRuntimeConfig>, forc
 
 function customerError(error: any) {
   if (error?.category === 'address_incomplete') return COMPLETE_ADDRESS_MESSAGE
+  if (error?.category === 'credits_exhausted') return 'You have used all Property Intelligence lookups for this billing period.'
+  if (error?.category === 'usage_tracking_unavailable') return 'Property Intelligence usage tracking is temporarily unavailable.'
   if (error?.category === 'no_property_found') return 'Property data is unavailable for this address.'
   if (error?.category === 'provider_not_configured') return PROVIDER_NOT_CONFIGURED_MESSAGE
   if (error?.category === 'provider_timeout') return TIMEOUT_MESSAGE
@@ -558,6 +678,28 @@ export default async function handler(req: any, res: any) {
   try {
     checkUsageLimit(account, action)
 
+    if (action === 'balance') {
+      const workspaceId = getWorkspaceId(account)
+      if (!workspaceId) throw Object.assign(new Error('Workspace could not be verified.'), { status: 403, category: 'workspace_required' })
+      const limit = planLookupLimit(account.isOwnerAdmin ? 'Owner Admin' : account.planName, account.isOwnerAdmin)
+      const { data } = await account.adminClient
+        .from('property_intelligence_balances')
+        .select('billing_period_start,included_limit,included_used,purchased_available,purchased_used,updated_at')
+        .eq('workspace_id', workspaceId)
+        .maybeSingle()
+      return send(res, 200, {
+        planName: account.isOwnerAdmin ? 'Owner Admin' : account.planName,
+        includedLimit: data?.included_limit ?? limit,
+        includedUsed: data?.included_used ?? 0,
+        includedRemaining: Math.max(0, (data?.included_limit ?? limit) - (data?.included_used ?? 0)),
+        purchasedAvailable: data?.purchased_available ?? 0,
+        purchasedUsed: data?.purchased_used ?? 0,
+        purchasedRemaining: Math.max(0, (data?.purchased_available ?? 0) - (data?.purchased_used ?? 0)),
+        resetDate: nextMonthlyResetDate(),
+        addonCheckoutEnabled: false,
+      })
+    }
+
     if (action === 'autocomplete') {
       return send(res, 501, {
         error: 'Address autocomplete is not configured. Enter a complete property address manually.',
@@ -585,6 +727,151 @@ export default async function handler(req: any, res: any) {
         normalizedAddressSent: lookup.fullAddress,
         partialAddressRequest: lookup.partial,
       })
+    }
+
+    if (action === 'lookup') {
+      const lookup = normalizeLookupAddress(req.query)
+      if (!lookup.completeEnough) throw Object.assign(new Error(COMPLETE_ADDRESS_MESSAGE), { status: 400, category: 'address_incomplete' })
+
+      const normalizedAddress = normalizeCacheAddress(lookup.fullAddress)
+      const forceRefresh = req.query.refresh === 'true'
+      if (!forceRefresh) {
+        const cached = await readDurableLookupCache(account, normalizedAddress)
+        if (cached) return send(res, 200, cached)
+      }
+
+      const operationId = clean(req.query.operationId) || `${account.user.id}:${normalizedAddress}:${Date.now()}`
+      let reservation: any = null
+      let providerRequestCount = 0
+
+      try {
+        reservation = await reserveLookupCredit(account, operationId, normalizedAddress)
+
+        const propertyResult = await getPropertyRecord(lookup.fullAddress, config)
+        providerRequestCount += propertyResult.cacheHit ? 0 : 1
+
+        const valueCacheKey = `value:${normalizedAddress}`
+        const cachedValue = readCache<any>(valueCacheKey)
+        let valuePayload: any
+        if (cachedValue) {
+          valuePayload = cachedValue
+        } else {
+          const valueResult = await rentcast('/avm/value', { address: lookup.fullAddress }, config)
+          providerRequestCount += 1
+          const value = valueResult.payload
+          valuePayload = {
+            valuation: {
+              address: normalizeAddress(value),
+              value: value.price || value.value,
+              valueLow: value.priceRangeLow || value.valueLow,
+              valueHigh: value.priceRangeHigh || value.valueHigh,
+              confidence: value.confidenceScore || value.confidence,
+              comparableCount: Array.isArray(value.comparables) ? value.comparables.length : undefined,
+              source: CUSTOMER_SOURCE,
+              lastUpdated: new Date().toISOString(),
+            },
+            comps: (value.comparables || []).map(normalizeComp),
+            normalizedAddressSent: lookup.fullAddress,
+          }
+          writeCache(valueCacheKey, valuePayload)
+        }
+
+        const rentCacheKey = `rent:${normalizedAddress}`
+        const cachedRent = readCache<any>(rentCacheKey)
+        let rentPayload: any
+        if (cachedRent) {
+          rentPayload = cachedRent
+        } else {
+          const rentResult = await rentcast('/avm/rent/long-term', { address: lookup.fullAddress }, config)
+          providerRequestCount += 1
+          const rent = rentResult.payload
+          rentPayload = {
+            rent: {
+              address: normalizeAddress(rent),
+              rent: rent.rent || rent.price,
+              rentLow: rent.rentRangeLow || rent.priceRangeLow,
+              rentHigh: rent.rentRangeHigh || rent.priceRangeHigh,
+              confidence: rent.confidenceScore || rent.confidence,
+              comparableCount: Array.isArray(rent.comparables) ? rent.comparables.length : undefined,
+              source: CUSTOMER_SOURCE,
+              lastUpdated: new Date().toISOString(),
+            },
+            normalizedAddressSent: lookup.fullAddress,
+          }
+          writeCache(rentCacheKey, rentPayload)
+        }
+
+        let marketPayload: any = { market: null }
+        if (lookup.zipCode) {
+          const marketCacheKey = `market:${lookup.zipCode}`
+          const cachedMarket = readCache<any>(marketCacheKey)
+          if (cachedMarket) {
+            marketPayload = cachedMarket
+          } else {
+            const marketResult = await rentcast('/markets', { zipCode: lookup.zipCode }, config)
+            providerRequestCount += 1
+            const market = marketResult.payload
+            marketPayload = {
+              market: {
+                location: { city: market.city, state: market.state, postalCode: market.zipCode },
+                geographicLevel: 'ZIP',
+                reportingPeriod: market.lastUpdatedDate || new Date().toISOString().slice(0, 10),
+                medianSalePrice: market.saleData?.medianPrice,
+                medianPricePerSqft: market.saleData?.medianPricePerSquareFoot,
+                averageDaysOnMarket: market.saleData?.averageDaysOnMarket,
+                activeInventory: market.saleData?.activeListings,
+                medianRent: market.rentalData?.medianRent,
+                averageRent: market.rentalData?.averageRent,
+                activeRentalListings: market.rentalData?.activeListings,
+                rentEstimateRange: market.rentalData?.medianRent ? `$${Number(market.rentalData.medianRent).toLocaleString()}` : undefined,
+                source: CUSTOMER_SOURCE,
+                lastUpdated: new Date().toISOString(),
+              },
+            }
+            writeCache(marketCacheKey, marketPayload)
+          }
+        }
+
+        const summary = {
+          property: normalizeProperty(propertyResult.row),
+          owner: normalizeOwner(propertyResult.row, canAccessOwnerDetails(account.isOwnerAdmin ? 'Owner Admin' : account.planName)),
+          valuation: valuePayload.valuation,
+          rent: rentPayload.rent,
+          comps: valuePayload.comps || [],
+          history: normalizeHistory(propertyResult.row),
+          market: marketPayload.market,
+          normalizedAddressSent: lookup.fullAddress,
+          cache: {
+            status: forceRefresh ? 'refresh' : 'miss',
+            creditUsed: true,
+            originalLookupAt: new Date().toISOString(),
+            expiresAt: new Date(Date.now() + CACHE_TTL_MS).toISOString(),
+          },
+          usage: {
+            creditUsed: true,
+            creditSource: reservation.creditSource,
+            providerRequestCount,
+            includedLimit: reservation.includedLimit,
+            includedUsed: reservation.includedUsed,
+            purchasedRemaining: reservation.purchasedRemaining,
+            resetDate: reservation.resetDate,
+          },
+        }
+
+        await writeDurableLookupCache(account, normalizedAddress, summary, providerRequestCount)
+        await finalizeLookupCredit(account, clean(reservation.operationId), {
+          normalizedAddress,
+          providerRequestCount,
+          hasProperty: Boolean(summary.property),
+          hasValuation: Boolean(summary.valuation),
+          hasRent: Boolean(summary.rent),
+          hasMarket: Boolean(summary.market),
+        }, providerRequestCount)
+        return send(res, 200, summary)
+      } catch (error: any) {
+        await releaseLookupCredit(account, clean(reservation?.operationId), error?.category || 'provider_unavailable')
+        throw error
+      }
     }
 
     if (action === 'property' || action === 'owner' || action === 'history') {

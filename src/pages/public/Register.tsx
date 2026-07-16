@@ -22,7 +22,7 @@ export default function Register() {
     const plan = String(searchParams.get('plan') || '').toLowerCase()
     if (plan === 'starter') return 'Starter'
     if (plan === 'pro') return 'Pro'
-    return 'Free Demo'
+    return 'Free'
   })()
 
   const handleSubmit = async (e: React.FormEvent) => {

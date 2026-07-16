@@ -1,7 +1,7 @@
 import type { TrialState } from './types'
 
 export type BillingFrequency = 'monthly' | 'annual'
-export type PaidPlan = Exclude<TrialState['plan'], 'Free Demo'>
+export type PaidPlan = Exclude<TrialState['plan'], 'Free' | 'Free Demo'>
 
 export const billingLinkFields: Record<PaidPlan, Record<BillingFrequency, string>> = {
   Starter: {

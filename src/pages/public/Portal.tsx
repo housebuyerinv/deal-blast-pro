@@ -8,17 +8,17 @@ import PublicNav from '../../components/layout/PublicNav'
 
 export default function Portal() {
   const trial = useAppStore(s => s.trial)
-  const billingStatus = trial.billingStatus || (trial.isPaid ? 'Paid Active' : 'Trial Active')
-  const paidAccessActive = billingStatus === 'Paid Active' || billingStatus === 'Comped'
+  const plan = trial.plan === 'Free Demo' ? 'Free' : trial.plan || 'Free'
+  const billingStatus = trial.billingStatus || (trial.isPaid ? 'Paid Active' : plan === 'Free' ? 'Free Active' : 'Trial Active')
   const billingAccessBlocked = billingStatus === 'Past Due' || billingStatus === 'Cancelled' || billingStatus === 'Payment Pending'
-  const publicSubmissionBlocked = billingAccessBlocked || (!paidAccessActive && (trial.plan || 'Free Demo') === 'Free Demo' && (!trial.isActive || (trial.daysLeft || 0) <= 0))
+  const publicSubmissionBlocked = billingAccessBlocked
   const publicSubmissionBlockedMessage = billingAccessBlocked
     ? billingStatus === 'Payment Pending'
       ? 'Public deal submissions are paused while payment is pending. Please wait for admin confirmation or contact admin if payment has already been completed.'
       : billingStatus === 'Past Due'
         ? 'Public deal submissions are paused because billing is past due. Please complete payment or contact admin to restore access.'
-        : 'Public deal submissions are paused because the plan is cancelled. Contact admin to reactivate billing, or use Free Demo if available.'
-    : 'Public deal submissions are paused because the Free Demo has expired. Please upgrade or contact admin to complete billing in Settings & Trial.'
+        : 'Public deal submissions are paused because the plan is cancelled. Contact admin to reactivate billing.'
+    : ''
 
   const [step, setStep] = useState(1)
   const [form, setForm] = useState({

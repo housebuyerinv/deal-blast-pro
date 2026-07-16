@@ -1243,7 +1243,7 @@ export default function Buyers() {
       const result = await fetchBuyersFromSupabase()
 
       if (!result.ok) {
-        if (effectivePlan !== 'Free Demo') {
+        if (effectivePlan !== 'Free') {
           console.warn('[Deal Blast Pro] Supabase buyer load failed; keeping local buyers fallback:', result.error)
         }
         return

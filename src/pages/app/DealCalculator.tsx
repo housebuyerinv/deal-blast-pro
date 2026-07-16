@@ -393,6 +393,7 @@ export default function DealCalculator() {
   const [propertyLookupResults, setPropertyLookupResults] = useState<any[]>([])
   const [propertyLookupSummary, setPropertyLookupSummary] = useState<any | null>(null)
   const [propertyLookupStatus, setPropertyLookupStatus] = useState('')
+  const [propertyCreditBalance, setPropertyCreditBalance] = useState<any | null>(null)
   const [propertyConnection, setPropertyConnection] = useState<{ status: string; connected: boolean; checked: boolean }>({
     status: canUseLivePropertyData ? 'Testing Connection' : 'Pro Required',
     connected: false,
@@ -638,7 +639,7 @@ export default function DealCalculator() {
     }
   }
 
-  const loadPropertyIntelligenceForAddress = async (address: any) => {
+  const loadPropertyIntelligenceForAddress = async (address: any, options: { refresh?: boolean } = {}) => {
     if (!canUseLivePropertyData) {
       setPropertyLookupError('Property Intelligence is available on the Pro plan. Manual property analysis remains available on every plan.')
       return
@@ -659,48 +660,46 @@ export default function DealCalculator() {
     setPropertyLookupStatus('Loading property facts...')
 
     try {
-      const [property, owner, value, rent, comps, history, market] = await Promise.allSettled([
-        fetchPropertyIntelligence('property', { address: query, city: normalizedAddress.city, state: normalizedAddress.state, zipCode: normalizedAddress.postalCode }),
-        fetchPropertyIntelligence('owner', { address: query, city: normalizedAddress.city, state: normalizedAddress.state, zipCode: normalizedAddress.postalCode }),
-        fetchPropertyIntelligence('value', { address: query }),
-        fetchPropertyIntelligence('rent', { address: query }),
-        fetchPropertyIntelligence('comps', { address: query }),
-        fetchPropertyIntelligence('history', { address: query, city: normalizedAddress.city, state: normalizedAddress.state, zipCode: normalizedAddress.postalCode }),
-        fetchPropertyIntelligence('market', { city: normalizedAddress.city, state: normalizedAddress.state, zipCode: normalizedAddress.postalCode }),
-      ])
-
-      const read = (settled: PromiseSettledResult<any>, key: string) => settled.status === 'fulfilled' ? settled.value?.[key] : null
-      const fulfilled = [property, owner, value, rent, comps, history, market].filter(settled => settled.status === 'fulfilled')
-      if (!fulfilled.length) {
-        const firstError = [property, owner, value, rent, comps, history, market].find(settled => settled.status === 'rejected') as PromiseRejectedResult | undefined
-        throw firstError?.reason || new Error('Property Intelligence lookup failed')
-      }
+      const operationId = window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`
+      const payload = await fetchPropertyIntelligence('lookup', {
+        address: query,
+        city: normalizedAddress.city,
+        state: normalizedAddress.state,
+        zipCode: normalizedAddress.postalCode,
+        operationId,
+        refresh: options.refresh ? 'true' : '',
+      })
 
       const summary = {
         address: normalizedAddress,
-        property: read(property, 'property'),
-        owner: read(owner, 'owner'),
-        valuation: read(value, 'valuation'),
-        rent: read(rent, 'rent'),
-        comps: read(comps, 'comps') || [],
-        history: read(history, 'history') || [],
-        market: read(market, 'market'),
+        property: payload.property,
+        owner: payload.owner,
+        valuation: payload.valuation,
+        rent: payload.rent,
+        comps: payload.comps || [],
+        history: payload.history || [],
+        market: payload.market,
+        cache: payload.cache,
+        usage: payload.usage,
         retrievedAt: new Date().toISOString(),
       }
+      if (payload.usage) setPropertyCreditBalance(payload.usage)
       setPropertyLookupSummary(summary)
       setPropertyLookupResults([])
       setPropertyMergeRows(buildPropertyMergeRows(activePropertyDeal, summary))
       setSelectedPropertyCompIds([])
       setPropertyTab('Property')
       setPropertyLookupStatus('')
-      if (fulfilled.length < 7) {
-        setPropertyLookupError('Some Property Intelligence sections are unavailable for this address. Available sections are shown below.')
+      if (payload.cache?.status === 'hit') {
+        setPropertyLookupStatus('Cached result. No lookup credit used.')
+      } else if (payload.usage?.creditUsed) {
+        setPropertyLookupStatus(`Lookup complete. ${payload.usage.providerRequestCount || 0} provider requests used.`)
       }
     } catch (error: any) {
       setPropertyLookupError(error?.message || 'Property Intelligence lookup failed')
+      setPropertyLookupStatus('')
     } finally {
       setPropertyLookupLoading(false)
-      setPropertyLookupStatus('')
     }
   }
 
@@ -750,8 +749,12 @@ export default function DealCalculator() {
     const checkConnection = async () => {
       setPropertyConnection({ status: 'Testing Connection', connected: false, checked: false })
       try {
-        const payload = await fetchPropertyIntelligence('status', {})
+        const [payload, balance] = await Promise.all([
+          fetchPropertyIntelligence('status', {}),
+          fetchPropertyIntelligence('balance', {}).catch(() => null),
+        ])
         if (cancelled) return
+        if (balance) setPropertyCreditBalance(balance)
         setPropertyConnection({
           status: payload?.propertyDataConnected ? 'Property Data Connected' : (payload?.status || 'Connection Error'),
           connected: Boolean(payload?.propertyDataConnected),
@@ -2111,6 +2114,25 @@ Deal Blast Pro`
               </div>
             )}
 
+            {canUseLivePropertyData && propertyCreditBalance && (
+              <div className="mb-4 grid gap-2 md:grid-cols-3">
+                <div className="panel p-3">
+                  <div className="text-xs text-[#8B92A3]">Property Intelligence Lookups</div>
+                  <div className="text-lg font-semibold text-[#E6E8EE]">
+                    {propertyCreditBalance.includedRemaining ?? Math.max(0, Number(propertyCreditBalance.includedLimit || 0) - Number(propertyCreditBalance.includedUsed || 0))} remaining this month
+                  </div>
+                </div>
+                <div className="panel p-3">
+                  <div className="text-xs text-[#8B92A3]">Additional Credits</div>
+                  <div className="text-lg font-semibold text-[#E6E8EE]">{propertyCreditBalance.purchasedRemaining ?? 0}</div>
+                </div>
+                <div className="panel p-3">
+                  <div className="text-xs text-[#8B92A3]">Reset Date</div>
+                  <div className="text-lg font-semibold text-[#E6E8EE]">{propertyCreditBalance.resetDate || 'Next billing month'}</div>
+                </div>
+              </div>
+            )}
+
             <div className="mb-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_auto]">
               <div>
                 <div className="text-xs text-[#8B92A3] mb-1.5">Select Existing Deal</div>
@@ -2268,6 +2290,16 @@ Deal Blast Pro`
                     <div className="mt-3 flex flex-wrap gap-2">
                       <button type="button" onClick={applySuggestedArv} className="btn btn-primary text-sm">Apply Suggested ARV</button>
                       <button type="button" onClick={savePropertyIntelligenceToDeal} disabled={!activePropertyDeal} className="btn btn-ghost text-sm disabled:opacity-50">Save Property Intelligence to Deal</button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const ok = window.confirm('Refreshing this property will use 1 lookup credit.')
+                          if (ok) void loadPropertyIntelligenceForAddress(propertyLookupSummary.address, { refresh: true })
+                        }}
+                        className="btn btn-ghost text-sm"
+                      >
+                        Refresh Property Data
+                      </button>
                     </div>
                   )}
                 </div>
@@ -2605,7 +2637,7 @@ Deal Blast Pro`
               <div className="flex items-center gap-3">
                 <div className="text-3xl font-semibold tracking-[-0.5px]">Deal Calculator</div>
                 <div className={`px-2.5 py-0.5 text-[10px] font-bold tracking-[1px] rounded ${ownerAdminMode && !ownerPreviewActive ? 'bg-[#22C55E] text-black' : 'bg-amber-500/10 text-amber-300 border border-amber-500/30'}`}>
-                  {ownerAdminMode && !ownerPreviewActive ? 'OWNER ADMIN' : effectiveCalculatorPlan === 'Free Demo' ? 'FREE DEMO' : String(effectiveCalculatorPlan).toUpperCase()}
+                  {ownerAdminMode && !ownerPreviewActive ? 'OWNER ADMIN' : ['Free', 'Free Demo'].includes(String(effectiveCalculatorPlan)) ? 'FREE' : String(effectiveCalculatorPlan).toUpperCase()}
                 </div>
               </div>
               <div className="text-[#8B92A3] text-sm -mt-0.5">{calculatorAccessLabel}</div>
@@ -2692,7 +2724,7 @@ Deal Blast Pro`
                 {tab.label}
                 {!isEnabled && (
                   <span className="ml-1 text-[9px] px-1.5 py-0.5 rounded bg-[#252A38] text-[#8B92A3]">
-                    {lock.requiredPlan === 'Free Demo' ? 'Included' : `${lock.requiredPlan} Required`}
+                    {['Free', 'Free Demo'].includes(String(lock.requiredPlan)) ? 'Included' : `${lock.requiredPlan} Required`}
                   </span>
                 )}
               </button>
@@ -2706,8 +2738,8 @@ Deal Blast Pro`
         </div>
 
         <div className="text-center text-[11px] text-[#6B7280] mt-8">
-          {effectiveCalculatorPlan === 'Free Demo' && (!ownerAdminMode || ownerPreviewActive)
-            ? 'Free Demo includes ARV Calculator only. Starter unlocks Rehab and MAO. Pro unlocks every calculator.'
+          {['Free', 'Free Demo'].includes(String(effectiveCalculatorPlan)) && (!ownerAdminMode || ownerPreviewActive)
+            ? 'Free includes ARV Calculator only. Starter unlocks Rehab and MAO. Pro unlocks every calculator.'
             : 'Works with or without a selected deal. All calculations stay local.'}
         </div>
       </div>

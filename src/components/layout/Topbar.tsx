@@ -11,7 +11,8 @@ export default function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const { user, trial, logout, settings } = useAppStore()
   const navigate = useNavigate()
 
-  const isPaidPlan = !!trial.plan && trial.plan !== 'Free Demo' || trial.isPaid
+  const normalizedPlan = trial.plan === 'Free Demo' ? 'Free' : trial.plan
+  const isPaidPlan = !!normalizedPlan && normalizedPlan !== 'Free' || trial.isPaid
   const superAdmin = isSuperAdmin(user)
   const previewActive = isOwnerPreviewActive(user, settings)
   const previewPlan = getOwnerPreviewPlan(settings)

@@ -235,7 +235,8 @@ export default async function handler(req: any, res: any) {
     const password = String(body.password || '')
     const company = cleanString(body.company)
     const role = cleanString(body.role) || 'Admin'
-    const plan = cleanString(body.plan) || 'Free Demo'
+    const requestedPlan = cleanString(body.plan) || 'Free'
+    const plan = requestedPlan === 'Free Demo' ? 'Free' : requestedPlan
     const internalTestMode = isInternalTestRequest(req, body)
     const includeDiagnostics = internalTestMode || body.includeDiagnostics === true
 
@@ -356,8 +357,8 @@ export default async function handler(req: any, res: any) {
       throw new Error('Registration Auth succeeded but durable registration storage is not configured. Add SUPABASE_SERVICE_ROLE_KEY and retry reconciliation.')
     }
 
-    const billingStatus = plan === 'Free Demo' ? 'Trial Active' : 'Pending Payment'
-    const paymentStatus = plan === 'Free Demo' ? 'No payment required' : 'Pending Stripe checkout'
+    const billingStatus = plan === 'Free' ? 'Free Active' : 'Pending Payment'
+    const paymentStatus = plan === 'Free' ? 'No payment required' : 'Pending Stripe checkout'
     const { workspaceId, workspaceName, idempotencyKey } = await upsertRegistrationRows({
       adminClient,
       diagnostics,

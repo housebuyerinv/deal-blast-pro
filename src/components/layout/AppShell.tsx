@@ -11,7 +11,8 @@ import FirstLoginSetup from '../FirstLoginSetup'
 import OnboardingTour from '../OnboardingTour'
 import { buildStripeCheckoutUrl, getBillingSetupWithLaunchDefaults, getPlanPaymentLink, isValidPaymentUrl, type BillingFrequency, type PaidPlan } from '../../lib/billingLinks'
 import { isInternalAdmin, isSuperAdmin } from '../../lib/accessControl'
-import { canAccessRoute, getOwnerPreviewPlan, getRequiredPlanForRoute, isOwnerPreviewActive } from '../../lib/planAccess'
+import { canAccessRoute, getEffectivePlan, getOwnerPreviewPlan, getRequiredPlanForRoute, isOwnerPreviewActive } from '../../lib/planAccess'
+import { canUseLaunchedFeature, getFeatureLockedMessage } from '../../lib/featureLaunch'
 import { supabase } from '../../lib/supabase'
 
 const safeLower = (value: any) => String(value ?? '').toLowerCase();
@@ -179,7 +180,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const billingStatusBlocksAccess = isPaymentPending || billingStatus === 'Past Due'
 
   if (user && !hasOwnerAdminAccess && billingStatusBlocksAccess) {
-    const selectedPlan = trial.plan && trial.plan !== 'Free Demo' ? trial.plan as PaidPlan : 'Pro'
+    const selectedPlan = trial.plan && !['Free', 'Free Demo'].includes(trial.plan) ? trial.plan as PaidPlan : 'Pro'
     const billingFrequency = (trial.billingFrequency || 'monthly') as BillingFrequency
     const billingSetup = getBillingSetupWithLaunchDefaults(settings.billingProviderSetup || DEFAULT_SETTINGS.billingProviderSetup!)
     const paymentLink = getPlanPaymentLink(billingSetup, selectedPlan, billingFrequency)
@@ -189,7 +190,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
     const completePayment = () => {
       if (!paymentSetupReady) {
-        alert('Payment Setup Not Active. Free Demo is available now. Paid plans require support to finish billing setup first.')
+        alert('Payment Setup Not Active. Free is available now. Paid plans require support to finish billing setup first.')
         return
       }
 
@@ -204,13 +205,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
     const chooseFreeDemo = () => {
       activateManualPlan({
-        plan: 'Free Demo',
-        billingStatus: 'Trial Active',
+        plan: 'Free',
+        billingStatus: 'Free Active',
         billingFrequency: 'monthly',
         paymentProvider: 'Stripe',
         billingPeriodStart: '',
         billingPeriodEnd: '',
-        billingAdminNote: 'User chose Free Demo from billing status screen.',
+        billingAdminNote: 'User chose Free from billing status screen.',
       })
       navigate('/app/dashboard')
     }
@@ -224,7 +225,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </h1>
           <p className="text-sm leading-6 text-[#C5CAD6]">
             {isPaymentPending
-              ? 'If you completed payment, Stripe will confirm your access after the webhook is verified. If you closed checkout before paying, complete payment or choose Free Demo.'
+              ? 'If you completed payment, Stripe will confirm your access after the webhook is verified. If you closed checkout before paying, complete payment or choose Free.'
               : 'Complete payment or contact support to restore access. Your data remains safe.'}
           </p>
 
@@ -237,7 +238,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
           <div className="mt-5 grid gap-2 sm:grid-cols-3">
             <button onClick={completePayment} className="btn btn-green">Complete Payment</button>
-            <button onClick={chooseFreeDemo} className="btn btn-ghost">Choose Free Demo</button>
+            <button onClick={chooseFreeDemo} className="btn btn-ghost">Choose Free</button>
             <button onClick={() => navigate('/contact')} className="btn btn-ghost">Contact Support</button>
           </div>
         </div>
@@ -245,16 +246,44 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     )
   }
 
-  const isFreeDemo = billingStatus === 'Trial Active' && (!trial.plan || trial.plan === 'Free Demo')
+  const effectivePlan = getEffectivePlan(trial, user, settings)
+  const isFreePlan = ['Free', 'Free Demo'].includes(String(effectivePlan))
+  const restrictedFeature =
+    location.pathname === '/app/submissions'
+      ? 'dealSubmissionReviewCenter'
+      : null
 
-  if (user && !hasOwnerAdminAccess && isFreeDemo && !canAccessRoute(location.pathname, trial, user, settings)) {
+  if (
+    user &&
+    restrictedFeature &&
+    !canUseLaunchedFeature(restrictedFeature, effectivePlan, hasOwnerAdminAccess)
+  ) {
+    const message = getFeatureLockedMessage(restrictedFeature, effectivePlan)
     return (
       <div className="min-h-screen bg-[#0A0C12] text-[#E6E8EE] flex items-center justify-center p-4">
         <div className="w-full max-w-xl rounded border border-[#252A38] bg-[#0F111A] p-6 text-center shadow-xl">
-          <div className="text-xs uppercase tracking-[2px] text-[#8B92A3] mb-2">Free Demo Limit</div>
+          <div className="text-xs uppercase tracking-[2px] text-[#8B92A3] mb-2">Coming Soon</div>
+          <h1 className="text-2xl font-semibold mb-3">{message}</h1>
+          <p className="text-sm text-[#C5CAD6] mb-5">
+            The public Deal Submission Form remains available. The private Deal Submission Review Center is not launched for customer workspaces yet.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-2 justify-center">
+            <button onClick={() => navigate('/app/dashboard')} className="btn btn-green">Return to Command Center</button>
+            <button onClick={() => navigate('/pricing')} className="btn btn-ghost">View Pricing</button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (user && !hasOwnerAdminAccess && isFreePlan && !canAccessRoute(location.pathname, trial, user, settings)) {
+    return (
+      <div className="min-h-screen bg-[#0A0C12] text-[#E6E8EE] flex items-center justify-center p-4">
+        <div className="w-full max-w-xl rounded border border-[#252A38] bg-[#0F111A] p-6 text-center shadow-xl">
+          <div className="text-xs uppercase tracking-[2px] text-[#8B92A3] mb-2">Free Plan Limit</div>
           <h1 className="text-2xl font-semibold mb-3">This feature requires a paid plan.</h1>
           <p className="text-sm text-[#C5CAD6] mb-5">
-            Free Demo includes limited command center, submissions, inventory, buyer records, calculator access, billing, and upgrade options.
+            Free includes limited command center, inventory, buyer records, ARV calculator access, billing, and upgrade options.
           </p>
           <div className="flex flex-col sm:flex-row gap-2 justify-center">
             <button onClick={() => navigate('/app/upgrade')} className="btn btn-green">Upgrade</button>

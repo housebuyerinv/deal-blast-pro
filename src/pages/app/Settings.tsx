@@ -41,11 +41,11 @@ export default function Settings() {
     reseedData, clearAllData, exportAllData, importBuyers,
     buyers, deals, blastLogs, followUps, offers, suppressionList, workspaceInstanceId, logout
   } = useAppStore()
-  const currentPlan = (trial.plan || (trial.isPaid ? 'Pro' : 'Free Demo')) as 'Free Demo' | 'Starter' | 'Pro' | 'Agency' | 'Enterprise'
-  const isPaidPlan = currentPlan !== 'Free Demo'
-  const currentBillingStatus = trial.billingStatus || (trial.isPaid ? 'Paid Active' : 'Trial Active')
-  const isFreeDemoAccount = currentBillingStatus === 'Trial Active' && currentPlan === 'Free Demo'
-  const trialStatusLabel = isPaidPlan ? `${currentPlan} plan selected` : `Free/trial active - ${trial.daysLeft} days remaining`
+  const currentPlan = ((trial.plan === 'Free' ? 'Free' : trial.plan) || (trial.isPaid ? 'Pro' : 'Free')) as 'Free' | 'Starter' | 'Pro' | 'Agency' | 'Enterprise'
+  const isPaidPlan = currentPlan !== 'Free'
+  const currentBillingStatus = trial.billingStatus || (trial.isPaid ? 'Paid Active' : currentPlan === 'Free' ? 'Free Active' : 'Trial Active')
+  const isFreeAccount = currentBillingStatus === 'Free Active' && currentPlan === 'Free'
+  const trialStatusLabel = isPaidPlan ? `${currentPlan} plan selected` : 'Free plan active'
   const billingStatusLabel = currentBillingStatus
   const defaultBillingProviderSetup = getBillingSetupWithLaunchDefaults(DEFAULT_SETTINGS.billingProviderSetup!)
   const savedBillingProviderSetup = getBillingSetupWithLaunchDefaults(settings.billingProviderSetup || defaultBillingProviderSetup)
@@ -60,7 +60,7 @@ export default function Settings() {
   const [templateBody, setTemplateBody] = useState(settings.blastTemplates['Strong Buyer']?.body || '')
   const [billingProviderSetup, setBillingProviderSetup] = useState(savedBillingProviderSetup)
   const [settingsBillingFrequency, setSettingsBillingFrequency] = useState<BillingFrequency>('monthly')
-  const [settingsSelectedPlan, setSettingsSelectedPlan] = useState<'Free Demo' | PaidPlan>(currentPlan === 'Free Demo' ? 'Pro' : currentPlan)
+  const [settingsSelectedPlan, setSettingsSelectedPlan] = useState<'Free' | PaidPlan>(currentPlan === 'Free' ? 'Pro' : currentPlan)
   const [manualActivation, setManualActivation] = useState({
     workspace: user?.email || user?.name || 'Current workspace',
     plan: currentPlan,
@@ -125,8 +125,8 @@ export default function Settings() {
   const billingProviderOptions = ['Stripe'] as const
   const billingModeOptions = ['Stripe Checkout Links'] as const
   const billingStatusOptions = ['Ready for Payment Collection'] as const
-  const manualPlanOptions = ['Free Demo', 'Starter', 'Pro', 'Agency', 'Enterprise'] as const
-  const manualBillingStatusOptions = ['Trial Active', 'Payment Pending', 'Paid Active', 'Past Due', 'Cancelled', 'Comped'] as const
+  const manualPlanOptions = ['Free', 'Starter', 'Pro', 'Agency', 'Enterprise'] as const
+  const manualBillingStatusOptions = ['Free Active', 'Payment Pending', 'Paid Active', 'Past Due', 'Cancelled', 'Comped'] as const
   const hasSuperAdminAccess = isSuperAdmin(user)
   const ownerPreviewActive = isOwnerPreviewActive(user, settings)
   const hasInternalBillingDiagnosticsAccess = hasSuperAdminAccess && !ownerPreviewActive
@@ -160,21 +160,23 @@ export default function Settings() {
       label: `${billingLinkLabels[plan][frequency]} Payment Link URL`,
     })))
 
-  const previewPlanOptions: PlanName[] = ['Owner Admin', 'Free Demo', 'Starter', 'Pro', 'Agency', 'Enterprise']
-  const effectivePlanForDisplay = ownerPreviewActive && ownerPreviewPlan !== 'Owner Admin' ? ownerPreviewPlan : currentPlan
+  const previewPlanOptions: PlanName[] = ['Owner Admin', 'Free', 'Starter', 'Pro', 'Agency', 'Enterprise']
+  const effectivePlanForDisplay = ownerPreviewActive && ownerPreviewPlan !== 'Owner Admin'
+    ? (ownerPreviewPlan === 'Free' ? 'Free' : ownerPreviewPlan)
+    : currentPlan
   const effectiveBillingStatusForDisplay = ownerPreviewActive
-    ? effectivePlanForDisplay === 'Free Demo'
-      ? 'Trial Active Preview'
+    ? effectivePlanForDisplay === 'Free'
+      ? 'Free Preview'
       : 'Preview Active'
     : currentBillingStatus
   const effectiveBillingFrequencyForDisplay = ownerPreviewActive ? 'monthly' as BillingFrequency : (trial.billingFrequency || 'monthly') as BillingFrequency
-  const effectiveIsFreeDemoForDisplay = effectivePlanForDisplay === 'Free Demo'
-  const effectiveCapsForDisplay = effectivePlanForDisplay === 'Free Demo'
+  const effectiveIsFreeForDisplay = effectivePlanForDisplay === 'Free'
+  const effectiveCapsForDisplay = effectivePlanForDisplay === 'Free'
     ? [
-      ['Deals', '5 deals'],
+      ['Active Deals', '3 active deals'],
       ['Buyers', '25 buyers'],
-      ['Blasts', '5 blasts'],
-      ['Exports', 'Limited exports'],
+      ['Blasts', 'Not included'],
+      ['Exports', '20 exports'],
     ]
     : effectivePlanForDisplay === 'Starter'
       ? [
@@ -196,8 +198,8 @@ export default function Settings() {
           ['Automation', 'Requires setup'],
           ['Support', 'Contact Admin'],
         ]
-  const effectiveFeaturesForDisplay = effectivePlanForDisplay === 'Free Demo'
-    ? ['Command Center limited', 'Deal intake review', 'Inventory basics', 'Buyer records within cap', 'ARV Calculator only', 'Billing Center limited']
+  const effectiveFeaturesForDisplay = effectivePlanForDisplay === 'Free'
+    ? ['Command Center limited', 'Public intake portals available', 'Inventory basics', 'Buyer records within cap', 'ARV Calculator only', 'Billing Center limited']
     : effectivePlanForDisplay === 'Starter'
       ? ['Command Center', 'Deal Submissions', 'Inventory Hub', 'Basic buyer records/import', 'ARV/Rehab/MAO calculators', 'Basic Pipeline Board', 'Basic Deal Blast Builder', 'Basic follow-up tools']
       : effectivePlanForDisplay === 'Pro'
@@ -225,7 +227,7 @@ export default function Settings() {
               {ownerPreviewActive ? 'Preview mode only. Billing is not changed.' : 'Choose a billing frequency before opening Stripe checkout.'}
             </div>
           </div>
-          {['Free Demo', 'Starter'].includes(String(effectivePlanForDisplay)) && (
+          {['Free', 'Starter'].includes(String(effectivePlanForDisplay)) && (
             <div className="inline-flex rounded border border-[#252A38] p-0.5 w-fit">
               <button onClick={() => setSettingsBillingFrequency('monthly')} className={`px-3 py-1 text-sm rounded ${settingsBillingFrequency === 'monthly' ? 'bg-[#22C55E] text-black' : 'text-[#8B92A3]'}`}>Monthly</button>
               <button onClick={() => setSettingsBillingFrequency('annual')} className={`px-3 py-1 text-sm rounded ${settingsBillingFrequency === 'annual' ? 'bg-[#22C55E] text-black' : 'text-[#8B92A3]'}`}>Annual</button>
@@ -234,7 +236,7 @@ export default function Settings() {
         </div>
 
         <div className="mt-4 flex flex-col sm:flex-row flex-wrap gap-2">
-          {effectivePlanForDisplay === 'Free Demo' && (
+          {effectivePlanForDisplay === 'Free' && (
             <>
               <button onClick={() => handleUserFacingUpgrade('Starter')} className="btn btn-green">
                 {previewPrefix}Upgrade to Starter {settingsBillingFrequency}
@@ -443,9 +445,7 @@ export default function Settings() {
   const deletionActionLabel = 'Deactivate Account'
   const deletionModalMessage = platformOwnerDeactivationBlocked
     ? 'Platform owner accounts cannot be deactivated from this page.'
-    : isPaidCancellationStatus
-    ? 'Deactivating your account will remove access to your Deal Blast Pro workspace. This does not immediately permanently delete your deals, buyers, submissions, files, or settings.'
-    : 'Deactivating your account will remove access to your Deal Blast Pro workspace. This does not immediately permanently delete your deals, buyers, submissions, files, or settings.'
+    : 'Warning: You will immediately lose access to this Deal Blast Pro workspace.'
 
   useEffect(() => {
     if (!deleteAccountOpen || deleteAccountLoading) return
@@ -463,7 +463,7 @@ export default function Settings() {
   }, [deleteAccountOpen, deleteAccountLoading])
 
   const requestAccountDeletion = async () => {
-    if (deleteAccountText !== 'DELETE MY ACCOUNT' || deleteAccountLoading) return
+    if (deleteAccountText !== 'DELETE' || deleteAccountLoading) return
     if (platformOwnerDeactivationBlocked) {
       const message = 'Platform owner accounts cannot be deactivated from this page.'
       setDeleteAccountError(message)
@@ -540,7 +540,7 @@ export default function Settings() {
           <div className="text-xs uppercase tracking-[2px] text-red-300 mb-2">Deactivate Account / Workspace</div>
           <div id="deactivate-account-title" className="text-2xl font-semibold text-[#E6E8EE] mb-3">{deletionActionLabel}</div>
           <div className="rounded border border-red-500/30 bg-red-500/10 p-4 text-sm text-[#E6E8EE] leading-6">
-            {deletionModalMessage}
+            <div className="font-semibold text-red-200">! {deletionModalMessage}</div>
           </div>
 
           {platformOwnerDeactivationBlocked ? (
@@ -555,11 +555,23 @@ export default function Settings() {
           ) : !deleteAccountConfirmed ? (
             <div className="mt-5">
               <div className="space-y-3 text-sm text-[#8B92A3]">
-                <div>
-                  Deactivating your account will remove access to your Deal Blast Pro workspace. This does not immediately permanently delete your deals, buyers, submissions, files, or settings.
-                </div>
+                <div>This action deactivates your account. It does not immediately permanently delete your deals, buyers, submissions, files, or settings.</div>
                 <div className="rounded border border-amber-500/30 bg-amber-500/10 p-3 text-amber-200">
-                  Deactivating your account does not automatically cancel an active paid subscription. Manage or cancel billing separately before deactivation.
+                  Deactivating your account does not automatically cancel an active paid subscription. Cancel billing separately before continuing.
+                </div>
+                <div className="grid gap-2 sm:grid-cols-3">
+                  <div className="rounded border border-[#252A38] bg-[#0B0F17] p-3">
+                    <div className="font-semibold text-[#E6E8EE]">Deactivate account</div>
+                    <div className="mt-1 text-xs">Blocks access to this workspace.</div>
+                  </div>
+                  <div className="rounded border border-[#252A38] bg-[#0B0F17] p-3">
+                    <div className="font-semibold text-[#E6E8EE]">Cancel subscription</div>
+                    <div className="mt-1 text-xs">Must be handled separately through billing.</div>
+                  </div>
+                  <div className="rounded border border-[#252A38] bg-[#0B0F17] p-3">
+                    <div className="font-semibold text-[#E6E8EE]">Request data deletion</div>
+                    <div className="mt-1 text-xs">A separate permanent deletion request.</div>
+                  </div>
                 </div>
               </div>
               <div className="mt-5 flex flex-wrap justify-end gap-2">
@@ -570,12 +582,12 @@ export default function Settings() {
           ) : (
             <div className="mt-5">
               <label className="block">
-                <div className="text-sm text-[#8B92A3] mb-2">Type DELETE MY ACCOUNT to deactivate this account/workspace.</div>
+                <div className="text-sm text-[#8B92A3] mb-2">Type DELETE to confirm</div>
                 <input
                   className="input"
                   value={deleteAccountText}
                   onChange={e => setDeleteAccountText(e.target.value)}
-                  placeholder="DELETE MY ACCOUNT"
+                  placeholder="DELETE"
                   disabled={deleteAccountLoading}
                   autoFocus
                 />
@@ -590,10 +602,10 @@ export default function Settings() {
                 <button
                   type="button"
                   onClick={requestAccountDeletion}
-                  disabled={deleteAccountText !== 'DELETE MY ACCOUNT' || deleteAccountLoading}
-                  className="btn btn-ghost text-red-300 border-red-500/40 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={deleteAccountText !== 'DELETE' || deleteAccountLoading}
+                  className="btn bg-red-600 text-white border-red-500 hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {deleteAccountLoading ? 'Deactivating...' : 'Deactivate Account'}
+                  {deleteAccountLoading ? 'Deactivating...' : 'Deactivate My Account'}
                 </button>
               </div>
             </div>
@@ -611,7 +623,7 @@ export default function Settings() {
 
   const getPlanAmount = (plan = currentPlan, frequency: BillingFrequency = (trial.billingFrequency || 'monthly') as BillingFrequency) => {
     const prices: Record<string, Record<BillingFrequency, string>> = {
-      'Free Demo': { monthly: '$0', annual: '$0' },
+      Free: { monthly: '$0', annual: '$0' },
       Starter: { monthly: '$47', annual: '$470' },
       Pro: { monthly: '$97', annual: '$970' },
       Agency: { monthly: '$197', annual: '$1,970' },
@@ -751,10 +763,10 @@ export default function Settings() {
     const billingNotice = getBillingNotice(trial, deletionRequest)
     const displayPaymentHistory = ownerPreviewActive ? [] : paymentHistory
     const displayLastPayment = ownerPreviewActive ? null : lastPayment
-    const nextAmount = effectivePlanForDisplay === 'Free Demo' ? '$0' : getPlanAmount(effectivePlanForDisplay as any, billingFrequency)
+    const nextAmount = effectivePlanForDisplay === 'Free' ? '$0' : getPlanAmount(effectivePlanForDisplay as any, billingFrequency)
     const scheduleText = ownerPreviewActive
       ? 'Preview mode only. Billing is not changed.'
-      : effectivePlanForDisplay === 'Free Demo'
+      : effectivePlanForDisplay === 'Free'
       ? 'No paid billing schedule yet.'
       : nextPaymentDue
         ? `${billingFrequency === 'annual' ? 'Annual renewal' : 'Monthly payment'} expected ${formatBillingDate(nextPaymentDue)}.`
@@ -799,8 +811,8 @@ export default function Settings() {
             <div className="font-semibold">Payment is pending confirmation.</div>
             <div className="mt-1">If you completed checkout, access will update after payment is confirmed.</div>
             <div className="mt-2 flex flex-wrap gap-2">
-              <button onClick={() => openUpgradePayment(currentPlan === 'Free Demo' ? 'Pro' : currentPlan, billingFrequency)} className="btn btn-green text-xs">Complete Payment</button>
-              <button onClick={() => openUpgradePayment('Free Demo', 'monthly')} className="btn btn-ghost text-xs">Choose Free Demo</button>
+              <button onClick={() => openUpgradePayment(currentPlan === 'Free' ? 'Pro' : currentPlan, billingFrequency)} className="btn btn-green text-xs">Complete Payment</button>
+              <button onClick={() => openUpgradePayment('Free', 'monthly')} className="btn btn-ghost text-xs">Choose Free</button>
               <button onClick={() => window.location.href = '/contact'} className="btn btn-ghost text-xs">Contact Support</button>
             </div>
           </div>
@@ -825,7 +837,7 @@ export default function Settings() {
             ['Billing Frequency', billingFrequency === 'annual' ? 'Annual' : 'Monthly'],
             ['Billing Period Start', ownerPreviewActive ? 'Preview mode' : formatBillingDate(trial.billingPeriodStart)],
             ['Billing Period End', ownerPreviewActive ? 'Preview mode' : formatBillingDate(trial.billingPeriodEnd)],
-            ['Next Payment Due Date', ownerPreviewActive ? 'Preview mode only' : effectivePlanForDisplay === 'Free Demo' ? 'No paid billing history yet' : formatBillingDate(nextPaymentDue)],
+            ['Next Payment Due Date', ownerPreviewActive ? 'Preview mode only' : effectivePlanForDisplay === 'Free' ? 'No paid billing history yet' : formatBillingDate(nextPaymentDue)],
             ['Cancel Scheduled', cancelScheduled ? 'Yes' : 'No'],
             ['Scheduled Cancellation Date', formatBillingDate(deletionRequest.cancellationRequestedAt)],
             ['Scheduled Deletion Date', formatBillingDate(deletionRequest.scheduledDeletionAt)],
@@ -848,7 +860,7 @@ export default function Settings() {
           <div className="panel p-3">
             <div className="text-sm font-semibold mb-2">Payment Schedule</div>
             <div className="text-sm text-[#C5CAD6]">{scheduleText}</div>
-            {!ownerPreviewActive && effectivePlanForDisplay === 'Free Demo' && (
+            {!ownerPreviewActive && effectivePlanForDisplay === 'Free' && (
               <div className="mt-3">
                 <div className="text-sm text-[#C5CAD6] mb-3">Stripe checkout is available for paid plans. Upgrade to Starter or Pro to continue.</div>
                 <div className="flex flex-wrap gap-2">
@@ -885,7 +897,7 @@ export default function Settings() {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-3">
             <div>
               <div className="text-sm font-semibold">Payment History</div>
-              <div className="text-xs text-[#8B92A3]">{ownerPreviewActive ? 'Preview mode. No real payment records are changed.' : effectivePlanForDisplay === 'Free Demo' && !displayPaymentHistory.length ? 'No paid billing history yet.' : 'Payment records do not include card, bank, routing, API, OAuth, or secret values.'}</div>
+              <div className="text-xs text-[#8B92A3]">{ownerPreviewActive ? 'Preview mode. No real payment records are changed.' : effectivePlanForDisplay === 'Free' && !displayPaymentHistory.length ? 'No paid billing history yet.' : 'Payment records do not include card, bank, routing, API, OAuth, or secret values.'}</div>
             </div>
           </div>
 
@@ -1386,21 +1398,21 @@ export default function Settings() {
   void addPaymentRecord
   void applyManualActivation
 
-  const openUpgradePayment = (plan: 'Free Demo' | PaidPlan = settingsSelectedPlan, frequency: BillingFrequency = settingsBillingFrequency) => {
+  const openUpgradePayment = (plan: 'Free' | PaidPlan = settingsSelectedPlan, frequency: BillingFrequency = settingsBillingFrequency) => {
     setSettingsSelectedPlan(plan)
     setSettingsBillingFrequency(frequency)
 
-    if (plan === 'Free Demo') {
+    if (plan === 'Free') {
       activateManualPlan({
-        plan: 'Free Demo',
-        billingStatus: 'Trial Active',
+        plan: 'Free',
+        billingStatus: 'Free Active',
         billingFrequency: 'monthly',
         paymentProvider: 'Stripe',
         billingPeriodStart: '',
         billingPeriodEnd: '',
-        billingAdminNote: 'Free Demo selected from Settings & Trial upgrade controls.',
+        billingAdminNote: 'Free selected from Settings & Trial upgrade controls.',
       })
-      toast.success('Free Demo selected. No Stripe checkout opened.')
+      toast.success('Free selected. No Stripe checkout opened.')
       return
     }
 
@@ -1438,12 +1450,12 @@ export default function Settings() {
       return
     }
 
-    toast('Payment Setup Not Active. Free Demo is available now. Paid plans require support to finish billing setup first.')
+    toast('Payment Setup Not Active. Free is available now. Paid plans require support to finish billing setup first.')
     setSelectedDetail({
       title: 'Payment Setup Not Active',
-      summary: 'Free Demo is available now. Paid plans require support to finish billing setup first.',
+      summary: 'Free is available now. Paid plans require support to finish billing setup first.',
       related: `${plan} ${frequency} link: ${paymentLink ? 'Saved but not ready' : 'Missing'}. Setup status: ${savedBillingProviderSetup.setupStatus || 'Not Started'}`,
-      next: 'Choose Free Demo now, or contact support to verify the Stripe checkout link.'
+      next: 'Choose Free now, or contact support to verify the Stripe checkout link.'
     })
   }
 
@@ -1540,15 +1552,15 @@ export default function Settings() {
     add('dealPortalAvailable', 'Test public deal portal available', 'pass', 'Route Present', '/portal is registered as a public route.')
     add('buyerPortalAvailable', 'Test buyer portal available', 'pass', 'Route Present', '/buyer-portal is registered as a public route.')
     add('firstLoginPlanSelection', 'Test first-login plan selection available', 'pass', 'Available', 'Authenticated users are gated by plan selection before full app entry.')
-    add('freeDemoEntry', 'Test Free Demo enters app without payment', 'pass', 'Allowed', 'Free Demo setup completes without opening a payment link.')
+    add('freeEntry', 'Test Free enters app without payment', 'pass', 'Allowed', 'Free setup completes without opening a payment link.')
     add('paidPlanPending', 'Test paid plan selection sets Payment Pending', 'pass', 'Pending', 'Paid plan selection records Payment Pending and waits for Stripe webhook confirmation.')
     add('stripeWebhookEndpoint', 'Stripe webhook endpoint configured', 'review', 'Needs Review', 'Use the admin-only Supabase Edge Function endpoint for Stripe webhooks. Do not expose secrets in the frontend.')
     add('stripeWebhookSecretPresent', 'Stripe webhook secret present', 'review', 'Needs Review', 'Server-side STRIPE_WEBHOOK_SECRET must be set in the function environment. Value is not displayed.')
     add('stripeLiveModeReady', 'Stripe live mode ready', 'review', 'Needs Review', 'Verify live mode in Stripe dashboard before public launch. No Stripe keys are shown here.')
     add('tourAppears', 'Test onboarding tour appears after plan selection', onboardingSettings.planSelectionCompleted ? 'pass' : 'manual', onboardingSettings.planSelectionCompleted ? 'Ready' : 'Needs Manual Test', onboardingSettings.planSelectionCompleted ? 'Tour state can show after setup if not completed or skipped.' : 'Complete plan selection in a fresh workspace to verify visual tour display.')
     add('tourSkippable', 'Test onboarding tour can be skipped', tourReadable ? 'pass' : 'review', tourReadable ? 'Skippable' : 'Needs Review', tourReadable ? 'Tour completed/skipped flags are readable in workspace settings.' : 'Tour state could not be read safely.')
-    add('expiredDealBlock', 'Test expired Free Demo blocks public deal submission', 'manual', 'Needs Manual Test', 'Requires exercising the public form against an expired Free Demo workspace.')
-    add('expiredBuyerBlock', 'Test expired Free Demo blocks buyer signup', 'manual', 'Needs Manual Test', 'Requires exercising the buyer portal against an expired Free Demo workspace.')
+    add('expiredDealBlock', 'Test expired Free blocks public deal submission', 'manual', 'Needs Manual Test', 'Requires exercising the public form against an expired Free workspace.')
+    add('expiredBuyerBlock', 'Test expired Free blocks buyer signup', 'manual', 'Needs Manual Test', 'Requires exercising the buyer portal against an expired Free workspace.')
     add('paidActiveBypass', 'Test Paid Active bypasses demo limits', 'pass', 'Bypass Ready', 'Paid Active is the intended bypass state for demo caps.')
     add('compedBypass', 'Test Comped bypasses demo limits', 'pass', 'Bypass Ready', 'Comped is the intended bypass state for demo caps.')
     add('paymentPendingBlocks', 'Test Payment Pending blocks public activity', 'pass', 'Blocked', 'Payment Pending remains a blocked paid-activity status until Stripe webhook confirmation.')
@@ -1612,7 +1624,7 @@ export default function Settings() {
     const trialReadable = Boolean(trial && typeof trial === 'object' && typeof trial.daysLeft === 'number')
     const activePlanReadable = Boolean(trial?.plan)
     const billingStatusReadable = Boolean(currentBillingStatus)
-    const freeDemoExpiredWouldBlock = true
+    const freeExpiredWouldBlock = true
     const paidActiveBypassesDemoExpiration = true
     const pastDueBlocksPaidActivity = true
     const sensitiveFields = ['card', 'cvv', 'accountNumber', 'routing', 'password', 'apiKey', 'secret', 'token']
@@ -1623,7 +1635,7 @@ export default function Settings() {
     const tourStateReadable = typeof onboardingSettings.tourCompleted === 'boolean' && typeof onboardingSettings.tourSkipped === 'boolean'
     const agencyEnterpriseStatusReadable = typeof onboardingSettings.agencyEnterpriseEnabled === 'boolean'
     const promoNoticeVisible = Boolean(onboardingSettings.promoNoticeVisible)
-    const freeDemoTrialForCheck = { ...trial, plan: 'Free Demo' as const, billingStatus: 'Trial Active' as const }
+    const freeTrialForCheck = { ...trial, plan: 'Free' as const, billingStatus: 'Trial Active' as const }
     const starterTrialForCheck = { ...trial, plan: 'Starter' as const, billingStatus: 'Paid Active' as const }
     const proTrialForCheck = { ...trial, plan: 'Pro' as const, billingStatus: 'Paid Active' as const }
 
@@ -1640,9 +1652,9 @@ export default function Settings() {
       { key: 'regularUserDiagnosticsBlocked', name: 'Regular user diagnostics blocked', status: 'pass', label: 'Blocked', detail: 'Diagnostics and launch tests require super-admin access.' },
       { key: 'ownerFullAdminAccess', name: 'Owner account has full admin access', status: hasSuperAdminAccess ? 'pass' : 'warning', label: hasSuperAdminAccess ? 'Allowed' : 'Owner Only', detail: 'Full internal controls are reserved for housebuyerinv@gmail.com.' },
       { key: 'ownerAdminBypassActive', name: 'Owner admin bypass active', status: hasSuperAdminAccess ? 'pass' : 'warning', label: hasSuperAdminAccess ? 'Active' : 'Owner Only', detail: 'The allowlisted owner account bypasses plan, billing, trial, and demo cap restrictions.' },
-      { key: 'ownerAdminRouteAccess', name: 'Owner admin full route access', status: hasSuperAdminAccess ? 'pass' : 'warning', label: hasSuperAdminAccess ? 'Allowed' : 'Owner Only', detail: 'AppShell checks owner access before Free Demo, Payment Pending, Past Due, and plan route gates.' },
+      { key: 'ownerAdminRouteAccess', name: 'Owner admin full route access', status: hasSuperAdminAccess ? 'pass' : 'warning', label: hasSuperAdminAccess ? 'Allowed' : 'Owner Only', detail: 'AppShell checks owner access before Free, Payment Pending, Past Due, and plan route gates.' },
       { key: 'ownerAdminFeatureGateBypass', name: 'Owner admin feature gates bypassed', status: hasSuperAdminAccess ? 'pass' : 'warning', label: hasSuperAdminAccess ? 'Bypassed' : 'Owner Only', detail: 'Feature permissions and trial usage caps return allowed for the owner account.' },
-      { key: 'ownerPreviewModeAvailable', name: 'Owner preview mode available', status: hasSuperAdminAccess ? 'pass' : 'warning', label: hasSuperAdminAccess ? 'Available' : 'Owner Only', detail: 'Owner can preview the app as Owner Admin, Free Demo, Starter, Pro, Agency, or Enterprise.' },
+      { key: 'ownerPreviewModeAvailable', name: 'Owner preview mode available', status: hasSuperAdminAccess ? 'pass' : 'warning', label: hasSuperAdminAccess ? 'Available' : 'Owner Only', detail: 'Owner can preview the app as Owner Admin, Free, Starter, Pro, Agency, or Enterprise.' },
       { key: 'ownerPreviewDoesNotAlterBilling', name: 'Owner preview does not alter billing', status: 'pass', label: 'Isolated', detail: 'Preview plan is stored separately as ownerPreviewPlan and does not change billing status, payment history, Stripe sync, deletion, or trial data.' },
       { key: 'ownerCanExitPreviewMode', name: 'Owner can exit preview mode', status: hasSuperAdminAccess ? 'pass' : 'warning', label: hasSuperAdminAccess ? 'Available' : 'Owner Only', detail: 'Preview banner, Topbar, and Settings controls can return to Owner Admin immediately.' },
       { key: 'accountTabClickableInPreview', name: 'Account tab clickable in preview', status: 'pass', label: 'Clickable', detail: 'Plan & Billing, Account, and Support are real buttons in customer/preview Settings.' },
@@ -1651,17 +1663,17 @@ export default function Settings() {
       { key: 'proPreviewDisplaysProPlan', name: 'Pro preview displays Pro plan', status: 'pass', label: 'Pro', detail: 'Pro preview shows Pro identity, Preview Active status, and Pro feature summary.' },
       { key: 'previewDisplayDoesNotMutateBilling', name: 'Preview display does not mutate real billing state', status: 'pass', label: 'Isolated', detail: 'Preview display uses effectivePlanForDisplay and effectiveBillingStatusForDisplay only.' },
       { key: 'regularUsersDisplayRealBillingState', name: 'Regular users still display real billing state', status: 'pass', label: 'Real State', detail: 'Regular users do not use owner preview values and continue to read real plan/billing status.' },
-      { key: 'freeDemoUpgradeOptionsVisible', name: 'Free Demo upgrade options visible', status: 'pass', label: 'Visible', detail: 'Free Demo Plan & Billing shows Upgrade to Starter, Upgrade to Pro, View Pricing, and Contact Support.' },
+      { key: 'freeUpgradeOptionsVisible', name: 'Free upgrade options visible', status: 'pass', label: 'Visible', detail: 'Free Plan & Billing shows Upgrade to Starter, Upgrade to Pro, View Pricing, and Contact Support.' },
       { key: 'starterUpgradeToProVisible', name: 'Starter upgrade to Pro visible', status: 'pass', label: 'Visible', detail: 'Starter Plan & Billing shows Upgrade to Pro with monthly/annual selection.' },
       { key: 'proBillingManageOptionsVisible', name: 'Pro billing/manage options visible', status: 'pass', label: 'Visible', detail: 'Pro Plan & Billing shows Billing Center, Contact Support, and Agency/Enterprise contact path.' },
       { key: 'ownerPreviewUpgradeButtonsNonMutating', name: 'Owner preview upgrade buttons are non-mutating', status: 'pass', label: 'Safe', detail: 'Preview upgrade actions show a toast and do not open Stripe or set Payment Pending.' },
       { key: 'regularUserUpgradeCheckoutRouting', name: 'Regular user upgrade buttons route to checkout', status: 'pass', label: 'Ready', detail: 'Regular user upgrade actions reuse the Stripe checkout helper and set Payment Pending.' },
-      { key: 'freeDemoPreviewGatesFeatures', name: 'Free Demo preview gates features', status: PLAN_ROUTE_ACCESS['Free Demo'].includes('/app/settings') && !PLAN_ROUTE_ACCESS['Free Demo'].includes('/app/blast') ? 'pass' : 'fail', label: 'Gated', detail: 'Free Demo preview shows limited routes while preserving Settings as the escape hatch.' },
+      { key: 'freePreviewGatesFeatures', name: 'Free preview gates features', status: PLAN_ROUTE_ACCESS['Free'].includes('/app/settings') && !PLAN_ROUTE_ACCESS['Free'].includes('/app/blast') ? 'pass' : 'fail', label: 'Gated', detail: 'Free preview shows limited routes while preserving Settings as the escape hatch.' },
       { key: 'starterPreviewGatesFeatures', name: 'Starter preview gates features', status: PLAN_ROUTE_ACCESS.Starter.includes('/app/blast') && !PLAN_ROUTE_ACCESS.Starter.includes('/app/analytics') ? 'pass' : 'fail', label: 'Gated', detail: 'Starter preview includes basic blast/follow-up/pipeline and excludes Pro reporting routes.' },
       { key: 'proPreviewGatesFeatures', name: 'Pro preview gates features', status: PLAN_ROUTE_ACCESS.Pro.includes('/app/analytics') && PLAN_ROUTE_ACCESS.Pro.includes('/app/resources') ? 'pass' : 'fail', label: 'Gated', detail: 'Pro preview includes the full public solo/pro route set.' },
       { key: 'regularUsersCannotAccessPreviewMode', name: 'Regular users cannot access preview mode', status: 'pass', label: 'Blocked', detail: 'Preview controls render only for the allowlisted owner account.' },
-      { key: 'freeDemoArvCalculatorAllowed', name: 'Free Demo ARV calculator allowed', status: canAccessCalculatorTab('arv', freeDemoTrialForCheck, null) ? 'pass' : 'fail', label: canAccessCalculatorTab('arv', freeDemoTrialForCheck, null) ? 'Allowed' : 'Blocked', detail: 'Free Demo users can access the ARV Calculator.' },
-      { key: 'freeDemoAdvancedCalculatorsBlocked', name: 'Free Demo advanced calculators blocked', status: !canAccessCalculatorTab('rehab', freeDemoTrialForCheck, null) && !canAccessCalculatorTab('mao', freeDemoTrialForCheck, null) && !canAccessCalculatorTab('rental', freeDemoTrialForCheck, null) && !canAccessCalculatorTab('creative', freeDemoTrialForCheck, null) ? 'pass' : 'fail', label: !canAccessCalculatorTab('rehab', freeDemoTrialForCheck, null) && !canAccessCalculatorTab('mao', freeDemoTrialForCheck, null) && !canAccessCalculatorTab('rental', freeDemoTrialForCheck, null) && !canAccessCalculatorTab('creative', freeDemoTrialForCheck, null) ? 'Blocked' : 'Needs Fix', detail: 'Free Demo users are blocked from Rehab, MAO, Rental, and Creative Finance calculators.' },
+      { key: 'freeArvCalculatorAllowed', name: 'Free ARV calculator allowed', status: canAccessCalculatorTab('arv', freeTrialForCheck, null) ? 'pass' : 'fail', label: canAccessCalculatorTab('arv', freeTrialForCheck, null) ? 'Allowed' : 'Blocked', detail: 'Free users can access the ARV Calculator.' },
+      { key: 'freeAdvancedCalculatorsBlocked', name: 'Free advanced calculators blocked', status: !canAccessCalculatorTab('rehab', freeTrialForCheck, null) && !canAccessCalculatorTab('mao', freeTrialForCheck, null) && !canAccessCalculatorTab('rental', freeTrialForCheck, null) && !canAccessCalculatorTab('creative', freeTrialForCheck, null) ? 'pass' : 'fail', label: !canAccessCalculatorTab('rehab', freeTrialForCheck, null) && !canAccessCalculatorTab('mao', freeTrialForCheck, null) && !canAccessCalculatorTab('rental', freeTrialForCheck, null) && !canAccessCalculatorTab('creative', freeTrialForCheck, null) ? 'Blocked' : 'Needs Fix', detail: 'Free users are blocked from Rehab, MAO, Rental, and Creative Finance calculators.' },
       { key: 'starterCalculatorAccessEnforced', name: 'Starter calculator access enforced', status: canAccessCalculatorTab('arv', starterTrialForCheck, null) && canAccessCalculatorTab('rehab', starterTrialForCheck, null) && canAccessCalculatorTab('mao', starterTrialForCheck, null) && !canAccessCalculatorTab('rental', starterTrialForCheck, null) && !canAccessCalculatorTab('creative', starterTrialForCheck, null) ? 'pass' : 'fail', label: canAccessCalculatorTab('arv', starterTrialForCheck, null) && canAccessCalculatorTab('rehab', starterTrialForCheck, null) && canAccessCalculatorTab('mao', starterTrialForCheck, null) && !canAccessCalculatorTab('rental', starterTrialForCheck, null) && !canAccessCalculatorTab('creative', starterTrialForCheck, null) ? 'Enforced' : 'Needs Fix', detail: 'Starter includes ARV, Rehab, and MAO only.' },
       { key: 'proCalculatorAccessEnforced', name: 'Pro calculator access enforced', status: ['arv', 'rehab', 'mao', 'rental', 'creative'].every(tab => canAccessCalculatorTab(tab as any, proTrialForCheck, null)) ? 'pass' : 'fail', label: ['arv', 'rehab', 'mao', 'rental', 'creative'].every(tab => canAccessCalculatorTab(tab as any, proTrialForCheck, null)) ? 'Enforced' : 'Needs Fix', detail: 'Pro includes every Deal Calculator tab.' },
       { key: 'ownerAdminCalculatorBypassActive', name: 'Owner admin calculator bypass active', status: hasSuperAdminAccess && ['arv', 'rehab', 'mao', 'rental', 'creative'].every(tab => canAccessCalculatorTab(tab as any, trial, user)) ? 'pass' : 'warning', label: hasSuperAdminAccess ? 'Active' : 'Owner Only', detail: 'The owner account can access every calculator tab regardless of plan.' },
@@ -1677,7 +1689,7 @@ export default function Settings() {
       { key: 'regularUsersCannotBypassPlanGates', name: 'Regular users cannot bypass plan gates', status: 'pass', label: 'Enforced', detail: 'Sidebar and AppShell use the same centralized route access map.' },
       { key: 'regularUserGatesStillEnforced', name: 'Regular user gates still enforced', status: 'pass', label: 'Enforced', detail: 'Only the allowlisted owner email receives the bypass; regular users continue through plan and billing gates.' },
       { key: 'paymentPendingBlocksRegularUsers', name: 'Payment Pending still blocks regular users', status: 'pass', label: 'Blocked', detail: 'Payment Pending remains a blocking status for non-owner users.' },
-      { key: 'freeDemoCapsRegularUsers', name: 'Free Demo caps still apply to regular users', status: 'pass', label: 'Limited', detail: 'Free Demo limits and route restrictions still apply to non-owner users.' },
+      { key: 'freeCapsRegularUsers', name: 'Free caps still apply to regular users', status: 'pass', label: 'Limited', detail: 'Free limits and route restrictions still apply to non-owner users.' },
       { key: 'webhookDiagnosticsHiddenRegularUsers', name: 'Webhook diagnostics hidden from regular users', status: 'pass', label: 'Hidden', detail: 'Regular Billing Center does not show webhook delivery, destination, activation, or unmatched payment diagnostics.' },
       { key: 'billingCenterCustomerViewNonTechnical', name: 'Billing Center customer view is non-technical', status: 'pass', label: 'Clean', detail: 'Regular users see only plan, billing, payment history, receipts, upgrade, payment, and support actions.' },
       { key: 'superAdminWebhookDiagnosticsAvailable', name: 'Super-admin webhook diagnostics available', status: hasSuperAdminAccess ? 'pass' : 'warning', label: hasSuperAdminAccess ? 'Available' : 'Owner Only', detail: 'Stripe webhook diagnostics remain available to the owner account only.' },
@@ -1686,15 +1698,15 @@ export default function Settings() {
       { key: 'activePlanReadable', name: 'Active plan readable', status: activePlanReadable ? 'pass' : 'fail', label: activePlanReadable ? 'Present' : 'Missing', detail: activePlanReadable ? 'Plan state readable' : 'Plan state unavailable' },
       { key: 'billingStatusReadable', name: 'Billing status readable', status: billingStatusReadable ? 'pass' : 'fail', label: billingStatusReadable ? 'Present' : 'Missing', detail: billingStatusReadable ? 'Billing status readable' : 'Billing status unavailable' },
       { key: 'billingCenterAvailable', name: 'Billing Center available', status: 'pass', label: 'Available', detail: 'Settings & Trial includes Billing Center for plan, schedule, history, receipts, and webhook readiness.' },
-      { key: 'billingPeriodReadable', name: 'Billing period readable', status: trial.billingPeriodStart || trial.billingPeriodEnd || currentPlan === 'Free Demo' ? 'pass' : 'warning', label: trial.billingPeriodStart || trial.billingPeriodEnd || currentPlan === 'Free Demo' ? 'Readable' : 'Needs Review', detail: 'Billing period dates are shown when available; Free Demo shows trial limits.' },
-      { key: 'nextPaymentDateReadable', name: 'Next payment date readable', status: nextPaymentDue || currentPlan === 'Free Demo' ? 'pass' : 'warning', label: nextPaymentDue || currentPlan === 'Free Demo' ? 'Readable' : 'Needs Review', detail: 'Next payment due date uses billing period end when available.' },
+      { key: 'billingPeriodReadable', name: 'Billing period readable', status: trial.billingPeriodStart || trial.billingPeriodEnd || currentPlan === 'Free' ? 'pass' : 'warning', label: trial.billingPeriodStart || trial.billingPeriodEnd || currentPlan === 'Free' ? 'Readable' : 'Needs Review', detail: 'Billing period dates are shown when available; Free shows no paid billing period.' },
+      { key: 'nextPaymentDateReadable', name: 'Next payment date readable', status: nextPaymentDue || currentPlan === 'Free' ? 'pass' : 'warning', label: nextPaymentDue || currentPlan === 'Free' ? 'Readable' : 'Needs Review', detail: 'Next payment due date uses billing period end when available.' },
       { key: 'paymentHistoryReadable', name: 'Payment history readable', status: Array.isArray(paymentHistory) ? 'pass' : 'warning', label: Array.isArray(paymentHistory) ? 'Readable' : 'Needs Review', detail: 'Payment history records are stored in workspace settings without sensitive credentials.' },
       { key: 'pdfReceiptDownload', name: 'PDF receipt download available', status: 'pass', label: 'Available', detail: 'Each payment history record can generate a local receipt PDF.' },
       { key: 'billingSummaryPdfDownload', name: 'Billing summary PDF download available', status: 'pass', label: 'Available', detail: 'Billing Center can generate a local billing summary PDF.' },
       { key: 'paymentSecretsNotExposed', name: 'Payment secrets not exposed', status: 'pass', label: 'Safe', detail: 'Billing Center does not show Stripe secrets, webhook secrets, API keys, card data, bank data, routing numbers, OAuth tokens, or raw payloads.' },
-      { key: 'dealExpiredBlock', name: 'Demo expiration blocks public deal submission', status: freeDemoExpiredWouldBlock ? 'pass' : 'fail', label: freeDemoExpiredWouldBlock ? 'Blocked' : 'Not Blocked', detail: 'Free Demo expiration guard is applied to public deal submit.' },
-      { key: 'buyerExpiredBlock', name: 'Demo expiration blocks public buyer signup', status: freeDemoExpiredWouldBlock ? 'pass' : 'fail', label: freeDemoExpiredWouldBlock ? 'Blocked' : 'Not Blocked', detail: 'Free Demo expiration guard is applied to buyer signup.' },
-      { key: 'paidActiveBypass', name: 'Paid Active bypasses demo expiration', status: paidActiveBypassesDemoExpiration ? 'pass' : 'warning', label: paidActiveBypassesDemoExpiration ? 'Ready' : 'Needs Review', detail: 'Paid Active and Comped states bypass Free Demo expiration checks.' },
+      { key: 'dealExpiredBlock', name: 'Demo expiration blocks public deal submission', status: freeExpiredWouldBlock ? 'pass' : 'fail', label: freeExpiredWouldBlock ? 'Blocked' : 'Not Blocked', detail: 'Free expiration guard is applied to public deal submit.' },
+      { key: 'buyerExpiredBlock', name: 'Demo expiration blocks public buyer signup', status: freeExpiredWouldBlock ? 'pass' : 'fail', label: freeExpiredWouldBlock ? 'Blocked' : 'Not Blocked', detail: 'Free expiration guard is applied to buyer signup.' },
+      { key: 'paidActiveBypass', name: 'Paid Active bypasses demo expiration', status: paidActiveBypassesDemoExpiration ? 'pass' : 'warning', label: paidActiveBypassesDemoExpiration ? 'Ready' : 'Needs Review', detail: 'Paid Active and Comped states bypass Free expiration checks.' },
       { key: 'pastDueBlocks', name: 'Past Due blocks paid-only activity', status: pastDueBlocksPaidActivity ? 'pass' : 'warning', label: pastDueBlocksPaidActivity ? 'Blocked' : 'Needs Review', detail: 'Payment Pending, Past Due, and Cancelled block public paid activity.' },
       { key: 'billingRecoveryPastDue', name: 'Billing recovery available when Past Due or Cancelled', status: 'pass', label: 'Limited', detail: 'Blocked billing states show payment retry and support actions instead of full Settings tabs.' },
       { key: 'adminSettingsExpiredAccess', name: 'Admin can still access settings when demo is expired', status: 'pass', label: 'Allowed', detail: 'Protected admin route is not gated by public demo expiration.' },
@@ -1712,7 +1724,7 @@ export default function Settings() {
       { key: 'stripeSecretKey', name: 'Stripe secret key present', status: 'warning', label: 'Needs Review', detail: 'Set STRIPE_SECRET_KEY in the secure function environment only. Value is not shown.' },
       { key: 'stripeLiveModeReady', name: 'Stripe live mode ready', status: 'warning', label: 'Needs Review', detail: 'Confirm live mode in Stripe dashboard. No keys or payment URLs are displayed.' },
       { key: 'firstLoginPlanSelection', name: 'First-login plan selection available', status: 'pass', label: 'Present', detail: 'Authenticated users choose a plan before entering the full app.' },
-      { key: 'freeDemoEntry', name: 'Free Demo entry works', status: 'pass', label: 'Allowed', detail: 'Free Demo can enter without payment.' },
+      { key: 'freeEntry', name: 'Free entry works', status: 'pass', label: 'Allowed', detail: 'Free can enter without payment.' },
       { key: 'paidPendingFlow', name: 'Paid plan sets Payment Pending', status: 'pass', label: 'Pending', detail: 'Paid plan selection records Payment Pending until Stripe webhook confirmation.' },
       { key: 'quickTourAvailable', name: 'Quick tour available', status: 'pass', label: 'Available', detail: 'Onboarding tour is shown after plan selection.' },
       { key: 'quickTourSkippable', name: 'Quick tour can be skipped', status: 'pass', label: 'Skippable', detail: 'Tour skip/cancel saves workspace state.' },
@@ -1741,12 +1753,12 @@ export default function Settings() {
       { key: 'deleteAccountRequestVisible', name: 'Delete account request visible', status: 'pass', label: 'Visible', detail: 'The Trial / Billing settings page includes a visible Danger Zone deletion request card.' },
       { key: 'deletionCopyNoAdminReview', name: 'Deletion copy does not require admin review for normal user flow', status: 'pass', label: 'Clean', detail: 'User-facing deactivation copy avoids admin-review dependency wording.' },
       { key: 'deletedAccountsBlocked', name: 'Deleted/deactivated accounts blocked', status: 'pass', label: 'Blocked', detail: 'Deactivated and deleted workspaces are blocked by AppShell.' },
-      { key: 'freeDemoCapsActive', name: 'Free Demo feature caps active', status: 'pass', label: 'Limited', detail: 'Free Demo routes and Settings tabs are limited to basic workspace, billing, and upgrade access.' },
-      { key: 'freeDemoSettingsLimited', name: 'Free Demo settings limited', status: 'pass', label: 'Limited', detail: 'Free Demo Settings hides diagnostics, production setup, buyer recovery, data, demo, and team tooling.' },
+      { key: 'freeCapsActive', name: 'Free feature caps active', status: 'pass', label: 'Limited', detail: 'Free routes and Settings tabs are limited to basic workspace, billing, and upgrade access.' },
+      { key: 'freeSettingsLimited', name: 'Free settings limited', status: 'pass', label: 'Limited', detail: 'Free Settings hides diagnostics, production setup, buyer recovery, data, demo, and team tooling.' },
       { key: 'paidPlanFeatureGating', name: 'Paid plan feature gating active', status: 'pass', label: 'Active', detail: 'Settings tabs are selected from the current plan tier.' },
-      { key: 'adminOnlyTabsHiddenFromNonAdmin', name: 'Admin-only tabs hidden from non-admin users', status: 'pass', label: 'Hidden', detail: 'Advanced setup tabs are not available to Free Demo users.' },
+      { key: 'adminOnlyTabsHiddenFromNonAdmin', name: 'Admin-only tabs hidden from non-admin users', status: 'pass', label: 'Hidden', detail: 'Advanced setup tabs are not available to Free users.' },
       { key: 'deletionRequestStatusReadable', name: 'Deletion request status readable', status: deletionRequest?.status ? 'pass' : 'warning', label: deletionRequest?.status ? 'Readable' : 'Needs Review', detail: 'Deletion request status can be read from workspace settings.' },
-      { key: 'freeDemoDeletionExitsApp', name: 'Free Demo deletion exits app', status: 'pass', label: 'Blocked', detail: 'Free Demo deletion requests soft-deactivate the workspace and AppShell shows the deletion splash.' },
+      { key: 'freeDeletionExitsApp', name: 'Free deletion exits app', status: 'pass', label: 'Blocked', detail: 'Free deletion requests soft-deactivate the workspace and AppShell shows the deletion splash.' },
       { key: 'paymentPendingDeletionExitsApp', name: 'Payment Pending deletion exits app', status: 'pass', label: 'Blocked', detail: 'Payment Pending deletion requests cancel pending access and show the deletion splash.' },
       { key: 'paidActiveCancellationScheduled', name: 'Paid Active cancellation schedules end-of-cycle access', status: 'pass', label: 'Scheduled', detail: 'Paid Active and Comped accounts schedule cancellation instead of immediate deactivation.' },
       { key: 'scheduledCancellationBlocksAfterEnd', name: 'Scheduled cancellation blocks after billing period end', status: 'pass', label: 'Ready', detail: 'AppShell blocks scheduled cancellations after the recorded billing period end.' },
@@ -2154,20 +2166,20 @@ export default function Settings() {
 
   const cancelCurrentPlan = () => {
     if (!isPaidPlan) {
-      toast('Already on Free Demo')
+      toast('Already on Free')
       return
     }
 
-    const confirmed = window.confirm('Cancel current plan and return to Free Demo? This updates the app plan state in the current environment. External billing cancellation may still require payment-provider setup.')
+    const confirmed = window.confirm('Cancel current plan and return to Free? This updates the app plan state in the current environment. External billing cancellation may still require payment-provider setup.')
     if (!confirmed) return
 
-    upgradeToPlan('Free Demo')
+    upgradeToPlan('Free')
     setSelectedDetail(null)
-    toast.success('Plan cancellation recorded. Workspace returned to Free Demo.')
+    toast.success('Plan cancellation recorded. Workspace returned to Free.')
   }
 
   const planPositioning = [
-    { name: 'Free Demo', monthly: '$0', annual: '$0', annualNote: 'annual plan', text: 'For testing public submission flows and exploring Deal Blast Pro.', release: 'Public release' },
+    { name: 'Free', monthly: '$0', annual: '$0', annualNote: 'free plan', text: 'For limited public submission flows and exploring Deal Blast Pro.', release: 'Public release' },
     { name: 'Starter', monthly: '$47/mo', annual: '$470/yr', annualNote: '$470 billed annually', text: 'For solo wholesalers and investors who need organized deal and buyer management.', release: 'Public release' },
     { name: 'Pro', monthly: '$97/mo', annual: '$970/yr', annualNote: '$970 billed annually', text: 'For active operators who need buyer matching, deal blasts, advanced calculators, Property Intelligence, and stronger follow-up tools.', release: 'Public release' },
     { name: 'Agency', monthly: '$197/mo', annual: '$1,970/yr', annualNote: '$1,970 billed annually', text: 'For teams managing higher deal volume, shared buyer activity, and multiple users.', release: onboardingSettings.agencyEnterpriseEnabled ? 'Admin enabled' : 'Coming Soon / Contact Admin' },
@@ -2235,27 +2247,10 @@ export default function Settings() {
     return { sub: interpolate(subj), body: interpolate(bod) }
   }
 
-  // Live trial countdown (demo timer only — does not mutate store or existing trial logic)
+  // Legacy countdown state is kept only for old diagnostics that still render internally.
   useEffect(() => {
-    const baseDays = Math.max(0, trial.daysLeft || 7)
-    setTrialCountdown({ days: baseDays, hours: 18, minutes: 42 })
-    const interval = setInterval(() => {
-      setTrialCountdown(prev => {
-        let { days, hours, minutes } = prev
-        minutes = minutes - 1
-        if (minutes < 0) {
-          minutes = 59
-          hours = hours - 1
-        }
-        if (hours < 0) {
-          hours = 23
-          days = Math.max(0, days - 1)
-        }
-        return { days, hours, minutes }
-      })
-    }, 15000) // visible demo tick
-    return () => clearInterval(interval)
-  }, [trial.daysLeft])
+    setTrialCountdown({ days: 0, hours: 0, minutes: 0 })
+  }, [])
 
   // === Build Env / Backup Readiness / LastBuildReport persistence (Data tab only) - survives reloads so always visible in UI, no terminal needed ===
   useEffect(() => {
@@ -2333,11 +2328,6 @@ export default function Settings() {
               <div className="text-sm text-[#8B92A3] mt-1">
                 Billing frequency: <span className="text-[#E6E8EE] capitalize">{effectiveBillingFrequencyForDisplay}</span>
               </div>
-              {effectiveIsFreeDemoForDisplay && !ownerPreviewActive && (
-                <div className="text-sm text-[#8B92A3] mt-1">
-                  Free Demo days remaining: <span className="text-[#E6E8EE]">{trial.daysLeft}</span>
-                </div>
-              )}
               {ownerPreviewActive && (
                 <div className="mt-2 rounded border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
                   This is preview mode. Billing is not changed.
@@ -2354,7 +2344,7 @@ export default function Settings() {
 
         <div className="card p-4 border border-[#252A38] bg-[#0F111A]">
           <div className="text-sm font-semibold text-[#E6E8EE] mb-3">
-            {effectiveIsFreeDemoForDisplay ? 'Free Demo Usage Caps' : `${effectivePlanForDisplay} Feature Summary`}
+            {effectiveIsFreeForDisplay ? 'Free Usage Caps' : `${effectivePlanForDisplay} Feature Summary`}
           </div>
           <div className="grid md:grid-cols-4 gap-3">
             {effectiveCapsForDisplay.map(([label, value]) => (
@@ -2373,15 +2363,15 @@ export default function Settings() {
           </div>
         </div>
 
-        {!ownerPreviewActive && isFreeDemoAccount && (
+        {!ownerPreviewActive && isFreeAccount && (
           <div className="card p-4 border border-amber-500/25 bg-amber-500/5">
-            <div className="text-sm font-semibold text-[#E6E8EE] mb-3">Free Demo Usage Caps</div>
+            <div className="text-sm font-semibold text-[#E6E8EE] mb-3">Free Usage Caps</div>
             <div className="grid md:grid-cols-4 gap-3">
               {[
-                ['Deals Used', `${usage.dealsSubmitted || 0} / 5`],
+                ['Active Deals', `${usage.dealsSubmitted || 0} / 3`],
                 ['Buyers Used', `${usage.buyersImported || 0} / 25`],
-                ['Blasts Used', `${usage.blastsSent || 0} / 5`],
-                ['Exports Used', `${usage.exports || 0} / Limited`],
+                ['Blasts Used', 'Not included'],
+                ['Exports Used', `${usage.exports || 0} / 20`],
               ].map(([label, value]) => (
                 <div key={label} className="panel p-3">
                   <div className="text-xs text-[#8B92A3] mb-1">{label}</div>
@@ -2390,7 +2380,7 @@ export default function Settings() {
               ))}
             </div>
             <div className="text-xs text-[#8B92A3] mt-3">
-              Free Demo includes limited access to basic deal intake, buyer records, calculator, billing, and upgrade options.
+              Free includes limited access to basic deal intake, buyer records, calculator, billing, and upgrade options.
             </div>
           </div>
         )}
@@ -2444,7 +2434,7 @@ export default function Settings() {
             </div>
             <div className="panel p-3">
               <div className="font-semibold text-[#E6E8EE]">Plan guidance</div>
-              <div className="text-[#8B92A3] mt-1">Confirm whether Free Demo, Starter, or Pro fits your workflow.</div>
+              <div className="text-[#8B92A3] mt-1">Confirm whether Free, Starter, or Pro fits your workflow.</div>
             </div>
             <div className="panel p-3">
               <div className="font-semibold text-[#E6E8EE]">Workspace support</div>
@@ -2465,7 +2455,7 @@ export default function Settings() {
 
   const allTabs = ['Trial','Matching','Templates','Data','Demo','Team','Diagnostics','Production'] as const
   const planFeatureTabs: Record<string, typeof allTabs[number][]> = {
-    'Free Demo': ['Trial'],
+    'Free': ['Trial'],
     Starter: ['Trial', 'Templates'],
     Pro: ['Trial', 'Matching', 'Templates', 'Team'],
     Agency: ['Trial', 'Matching', 'Templates', 'Team'],
@@ -2540,7 +2530,7 @@ export default function Settings() {
                 <div>
                   <div className="text-sm font-semibold mb-1">Pricing Tiers (monthly; annual uses equiv monthly price display in public/upgrade)</div>
                   <div className="text-sm border border-[#252A38] rounded overflow-hidden bg-[#0A0C12]">
-                    <div className="px-2 py-0.5 flex justify-between border-b border-[#252A38]"><span>Free Demo</span><span className="tabular-nums">$0</span></div>
+                    <div className="px-2 py-0.5 flex justify-between border-b border-[#252A38]"><span>Free</span><span className="tabular-nums">$0</span></div>
                     <div className="px-2 py-0.5 flex justify-between border-b border-[#252A38]"><span>Starter</span><span className="tabular-nums">$47/mo</span></div>
                     <div className="px-2 py-0.5 flex justify-between border-b border-[#252A38]"><span>Pro</span><span className="tabular-nums">$97/mo</span></div>
                     <div className="px-2 py-0.5 flex justify-between border-b border-[#252A38]"><span>Agency</span><span className="tabular-nums">$197/mo</span></div>
@@ -2576,7 +2566,7 @@ export default function Settings() {
                 <div className="space-y-2 text-sm">
                   {selectedDetail.data.items.map((it: string, i: number) => <div key={i}>{it}</div>)}
                 </div>
-                <div className="mt-2 text-sm">Pricing impact: Free Demo caps at 5/25/5 (7-day). Starter $47/mo higher limits, Pro $97/mo and above remove all caps. Agency/Enterprise for teams/custom. Annual display uses equiv monthly billed.</div>
+                <div className="mt-2 text-sm">Pricing impact: Free caps at 5/25/5 (permanent). Starter $47/mo higher limits, Pro $97/mo and above remove all caps. Agency/Enterprise for teams/custom. Annual display uses equiv monthly billed.</div>
                 <div className="mt-2 text-sm text-amber-400">What happens at cap: {selectedDetail.data.atCap}</div>
                 <div className="mt-1 text-sm">Public users: at cap, new activity blocked until upgrade (billing coming in prod). Cannot self-reset. Existing data safe.</div>
                 <div className="mt-1 text-sm">Admin/demo only: can Reset Demo Trial (Admin Only) or use Activate Pro Demo (Demo Only) to bypass for testing.</div>
@@ -2605,9 +2595,9 @@ export default function Settings() {
                     <div className="text-sm text-[#64748B]">MIN</div>
                   </div>
                 </div>
-                <div className="text-sm">Free Demo expiration explanation: Live demo timer based on remaining days. In a real deployment this would be tied to your subscription start date and auto-enforce at end of period.</div>
+                <div className="text-sm">Free expiration explanation: Live demo timer based on remaining days. In a real deployment this would be tied to your subscription start date and auto-enforce at end of period.</div>
                 <div className="mt-1 text-sm">Est. demo expiration: {new Date(Date.now() + trialCountdown.days * 86400000).toLocaleDateString()} (demo only; production uses real billing/sub start)</div>
-                <div className="mt-1 text-sm text-red-400/80">What is locked after Free Demo: New deal creation, new buyer creation, and sending blasts. All existing data, history, and templates remain fully accessible and safe. Public users cannot reset trials.</div>
+                <div className="mt-1 text-sm text-red-400/80">What is locked after Free: New deal creation, new buyer creation, and sending blasts. All existing data, history, and templates remain fully accessible and safe. Public users cannot reset trials.</div>
                 <div className="mt-2 text-sm">Suggested action: In production, contact admin for extension or upgrade after expiration. For demo testing only: use admin Reset Demo Trial or Activate Pro Demo (Demo Only) to bypass limits.</div>
                 <div className="mt-2 flex gap-2">
                   {isAdminDemo && (
@@ -2626,10 +2616,10 @@ export default function Settings() {
               <div className="mt-3 pt-3 border-t border-[#252A38]">
                 <div className="text-sm space-y-1.5">
                   <div>Current plan: <span className="font-medium">{currentPlan}{isPaidPlan ? ' (Demo Unlocked)' : ''}</span></div>
-                  <div>Status: <span>{isPaidPlan ? 'Active - ' + (currentPlan === 'Starter' ? 'higher limits' : 'unlimited for testing') : `Free Demo Active — ${trial.daysLeft} days remaining`}</span></div>
+                  <div>Status: <span>{isPaidPlan ? 'Active - ' + (currentPlan === 'Starter' ? 'higher limits' : 'unlimited for testing') : `Free Active — ${trial.daysLeft} days remaining`}</span></div>
                   <div>Demo days remaining: <span className="tabular-nums font-medium">{trial.daysLeft}</span></div>
-                  <div>Current limits: <span>{isPaidPlan ? (currentPlan === 'Starter' ? '25 deals / 100 buyers / 20 blasts (Starter demo)' : 'No limits (demo)') : '5 deals / 25 buyers / 5 blasts (7-day Free Demo)'}</span></div>
-                  <div>Pricing (demo): Free Demo $0 (7-day) | Starter $47/mo | Pro $97/mo | Agency $197/mo | Enterprise $297/mo or Custom (annual equiv monthly billed)</div>
+                  <div>Current limits: <span>{isPaidPlan ? (currentPlan === 'Starter' ? '25 deals / 100 buyers / 20 blasts (Starter demo)' : 'No limits (demo)') : '5 deals / 25 buyers / 5 blasts (permanent Free)'}</span></div>
+                  <div>Pricing (demo): Free $0 (permanent) | Starter $47/mo | Pro $97/mo | Agency $197/mo | Enterprise $297/mo or Custom (annual equiv monthly billed)</div>
                   <div className="text-amber-400">Demo mode note: No real billing, charges, or subscription will be created. All activity is local/test only.</div>
                 </div>
                 <div className="mt-2 text-sm">Public users: cannot reset trials. After expiration, new deals/buyers/blasts may be blocked until upgrade via billing (coming in prod launch to higher tier: Starter $47/mo, Pro $97/mo, Agency $197/mo or Enterprise $297/mo/Custom), admin extension, or support. Existing records remain safe.</div>
@@ -2650,14 +2640,14 @@ export default function Settings() {
                 {isPaidPlan ? (
                   <div className="mt-1 text-sm text-[#8B92A3]">Production billing cancellation may require payment-provider setup. This updates the app plan state in the current environment.</div>
                 ) : (
-                  <div className="mt-1 text-sm text-[#8B92A3]">Already on Free Demo.</div>
+                  <div className="mt-1 text-sm text-[#8B92A3]">Already on Free.</div>
                 )}
               </div>
             )}
 
             {selectedDetail.richType === 'trial-upgrade' && selectedDetail.data && (
               <div className="mt-3 pt-3 border-t border-[#252A38]">
-                <div className="text-sm font-semibold mb-1">Plan Workflow Summary (Free Demo $0 | Starter $47/mo | Pro $97/mo | Agency $197/mo | Enterprise $297/mo or Custom)</div>
+                <div className="text-sm font-semibold mb-1">Plan Workflow Summary (Free $0 | Starter $47/mo | Pro $97/mo | Agency $197/mo | Enterprise $297/mo or Custom)</div>
                 <ul className="text-sm list-disc pl-4 space-y-0.5 text-[#E6E8EE]">
                   <li>Public deal intake and public buyer signup are available across plans.</li>
                   <li>Starter adds basic buyer matching, outreach exports, and deal blast templates.</li>
@@ -2680,7 +2670,7 @@ export default function Settings() {
               <div className="mt-3 pt-3 border-t border-[#252A38]">
                 <div className="text-sm">{selectedDetail.data.explain}</div>
                 <div className="mt-2 text-sm text-red-400/80">{selectedDetail.data.after}</div>
-                <div className="mt-2 text-sm">Pricing note: Free Demo $0 (7-day capped). After end, public must Upgrade to Starter ($47/mo), Pro ($97/mo), Agency ($197/mo) or Enterprise ($297/mo or Custom) via billing (prod launch) or admin extension. No public reset allowed. (Annual equiv monthly in public UIs.)</div>
+                <div className="mt-2 text-sm">Pricing note: Free $0 (permanent capped). After end, public must Upgrade to Starter ($47/mo), Pro ($97/mo), Agency ($197/mo) or Enterprise ($297/mo or Custom) via billing (prod launch) or admin extension. No public reset allowed. (Annual equiv monthly in public UIs.)</div>
                 <div className="mt-2 text-sm">{selectedDetail.data.next}</div>
                 <div className="mt-2 flex gap-2">
                   <button onClick={(e) => { e.stopPropagation(); upgradeToPlan('Pro'); setSelectedDetail(null); }} className="text-sm flex-1 py-1.5 px-2 rounded bg-[#22C55E]/10 hover:bg-[#22C55E]/20 border border-[#22C55E]/30 text-[#22C55E]">Activate Pro Demo (Demo Only)</button>
@@ -2692,7 +2682,7 @@ export default function Settings() {
             {selectedDetail.richType === 'trial-next' && selectedDetail.data && (
               <div className="mt-3 pt-3 border-t border-[#252A38]">
                 <div className="text-sm">{selectedDetail.data.text}</div>
-                <div className="mt-2 text-sm">Pricing: Free Demo $0 (7-day), Starter $47/mo, Pro $97/mo (Most Popular), Agency $197/mo, Enterprise $297/mo or Custom expected at launch. Public users upgrade via billing UI (coming soon); cannot reset own trial. (Annual: equiv monthly billed.)</div>
+                <div className="mt-2 text-sm">Pricing: Free $0 (permanent), Starter $47/mo, Pro $97/mo (Most Popular), Agency $197/mo, Enterprise $297/mo or Custom expected at launch. Public users upgrade via billing UI (coming soon); cannot reset own trial. (Annual: equiv monthly billed.)</div>
                 <div className="mt-2 text-sm">{selectedDetail.data.next}</div>
                 <div className="mt-2 flex gap-2">
                   <button onClick={(e) => { e.stopPropagation(); upgradeToPlan('Pro'); setSelectedDetail(null); }} className="text-sm flex-1 py-1.5 px-2 rounded bg-[#22C55E]/10 hover:bg-[#22C55E]/20 border border-[#22C55E]/30 text-[#22C55E]">Activate Pro Demo (Demo Only)</button>
@@ -2705,13 +2695,13 @@ export default function Settings() {
               <div className="mt-3 pt-3 border-t border-[#252A38] space-y-2">
                 <div className="bg-[#11151F] border border-[#252A38] rounded p-2">
                   <div className="text-sm font-semibold mb-0.5">Current Mode</div>
-                  <div className="text-sm">Demo / Free Demo active. No real payments or subscriptions processed. Billing integration coming with production launch.</div>
+                  <div className="text-sm">Demo / Free active. No real payments or subscriptions processed. Billing integration coming with production launch.</div>
                   <div className="text-xs text-amber-400 mt-0.5">Public users cannot reset trials.</div>
                 </div>
                 <div className="bg-[#11151F] border border-[#252A38] rounded p-2">
                   <div className="text-sm font-semibold mb-0.5">Plan Pricing (monthly rates; see Pricing/Upgrade for annual equiv monthly billed display)</div>
                   <div className="text-sm border border-[#252A38] rounded bg-[#0A0C12] divide-y divide-[#252A38]">
-                    <div className="px-1.5 py-0.5 flex justify-between"><span>Free Demo</span><span className="tabular-nums">$0</span></div>
+                    <div className="px-1.5 py-0.5 flex justify-between"><span>Free</span><span className="tabular-nums">$0</span></div>
                     <div className="px-1.5 py-0.5 flex justify-between"><span>Starter</span><span className="tabular-nums">$47/mo</span></div>
                     <div className="px-1.5 py-0.5 flex justify-between"><span>Pro</span><span className="tabular-nums">$97/mo</span></div>
                     <div className="px-1.5 py-0.5 flex justify-between"><span>Agency</span><span className="tabular-nums">$197/mo</span></div>
@@ -2770,9 +2760,9 @@ export default function Settings() {
                 <select
                   className="input py-1 text-xs min-w-[130px]"
                   value={settingsSelectedPlan}
-                  onChange={e => setSettingsSelectedPlan(e.target.value as 'Free Demo' | PaidPlan)}
+                  onChange={e => setSettingsSelectedPlan(e.target.value as 'Free' | PaidPlan)}
                 >
-                  {(['Free Demo', 'Starter', 'Pro', 'Agency', 'Enterprise'] as const).map(option => (
+                  {(['Free', 'Starter', 'Pro', 'Agency', 'Enterprise'] as const).map(option => (
                     <option key={option} value={option}>{option}</option>
                   ))}
                 </select>
@@ -2786,7 +2776,7 @@ export default function Settings() {
             <div className="grid grid-cols-6 gap-1 mb-2">
               <div></div>
               {planPositioning.map(plan => {
-                const planName = plan.name as 'Free Demo' | PaidPlan
+                const planName = plan.name as 'Free' | PaidPlan
                 const selectedForUpgrade = settingsSelectedPlan === planName
                 return (
                   <div
@@ -2802,9 +2792,9 @@ export default function Settings() {
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); openUpgradePayment(planName, settingsBillingFrequency) }}
-                      className={`mt-2 w-full rounded px-2 py-1 text-xs ${planName === 'Free Demo' ? 'bg-[#252A38] text-[#E6E8EE]' : selectedForUpgrade ? 'bg-[#22C55E] text-black' : 'bg-[#22C55E]/10 text-[#22C55E] border border-[#22C55E]/30'}`}
+                      className={`mt-2 w-full rounded px-2 py-1 text-xs ${planName === 'Free' ? 'bg-[#252A38] text-[#E6E8EE]' : selectedForUpgrade ? 'bg-[#22C55E] text-black' : 'bg-[#22C55E]/10 text-[#22C55E] border border-[#22C55E]/30'}`}
                     >
-                      {planName === 'Free Demo' ? 'Enter Free Demo' : (planName === 'Agency' || planName === 'Enterprise') && !onboardingSettings.agencyEnterpriseEnabled ? 'Contact Admin' : 'Upgrade'}
+                      {planName === 'Free' ? 'Enter Free' : (planName === 'Agency' || planName === 'Enterprise') && !onboardingSettings.agencyEnterpriseEnabled ? 'Contact Admin' : 'Upgrade'}
                     </button>
                   </div>
                 )
@@ -2815,7 +2805,7 @@ export default function Settings() {
                 <thead>
                   <tr className="text-[#64748B] text-left border-b border-[#252A38]">
                     <th className="py-1 pr-2 font-normal w-1/6 text-xs">Feature</th>
-                    <th className="py-1 px-1 text-center font-normal w-1/6 text-xs">Free Demo</th>
+                    <th className="py-1 px-1 text-center font-normal w-1/6 text-xs">Free</th>
                     <th className="py-1 px-1 text-center font-normal w-1/6 text-xs">Starter</th>
                     <th className="py-1 px-1 text-center font-normal w-1/6 text-xs">Pro</th>
                     <th className="py-1 px-1 text-center font-normal w-1/6 text-xs">Agency</th>
@@ -2832,7 +2822,7 @@ export default function Settings() {
             </div>
             <div className="text-sm text-[#64748B] mt-1">Public pricing and in-app plan limits are aligned for demo planning. Advanced team, automation, billing, and integration features may require production setup before use.</div>
             <button onClick={(e) => { e.stopPropagation(); openUpgradePayment(settingsSelectedPlan, settingsBillingFrequency); }} className="mt-2 w-full text-sm py-1.5 px-3 rounded bg-[#22C55E]/10 hover:bg-[#22C55E]/20 border border-[#22C55E]/30 text-[#22C55E]">
-              {settingsSelectedPlan === 'Free Demo' ? 'Enter Free Demo' : `Upgrade to ${settingsSelectedPlan} ${settingsBillingFrequency}`}
+              {settingsSelectedPlan === 'Free' ? 'Enter Free' : `Upgrade to ${settingsSelectedPlan} ${settingsBillingFrequency}`}
             </button>
           </div>
 
@@ -2847,7 +2837,7 @@ export default function Settings() {
             }
           })} className="card group p-3 border border-[#3b82f6]/30 hover:border-[#3b82f6]/70 hover:-translate-y-px hover:shadow-[0_0_0_2px_#3b82f630] hover:ring-1 hover:ring-inset hover:ring-[#3b82f6]/30 transition-all cursor-pointer relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#3b82f608] to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-[1800ms] pointer-events-none" />
-            <div className="font-semibold text-sm mb-1.5">{currentPlan === 'Free Demo' ? 'Free Demo' : currentPlan} Usage Meters (Demo Caps)</div>
+            <div className="font-semibold text-sm mb-1.5">{currentPlan} Usage Meters</div>
             <div className="space-y-1.5 text-sm">
               <div>
                 <div className="flex justify-between mb-0.5"><span className="text-[#8B92A3]">Deals Used</span><span className="tabular-nums text-[#E6E8EE]">3 / 5 (60%)</span></div>
@@ -2862,36 +2852,36 @@ export default function Settings() {
                 <div className="h-1.5 bg-[#252A38] rounded overflow-hidden"><div className="h-full bg-[#3b82f6]" style={{width:'40%'}} /></div>
               </div>
             </div>
-            <div className="text-sm text-[#64748B] mt-1">Free Demo caps are for demo only. In production, reaching cap would block new activity until upgrade to higher tier or admin reset (demo only).</div>
+            <div className="text-sm text-[#64748B] mt-1">Free includes limited usage. Upgrade to Starter or Pro for larger operating limits.</div>
           </div>
 
-          {/* Live Countdown + Current Plan row - enhanced language */}
+          {/* Free plan + Current Plan row */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-            <div onClick={() => setSelectedDetail({ 
-              title: 'Trial Countdown', 
-              richType: 'trial-countdown', 
+            <div onClick={() => setSelectedDetail({
+              title: 'Free Plan',
+              richType: 'trial-status',
               data: { ready: true }
             })} className="card group p-3 border border-[#f59e0b]/30 hover:border-[#f59e0b]/70 hover:-translate-y-px hover:shadow-[0_0_0_2px_#f59e0b30] hover:ring-1 hover:ring-inset hover:ring-[#f59e0b]/30 transition-all cursor-pointer relative overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#f59e0b08] to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-[1800ms] pointer-events-none" />
               <div className="font-semibold text-sm mb-1 flex items-center justify-between">
-                <span>Free Demo Countdown (Live Demo)</span>
-                <span className="text-sm px-1.5 py-0.5 rounded bg-[#22C55E]/10 text-[#22C55E]">Trial Active</span>
+                <span>Free Plan</span>
+                <span className="text-sm px-1.5 py-0.5 rounded bg-[#22C55E]/10 text-[#22C55E]">Free Active</span>
               </div>
               <div className="grid grid-cols-3 gap-2 mb-2">
                 <div className="p-2 bg-[#11151F] border border-[#252A38] rounded text-center">
-                  <div className="text-2xl font-mono tabular-nums text-[#E6E8EE]">{trialCountdown.days}</div>
-                  <div className="text-sm text-[#64748B]">DAYS</div>
+                  <div className="text-2xl font-mono tabular-nums text-[#E6E8EE]">3</div>
+                  <div className="text-sm text-[#64748B]">DEALS</div>
                 </div>
                 <div className="p-2 bg-[#11151F] border border-[#252A38] rounded text-center">
-                  <div className="text-2xl font-mono tabular-nums text-[#E6E8EE]">{trialCountdown.hours}</div>
-                  <div className="text-sm text-[#64748B]">HRS</div>
+                  <div className="text-2xl font-mono tabular-nums text-[#E6E8EE]">25</div>
+                  <div className="text-sm text-[#64748B]">BUYERS</div>
                 </div>
                 <div className="p-2 bg-[#11151F] border border-[#252A38] rounded text-center">
-                  <div className="text-2xl font-mono tabular-nums text-[#E6E8EE]">{trialCountdown.minutes}</div>
-                  <div className="text-sm text-[#64748B]">MIN</div>
+                  <div className="text-2xl font-mono tabular-nums text-[#E6E8EE]">20</div>
+                  <div className="text-sm text-[#64748B]">EXPORTS</div>
                 </div>
               </div>
-              <div className="text-sm text-[#64748B] mt-1">Demo countdown only. Production trials will be tied to billing/subscription start date. (Reset Demo Trial admin/demo only.) Est. end: {new Date(Date.now() + trialCountdown.days * 86400000).toLocaleDateString()}</div>
+              <div className="text-sm text-[#64748B] mt-1">Free is permanent and limited. Public deal and buyer portals remain available; private review tooling is gated while in internal testing.</div>
               <div className="flex flex-wrap gap-1.5 mt-2 text-sm">
                 <button onClick={(e) => { e.stopPropagation(); upgradeToPlan('Pro') }} className="btn btn-ghost text-sm px-2 py-1">Activate Pro Demo (Demo Only)</button>
                 {isAdminDemo && (
@@ -2908,17 +2898,17 @@ export default function Settings() {
             })} className="card group p-3 border border-[#22C55E]/30 hover:border-[#22C55E]/70 hover:-translate-y-px hover:shadow-[0_0_0_2px_#22c55e30] hover:ring-1 hover:ring-inset hover:ring-[#22C55E]/30 transition-all cursor-pointer relative overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#22c55e08] to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-[1800ms] pointer-events-none" />
               <div className="font-semibold text-sm mb-1 flex items-center justify-between">
-                <span>Current Tier / Status (Demo)</span>
-                <span className={`text-sm px-2 py-0.5 rounded ${isPaidPlan ? 'bg-[#22C55E]/10 text-[#22C55E]' : 'bg-amber-500/10 text-amber-400'}`}>{isPaidPlan ? `${currentPlan.toUpperCase()} ACTIVE` : `Free Demo — ${trial.daysLeft} days`}</span>
+                <span>Current Tier / Status</span>
+                <span className={`text-sm px-2 py-0.5 rounded ${isPaidPlan ? 'bg-[#22C55E]/10 text-[#22C55E]' : 'bg-[#22C55E]/10 text-[#22C55E]'}`}>{isPaidPlan ? `${currentPlan.toUpperCase()} ACTIVE` : 'FREE ACTIVE'}</span>
               </div>
-              <div className="text-sm text-[#8B92A3] mb-1.5">{isPaidPlan ? `${currentPlan} features active for full testing. ${currentPlan === 'Starter' ? 'Starter limits apply in demo.' : 'No usage caps in this demo.'}` : 'Free Demo active. Limited to 5 deals / 25 buyers / 5 blasts (7-day) for demo.'}</div>
+              <div className="text-sm text-[#8B92A3] mb-1.5">{isPaidPlan ? `${currentPlan} features active. ${currentPlan === 'Starter' ? 'Starter limits apply.' : 'Plan limits apply.'}` : 'Free active. Limited to 3 active deals, 25 buyers, ARV calculator, and public intake portals.'}</div>
               <div className="flex flex-wrap gap-2 items-center text-sm">
                 <button onClick={(e) => { e.stopPropagation(); openUpgradePayment(); }} className="btn btn-green text-sm px-3 py-1">Upgrade Plan</button>
                 <button onClick={(e) => { e.stopPropagation(); upgradeToPlan('Pro') }} className="btn btn-ghost text-sm px-3 py-1">Activate Pro Demo (Demo Only)</button>
                 {isPaidPlan ? (
                   <button onClick={(e) => { e.stopPropagation(); cancelCurrentPlan() }} className="btn btn-ghost text-sm px-3 py-1 text-rose-300 border-rose-500/30 hover:border-rose-500/60">Cancel Plan</button>
                 ) : (
-                  <span className="text-sm text-[#8B92A3]">Already on Free Demo</span>
+                  <span className="text-sm text-[#8B92A3]">Already on Free</span>
                 )}
                 {isAdminDemo && (
                   <button onClick={(e) => { e.stopPropagation(); resetTrial() }} className="btn btn-ghost text-sm px-3 py-1">Reset Demo Trial (Admin Only)</button>
@@ -2928,7 +2918,7 @@ export default function Settings() {
               {isAdminDemo && (
                 <div className="text-sm text-amber-400 mt-1">Admin Demo Tool — Internal demo/testing only. Public users cannot reset trials.</div>
               )}
-              <div className="text-sm text-[#64748B] mt-1.5">Demo only — no real billing or payment will be processed. Public users cannot reset trials.</div>
+              <div className="text-sm text-[#64748B] mt-1.5">Plan changes here update the app workspace. Stripe handles paid checkout when configured.</div>
             </div>
           </div>
 
@@ -2949,8 +2939,8 @@ export default function Settings() {
                   </div>
                   <div className="mt-1 text-sm text-[#8B92A3]">
                     {isPaidPlan
-                      ? 'Cancel Plan returns this workspace to Free Demo in the current environment. No deals, buyers, documents, submissions, templates, settings, or files are deleted.'
-                      : 'You are currently on the free/trial plan. There is no paid membership to cancel.'}
+                      ? 'Cancel Plan returns this workspace to Free in the current environment. No deals, buyers, documents, submissions, templates, settings, or files are deleted.'
+                      : 'You are currently on the Free plan. There is no paid membership to cancel.'}
                   </div>
                 </div>
                 <div className="mt-1 text-sm text-[#8B92A3]">Production billing cancellation may require payment-provider setup.</div>
@@ -2995,11 +2985,11 @@ export default function Settings() {
                 ['Billing Frequency', (trial.billingFrequency || 'monthly') === 'annual' ? 'Annual' : 'Monthly'],
                 ['Billing Period Start', formatBillingDate(trial.billingPeriodStart)],
                 ['Billing Period End', formatBillingDate(trial.billingPeriodEnd)],
-                ['Next Payment Due', currentPlan === 'Free Demo' ? 'No paid billing schedule' : formatBillingDate(nextPaymentDue)],
+                ['Next Payment Due', currentPlan === 'Free' ? 'No paid billing schedule' : formatBillingDate(nextPaymentDue)],
                 ['Payment Provider', 'Stripe'],
                 ['Stripe Sync Status', hasWebhookDelivery ? 'Synced' : 'Waiting for First Verified Webhook'],
                 ['Last Payment', lastPayment ? `${lastPayment.amount} ${lastPayment.status}` : 'No paid billing history yet'],
-                ['Next Payment', currentPlan === 'Free Demo' ? '$0' : getPlanAmount(currentPlan, (trial.billingFrequency || 'monthly') as BillingFrequency)],
+                ['Next Payment', currentPlan === 'Free' ? '$0' : getPlanAmount(currentPlan, (trial.billingFrequency || 'monthly') as BillingFrequency)],
               ].map(([label, value]) => (
                 <div key={label} className="panel p-3">
                   <div className="text-xs text-[#8B92A3] mb-1">{label}</div>
@@ -3013,7 +3003,7 @@ export default function Settings() {
 
           {renderBillingCenter()}
 
-          {!isFreeDemoAccount && hasSuperAdminAccess && (
+          {!isFreeAccount && hasSuperAdminAccess && (
           <div className="card p-4 border border-[#22C55E]/25 bg-[#0F111A]">
             <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
               <div>
@@ -3021,7 +3011,7 @@ export default function Settings() {
                 <div className="text-lg font-semibold text-[#E6E8EE]">First-Login Plan Selection & Quick Tour</div>
                 <div className="mt-2 grid gap-1 text-sm text-[#C5CAD6]">
                   <div>Plan selection: <span className="text-[#E6E8EE]">{onboardingSettings.planSelectionCompleted ? 'Completed' : 'Pending'}</span></div>
-                  <div>Selected plan: <span className="text-[#E6E8EE]">{onboardingSettings.selectedPlan || 'Free Demo'}</span></div>
+                  <div>Selected plan: <span className="text-[#E6E8EE]">{onboardingSettings.selectedPlan === 'Free' ? 'Free' : onboardingSettings.selectedPlan || 'Free'}</span></div>
                   <div>Tour status: <span className="text-[#E6E8EE]">{onboardingSettings.tourCompleted ? 'Completed' : onboardingSettings.tourSkipped ? 'Skipped' : 'Not started'}</span></div>
                   <div>Agency / Enterprise: <span className={onboardingSettings.agencyEnterpriseEnabled ? 'text-[#22C55E]' : 'text-amber-300'}>{onboardingSettings.agencyEnterpriseEnabled ? 'Manually enabled' : 'Coming Soon / Contact Admin'}</span></div>
                 </div>
@@ -3041,14 +3031,14 @@ export default function Settings() {
                   {onboardingSettings.agencyEnterpriseEnabled ? 'Set Agency / Enterprise Coming Soon' : 'Enable Agency / Enterprise Selection'}
                 </button>
                 <div className="text-xs text-[#64748B]">
-                  Free Demo, Starter, and Pro are active for initial public release. Agency and Enterprise stay visible but gated unless enabled here.
+                  Free, Starter, and Pro are active for initial public release. Agency and Enterprise stay visible but gated unless enabled here.
                 </div>
               </div>
             </div>
           </div>
           )}
 
-          {!isFreeDemoAccount && hasSuperAdminAccess && (
+          {!isFreeAccount && hasSuperAdminAccess && (
           <div className="card p-4 border border-[#22C55E]/25 bg-[#0F111A]">
             <div className="flex flex-col gap-4">
               <div className="flex flex-col md:flex-row md:items-start justify-between gap-3">
@@ -3162,8 +3152,8 @@ export default function Settings() {
             title: 'What Happens When Trial Ends?', 
             richType: 'trial-ends', 
             data: {
-              explain: 'In a real deployment, once the Free Demo / trial period expires without upgrade, creation of new deals, buyers, and blasts would be blocked to prevent over-use. All existing data, templates, and history remain fully accessible and safe.',
-              after: 'In production, new deal creation, buyer creation, and blasts are blocked after trial expiration until upgrade or admin extension. Pricing: Free Demo $0 (7-day) ? Starter $47/mo, Pro $97/mo, Agency $197/mo or Enterprise $297/mo or Custom. Existing records stay accessible. Public users cannot reset trials.',
+              explain: 'In a real deployment, once the Free / trial period expires without upgrade, creation of new deals, buyers, and blasts would be blocked to prevent over-use. All existing data, templates, and history remain fully accessible and safe.',
+              after: 'In production, new deal creation, buyer creation, and blasts are blocked after trial expiration until upgrade or admin extension. Pricing: Free $0 (permanent) ? Starter $47/mo, Pro $97/mo, Agency $197/mo or Enterprise $297/mo or Custom. Existing records stay accessible. Public users cannot reset trials.',
               next: 'Recommended: Activate Pro Demo (Demo Only) now for uninterrupted full testing. (Reset Demo Trial is admin-only for demo clock restart.) Billing integration coming with production launch.'
             }
           })} className="card group p-3 border border-[#ef4444]/20 hover:border-[#ef4444]/70 hover:-translate-y-px hover:shadow-[0_0_0_2px_#ef444430] hover:ring-1 hover:ring-inset hover:ring-[#ef4444]/30 transition-all cursor-pointer relative overflow-hidden">
@@ -3172,7 +3162,7 @@ export default function Settings() {
               What Happens When Trial Ends?
               <span className="text-sm px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400">Demo</span>
             </div>
-            <div className="text-sm text-[#8B92A3]">New activity blocked until upgrade or admin extension. Pricing: Free Demo $0 (7-day capped) ? Starter $47/mo, Pro $97/mo, Agency $197/mo or Enterprise $297/mo or Custom. Existing records safe. Billing integration will handle grace periods and upgrade prompts in production. (Public users cannot reset trials.)</div>
+            <div className="text-sm text-[#8B92A3]">New activity blocked until upgrade or admin extension. Pricing: Free $0 (permanent capped) ? Starter $47/mo, Pro $97/mo, Agency $197/mo or Enterprise $297/mo or Custom. Existing records safe. Billing integration will handle grace periods and upgrade prompts in production. (Public users cannot reset trials.)</div>
           </div>
 
           {/* Recommended next step - new section + sideview */}
@@ -3180,13 +3170,13 @@ export default function Settings() {
             title: 'Recommended Next Step', 
             richType: 'trial-next', 
             data: {
-              text: 'For complete real-world readiness testing: Activate Pro Demo (Demo Only) to unlock all limits, explore every tab and sideview, test public submission flow simulation, prepare the full launch checklist in Production tab, and validate VA role restrictions in Team tab. Full 5-tier pricing at launch: Free Demo $0, Starter $47/mo, Pro $97/mo, Agency $197/mo, Enterprise $297/mo or Custom.',
+              text: 'For complete real-world readiness testing: Activate Pro Demo (Demo Only) to unlock all limits, explore every tab and sideview, test public submission flow simulation, prepare the full launch checklist in Production tab, and validate VA role restrictions in Team tab. Full 5-tier pricing at launch: Free $0, Starter $47/mo, Pro $97/mo, Agency $197/mo, Enterprise $297/mo or Custom.',
               next: 'Start by clicking Activate Pro Demo (Demo Only) above. Then (as admin/demo) use Reset Demo Trial (Admin Only) when you want to test expiration behavior again. Public users use Upgrade Plan (billing at launch).'
             }
           })} className="card group p-3 border border-[#22C55E]/20 hover:border-[#22C55E]/70 hover:-translate-y-px hover:shadow-[0_0_0_2px_#22c55e30] hover:ring-1 hover:ring-inset hover:ring-[#22C55E]/30 transition-all cursor-pointer relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#22c55e08] to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-[1800ms] pointer-events-none" />
             <div className="font-semibold text-sm mb-1">Recommended Next Step</div>
-            <div className="text-sm text-[#8B92A3]">Activate Pro Demo (Demo Only) to remove all demo caps and fully validate the entire app (including public forms, team/VA, analytics, and release prep) as you would in a real pre-launch environment. Full 5-tier pricing expected at launch (Free Demo $0 to Enterprise Custom).</div>
+            <div className="text-sm text-[#8B92A3]">Activate Pro Demo (Demo Only) to remove all demo caps and fully validate the entire app (including public forms, team/VA, analytics, and release prep) as you would in a real pre-launch environment. Full 5-tier pricing expected at launch (Free $0 to Enterprise Custom).</div>
           </div>
         </div>
       )}

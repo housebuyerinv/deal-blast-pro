@@ -34,7 +34,8 @@ export const ALL_APP_ROUTES: AppRoute[] = [
 ]
 
 export const PLAN_ROUTE_ACCESS: Record<Exclude<PlanName, 'Owner Admin'>, AppRoute[]> = {
-  'Free Demo': ['/app/dashboard', '/app/submissions', '/app/inventory', '/app/buyers', '/app/calculator', '/app/settings', '/app/upgrade'],
+  Free: ['/app/dashboard', '/app/inventory', '/app/buyers', '/app/calculator', '/app/settings', '/app/upgrade'],
+  'Free Demo': ['/app/dashboard', '/app/inventory', '/app/buyers', '/app/calculator', '/app/settings', '/app/upgrade'],
   Starter: ['/app/dashboard', '/app/submissions', '/app/inventory', '/app/buyers', '/app/blast', '/app/calculator', '/app/settings', '/app/upgrade', '/app/followups', '/app/pipeline'],
   Pro: ['/app/dashboard', '/app/submissions', '/app/inventory', '/app/buyers', '/app/resources', '/app/blast', '/app/calculator', '/app/settings', '/app/upgrade', '/app/followups', '/app/analytics', '/app/pipeline'],
   Agency: ALL_APP_ROUTES,
@@ -56,7 +57,7 @@ export function getEffectivePlan(
   settings?: Pick<AppSettings, 'ownerPreviewPlan'> | null,
 ): PlanName {
   if (isSuperAdmin(user)) return getOwnerPreviewPlan(settings)
-  return trial.plan || (trial.isPaid ? 'Pro' : 'Free Demo')
+  return trial.plan === 'Free Demo' ? 'Free' : trial.plan || (trial.isPaid ? 'Pro' : 'Free')
 }
 
 export function getAllowedRoutes(
@@ -66,7 +67,7 @@ export function getAllowedRoutes(
 ): AppRoute[] {
   const plan = getEffectivePlan(trial, user, settings)
   if (plan === 'Owner Admin') return ALL_APP_ROUTES
-  return Array.from(new Set([...(PLAN_ROUTE_ACCESS[plan] || PLAN_ROUTE_ACCESS['Free Demo']), '/app/settings' as AppRoute]))
+  return Array.from(new Set([...(PLAN_ROUTE_ACCESS[plan] || PLAN_ROUTE_ACCESS.Free), '/app/settings' as AppRoute]))
 }
 
 export function canAccessRoute(
@@ -123,7 +124,7 @@ export function getBillingNotice(
     return {
       kind: 'payment-pending' as BillingNoticeKind,
       title: 'Payment pending',
-      message: 'Your payment is pending confirmation. Complete payment or choose Free Demo to continue with limited access.',
+      message: 'Your payment is pending confirmation. Complete payment or choose Free to continue with limited access.',
       action: 'Complete Payment',
     }
   }
@@ -152,10 +153,10 @@ export function getBillingNotice(
     }
   }
 
-  if (billingStatus === 'Trial Active' && (trial.plan || 'Free Demo') === 'Free Demo' && (!trial.isActive || (trial.daysLeft || 0) <= 0)) {
+  if (billingStatus === 'Trial Active' && (trial.plan || 'Free') === 'Free Demo' && (!trial.isActive || (trial.daysLeft || 0) <= 0)) {
     return {
       kind: 'free-demo-limit' as BillingNoticeKind,
-      title: 'Free Demo limit reached',
+      title: 'Free plan limit reached',
       message: 'Upgrade to Starter or Pro to continue creating new activity.',
       action: 'Upgrade',
     }
