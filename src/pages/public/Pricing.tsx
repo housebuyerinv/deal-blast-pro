@@ -2,6 +2,7 @@
 import { Link } from 'react-router-dom'
 import PublicFooter from '../../components/layout/PublicFooter'
 import PublicNav from '../../components/layout/PublicNav'
+import { PLAN_ENTITLEMENTS } from '../../lib/planEntitlements'
 
 const tiers = [
   {
@@ -78,8 +79,24 @@ const featureRows = [
     statuses: ['Limited', 'Included', 'Advanced', 'Advanced', 'Custom']
   },
   {
-    feature: 'Buyer Database',
-    statuses: ['Limited', 'Included', 'Advanced', 'Advanced', 'Custom']
+    feature: 'Buyer Database Capacity',
+    statuses: [
+      PLAN_ENTITLEMENTS['Free Demo'].buyerLimitLabel,
+      PLAN_ENTITLEMENTS.Starter.buyerLimitLabel,
+      PLAN_ENTITLEMENTS.Pro.buyerLimitLabel,
+      PLAN_ENTITLEMENTS.Agency.buyerLimitLabel,
+      PLAN_ENTITLEMENTS.Enterprise.buyerLimitLabel
+    ]
+  },
+  {
+    feature: 'Buyer Portal Review Center',
+    statuses: [
+      PLAN_ENTITLEMENTS['Free Demo'].buyerPortalReviewLabel,
+      PLAN_ENTITLEMENTS.Starter.buyerPortalReviewLabel,
+      PLAN_ENTITLEMENTS.Pro.buyerPortalReviewLabel,
+      PLAN_ENTITLEMENTS.Agency.buyerPortalReviewLabel,
+      PLAN_ENTITLEMENTS.Enterprise.buyerPortalReviewLabel
+    ]
   },
   {
     feature: 'Buyer Matching',

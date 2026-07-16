@@ -14,6 +14,8 @@ export type BuyerSyncResult<T = any> = {
 type BuyerScope = {
   userId: string
   email: string
+  workspaceId: string
+  planName: string
 }
 
 type BuyerScopeFilter = {
@@ -22,12 +24,8 @@ type BuyerScopeFilter = {
 }
 
 const buyerScopeColumns = [
-  { column: 'user_id', source: 'userId' },
-  { column: 'owner_id', source: 'userId' },
-  { column: 'account_id', source: 'userId' },
-  { column: 'created_by', source: 'userId' },
-  { column: 'user_email', source: 'email' },
-  { column: 'owner_email', source: 'email' },
+  { column: 'workspace_id', source: 'workspaceId' },
+  { column: 'created_by_user_id', source: 'userId' },
 ] as const
 
 let resolvedBuyerScopeColumn: string | null = null
@@ -38,9 +36,20 @@ async function getBuyerScope(): Promise<BuyerScope | null> {
   const { data, error } = await supabase.auth.getUser()
   if (error || !data.user) return null
 
+  const { data: plan } = await supabase
+    .from('workspace_plan_assignments')
+    .select('workspace_id,plan_name')
+    .eq('user_id', data.user.id)
+    .maybeSingle()
+
+  const workspaceId = String(plan?.workspace_id || '').trim()
+  if (!workspaceId) return null
+
   return {
     userId: data.user.id,
     email: String(data.user.email || '').trim().toLowerCase(),
+    workspaceId,
+    planName: String(plan?.plan_name || 'Free Demo').trim(),
   }
 }
 
@@ -48,7 +57,7 @@ function getBuyerScopeFilters(scope: BuyerScope): BuyerScopeFilter[] {
   return buyerScopeColumns
     .map(({ column, source }) => ({
       column,
-      value: source === 'userId' ? scope.userId : scope.email,
+      value: String(scope[source] || ''),
     }))
     .filter(filter => Boolean(filter.value))
 }
@@ -69,6 +78,15 @@ function addBuyerScopeToRow(row: any, filter: BuyerScopeFilter | null) {
   return {
     ...row,
     [filter.column]: filter.value,
+  }
+}
+
+function addBuyerWorkspaceToRow(row: any, scope: BuyerScope) {
+  return {
+    ...row,
+    workspace_id: scope.workspaceId,
+    created_by_user_id: scope.userId,
+    owner_user_id: scope.userId,
   }
 }
 
@@ -121,6 +139,19 @@ function rowToBuyer(row: any) {
     ...data,
     id: row.id || data.id,
     email: row.email || data.email || '',
+    name: row.name || data.name || data.buyerName || '',
+    company: row.company || data.company || '',
+    phone: row.phone || data.phone || '',
+    status: row.status || data.status || 'Active',
+    type: row.buyer_type || data.type || data.buyerType || 'Cash Buyer',
+    buyerType: row.buyer_type || data.buyerType || data.type || 'Cash Buyer',
+    source: row.source || data.source || '',
+    markets: Array.isArray(row.markets) && row.markets.length ? row.markets : Array.isArray(data.markets) ? data.markets : [],
+    assetTypes: Array.isArray(row.asset_types) && row.asset_types.length ? row.asset_types : Array.isArray(data.assetTypes) ? data.assetTypes : [],
+    budgetMin: row.budget_min ?? data.budgetMin ?? data.budget_min,
+    budgetMax: row.budget_max ?? data.budgetMax ?? data.budget_max,
+    strategy: row.strategy || data.strategy || '',
+    notes: row.notes || data.notes || '',
     createdAt: data.createdAt || row.created_at,
     updatedAt: data.updatedAt || row.updated_at,
   }
@@ -145,6 +176,18 @@ function buyerToRow(buyer: any) {
   return {
     id,
     email,
+    name: data.name || data.buyerName || data.fullName || '',
+    company: data.company || '',
+    phone: data.phone || data.mobile || '',
+    status: data.status || 'Active',
+    source: data.source || '',
+    buyer_type: data.buyerType || data.type || 'Cash Buyer',
+    markets: Array.isArray(data.markets) ? data.markets : [],
+    asset_types: Array.isArray(data.assetTypes) ? data.assetTypes : [],
+    strategy: data.strategy || data.exitStrategy || data.investmentStrategy || '',
+    budget_min: data.budgetMin ?? data.budget_min ?? null,
+    budget_max: data.budgetMax ?? data.budget_max ?? data.budget ?? null,
+    notes: data.notes || data.buyBox || data.buy_box || '',
     data,
     updated_at: now,
     created_at: buyer?.createdAt || buyer?.created_at || now,
@@ -584,12 +627,12 @@ export async function upsertBuyersToSupabase(buyers: any[]): Promise<BuyerSyncRe
       const existing = emailKey ? existingByEmail.get(emailKey) : null
       const merged = existing ? mergeBuyerRecords(existing, buyer) : buyer
 
-      return addBuyerScopeToRow(buyerToRow({
+      return addBuyerWorkspaceToRow(addBuyerScopeToRow(buyerToRow({
         ...merged,
         id: existing?.id || buyer?.id,
         email: emailKey || normalizeEmail(merged),
         createdAt: existing?.createdAt || buyer?.createdAt || buyer?.created_at,
-      }), scopeFilter)
+      }), scopeFilter), scope)
     })
 
     // Use id conflict because every Supabase table already has id uniqueness.

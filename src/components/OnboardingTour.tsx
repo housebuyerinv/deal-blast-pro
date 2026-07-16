@@ -8,7 +8,7 @@ const TOUR_STEPS = [
   { id: 1, title: 'Command Center', desc: 'Start here for daily deal flow, alerts, activity, and high-level workspace status.' },
   { id: 2, title: 'Deal Submissions', desc: 'Review public deal submissions before anything moves into active inventory or buyer outreach.' },
   { id: 3, title: 'Inventory Hub', desc: 'Approved active deals live here for pricing, status, documents, and follow-up coordination.' },
-  { id: 4, title: 'Global Buyer DB', desc: 'Manage buyers for the current account only, including markets, criteria, tags, and funding notes.' },
+  { id: 4, title: 'Buyer Database', desc: 'Manage buyers for the current workspace only, including markets, criteria, tags, and funding notes.' },
   { id: 5, title: 'Deal Blast Builder', desc: 'Select a live deal, preview blast copy, match recipients, and prepare outreach exports.' },
   { id: 6, title: 'Buyer Portal', desc: 'Public buyers can submit criteria without an account, then your workspace can review the submission.' },
   { id: 7, title: 'Settings & Trial', desc: 'Manage plan state, billing setup, plan access, diagnostics, backups, and workspace controls.' },

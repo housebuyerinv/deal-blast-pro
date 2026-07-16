@@ -9,7 +9,8 @@ import { isActionableDealSubmission, listDealSubmissionsForReview } from '../../
 import { countPendingBuyerPortalSubmissions } from '../../lib/buyerPortalSubmissionStorage'
 import { isInternalAdmin } from '../../lib/accessControl'
 import { canAccessRoute } from '../../lib/planAccess'
-import { isOwnerPreviewActive } from '../../lib/planAccess'
+import { getEffectivePlan, isOwnerPreviewActive } from '../../lib/planAccess'
+import { canUseBuyerPortalReview } from '../../lib/planEntitlements'
 
 const navGroups = [
   {
@@ -23,7 +24,7 @@ const navGroups = [
   {
     label: 'DEAL FLOW',
     items: [
-      { to: '/app/buyers', label: 'Global Buyer DB', icon: Users, badgeKey: 'buyerPortal' },
+      { to: '/app/buyers', label: 'Buyer Database', icon: Users, badgeKey: 'buyerPortal' },
       { to: '/app/resources', label: 'Resource Hub', icon: Briefcase },
       { to: '/app/blast', label: 'Deal Blast Builder', icon: Send },
       { to: '/app/calculator', label: 'Deal Calculator', icon: Calculator },
@@ -56,6 +57,7 @@ export default function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean;
   const [buyerPortalQueueCount, setBuyerPortalQueueCount] = useState(0)
   const pendingFollowups = getPendingFollowUps().length
   const hasInternalAdminAccess = isInternalAdmin(user) && !isOwnerPreviewActive(user, settings)
+  const buyerPortalReviewAllowed = canUseBuyerPortalReview(getEffectivePlan(trial, user, settings))
 
   const isOpen = mobileOpen !== undefined ? mobileOpen : sidebarOpen
 
@@ -139,7 +141,7 @@ export default function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean;
                 showBadge = submissions > 0
                 badgeCount = submissions
               } else if (item.badgeKey === 'buyerPortal') {
-                showBadge = buyerPortalQueueCount > 0
+                showBadge = buyerPortalReviewAllowed && buyerPortalQueueCount > 0
                 badgeCount = buyerPortalQueueCount
               } else if (item.badgeKey === 'followups') {
                 showBadge = pendingFollowups > 0
@@ -148,7 +150,7 @@ export default function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean;
               return (
                 <NavLink
                   key={item.to}
-                  to={item.badgeKey === 'buyerPortal' && buyerPortalQueueCount > 0 ? '/app/buyers?review=pending' : item.to}
+                  to={item.badgeKey === 'buyerPortal' && buyerPortalReviewAllowed && buyerPortalQueueCount > 0 ? '/app/buyers?review=pending' : item.to}
                   onClick={onClose}
                   className={({ isActive }) =>
                     `flex items-center gap-3 px-4 py-[9px] text-sm mx-1.5 rounded-lg transition-colors ${

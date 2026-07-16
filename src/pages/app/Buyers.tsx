@@ -11,6 +11,7 @@ import { Buyer } from '../../lib/types'
 import Tooltip from '../../components/Tooltip'
 import { fetchBuyersFromSupabase, updateBuyerInSupabase, deleteBuyersFromSupabase, deleteAllBuyersFromSupabase, upsertBuyersToSupabase } from '../../lib/buyerSupabaseSync'
 import { getEffectivePlan } from '../../lib/planAccess'
+import { canUseBuyerPortalReview, formatBuyerCapacityRemaining, getBuyerCapacity } from '../../lib/planEntitlements'
 
 const safeLower = (value: any) => String(value ?? '').toLowerCase();
 
@@ -930,11 +931,13 @@ const formatManualBuyerName = (value: any, emailValue = '') => {
 
 export default function Buyers() {
   const { 
-    buyers, isNewBuyer, markBuyerViewed, importBuyers, 
+    buyers, isNewBuyer, markBuyerViewed,
     addToSuppression, updateBuyer, deleteBuyer,
     getBuyerMatchHistory, user, trial, settings
   } = useAppStore()
   const effectivePlan = getEffectivePlan(trial, user, settings)
+  const buyerCapacity = getBuyerCapacity(effectivePlan, buyers.length)
+  const buyerPortalReviewAllowed = canUseBuyerPortalReview(effectivePlan)
 
   const persistBuyerUpdate = async (id: string, updates: any, successMessage?: string) => {
     const cleanId = String(id || '').trim()
@@ -2406,6 +2409,12 @@ const cleanBuyerName = (value: any, emailValue = '') => {
   }, [])
 
   const importBuyerPortalQueue = async () => {
+    if (!buyerPortalReviewAllowed) {
+      toast.info('Buyer Portal Review Center is not active on this plan yet. Submitted buyers remain safely queued for internal review.')
+      setShowPortalReview(false)
+      return
+    }
+
     try {
       const queue = await listPendingBuyerPortalSubmissions()
 
@@ -2490,7 +2499,7 @@ const cleanBuyerName = (value: any, emailValue = '') => {
   const duplicateGroups = getDuplicateGroups(buyers as any[])
   const duplicateBuyerIds = new Set(duplicateGroups.flatMap(group => group.buyers.map((buyer: any) => buyer.id)))
   const duplicateRecordCount = duplicateGroups.reduce((total, group) => total + group.buyers.length, 0)
-  const pendingReviewCount = buyerPortalQueueCount
+  const pendingReviewCount = buyerPortalReviewAllowed ? buyerPortalQueueCount : 0
   const newBuyerCount = buyers.filter((b: any) => isNewBuyer(b.id)).length
 
   // Apply search on the correct base
@@ -3037,13 +3046,15 @@ const cleanBuyerName = (value: any, emailValue = '') => {
 
   useEffect(() => {
     if (searchParams.get('review') === 'pending') {
-      void importBuyerPortalQueue()
+      if (buyerPortalReviewAllowed) {
+        void importBuyerPortalQueue()
+      }
 
       const nextParams = new URLSearchParams(searchParams)
       nextParams.delete('review')
       setSearchParams(nextParams, { replace: true })
     }
-  }, [searchParams, setSearchParams])
+  }, [searchParams, setSearchParams, buyerPortalReviewAllowed])
 
   // Buyer import: parse only into pending review state. No store write until user approves in review screen.
   // Supports CSV plus raw TXT buyer lists, one email per line, comma-separated emails, and name + email lines.
@@ -3781,6 +3792,18 @@ const cleanBuyerName = (value: any, emailValue = '') => {
     const sourceRows = Array.isArray(rowsOverride) ? rowsOverride : pendingImport
     const toApprove = sourceRows.filter(r => r._valid !== false)
     if (toApprove.length === 0) return
+
+    const newRowsRequested = toApprove.filter((row: any) =>
+      !buyers.some((buyer: any) => safeLower(buyer.email).trim() === safeLower(row.email).trim())
+    ).length
+
+    if (!buyerCapacity.isUnlimited && newRowsRequested > buyerCapacity.remaining) {
+      const message = `This workspace has ${buyerCapacity.remaining.toLocaleString()} buyer slot${buyerCapacity.remaining === 1 ? '' : 's'} remaining on ${effectivePlan}. Reduce the selected rows or upgrade before approval.`
+      setImportApprovalSummary(message)
+      toast.error(message)
+      return
+    }
+
     setImportApprovalSummary('')
     setImportApprovalStatus(prev => ({
       ...prev,
@@ -3791,16 +3814,18 @@ const cleanBuyerName = (value: any, emailValue = '') => {
       buildBuyerStrategyUpdate(normalizeBuyerBeforeApproval(rest))
     )
 
-    const result = importBuyers(buyersToApprove)
-
     const saveResult = await upsertBuyersToSupabase(buyersToApprove)
     if (!saveResult.ok) {
       setImportApprovalStatus(prev => ({
         ...prev,
         ...Object.fromEntries(toApprove.map((row: any) => [row._id, 'failed']))
       }))
-      setImportApprovalSummary('Approval failed. Buyer import requires owner-scoped buyer storage. No buyers were imported.')
-      toast.error('Buyer approval failed before Supabase save: ' + saveResult.error)
+      const message = String(saveResult.error || 'Buyer import failed.')
+      const friendly = message.includes('buyer_plan_limit_exceeded')
+        ? 'Approval failed. This workspace has reached its buyer capacity. No buyers were imported.'
+        : 'Approval failed before Supabase save. No buyers were imported.'
+      setImportApprovalSummary(friendly)
+      toast.error(friendly + ' ' + message)
       return
     }
 
@@ -3811,12 +3836,16 @@ const cleanBuyerName = (value: any, emailValue = '') => {
       console.warn('[Deal Blast Pro] Buyer reload after approval failed:', cloud.error)
     }
 
-    toast.success(`Approved ${toApprove.length} buyers (${result.added} new, ${result.dups} dups handled)`)
+    const savedRows = Array.isArray(saveResult.data) ? saveResult.data : []
+    const savedEmailSet = new Set(savedRows.map((buyer: any) => safeLower(buyer.email).trim()).filter(Boolean))
+    const duplicateCount = toApprove.filter((row: any) => buyers.some((buyer: any) => safeLower(buyer.email).trim() === safeLower(row.email).trim())).length
+
+    toast.success(`Approved ${savedEmailSet.size || toApprove.length} buyers`)
     setImportApprovalStatus(prev => ({
       ...prev,
       ...Object.fromEntries(toApprove.map((row: any) => [row._id, 'approved']))
     }))
-    setImportApprovalSummary(`Approved: ${toApprove.length} | Merged duplicates: ${result.dups} | Skipped invalid: ${sourceRows.length - toApprove.length} | Failed: 0`)
+    setImportApprovalSummary(`Approved: ${savedEmailSet.size || toApprove.length} | Merged duplicates: ${duplicateCount} | Skipped invalid: ${sourceRows.length - toApprove.length} | Failed: 0`)
 
     if (Array.isArray(rowsOverride)) {
       const approvedIds = new Set(toApprove.map((row: any) => row._id))
@@ -3978,6 +4007,11 @@ const cleanBuyerName = (value: any, emailValue = '') => {
     missingBudget: pendingImport.filter((row: any) => !(Number(row.budgetMax || 0) > 0 || Number(row.budgetMin || 0) > 0)).length,
     ready: pendingImport.filter((row: any) => row._valid !== false).length,
   }
+  const importNewRowsReady = pendingImport.filter((row: any) =>
+    row._valid !== false &&
+    !buyers.some((buyer: any) => safeLower(buyer.email).trim() === safeLower(row.email).trim())
+  ).length
+  const importWouldExceedCapacity = !buyerCapacity.isUnlimited && importNewRowsReady > buyerCapacity.remaining
 
   const approveVisibleImportRows = async () => {
     await approveSelected(importReviewRows)
@@ -3988,14 +4022,21 @@ const cleanBuyerName = (value: any, emailValue = '') => {
       <div className="flex justify-between items-end mb-4">
         <div>
           <div className="text-xs tracking-[1.5px] text-[#8B92A3]">ASSET STRATEGY</div>
-          <div className="text-2xl font-semibold">Global Buyer Database - {buyers.length} records</div>
+          <div className="text-2xl font-semibold">Buyer Database - {buyers.length} records</div>
+          <div className="text-xs text-[#8B92A3] mt-1">
+            Workspace buyer records: {buyerCapacity.current.toLocaleString()} / {buyerCapacity.isUnlimited ? 'Custom' : buyerCapacity.limit?.toLocaleString()} saved
+            {buyerCapacity.isUnlimited ? '' : `, ${formatBuyerCapacityRemaining(buyerCapacity.remaining, buyerCapacity.isUnlimited)} remaining`}
+          </div>
         </div>
         <div className="flex flex-wrap gap-2">
           <button onClick={() => setShowAddBuyer(true)} className="btn btn-primary flex items-center gap-2">
             Add Buyer
           </button>
-          <button onClick={importBuyerPortalQueue} className="btn btn-ghost flex items-center gap-2 text-[#22C55E]">
-            {buyerPortalQueueCount > 0 ? 'Import Buyer Portal Queue (' + buyerPortalQueueCount + ')' : 'Import Buyer Portal Queue'}
+          <button
+            onClick={importBuyerPortalQueue}
+            className={'btn btn-ghost flex items-center gap-2 ' + (buyerPortalReviewAllowed ? 'text-[#22C55E]' : 'text-[#8B92A3]')}
+          >
+            {buyerPortalReviewAllowed && buyerPortalQueueCount > 0 ? 'Import Buyer Portal Queue (' + buyerPortalQueueCount + ')' : buyerPortalReviewAllowed ? 'Import Buyer Portal Queue' : 'Buyer Portal Review Coming Soon'}
           </button>
           <button onClick={() => setShowImport(true)} className="btn btn-ghost flex items-center gap-2">
             <Upload size={16} /> Import Buyers (CSV / TXT)
@@ -4030,14 +4071,16 @@ const cleanBuyerName = (value: any, emailValue = '') => {
       {true && (
         <div data-testid="buyer-submission-review-alert" className="mb-3 card p-3 border border-amber-500/40 bg-amber-500/10 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <div className="font-semibold text-amber-300">Buyer Portal Review Center</div>
+            <div className="font-semibold text-amber-300">{buyerPortalReviewAllowed ? 'Buyer Portal Review Center' : 'Buyer Portal Review Center - Coming Soon'}</div>
             <div className="text-xs text-[#8B92A3]">
-              {buyerPortalQueueCount > 0 ? buyerPortalQueueCount + ' verified buyer portal submission' + (buyerPortalQueueCount === 1 ? '' : 's') + ' waiting in the review queue.' : 'No buyer portal submissions waiting right now.'}
-              {buyerPortalQueueCount === 0 ? ' Send buyers to the public Buyer Portal, then refresh this review center.' : ''}
+              {buyerPortalReviewAllowed
+                ? (buyerPortalQueueCount > 0 ? buyerPortalQueueCount + ' verified buyer portal submission' + (buyerPortalQueueCount === 1 ? '' : 's') + ' waiting in the review queue.' : 'No buyer portal submissions waiting right now.')
+                : 'Public buyer submissions are accepted, but customer self-service review is not active on this plan yet.'}
+              {buyerPortalReviewAllowed && buyerPortalQueueCount === 0 ? ' Send buyers to the public Buyer Portal, then refresh this review center.' : ''}
             </div>
           </div>
-          <button onClick={importBuyerPortalQueue} className={buyerPortalQueueCount > 0 ? 'btn btn-primary text-xs' : 'btn btn-ghost text-xs'}>
-            Open Buyer Review
+          <button onClick={importBuyerPortalQueue} className={buyerPortalReviewAllowed && buyerPortalQueueCount > 0 ? 'btn btn-primary text-xs' : 'btn btn-ghost text-xs'}>
+            {buyerPortalReviewAllowed ? 'Open Buyer Review' : 'Coming Soon'}
           </button>
         </div>
       )}
@@ -5564,7 +5607,7 @@ const company = getDisplayCompany(buyerAny) || 'Company Missing';
               <div>
                 <div className="font-semibold text-xl">Import Buyers - Review & Approve</div>
                 <div className="text-xs text-[#8B92A3] mt-1">
-                  Review each buyer exactly like the Global Buyer Database profile before saving.
+                  Review each buyer exactly like the workspace buyer profile before saving.
                 </div>
               </div>
               <button onClick={() => { setShowImport(false); void refreshBuyerPortalQueueCount() }}><X /></button>
@@ -5615,6 +5658,12 @@ const company = getDisplayCompany(buyerAny) || 'Company Missing';
                     <div className="rounded-lg border border-[#252A38] bg-[#070A0F] p-2"><div className="text-[#8B92A3]">Missing Company</div><div className="font-semibold">{importSummary.missingCompany}</div></div>
                     <div className="rounded-lg border border-[#252A38] bg-[#070A0F] p-2"><div className="text-[#8B92A3]">Missing Markets</div><div className="font-semibold">{importSummary.missingMarkets}</div></div>
                     <div className="rounded-lg border border-[#252A38] bg-[#070A0F] p-2"><div className="text-[#8B92A3]">Budget Unknown</div><div className="font-semibold">{importSummary.missingBudget}</div></div>
+                  </div>
+
+                  <div className={'mt-3 rounded-lg border px-3 py-2 text-xs ' + (importWouldExceedCapacity ? 'border-red-500/30 bg-red-500/10 text-red-200' : 'border-[#252A38] bg-[#070A0F] text-[#C5CAD6]')}>
+                    Buyer capacity: {buyerCapacity.current.toLocaleString()} saved / {buyerCapacity.isUnlimited ? 'Custom' : buyerCapacity.limit?.toLocaleString()} allowed.
+                    {' '}{buyerCapacity.isUnlimited ? 'No capacity limit applies.' : `${buyerCapacity.remaining.toLocaleString()} new slot${buyerCapacity.remaining === 1 ? '' : 's'} remaining.`}
+                    {' '}This review contains {importNewRowsReady.toLocaleString()} new buyer{importNewRowsReady === 1 ? '' : 's'} plus duplicates or merges.
                   </div>
 
                   {importApprovalSummary && (
@@ -6072,10 +6121,10 @@ const company = getDisplayCompany(buyerAny) || 'Company Missing';
                 </div>
 
                 <div className="sticky bottom-0 bg-[#0F131D] flex gap-2 mt-5 pt-4 border-t border-[#252A38]">
-                  <button onClick={() => { void approveVisibleImportRows() }} disabled={Object.values(importApprovalStatus).includes('approving')} className="btn btn-green flex-1 disabled:opacity-60">
+                  <button onClick={() => { void approveVisibleImportRows() }} disabled={Object.values(importApprovalStatus).includes('approving') || importWouldExceedCapacity} className="btn btn-green flex-1 disabled:opacity-60">
                     {Object.values(importApprovalStatus).includes('approving') ? 'Approving...' : 'Approve Visible'}
                   </button>
-                  <button onClick={approveAllValid} disabled={Object.values(importApprovalStatus).includes('approving')} className="btn btn-green flex-1 disabled:opacity-60">Approve All Valid</button>
+                  <button onClick={approveAllValid} disabled={Object.values(importApprovalStatus).includes('approving') || importWouldExceedCapacity} className="btn btn-green flex-1 disabled:opacity-60">Approve All Valid</button>
                   <button onClick={() => { setShowImport(false); void refreshBuyerPortalQueueCount() }} className="btn btn-ghost flex-1">Cancel &amp; Close (no import)</button>
                 </div>
               </>

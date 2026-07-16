@@ -12,6 +12,7 @@ import { computeMatchScore, getTier } from '../lib/matchingEngine'
 import { isApiMode } from '../services/storage'
 import { isSuperAdmin } from '../lib/accessControl'
 import { getOwnerPreviewPlan, isOwnerPreviewActive } from '../lib/planAccess'
+import { getBuyerCapacity, getPlanEntitlement } from '../lib/planEntitlements'
 
 // Module-level guard so initialize is truly one-shot even if called multiple times from effects or StrictMode
 const safeLower = (value: any) => String(value ?? '').toLowerCase();
@@ -807,12 +808,13 @@ export const useAppStore = create<AppStore>()(
         }
         if (!effectiveTrial.isActive || effectiveTrial.isPaid || (effectiveTrial.plan && effectiveTrial.plan !== 'Free Demo' && effectiveTrial.plan !== 'Starter')) return true
         
+        const buyerLimit = getPlanEntitlement(effectiveTrial.plan || 'Free Demo').buyerLimit ?? 999999
         const PLAN_LIMITS: Record<string, Record<keyof TrialState['usage'], number>> = {
-          'Free Demo': { dealsSubmitted: 5, buyersImported: 25, blastsSent: 5, exports: 20 },
-          'Starter': { dealsSubmitted: 25, buyersImported: 100, blastsSent: 20, exports: 50 },
-          'Pro': { dealsSubmitted: 999, buyersImported: 999, blastsSent: 999, exports: 999 },
-          'Agency': { dealsSubmitted: 999, buyersImported: 999, blastsSent: 999, exports: 999 },
-          'Enterprise': { dealsSubmitted: 999, buyersImported: 999, blastsSent: 999, exports: 999 }
+          'Free Demo': { dealsSubmitted: 5, buyersImported: buyerLimit, blastsSent: 5, exports: 20 },
+          'Starter': { dealsSubmitted: 25, buyersImported: buyerLimit, blastsSent: 20, exports: 50 },
+          'Pro': { dealsSubmitted: 999, buyersImported: buyerLimit, blastsSent: 999, exports: 999 },
+          'Agency': { dealsSubmitted: 999, buyersImported: buyerLimit, blastsSent: 999, exports: 999 },
+          'Enterprise': { dealsSubmitted: 999, buyersImported: buyerLimit, blastsSent: 999, exports: 999 }
         }
         const limits = PLAN_LIMITS[effectiveTrial.plan || 'Free Demo'] || PLAN_LIMITS['Free Demo']
         
@@ -1550,6 +1552,10 @@ export const useAppStore = create<AppStore>()(
         }
 
         const state = get()
+        const previewPlan = isOwnerPreviewActive(state.user, state.settings)
+          ? getOwnerPreviewPlan(state.settings)
+          : state.trial.plan
+        const capacity = getBuyerCapacity(isSuperAdmin(state.user) && !isOwnerPreviewActive(state.user, state.settings) ? 'Owner Admin' : previewPlan, state.buyers.length)
         let added = 0, dups = 0, suppressed = 0
         const toAdd: Buyer[] = []
         const updatesByEmail: Record<string, Partial<Buyer>> = {}
@@ -1606,6 +1612,10 @@ export const useAppStore = create<AppStore>()(
               notes: [existing.notes, b.notes].filter(Boolean).join(existing.notes && b.notes ? ' | ' : '')
             } as Partial<Buyer>
           } else {
+            if (!capacity.isUnlimited && added >= capacity.remaining) {
+              suppressed++
+              return
+            }
             toAdd.push({
               ...b,
               id: 'B' + Date.now().toString(36).toUpperCase() + added,

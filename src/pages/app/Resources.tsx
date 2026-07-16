@@ -445,7 +445,7 @@ export default function Resources() {
 
   const openEditModal = (resource: Resource) => {
     if (resource.id.startsWith('buyer-')) {
-      toast.error('Buyer DB records must be edited in Global Buyer DB')
+      toast.error('Buyer database records must be edited in Buyer Database')
       return
     }
 
@@ -1055,4 +1055,3 @@ export default function Resources() {
     </div>
   )
 }
-
