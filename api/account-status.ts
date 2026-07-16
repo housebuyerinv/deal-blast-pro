@@ -32,6 +32,16 @@ export default async function handler(req: any, res: any) {
       billingInterval: account.plan?.billing_interval || null,
       stripePriceId: account.plan?.stripe_price_id || null,
       role: account.profile?.role || 'Admin',
+      profile: account.profile ? {
+        email: account.profile.email || account.email,
+        fullName: account.profile.full_name || '',
+        displayName: account.profile.display_name || '',
+        businessName: account.profile.business_name || account.profile.company || '',
+      } : null,
+      workspace: account.workspace ? {
+        id: account.workspace.id,
+        name: account.workspace.name || '',
+      } : null,
     })
   } catch (error: any) {
     return send(res, Number(error?.status || 500), {

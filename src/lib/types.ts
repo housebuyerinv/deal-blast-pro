@@ -302,6 +302,9 @@ export interface User {
   id: string
   name: string
   email: string
+  fullName?: string
+  displayName?: string
+  businessName?: string
   company?: string
   role: UserRole
   permissions?: PermissionKey[]

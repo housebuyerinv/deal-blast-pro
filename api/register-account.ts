@@ -146,6 +146,8 @@ async function upsertRegistrationRows(input: {
       user_id: input.userId,
       email: input.email,
       full_name: input.name,
+      display_name: input.name.split(/\s+/)[0] || input.name,
+      business_name: input.company || null,
       company: input.company || null,
       role: input.role,
     }, { onConflict: 'user_id' })
@@ -295,6 +297,8 @@ export default async function handler(req: any, res: any) {
         email_confirm: true,
         user_metadata: {
           full_name: name,
+          display_name: name.split(/\s+/)[0] || name,
+          business_name: company,
           company,
           role,
           plan,
@@ -314,6 +318,8 @@ export default async function handler(req: any, res: any) {
           emailRedirectTo: `${origin}/auth/callback`,
           data: {
             full_name: name,
+            display_name: name.split(/\s+/)[0] || name,
+            business_name: company,
             company,
             role,
             plan,

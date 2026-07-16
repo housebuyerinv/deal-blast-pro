@@ -37,11 +37,17 @@ import {
   type RecoverableBuyer,
 } from '../../lib/buyerRecovery'
 import { billingLinkFields, billingLinkLabels, buildStripeCheckoutUrl, getBillingSetupWithLaunchDefaults, getPlanPaymentLink, isValidPaymentUrl, type BillingFrequency, type PaidPlan } from '../../lib/billingLinks'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, Lock, Mail } from 'lucide-react'
+import {
+  loadAccountProfile,
+  profileToUserNames,
+  requestVerifiedEmailChange,
+  saveAccountProfile,
+} from '../../lib/accountProfile'
 
 export default function Settings() {
   const { 
-    user, settings, updateSettings, trial, upgradeToPlan, activateManualPlan, resetTrial, 
+    user, settings, updateSettings, trial, upgradeToPlan, activateManualPlan, resetTrial, updateUserProfile,
     reseedData, clearAllData, exportAllData, importBuyers,
     buyers, deals, blastLogs, followUps, offers, suppressionList, workspaceInstanceId, logout
   } = useAppStore()
@@ -120,6 +126,24 @@ export default function Settings() {
   const [emailSettingsSaving, setEmailSettingsSaving] = useState(false)
   const [emailTestSending, setEmailTestSending] = useState(false)
   const [emailLogs, setEmailLogs] = useState<EmailNotificationLog[]>([])
+  const [profileForm, setProfileForm] = useState({
+    fullName: '',
+    displayName: '',
+    businessName: '',
+    email: '',
+  })
+  const [profileInitial, setProfileInitial] = useState({
+    fullName: '',
+    displayName: '',
+    businessName: '',
+    email: '',
+  })
+  const [profileLoading, setProfileLoading] = useState(false)
+  const [profileSaving, setProfileSaving] = useState(false)
+  const [emailChangeOpen, setEmailChangeOpen] = useState(false)
+  const [emailChangeValue, setEmailChangeValue] = useState('')
+  const [emailChangeSaving, setEmailChangeSaving] = useState(false)
+  const [emailChangeMessage, setEmailChangeMessage] = useState('')
   const [waitlistEntries, setWaitlistEntries] = useState<any[]>([])
   const [waitlistLoading, setWaitlistLoading] = useState(false)
   const [waitlistRetryingId, setWaitlistRetryingId] = useState('')
@@ -435,6 +459,7 @@ export default function Settings() {
   useEffect(() => {
     if (user?.email) {
       void refreshEmailNotificationSettings()
+      void refreshAccountProfile()
     }
     if (hasSuperAdminAccess) {
       void refreshWaitlistEntries()
@@ -1301,13 +1326,118 @@ export default function Settings() {
   ]
 
   const billingPreferenceFields: Array<{ key: keyof EmailNotificationSettings; label: string; detail: string }> = [
-    { key: 'renewal_reminders', label: 'Upcoming renewal reminder', detail: 'Monthly plans receive one reminder about 7 days before renewal.' },
-    { key: 'annual_renewal_reminders', label: 'Upcoming annual renewal reminder', detail: 'Annual plans may receive 30-day and 7-day reminders.' },
-    { key: 'payment_receipts', label: 'Payment receipt', detail: 'Stripe normally sends receipts; Deal Blast Pro avoids duplicate receipt emails.' },
-    { key: 'invoice_notifications', label: 'Invoice available', detail: 'Receive optional invoice-available notifications when enabled.' },
-    { key: 'card_expiration_reminders', label: 'Card expiring', detail: 'Stripe-hosted billing emails should handle secure card-update links.' },
+    { key: 'renewal_reminders', label: 'Upcoming renewal reminder', detail: 'Remind me before a monthly subscription renewal.' },
+    { key: 'annual_renewal_reminders', label: 'Upcoming annual renewal reminder', detail: 'Remind me before an annual subscription renewal.' },
+    { key: 'payment_receipts', label: 'Payment receipt', detail: 'Send a receipt when a payment is completed.' },
+    { key: 'invoice_notifications', label: 'Invoice available', detail: 'Let me know when a new invoice is available.' },
+    { key: 'card_expiration_reminders', label: 'Card expiring', detail: 'Remind me before the payment method on file expires.' },
     { key: 'billing_summary', label: 'Optional billing summary', detail: 'Receive occasional Deal Blast Pro billing summaries.' },
   ]
+
+  const profileChanged =
+    profileForm.fullName.trim() !== profileInitial.fullName.trim() ||
+    profileForm.displayName.trim() !== profileInitial.displayName.trim() ||
+    profileForm.businessName.trim() !== profileInitial.businessName.trim()
+
+  const refreshAccountProfile = async () => {
+    if (!user?.email) return
+    setProfileLoading(true)
+    try {
+      const { authUser, profile } = await loadAccountProfile()
+      const names = profileToUserNames(profile, authUser.email || user.email)
+      const next = {
+        fullName: names.fullName || user.fullName || user.name || '',
+        displayName: names.displayName || user.displayName || '',
+        businessName: names.businessName || user.businessName || user.company || '',
+        email: authUser.email || user.email || '',
+      }
+      setProfileForm(next)
+      setProfileInitial(next)
+      updateUserProfile({
+        fullName: next.fullName,
+        displayName: next.displayName,
+        businessName: next.businessName,
+        company: next.businessName,
+        email: next.email.toLowerCase(),
+        name: names.name,
+      })
+    } catch (error) {
+      console.warn('[Deal Blast Pro] Account profile unavailable:', error)
+      const fallback = {
+        fullName: user?.fullName || user?.name || '',
+        displayName: user?.displayName || '',
+        businessName: user?.businessName || user?.company || '',
+        email: user?.email || '',
+      }
+      setProfileForm(fallback)
+      setProfileInitial(fallback)
+    } finally {
+      setProfileLoading(false)
+    }
+  }
+
+  const saveProfile = async () => {
+    if (ownerPreviewActive) {
+      toast.info('Preview mode only. Profile records were not changed.')
+      return
+    }
+    if (!profileForm.fullName.trim()) {
+      toast.error('Full Name is required.')
+      return
+    }
+
+    setProfileSaving(true)
+    try {
+      const saved = await saveAccountProfile({
+        fullName: profileForm.fullName,
+        displayName: profileForm.displayName,
+        businessName: profileForm.businessName,
+      })
+      const names = profileToUserNames(saved, profileForm.email || user?.email || '')
+      const next = {
+        fullName: saved.full_name || profileForm.fullName.trim(),
+        displayName: saved.display_name || '',
+        businessName: saved.business_name || saved.company || '',
+        email: saved.email || profileForm.email || user?.email || '',
+      }
+      setProfileForm(next)
+      setProfileInitial(next)
+      updateUserProfile({
+        fullName: next.fullName,
+        displayName: next.displayName,
+        businessName: next.businessName,
+        company: next.businessName,
+        name: names.name,
+      })
+      toast.success('Profile saved.')
+    } catch (error: any) {
+      toast.error(error?.message || 'Profile could not be saved.')
+    } finally {
+      setProfileSaving(false)
+    }
+  }
+
+  const submitEmailChange = async () => {
+    if (ownerPreviewActive) {
+      toast.info('Preview mode only. Email records were not changed.')
+      return
+    }
+
+    setEmailChangeSaving(true)
+    setEmailChangeMessage('')
+    try {
+      await requestVerifiedEmailChange(emailChangeValue)
+      setEmailChangeMessage('Check your email to confirm this change.')
+      toast.success('Check your email to confirm this change.')
+      setEmailChangeValue('')
+    } catch (error: any) {
+      const message = error?.message || 'Email change could not be started.'
+      setEmailChangeMessage(message)
+      toast.error(message)
+    } finally {
+      setEmailChangeSaving(false)
+    }
+  }
 
   const refreshEmailNotificationLogs = async () => {
     try {
@@ -1399,7 +1529,7 @@ export default function Settings() {
       })
       setEmailSettings(saved)
       setEmailRecipientsText((saved.recipients || checked.recipients).join(', '))
-      toast.success('Email notification settings saved.')
+      toast.success(showCustomerSettingsView && customerSettingsTab === 'Plan & Billing' ? 'Billing preferences saved.' : 'Email notification settings saved.')
       await refreshEmailNotificationLogs()
     } catch (error: any) {
       toast.error(error?.message || 'Email notification settings could not be saved.')
@@ -1650,7 +1780,7 @@ export default function Settings() {
         <div>
           <div className="text-xs uppercase tracking-[2px] text-[#8B92A3] mb-1">Billing Notifications</div>
           <div className="text-lg font-semibold text-[#E6E8EE]">Email Preferences</div>
-          <div className="text-sm text-[#8B92A3] mt-1">Choose optional billing reminders. Critical payment, security, and account-status emails cannot be disabled.</div>
+          <div className="text-sm text-[#8B92A3] mt-1">Choose optional billing reminders. Essential account notices cannot be disabled.</div>
         </div>
         <button onClick={saveEmailNotifications} disabled={emailSettingsSaving || emailSettingsLoading} className="btn btn-primary text-xs lg:w-auto disabled:opacity-60">
           {emailSettingsSaving ? 'Saving...' : 'Save Billing Preferences'}
@@ -1658,19 +1788,20 @@ export default function Settings() {
       </div>
 
       <div className="grid gap-3">
-        <label className="flex items-start gap-3 rounded border border-amber-500/30 bg-amber-500/10 p-3">
-          <input
-            type="checkbox"
-            className="mt-1 accent-[#22C55E]"
-            checked
-            disabled
-            readOnly
-          />
-          <span>
-            <span className="block text-sm font-semibold text-amber-100">Critical payment and account-status emails</span>
-            <span className="block text-xs text-amber-200/90">Always on: payment failed, payment requires action, past due, restriction, downgrade, cancellation, deactivation, payment received, access restored, refunds or billing corrections, and required policy or price changes.</span>
-          </span>
-        </label>
+        <div className="flex items-start gap-3 rounded border border-amber-500/30 bg-amber-500/10 p-3">
+          <Lock size={18} className="mt-0.5 text-amber-200 shrink-0" aria-hidden="true" />
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="block text-sm font-semibold text-amber-100">Critical billing and account-status emails</span>
+              <span className="rounded-full border border-amber-300/40 bg-amber-300/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[1px] text-amber-100">
+                Required
+              </span>
+            </div>
+            <div className="mt-1 text-xs text-amber-200/90">
+              Payment failures, past-due notices, subscription changes, access restrictions, cancellations, and other essential account notices cannot be disabled.
+            </div>
+          </div>
+        </div>
 
         <div className="grid md:grid-cols-2 gap-2">
           {billingPreferenceFields.map(item => (
@@ -1691,12 +1822,6 @@ export default function Settings() {
               </span>
             </label>
           ))}
-        </div>
-
-        <div className="rounded border border-[#252A38] bg-[#0A0C12] p-3 text-sm text-[#C5CAD6]">
-          <div className="font-semibold text-[#E6E8EE] mb-1">Email responsibility split</div>
-          <div>Stripe sends payment receipts, card failure messages, payment authentication, expiring-card notices, and standard renewal reminders when configured in Stripe Billing.</div>
-          <div className="mt-1">Deal Blast Pro sends product-specific notices for access restrictions, past-due timelines, scheduled downgrades, completed downgrades, access restoration, and workspace deactivation.</div>
         </div>
       </div>
     </div>
@@ -2724,13 +2849,128 @@ export default function Settings() {
         {customerSettingsTab === 'Account' && (
           <div className="space-y-4">
             <div className="card p-4 border border-[#252A38] bg-[#0F111A]">
-              <div className="text-xs uppercase tracking-[2px] text-[#8B92A3] mb-1">Account</div>
-              <div className="text-lg font-semibold text-[#E6E8EE]">{user?.name || 'Deal Blast Pro User'}</div>
-              <div className="mt-2 grid md:grid-cols-2 gap-3">
-                <div className="panel p-3">
-                  <div className="text-xs text-[#8B92A3] mb-1">Email</div>
-                  <div className="text-sm text-[#E6E8EE] break-words">{user?.email || 'Not Provided'}</div>
+              <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3 mb-4">
+                <div>
+                  <div className="text-xs uppercase tracking-[2px] text-[#8B92A3] mb-1">Account Profile</div>
+                  <div className="text-lg font-semibold text-[#E6E8EE]">Profile Identity</div>
+                  <div className="text-sm text-[#8B92A3] mt-1">
+                    Update the name shown across your Deal Blast Pro workspace. Email changes require verification.
+                  </div>
                 </div>
+                <button
+                  onClick={refreshAccountProfile}
+                  disabled={profileLoading}
+                  className="btn btn-ghost text-xs lg:w-auto disabled:opacity-60"
+                >
+                  {profileLoading ? 'Refreshing...' : 'Refresh Profile'}
+                </button>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-3">
+                <label className="block">
+                  <span className="block text-xs text-[#8B92A3] mb-1">Full Name</span>
+                  <input
+                    value={profileForm.fullName}
+                    onChange={e => setProfileForm(prev => ({ ...prev, fullName: e.target.value }))}
+                    disabled={profileLoading || profileSaving || ownerPreviewActive}
+                    className="input w-full"
+                    placeholder="Person responsible for the account"
+                  />
+                </label>
+                <label className="block">
+                  <span className="block text-xs text-[#8B92A3] mb-1">Display Name</span>
+                  <input
+                    value={profileForm.displayName}
+                    onChange={e => setProfileForm(prev => ({ ...prev, displayName: e.target.value }))}
+                    disabled={profileLoading || profileSaving || ownerPreviewActive}
+                    className="input w-full"
+                    placeholder="Shown in the Command Center and top bar"
+                  />
+                </label>
+                <label className="block">
+                  <span className="block text-xs text-[#8B92A3] mb-1">Business Name</span>
+                  <input
+                    value={profileForm.businessName}
+                    onChange={e => setProfileForm(prev => ({ ...prev, businessName: e.target.value }))}
+                    disabled={profileLoading || profileSaving || ownerPreviewActive}
+                    className="input w-full"
+                    placeholder="Company or workspace brand"
+                  />
+                </label>
+                <div className="block">
+                  <span className="block text-xs text-[#8B92A3] mb-1">Email Address</span>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <div className="input flex-1 min-h-[42px] flex items-center text-[#C5CAD6] break-all">
+                      {profileForm.email || user?.email || 'Not Provided'}
+                    </div>
+                    <button
+                      onClick={() => {
+                        setEmailChangeOpen(open => !open)
+                        setEmailChangeValue('')
+                        setEmailChangeMessage('')
+                      }}
+                      disabled={ownerPreviewActive}
+                      className="btn btn-ghost sm:w-auto disabled:opacity-60"
+                    >
+                      Change Email
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-2">
+                <button
+                  onClick={saveProfile}
+                  disabled={profileSaving || profileLoading || ownerPreviewActive || !profileChanged || !profileForm.fullName.trim()}
+                  className="btn btn-primary sm:w-auto disabled:opacity-60"
+                >
+                  {profileSaving ? 'Saving...' : 'Save Profile'}
+                </button>
+                <div className="text-xs text-[#8B92A3]">
+                  Display Name updates the Command Center and top bar after saving.
+                </div>
+              </div>
+
+              {emailChangeOpen && (
+                <div className="mt-4 rounded border border-[#3B82F6]/25 bg-[#3B82F6]/10 p-4">
+                  <div className="flex items-start gap-3">
+                    <Mail size={18} className="mt-0.5 text-[#93C5FD] shrink-0" aria-hidden="true" />
+                    <div className="min-w-0 flex-1">
+                      <div className="font-semibold text-[#E6E8EE]">Change verified email</div>
+                      <div className="text-sm text-[#AAB2C5] mt-1">
+                        Enter the new email address. The current sign-in email stays active until Supabase verifies the change.
+                      </div>
+                      <div className="mt-3 flex flex-col sm:flex-row gap-2">
+                        <input
+                          type="email"
+                          value={emailChangeValue}
+                          onChange={e => setEmailChangeValue(e.target.value)}
+                          disabled={emailChangeSaving}
+                          className="input flex-1"
+                          placeholder="new@email.com"
+                        />
+                        <button
+                          onClick={submitEmailChange}
+                          disabled={emailChangeSaving || !emailChangeValue.trim()}
+                          className="btn btn-green sm:w-auto disabled:opacity-60"
+                        >
+                          {emailChangeSaving ? 'Sending...' : 'Send Verification'}
+                        </button>
+                      </div>
+                      {emailChangeMessage && (
+                        <div className="mt-2 text-sm text-[#C5CAD6]">{emailChangeMessage}</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {ownerPreviewActive && (
+                <div className="mt-3 rounded border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200">
+                  Preview mode only. Account and billing records are not changed.
+                </div>
+              )}
+              <div className="mt-3 grid md:grid-cols-3 gap-3">
                 <div className="panel p-3">
                   <div className="text-xs text-[#8B92A3] mb-1">Plan Identity</div>
                   <div className="text-sm text-[#E6E8EE]">{effectivePlanForDisplay}</div>
@@ -2741,14 +2981,9 @@ export default function Settings() {
                 </div>
                 <div className="panel p-3">
                   <div className="text-xs text-[#8B92A3] mb-1">Workspace</div>
-                  <div className="text-sm text-[#E6E8EE]">{user?.company || 'Deal Blast Pro Workspace'}</div>
+                  <div className="text-sm text-[#E6E8EE]">{profileForm.businessName || user?.businessName || user?.company || 'Deal Blast Pro Workspace'}</div>
                 </div>
               </div>
-              {ownerPreviewActive && (
-                <div className="mt-3 rounded border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200">
-                  Preview mode only. Account and billing records are not changed.
-                </div>
-              )}
             </div>
             {renderDangerZone()}
           </div>

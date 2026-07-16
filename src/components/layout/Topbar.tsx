@@ -45,7 +45,7 @@ export default function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
           <Menu size={18} />
         </button>
         <div className="hidden lg:block text-sm text-[#8B92A3]">
-          {user?.company || 'Deal Blast Pro Workspace'}
+          {user?.businessName || user?.company || 'Deal Blast Pro Workspace'}
         </div>
         <div className="hidden md:block text-xs text-[#8B92A3] tabular-nums ml-3 pl-3 border-l border-[#252A38]">
           {dateTimeStr}
@@ -64,7 +64,7 @@ export default function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
 
         <div className="flex items-center gap-2 pl-2 border-l border-[#252A38]">
           <div className="text-right">
-            <div className="text-sm font-medium leading-none">{user?.name}</div>
+            <div className="text-sm font-medium leading-none">{user?.displayName || user?.name || user?.fullName || 'User'}</div>
             <div className="text-[10px] text-[#8B92A3]">{user?.email}</div>
           </div>
           <button type="button" onClick={handleLogout} className="btn btn-ghost p-2" title="Logout">

@@ -77,8 +77,17 @@ issueKeys: string[] }>
   initialize: () => void
   
   // Auth
-  login: (email: string, name?: string, options?: { id?: string; preserveWorkspace?: boolean; newWorkspace?: boolean }) => void
+  login: (email: string, name?: string, options?: {
+    id?: string
+    preserveWorkspace?: boolean
+    newWorkspace?: boolean
+    fullName?: string
+    displayName?: string
+    businessName?: string
+    company?: string
+  }) => void
   logout: () => void
+  updateUserProfile: (updates: Partial<Pick<User, 'name' | 'fullName' | 'displayName' | 'businessName' | 'company' | 'email'>>) => void
   setRole: (role: User['role']) => void
   setUserRole: (role: AppRole) => void
   getCurrentRole: () => AppRole
@@ -680,12 +689,18 @@ export const useAppStore = create<AppStore>()(
         const currentDeletion = get().settings?.deletionRequest
         const currentDeletedOrDeactivated = ['Deleted', 'Deactivated'].includes(String(currentDeletion?.accountStatus || ''))
         const shouldPreserveWorkspace = options?.newWorkspace ? false : (options?.preserveWorkspace ?? (isSameUser && !currentDeletedOrDeactivated))
+        const fullName = String(options?.fullName || name || currentUser?.fullName || '').trim()
+        const displayName = String(options?.displayName || currentUser?.displayName || '').trim()
+        const businessName = String(options?.businessName || options?.company || currentUser?.businessName || currentUser?.company || '').trim()
         const nextUser = {
           id: options?.id || (isSameUser ? currentUser?.id : undefined) || 'u_' + Date.now(),
-          name: name || email.split('@')[0],
+          name: displayName || fullName || name || email.split('@')[0],
           email: normalizedEmail,
           role: 'Owner' as User['role'],
-          company: currentUser?.company || ''
+          fullName,
+          displayName,
+          businessName,
+          company: businessName || currentUser?.company || ''
         }
         const workspaceInstanceId = shouldPreserveWorkspace
           ? (get().workspaceInstanceId || makeWorkspaceInstanceId(nextUser))
@@ -709,6 +724,17 @@ export const useAppStore = create<AppStore>()(
         workspaceOwnerEmail: null,
         workspaceDataScopeKey: null,
       }),
+      updateUserProfile: (updates) => {
+        const u = get().user
+        if (!u) return
+        const next = {
+          ...u,
+          ...updates,
+        }
+        next.name = String(updates.displayName || updates.name || next.displayName || next.fullName || next.name || '').trim() || 'User'
+        next.company = String(updates.businessName || updates.company || next.businessName || next.company || '').trim()
+        set({ user: next })
+      },
       setRole: (role) => {
         const u = get().user
         if (u) set({ user: { ...u, role } })

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAppStore } from './store/useAppStore'
 import { supabase } from './lib/supabase'
+import { profileToUserNames } from './lib/accountProfile'
 
 import Portal from './pages/public/Portal'
 import BuyerPortal from './pages/public/BuyerPortal'
@@ -42,6 +43,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const user = useAppStore(s => s.user)
   const login = useAppStore(s => s.login)
   const logout = useAppStore(s => s.logout)
+  const updateUserProfile = useAppStore(s => s.updateUserProfile)
   const location = useLocation()
   const currentUserId = user?.id
   const currentUserEmail = user?.email
@@ -92,14 +94,29 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
         }
 
         const email = session.user.email || ''
-        const fullName =
-          session.user.user_metadata?.full_name ||
-          session.user.user_metadata?.name ||
-          email.split('@')[0] ||
-          'User'
+        const profileNames = profileToUserNames({
+          full_name: payload?.profile?.fullName || session.user.user_metadata?.full_name || session.user.user_metadata?.name || '',
+          display_name: payload?.profile?.displayName || '',
+          business_name: payload?.profile?.businessName || payload?.workspace?.name || '',
+        }, email)
+        const fullName = profileNames.name
 
         if (!currentUserId || currentUserId !== session.user.id || currentUserEmail !== email.toLowerCase()) {
-          login(email, fullName, { id: session.user.id, preserveWorkspace: true })
+          login(email, fullName, {
+            id: session.user.id,
+            preserveWorkspace: true,
+            fullName: profileNames.fullName,
+            displayName: profileNames.displayName,
+            businessName: profileNames.businessName || payload?.workspace?.name || '',
+          })
+        } else {
+          updateUserProfile({
+            fullName: profileNames.fullName,
+            displayName: profileNames.displayName,
+            businessName: profileNames.businessName || payload?.workspace?.name || '',
+            company: profileNames.businessName || payload?.workspace?.name || '',
+            name: profileNames.name,
+          })
         }
 
         if (!cancelled) {
@@ -118,7 +135,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true
     }
-  }, [location.pathname, location.search, login, logout, currentUserId, currentUserEmail])
+  }, [location.pathname, location.search, login, logout, updateUserProfile, currentUserId, currentUserEmail])
 
   if (checkingSession) {
     return (

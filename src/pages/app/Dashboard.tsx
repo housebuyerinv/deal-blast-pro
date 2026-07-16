@@ -69,12 +69,13 @@ export default function Dashboard() {
   const billingNotice = getBillingNotice(trial, settings.deletionRequest)
   const ownerPreviewActive = isOwnerPreviewActive(user, settings)
   const showBillingNotice = (!isSuperAdmin(user) || ownerPreviewActive) && billingNotice.kind !== 'none'
-  const firstName = String(user?.name || '').trim().split(/\s+/)[0]
-  const workspaceName = String(user?.company || '').trim()
-  const commandCenterTitle = firstName
-    ? `${firstName} Command Center`
-    : workspaceName
-      ? `${workspaceName} Command Center`
+  const displayName = String(user?.displayName || '').trim()
+  const fullName = String(user?.fullName || user?.name || '').trim()
+  const firstName = fullName.split(/\s+/)[0]
+  const commandCenterTitle = displayName
+    ? `${displayName} Command Center`
+    : firstName
+      ? `${firstName} Command Center`
       : 'Command Center'
   const inventory = getInventoryDeals()
   const submissions = getSubmissionsQueue()

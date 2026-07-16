@@ -78,7 +78,7 @@ export async function getAuthenticatedAccount(req: any) {
 
   const { data: profile } = await adminClient
     .from('account_profiles')
-    .select('user_id,email,full_name,role,account_status,deactivated_at')
+    .select('user_id,email,full_name,display_name,business_name,company,role,account_status,deactivated_at')
     .eq('user_id', user.id)
     .maybeSingle()
 
