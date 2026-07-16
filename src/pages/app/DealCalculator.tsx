@@ -430,8 +430,14 @@ export default function DealCalculator() {
     return String(value)
   }
 
+  const toTitleCase = (value: any) => String(value || '').trim().replace(/\w\S*/g, part => {
+    const upper = part.toUpperCase()
+    if (/^[A-Z]{2}$/.test(upper)) return upper
+    return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()
+  })
+
   const formatAddressLabel = (address: any) =>
-    [address?.line1 || address?.address, address?.city, address?.state, address?.postalCode || address?.zip]
+    [address?.line1 || address?.address, toTitleCase(address?.city), String(address?.state || '').trim().toUpperCase(), address?.postalCode || address?.zip || address?.zipCode]
       .filter(Boolean)
       .join(', ')
 
@@ -450,6 +456,18 @@ export default function DealCalculator() {
 
   const isCompletePropertyAddress = (address: any) =>
     Boolean(address?.line1 && address?.city && address?.state)
+
+  const propertyRequestRef = useRef<Map<string, Promise<any>>>(new Map())
+
+  const propertyConnectionErrorStatus = (error: any) => {
+    const code = error?.code || error?.payload?.code || ''
+    if (code === 'pro_required') return 'Pro Required'
+    if (code === 'provider_not_configured') return 'Provider Not Configured'
+    if (code === 'provider_timeout') return 'Provider Timeout'
+    if (code === 'rate_limited') return 'Rate Limited'
+    if (error?.status === 401) return 'Sign In Required'
+    return 'Provider Unavailable'
+  }
 
   const activePropertyDeal = useMemo(
     () => (deals || []).find((deal: any) => deal.id === propertyDealId) || null,
@@ -546,18 +564,46 @@ export default function DealCalculator() {
       throw new Error('Sign in is required to use Property Intelligence.')
     }
 
-    const response = await fetch(`/api/property-intelligence/${action}?${search.toString()}`, {
+    const requestKey = `${action}?${search.toString()}`
+    const existing = propertyRequestRef.current.get(requestKey)
+    if (existing) return existing
+
+    const controller = new AbortController()
+    const timeout = window.setTimeout(() => controller.abort(), 18000)
+    const request = fetch(`/api/property-intelligence/${action}?${search.toString()}`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
+      signal: controller.signal,
     })
-    const payload = await response.json().catch(() => ({}))
+      .then(async response => {
+        const payload = await response.json().catch(() => ({}))
 
-    if (!response.ok) {
-      throw new Error(payload?.error || 'Property Intelligence lookup failed')
-    }
+        if (!response.ok) {
+          const error = new Error(payload?.error || 'Property Intelligence lookup failed')
+          ;(error as any).code = payload?.code || ''
+          ;(error as any).status = response.status
+          ;(error as any).payload = payload
+          throw error
+        }
 
-    return payload
+        return payload
+      })
+      .catch(error => {
+        if (error?.name === 'AbortError') {
+          const timeoutError = new Error('Property Intelligence timed out. Please try again.')
+          ;(timeoutError as any).code = 'provider_timeout'
+          throw timeoutError
+        }
+        throw error
+      })
+      .finally(() => {
+        window.clearTimeout(timeout)
+        propertyRequestRef.current.delete(requestKey)
+      })
+
+    propertyRequestRef.current.set(requestKey, request)
+    return request
   }
 
   const searchPropertyIntelligence = async () => {
@@ -624,6 +670,11 @@ export default function DealCalculator() {
       ])
 
       const read = (settled: PromiseSettledResult<any>, key: string) => settled.status === 'fulfilled' ? settled.value?.[key] : null
+      const fulfilled = [property, owner, value, rent, comps, history, market].filter(settled => settled.status === 'fulfilled')
+      if (!fulfilled.length) {
+        const firstError = [property, owner, value, rent, comps, history, market].find(settled => settled.status === 'rejected') as PromiseRejectedResult | undefined
+        throw firstError?.reason || new Error('Property Intelligence lookup failed')
+      }
 
       const summary = {
         address: normalizedAddress,
@@ -641,6 +692,10 @@ export default function DealCalculator() {
       setPropertyMergeRows(buildPropertyMergeRows(activePropertyDeal, summary))
       setSelectedPropertyCompIds([])
       setPropertyTab('Property')
+      setPropertyLookupStatus('')
+      if (fulfilled.length < 7) {
+        setPropertyLookupError('Some Property Intelligence sections are unavailable for this address. Available sections are shown below.')
+      }
     } catch (error: any) {
       setPropertyLookupError(error?.message || 'Property Intelligence lookup failed')
     } finally {
@@ -705,10 +760,11 @@ export default function DealCalculator() {
       } catch (error: any) {
         if (cancelled) return
         setPropertyConnection({
-          status: error?.message === 'Property Intelligence lookup failed' ? 'Connection Error' : 'Temporarily Unavailable',
+          status: propertyConnectionErrorStatus(error),
           connected: false,
           checked: true,
         })
+        if (error?.message) setPropertyLookupError(error.message)
       }
     }
     void checkConnection()
@@ -810,6 +866,22 @@ export default function DealCalculator() {
       notes: `${deal?.notes || ''}\n===PROPERTY_INTELLIGENCE:${now}===\n${JSON.stringify(saved)}\n`,
     })
     toast.success('Property Intelligence saved to deal')
+  }
+
+  const applySuggestedArv = () => {
+    const suggested = Number(propertyLookupSummary?.valuation?.value || propertyLookupSummary?.property?.estimatedValue || 0)
+    if (!suggested || !Number.isFinite(suggested)) {
+      toast.error('No suggested ARV is available from Property Intelligence.')
+      return
+    }
+    setMaoArv(Math.round(suggested))
+    if (propertyLookupSummary?.address) setSubjectAddress(formatAddressLabel(propertyLookupSummary.address))
+    if (propertyLookupSummary?.property?.livingAreaSqft) setSubjectSqft(Number(propertyLookupSummary.property.livingAreaSqft) || subjectSqft)
+    if (propertyLookupSummary?.property?.beds) setSubjectBeds(Number(propertyLookupSummary.property.beds) || subjectBeds)
+    if (propertyLookupSummary?.property?.baths) setSubjectBaths(Number(propertyLookupSummary.property.baths) || subjectBaths)
+    if (propertyLookupSummary?.property?.propertyType) setSubjectPropertyType(propertyLookupSummary.property.propertyType)
+    setActiveTab('mao')
+    toast.success('Suggested ARV applied to MAO / Offer Calculator')
   }
 
   // Shared saver (notes hack, no schema change) — used by all tabs + drawer Quick Calc
@@ -2006,7 +2078,13 @@ Deal Blast Pro`
               : !hasLoadablePropertyAddress
                 ? 'Enter street, city, and state before loading Property Intelligence.'
                 : propertyConnection.checked && !propertyConnection.connected
-                  ? 'Property provider is temporarily unavailable.'
+                  ? propertyConnection.status === 'Provider Not Configured'
+                    ? 'Property Intelligence provider is not configured yet.'
+                    : propertyConnection.status === 'Provider Timeout'
+                      ? 'Property provider timed out. Try checking again.'
+                      : propertyConnection.status === 'Rate Limited'
+                        ? 'Please wait a moment before retrying.'
+                        : 'Property provider is temporarily unavailable.'
                   : ''
 
         return (
@@ -2068,7 +2146,7 @@ Deal Blast Pro`
                       e.preventDefault()
                       const result = propertyLookupResults[activeSuggestionIndex]
                       if (result) void openPropertyIntelligenceResult(result)
-                      else if (selectedPropertyAddress) void loadPropertyIntelligenceForAddress(selectedPropertyAddress)
+                      else void loadPropertyIntelligenceForAddress(selectedPropertyAddress || parseTypedPropertyAddress(propertySearch))
                     } else if (e.key === 'Escape') {
                       setPropertyLookupResults([])
                     }
@@ -2140,8 +2218,31 @@ Deal Blast Pro`
             )}
 
             {propertyLookupError && (
-              <div className="mb-4 rounded border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200">
-                {propertyLookupError}
+              <div className="mb-4 flex flex-col gap-2 rounded border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200 md:flex-row md:items-center md:justify-between">
+                <div>{propertyLookupError}</div>
+                {canUseLivePropertyData && activeTab === 'propertyIntelligence' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPropertyLookupError('')
+                      setPropertyConnection({ status: 'Testing Connection', connected: false, checked: false })
+                      void fetchPropertyIntelligence('status', { force: true })
+                        .then(payload => setPropertyConnection({
+                          status: payload?.propertyDataConnected ? 'Property Data Connected' : (payload?.status || 'Provider Unavailable'),
+                          connected: Boolean(payload?.propertyDataConnected),
+                          checked: true,
+                        }))
+                        .catch(error => setPropertyConnection({
+                          status: propertyConnectionErrorStatus(error),
+                          connected: false,
+                          checked: true,
+                        }))
+                    }}
+                    className="btn btn-ghost text-xs"
+                  >
+                    Check Again
+                  </button>
+                )}
               </div>
             )}
 
@@ -2163,6 +2264,12 @@ Deal Blast Pro`
                       </div>
                     ))}
                   </div>
+                  {(propertyLookupSummary.valuation?.value || propertyLookupSummary.property?.estimatedValue) && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button type="button" onClick={applySuggestedArv} className="btn btn-primary text-sm">Apply Suggested ARV</button>
+                      <button type="button" onClick={savePropertyIntelligenceToDeal} disabled={!activePropertyDeal} className="btn btn-ghost text-sm disabled:opacity-50">Save Property Intelligence to Deal</button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex flex-wrap gap-1.5 text-xs">

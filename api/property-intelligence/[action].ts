@@ -5,7 +5,16 @@ const CUSTOMER_SOURCE = 'Property Intelligence'
 const UNAVAILABLE_MESSAGE = 'Property Intelligence is temporarily unavailable. Manual property analysis remains available.'
 const COMPLETE_ADDRESS_MESSAGE = 'Select a complete address from the suggestions before loading Property Intelligence.'
 const PRO_REQUIRED_MESSAGE = 'Property Intelligence is available on the Pro plan. Manual property analysis remains available on every plan.'
+const PROVIDER_NOT_CONFIGURED_MESSAGE = 'Property Intelligence provider is not configured yet. Manual property analysis remains available.'
+const PROVIDER_UNAVAILABLE_MESSAGE = 'The property-data provider is temporarily unavailable.'
+const RATE_LIMIT_MESSAGE = 'Property Intelligence is receiving too many requests. Please wait a moment and try again.'
+const TIMEOUT_MESSAGE = 'Property Intelligence timed out. Please try again.'
 const HEALTH_CHECK_ADDRESS = '494 N McNeil St, Memphis, TN 38112'
+const PROVIDER_TIMEOUT_MS = 12000
+const RATE_LIMIT_WINDOW_MS = 60 * 1000
+const USER_RATE_LIMIT = 30
+const WORKSPACE_RATE_LIMIT = 90
+const CACHE_TTL_MS = 10 * 60 * 1000
 
 const PLAN_RANK: Record<string, number> = {
   'free demo': 0,
@@ -17,6 +26,8 @@ const PLAN_RANK: Record<string, number> = {
 }
 
 let lastHealthCheck: { at: number; result: any } | null = null
+const rateBuckets = new Map<string, { windowStart: number; count: number }>()
+const providerCache = new Map<string, { expiresAt: number; value: any }>()
 
 function send(res: any, status: number, payload: any) {
   res.status(status).json(payload)
@@ -53,6 +64,18 @@ function publicConfig(config: ReturnType<typeof readRuntimeConfig>) {
   }
 }
 
+function providerConfigDiagnostics(config: ReturnType<typeof readRuntimeConfig>) {
+  const missing = []
+  if (!config.enabled) missing.push('PROPERTY_INTELLIGENCE_ENABLED')
+  if (config.provider !== 'rentcast') missing.push('PROPERTY_INTELLIGENCE_PROVIDER')
+  if (!config.apiKeyPresent) missing.push('RENTCAST_API_KEY')
+  return {
+    category: 'provider_not_configured',
+    missing,
+    config: publicConfig(config),
+  }
+}
+
 function logDiagnostic(category: string, details: Record<string, any>) {
   console.warn('[Property Intelligence]', JSON.stringify({
     category,
@@ -74,6 +97,26 @@ function categorizeProviderError(status: number, payload: any, timeout = false) 
   if (status === 429) return 'provider_rate_limit'
   if (status >= 500) return 'provider_http_error'
   return 'provider_schema_error'
+}
+
+function providerHttpStatus(category: string, fallback = 500) {
+  if (category === 'address_incomplete') return 400
+  if (category === 'no_property_found') return 404
+  if (category === 'provider_rate_limit' || category === 'usage_rate_limit') return 429
+  if (category === 'provider_not_configured') return 503
+  if (category === 'provider_timeout') return 504
+  if (category === 'invalid_api_key' || category === 'inactive_subscription' || category === 'provider_billing_issue') return 503
+  if (category === 'provider_http_error' || category === 'provider_schema_error') return 503
+  return fallback
+}
+
+function customerCode(category: string) {
+  if (category === 'address_incomplete') return 'address_incomplete'
+  if (category === 'no_property_found') return 'no_property_found'
+  if (category === 'provider_rate_limit' || category === 'usage_rate_limit') return 'rate_limited'
+  if (category === 'provider_not_configured') return 'provider_not_configured'
+  if (category === 'provider_timeout') return 'provider_timeout'
+  return 'provider_unavailable'
 }
 
 function safeProviderSummary(payload: any) {
@@ -115,6 +158,10 @@ function normalizeLookupAddress(query: any) {
     partial: completeEnough && !zipCode,
     fullAddress: [street, city, [state, zipCode].filter(Boolean).join(' ')].filter(Boolean).join(', '),
   }
+}
+
+function normalizeCacheAddress(address: string) {
+  return clean(address).replace(/\s+/g, ' ').toLowerCase()
 }
 
 function normalizeAddress(record: any) {
@@ -269,6 +316,42 @@ function canAccessOwnerDetails(plan: string) {
   return (PLAN_RANK[clean(plan).toLowerCase()] ?? 0) >= PLAN_RANK.pro
 }
 
+function rateLimitBucket(key: string, limit: number) {
+  const now = Date.now()
+  const current = rateBuckets.get(key)
+  if (!current || now - current.windowStart > RATE_LIMIT_WINDOW_MS) {
+    rateBuckets.set(key, { windowStart: now, count: 1 })
+    return
+  }
+  current.count += 1
+  if (current.count > limit) {
+    throw Object.assign(new Error(RATE_LIMIT_MESSAGE), {
+      status: 429,
+      category: 'usage_rate_limit',
+    })
+  }
+}
+
+function checkUsageLimit(account: Awaited<ReturnType<typeof getAuthenticatedAccount>>, action: string) {
+  const workspaceId = clean(account.workspace?.id || account.plan?.workspace_id || account.user.id || 'unknown')
+  rateLimitBucket(`user:${account.user.id}:${action}`, USER_RATE_LIMIT)
+  rateLimitBucket(`workspace:${workspaceId}`, WORKSPACE_RATE_LIMIT)
+}
+
+function readCache<T>(key: string): T | null {
+  const current = providerCache.get(key)
+  if (!current) return null
+  if (Date.now() > current.expiresAt) {
+    providerCache.delete(key)
+    return null
+  }
+  return current.value as T
+}
+
+function writeCache(key: string, value: any) {
+  providerCache.set(key, { expiresAt: Date.now() + CACHE_TTL_MS, value })
+}
+
 async function rentcast(endpoint: string, params: Record<string, any>, config: ReturnType<typeof readRuntimeConfig>) {
   const url = new URL(`${RENTCAST_BASE_URL}${endpoint}`)
   Object.entries(params).forEach(([key, value]) => {
@@ -277,12 +360,33 @@ async function rentcast(endpoint: string, params: Record<string, any>, config: R
   })
 
   const started = Date.now()
-  const response = await fetch(url.toString(), {
-    headers: {
-      Accept: 'application/json',
-      'X-Api-Key': config.apiKey,
-    },
-  })
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS)
+  let response: Response
+  try {
+    response = await fetch(url.toString(), {
+      headers: {
+        Accept: 'application/json',
+        'X-Api-Key': config.apiKey,
+      },
+      signal: controller.signal,
+    })
+  } catch (error: any) {
+    const timedOut = error?.name === 'AbortError'
+    const category = timedOut ? 'provider_timeout' : 'provider_http_error'
+    logDiagnostic(category, {
+      endpoint,
+      responseMs: Date.now() - started,
+      requestAddress: params.address,
+    })
+    throw Object.assign(new Error(timedOut ? TIMEOUT_MESSAGE : PROVIDER_UNAVAILABLE_MESSAGE), {
+      status: timedOut ? 504 : 503,
+      category,
+      endpoint,
+    })
+  } finally {
+    clearTimeout(timeout)
+  }
   const responseText = await response.text()
   let payload: any = responseText
   try { payload = responseText ? JSON.parse(responseText) : null } catch {}
@@ -308,6 +412,9 @@ async function rentcast(endpoint: string, params: Record<string, any>, config: R
 }
 
 async function getPropertyRecord(address: string, config: ReturnType<typeof readRuntimeConfig>) {
+  const cacheKey = `property:${normalizeCacheAddress(address)}`
+  const cached = readCache<any>(cacheKey)
+  if (cached) return cached
   const result = await rentcast('/properties', { address, limit: 1 }, config)
   const row = pickFirstRecord(result.payload)
   if (!row) {
@@ -318,7 +425,9 @@ async function getPropertyRecord(address: string, config: ReturnType<typeof read
       endpoint: '/properties',
     })
   }
-  return { row, ...result }
+  const value = { row, ...result }
+  writeCache(cacheKey, value)
+  return value
 }
 
 async function providerHealth(config: ReturnType<typeof readRuntimeConfig>, force = false) {
@@ -360,7 +469,10 @@ async function providerHealth(config: ReturnType<typeof readRuntimeConfig>, forc
 function customerError(error: any) {
   if (error?.category === 'address_incomplete') return COMPLETE_ADDRESS_MESSAGE
   if (error?.category === 'no_property_found') return 'Property data is unavailable for this address.'
-  return UNAVAILABLE_MESSAGE
+  if (error?.category === 'provider_not_configured') return PROVIDER_NOT_CONFIGURED_MESSAGE
+  if (error?.category === 'provider_timeout') return TIMEOUT_MESSAGE
+  if (error?.category === 'provider_rate_limit' || error?.category === 'usage_rate_limit') return RATE_LIMIT_MESSAGE
+  return PROVIDER_UNAVAILABLE_MESSAGE
 }
 
 export default async function handler(req: any, res: any) {
@@ -407,12 +519,26 @@ export default async function handler(req: any, res: any) {
 
   if (action === 'status') {
     const health = await providerHealth(config, req.query.force === 'true')
-    return send(res, health.connected ? 200 : 503, {
+    const statusCode = health.connected ? 200 : providerHttpStatus(health.category, 503)
+    const error = health.connected
+      ? undefined
+      : health.category === 'provider_not_configured'
+        ? PROVIDER_NOT_CONFIGURED_MESSAGE
+        : customerError({ category: health.category })
+    return send(res, statusCode, {
       configured: config.configured,
+      available: health.connected,
       propertyDataConnected: health.connected,
-      status: !config.configured ? 'Temporarily Unavailable' : health.connected ? 'Property Data Connected' : 'Connection Error',
+      status: health.connected
+        ? 'Property Data Connected'
+        : health.category === 'provider_not_configured'
+          ? 'Provider Not Configured'
+          : health.category === 'provider_timeout'
+            ? 'Provider Timeout'
+            : 'Provider Unavailable',
+      code: health.connected ? 'ok' : customerCode(health.category),
       label: CUSTOMER_SOURCE,
-      error: health.connected ? undefined : UNAVAILABLE_MESSAGE,
+      error,
       diagnostics: internal ? health : undefined,
     })
   }
@@ -420,16 +546,22 @@ export default async function handler(req: any, res: any) {
   if (!config.configured) {
     logDiagnostic('provider_not_configured', { config: publicConfig(config) })
     return send(res, 503, {
-      error: UNAVAILABLE_MESSAGE,
+      error: PROVIDER_NOT_CONFIGURED_MESSAGE,
+      code: 'provider_not_configured',
+      status: 'Provider Not Configured',
       configured: false,
-      diagnostics: internal ? { category: 'provider_not_configured', config: publicConfig(config) } : undefined,
+      propertyDataConnected: false,
+      diagnostics: internal ? providerConfigDiagnostics(config) : undefined,
     })
   }
 
   try {
+    checkUsageLimit(account, action)
+
     if (action === 'autocomplete') {
       return send(res, 501, {
         error: 'Address autocomplete is not configured. Enter a complete property address manually.',
+        code: 'autocomplete_not_configured',
         autocompleteConfigured: false,
         diagnostics: internal ? { category: 'provider_not_configured', missing: 'autocomplete_provider' } : undefined,
       })
@@ -475,9 +607,12 @@ export default async function handler(req: any, res: any) {
     if (action === 'value') {
       const lookup = normalizeLookupAddress(req.query)
       if (!lookup.completeEnough) throw Object.assign(new Error(COMPLETE_ADDRESS_MESSAGE), { status: 400, category: 'address_incomplete' })
+      const cacheKey = `value:${normalizeCacheAddress(lookup.fullAddress)}`
+      const cached = readCache<any>(cacheKey)
+      if (cached) return send(res, 200, cached)
       const result = await rentcast('/avm/value', { address: lookup.fullAddress }, config)
       const value = result.payload
-      return send(res, 200, {
+      const payload = {
         valuation: {
           address: normalizeAddress(value),
           value: value.price || value.value,
@@ -489,15 +624,20 @@ export default async function handler(req: any, res: any) {
           lastUpdated: new Date().toISOString(),
         },
         normalizedAddressSent: lookup.fullAddress,
-      })
+      }
+      writeCache(cacheKey, payload)
+      return send(res, 200, payload)
     }
 
     if (action === 'rent') {
       const lookup = normalizeLookupAddress(req.query)
       if (!lookup.completeEnough) throw Object.assign(new Error(COMPLETE_ADDRESS_MESSAGE), { status: 400, category: 'address_incomplete' })
+      const cacheKey = `rent:${normalizeCacheAddress(lookup.fullAddress)}`
+      const cached = readCache<any>(cacheKey)
+      if (cached) return send(res, 200, cached)
       const result = await rentcast('/avm/rent/long-term', { address: lookup.fullAddress }, config)
       const rent = result.payload
-      return send(res, 200, {
+      const payload = {
         rent: {
           address: normalizeAddress(rent),
           rent: rent.rent || rent.price,
@@ -509,14 +649,21 @@ export default async function handler(req: any, res: any) {
           lastUpdated: new Date().toISOString(),
         },
         normalizedAddressSent: lookup.fullAddress,
-      })
+      }
+      writeCache(cacheKey, payload)
+      return send(res, 200, payload)
     }
 
     if (action === 'comps') {
       const lookup = normalizeLookupAddress(req.query)
       if (!lookup.completeEnough) throw Object.assign(new Error(COMPLETE_ADDRESS_MESSAGE), { status: 400, category: 'address_incomplete' })
+      const cacheKey = `comps:${normalizeCacheAddress(lookup.fullAddress)}`
+      const cached = readCache<any>(cacheKey)
+      if (cached) return send(res, 200, cached)
       const result = await rentcast('/avm/value', { address: lookup.fullAddress }, config)
-      return send(res, 200, { comps: (result.payload.comparables || []).map(normalizeComp), normalizedAddressSent: lookup.fullAddress })
+      const payload = { comps: (result.payload.comparables || []).map(normalizeComp), normalizedAddressSent: lookup.fullAddress }
+      writeCache(cacheKey, payload)
+      return send(res, 200, payload)
     }
 
     if (action === 'listings') {
@@ -560,14 +707,16 @@ export default async function handler(req: any, res: any) {
   } catch (error: any) {
     const status = Number(error?.status || 500)
     const category = error?.category || categorizeProviderError(status, error?.payload)
+    const publicStatus = providerHttpStatus(category, status)
     logDiagnostic(category, {
       endpoint: error?.endpoint || action,
       httpStatus: status,
       safeResponse: safeProviderSummary(error?.payload || { message: error?.message }),
       requestAddress: req.query.address || req.query.propertyId,
     })
-    return send(res, status >= 400 && status < 600 ? status : 500, {
+    return send(res, publicStatus, {
       error: customerError({ ...error, category }),
+      code: customerCode(category),
       diagnostics: internal ? {
         category,
         httpStatus: status,
