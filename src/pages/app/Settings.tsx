@@ -2190,16 +2190,17 @@ export default function Settings() {
     ['Public Deal Submission Portal', 'Included', 'Included', 'Included', 'Included', 'Included'],
     ['Public Buyer Signup Portal', 'Included', 'Included', 'Included', 'Included', 'Included'],
     ['Deal and Submission Management', 'Limited', 'Included', 'Advanced', 'Advanced', 'Custom'],
-    ['Buyer Database', 'Limited', 'Included', 'Advanced', 'Advanced', 'Custom'],
+    ['Buyer Database Capacity', 'Up to 25 buyers', 'Up to 250 buyers', 'Up to 1,000 buyers', 'Up to 2,000 buyers', 'Up to 5,000 buyers'],
     ['Buyer Matching', 'Not included', 'Basic', 'Advanced', 'Advanced', 'Custom'],
     ['Deal Blast Builder', 'Not included', 'Basic', 'Included', 'Advanced', 'Custom'],
     ['Follow-Up Task Center', 'Not included', 'Basic', 'Included', 'Advanced', 'Custom'],
-    ['Core Deal Calculators', 'ARV only', 'ARV, Rehab, MAO', 'All calculators', 'All calculators', 'All calculators'],
-    ['Property Intelligence', 'Not included', 'Not included', 'Included with monthly limits', 'Higher monthly limits', 'Custom'],
-    ['Custom Buyer and Deal Portals', 'Not included', 'Not included', 'Included', 'Included', 'Custom'],
+    ['Core Deal Calculators', 'ARV Calculator', 'ARV, Rehab, and MAO', 'All calculators', 'All calculators', 'All calculators'],
+    ['Property Intelligence', 'Not included', 'Not included', '25 lookups per month', '100 lookups per month', 'Custom'],
+    ['Custom Buyer and Deal Portals', 'Not included', 'Not included', 'Coming Soon', 'Coming Soon', 'Custom / Coming Soon'],
+    ['Deal Submission Review Center', 'Not included', 'Not included', 'Coming Soon', 'Coming Soon', 'Custom'],
+    ['Buyer Portal Review Center', 'Not included', 'Not included', 'Coming Soon', 'Coming Soon', 'Custom'],
     ['Global Buyer Hub', 'Not included', 'Not included', 'Coming Soon', 'Coming Soon', 'Custom'],
-    ['Team and Multi-User Access', 'Not included', 'Not included', 'Single user', 'Team access', 'Custom roles and scale'],
-    ['Usage and Workspace Scale', 'Evaluation limits', 'Solo operator', 'Active operator', 'Team workspace', 'Custom volume'],
+    ['Team and Multi-User Access', 'Not included', 'Not included', 'Single user', 'Coming Soon', 'Custom'],
   ]
 
   const renderPlanComparisonRows = () => planComparisonRows.map(([feature, free, starter, pro, agency, enterprise]) => (
@@ -2618,7 +2619,7 @@ export default function Settings() {
                   <div>Current plan: <span className="font-medium">{currentPlan}{isPaidPlan ? ' (Demo Unlocked)' : ''}</span></div>
                   <div>Status: <span>{isPaidPlan ? 'Active - ' + (currentPlan === 'Starter' ? 'higher limits' : 'unlimited for testing') : `Free Active — ${trial.daysLeft} days remaining`}</span></div>
                   <div>Demo days remaining: <span className="tabular-nums font-medium">{trial.daysLeft}</span></div>
-                  <div>Current limits: <span>{isPaidPlan ? (currentPlan === 'Starter' ? '25 deals / 100 buyers / 20 blasts (Starter demo)' : 'No limits (demo)') : '5 deals / 25 buyers / 5 blasts (permanent Free)'}</span></div>
+                  <div>Current limits: <span>{isPaidPlan ? (currentPlan === 'Starter' ? '25 active deals / 250 buyers / 20 blasts' : currentPlan === 'Pro' ? 'High-volume active deals / 1,000 buyers / regular blasts' : currentPlan === 'Agency' ? 'Team active deal capacity / 2,000 buyers / advanced blasts' : 'Custom active deal capacity / 5,000 buyers / custom outreach') : '3 active deals / 25 buyers / ARV calculator'}</span></div>
                   <div>Pricing (demo): Free $0 (permanent) | Starter $47/mo | Pro $97/mo | Agency $197/mo | Enterprise $297/mo or Custom (annual equiv monthly billed)</div>
                   <div className="text-amber-400">Demo mode note: No real billing, charges, or subscription will be created. All activity is local/test only.</div>
                 </div>

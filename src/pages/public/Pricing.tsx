@@ -10,8 +10,8 @@ const tiers = [
     monthly: '$0',
     annual: '$0',
     annualNote: 'annual plan',
-    positioning: 'For testing public submission flows and exploring Deal Blast Pro.',
-    points: ['Public intake testing', 'Basic evaluation limits'],
+    positioning: 'For limited public submission access and exploring Deal Blast Pro.',
+    points: ['Public submission access', 'ARV calculator', 'Up to 25 buyers'],
     cta: 'Join Waitlist',
     to: '/waitlist',
     highlight: false
@@ -22,7 +22,7 @@ const tiers = [
     annual: '$470/yr',
     annualNote: '$470 billed annually',
     positioning: 'For solo wholesalers and investors who need organized deal and buyer management.',
-    points: ['Deal and buyer management', 'Core starter calculators'],
+    points: ['Deal and buyer management', 'Core starter calculators', 'Up to 250 buyers'],
     cta: 'Join Waitlist',
     to: '/waitlist',
     highlight: false
@@ -33,7 +33,7 @@ const tiers = [
     annual: '$970/yr',
     annualNote: '$970 billed annually',
     positioning: 'For active operators who need buyer matching, deal blasts, advanced calculators, Property Intelligence, and stronger follow-up tools.',
-    points: ['Advanced buyer matching', 'All core calculators', 'Property Intelligence limits', 'Custom portals'],
+    points: ['Advanced buyer matching', 'All calculators', '25 Property Intelligence lookups monthly', 'Up to 1,000 buyers'],
     cta: 'Join Waitlist',
     to: '/waitlist',
     highlight: true,
@@ -45,7 +45,7 @@ const tiers = [
     annual: '$1,970/yr',
     annualNote: '$1,970 billed annually',
     positioning: 'For teams managing higher deal volume, shared buyer activity, and multiple users.',
-    points: ['Higher monthly limits', 'Team workspace planning', 'Contact-based setup'],
+    points: ['Higher monthly limits', '100 Property Intelligence lookups monthly', 'Up to 2,000 buyers', 'Team features coming soon'],
     cta: 'Contact Admin',
     to: '/contact',
     highlight: false,
@@ -57,7 +57,7 @@ const tiers = [
     annual: 'Custom annual pricing',
     annualNote: 'Contact Admin',
     positioning: 'For custom onboarding, higher-volume workflows, integrations, and tailored support.',
-    points: ['Custom volume', 'Custom roles and scale', 'Tailored support'],
+    points: ['Up to 5,000 buyers', 'Custom Property Intelligence limits', 'Custom workflows and support'],
     cta: 'Contact Sales',
     to: '/contact',
     highlight: false,
@@ -89,26 +89,6 @@ const featureRows = [
     ]
   },
   {
-    feature: 'Active Deal Capacity',
-    statuses: [
-      PLAN_ENTITLEMENTS.Free.activeDealLimitLabel,
-      PLAN_ENTITLEMENTS.Starter.activeDealLimitLabel,
-      PLAN_ENTITLEMENTS.Pro.activeDealLimitLabel,
-      PLAN_ENTITLEMENTS.Agency.activeDealLimitLabel,
-      PLAN_ENTITLEMENTS.Enterprise.activeDealLimitLabel
-    ]
-  },
-  {
-    feature: 'Buyer Portal Review Center',
-    statuses: [
-      PLAN_ENTITLEMENTS.Free.buyerPortalReviewLabel,
-      PLAN_ENTITLEMENTS.Starter.buyerPortalReviewLabel,
-      PLAN_ENTITLEMENTS.Pro.buyerPortalReviewLabel,
-      PLAN_ENTITLEMENTS.Agency.buyerPortalReviewLabel,
-      PLAN_ENTITLEMENTS.Enterprise.buyerPortalReviewLabel
-    ]
-  },
-  {
     feature: 'Buyer Matching',
     statuses: ['Not included', 'Basic', 'Advanced', 'Advanced', 'Custom']
   },
@@ -122,19 +102,29 @@ const featureRows = [
   },
   {
     feature: 'Core Deal Calculators',
-    statuses: ['ARV only', 'ARV, Rehab, MAO', 'All calculators', 'All calculators', 'All calculators']
+    statuses: ['ARV Calculator', 'ARV, Rehab, and MAO', 'All calculators', 'All calculators', 'All calculators']
   },
   {
     feature: 'Property Intelligence',
-    statuses: ['Not included', 'Not included', 'Included with monthly limits', 'Higher monthly limits', 'Custom']
-  },
-  {
-    feature: 'Deal Submission Review Center',
-    statuses: ['Not included', 'Not included', 'Coming Soon', 'Coming Soon / Contact Admin', 'Custom / Contact Admin']
+    statuses: ['Not included', 'Not included', '25 lookups per month', '100 lookups per month', 'Custom']
   },
   {
     feature: 'Custom Buyer and Deal Portals',
+    statuses: ['Not included', 'Not included', 'Coming Soon', 'Coming Soon', 'Custom / Coming Soon']
+  },
+  {
+    feature: 'Deal Submission Review Center',
     statuses: ['Not included', 'Not included', 'Coming Soon', 'Coming Soon', 'Custom']
+  },
+  {
+    feature: 'Buyer Portal Review Center',
+    statuses: [
+      PLAN_ENTITLEMENTS.Free.buyerPortalReviewLabel,
+      PLAN_ENTITLEMENTS.Starter.buyerPortalReviewLabel,
+      PLAN_ENTITLEMENTS.Pro.buyerPortalReviewLabel,
+      PLAN_ENTITLEMENTS.Agency.buyerPortalReviewLabel,
+      'Custom'
+    ]
   },
   {
     feature: 'Global Buyer Hub',
@@ -142,11 +132,7 @@ const featureRows = [
   },
   {
     feature: 'Team and Multi-User Access',
-    statuses: ['Not included', 'Not included', 'Single user', 'Team access', 'Custom roles and scale']
-  },
-  {
-    feature: 'Usage and Workspace Scale',
-    statuses: ['Evaluation limits', 'Solo operator', 'Active operator', 'Team workspace', 'Custom volume']
+    statuses: ['Not included', 'Not included', 'Single user', 'Coming Soon', 'Custom']
   }
 ]
 
@@ -156,7 +142,7 @@ const statusClass = (status: string) => {
   if (status === 'Custom') return 'text-[#60A5FA]'
   if (status === 'Advanced') return 'text-[#A78BFA]'
   if (status === 'Not included' || status === '-') return 'text-[#64748B]'
-  if (status === 'Basic' || status === 'Limited' || status.includes('limits') || status.includes('operator') || status.includes('workspace') || status.includes('user') || status.includes('ARV') || status.includes('calculator')) return 'text-[#C5CAD6]'
+  if (status === 'Basic' || status === 'Limited' || status.includes('lookups') || status.includes('buyer') || status.includes('user') || status.includes('ARV') || status.includes('calculator')) return 'text-[#C5CAD6]'
   return 'text-[#8B92A3]'
 }
 
@@ -189,6 +175,7 @@ export default function Pricing() {
           <h1 className="text-4xl font-semibold tracking-tight">Simple, transparent pricing</h1>
           <p className="mt-3 text-[#8B92A3]">Start small, then upgrade when your deal flow and buyer outreach need more room.</p>
           <p className="mt-2 text-sm text-[#C5CAD6]">Start with Free, Starter, or Pro. Agency and Enterprise options are available by request.</p>
+          <p className="mt-2 text-xs text-[#8B92A3]">Features labeled Coming Soon are not yet available for customer use. Plan limits and feature availability are enforced by account and workspace.</p>
           <div className="mt-5 grid gap-2 md:hidden">
             <Link to="/waitlist" className="btn btn-green w-full justify-center py-3 text-sm">
               Join Waitlist
@@ -301,7 +288,10 @@ export default function Pricing() {
             </table>
           </div>
           <p className="mt-3 text-center text-xs text-[#8B92A3]">
-            Property Intelligence starts on Pro with monthly limits. Agency and Enterprise remain contact-based while higher-volume workflows are prepared.
+            Property Intelligence lookups start on Pro. Cached results may not use an additional lookup credit. Data availability varies by property and market.
+          </p>
+          <p className="mt-2 text-center text-xs text-[#8B92A3]">
+            Additional buyer-capacity packs may be offered in the future.
           </p>
         </section>
 
