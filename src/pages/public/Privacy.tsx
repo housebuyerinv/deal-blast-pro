@@ -1,14 +1,5 @@
 import { Link } from 'react-router-dom'
-
-const footerLinks = [
-  { to: '/pricing', label: 'Pricing' },
-  { to: '/portal', label: 'Submit Deal' },
-  { to: '/buyer-portal', label: 'Buyer Portal' },
-  { to: '/contact', label: 'Contact' },
-  { to: '/privacy', label: 'Privacy' },
-  { to: '/terms', label: 'Terms' },
-  { to: '/security', label: 'Security' }
-]
+import PublicFooter from '../../components/layout/PublicFooter'
 
 export default function Privacy() {
   return (
@@ -17,65 +8,71 @@ export default function Privacy() {
         <Link to="/" className="text-sm text-[#3B82F6]">Back to home</Link>
         <h1 className="text-4xl font-semibold mt-6 mb-3">Privacy Policy</h1>
         <p className="text-[#8B92A3] mb-8">
-          This public privacy template explains how Deal Blast Pro may collect and use information submitted through public deal and buyer forms.
+          Deal Blast Pro collects and processes information submitted through our website, waitlist, buyer portal, deal-submission forms, and authenticated platform features. This Privacy Policy explains the categories of information we collect, how we use it, and the choices available to users.
         </p>
-
-        <div className="rounded-lg border border-amber-400/30 bg-amber-400/10 p-4 text-sm text-amber-200 mb-8">
-          This page is a working template and should be reviewed by legal counsel before production use.
-        </div>
 
         <section className="space-y-6 text-sm leading-6 text-[#C5CAD6]">
           <div>
             <h2 className="text-xl font-semibold text-[#E6E8EE] mb-2">Information We Collect</h2>
             <p>
-              Deal submissions may include contact details, company or role information, property addresses, property condition, pricing expectations, deal terms, seller notes, messages, photos, documents, and other files submitted for review.
-            </p>
-            <p className="mt-3">
-              Buyer portal submissions may include contact details, company information, buyer criteria, preferred markets, asset types, budget ranges, financing preferences, proof files, and messages.
+              We may collect account information, waitlist registrations, deal submissions, buyer submissions, uploaded photos and documents, property addresses, buyer criteria, messages, usage data, authentication data, billing records, and Property Intelligence search details.
             </p>
           </div>
 
           <div>
-            <h2 className="text-xl font-semibold text-[#E6E8EE] mb-2">How Information Is Used</h2>
+            <h2 className="text-xl font-semibold text-[#E6E8EE] mb-2">How We Use Information</h2>
             <p>
-              Information may be used to review opportunities, evaluate buyer fit, communicate with sellers, deal finders, buyers, and team members, operate the platform, respond to requests, and improve public intake workflows.
+              Information is used to operate Deal Blast Pro, review opportunities, evaluate buyer fit, manage subscriptions, provide support, process requested communications, improve workflows, protect the platform, and maintain business records.
             </p>
           </div>
 
           <div>
             <h2 className="text-xl font-semibold text-[#E6E8EE] mb-2">Public Visibility</h2>
             <p>
-              Private contact details are not published on public pages. Submitted information is intended for review and communication related to potential real estate opportunities and buyer interest.
+              Deal Blast Pro does not intentionally publish private contact information on public pages unless the user requests or authorizes publication. Public forms are intended for private review by the appropriate workspace team.
             </p>
           </div>
 
           <div>
-            <h2 className="text-xl font-semibold text-[#E6E8EE] mb-2">Files And Storage</h2>
+            <h2 className="text-xl font-semibold text-[#E6E8EE] mb-2">Cookies And Local Storage</h2>
             <p>
-              Uploaded files may be stored using connected storage, Supabase, or production storage when configured. Users should avoid submitting unnecessary sensitive information in files or messages.
+              Deal Blast Pro may use browser storage, cookies, or similar technologies to support authentication, workspace preferences, form behavior, security, and product analytics.
             </p>
           </div>
 
           <div>
-            <h2 className="text-xl font-semibold text-[#E6E8EE] mb-2">Correction Or Removal Requests</h2>
+            <h2 className="text-xl font-semibold text-[#E6E8EE] mb-2">Service Providers</h2>
             <p>
-              Users may contact the company through the contact page to request correction, update, or removal of submitted information, subject to applicable legal, operational, and recordkeeping needs.
+              We may use service providers such as Supabase for authentication, database, and storage services; Vercel for hosting; Stripe for billing when applicable; RentCast for Property Intelligence when applicable; and Resend for email delivery when applicable.
+            </p>
+          </div>
+
+          <div>
+            <h2 className="text-xl font-semibold text-[#E6E8EE] mb-2">Retention, Deactivation, And Requests</h2>
+            <p>
+              Records may be retained for operational, security, legal, billing, and audit purposes. Account deactivation restricts access but does not automatically hard-delete deals, buyers, submissions, files, settings, or billing records. Users may contact us to request correction, deletion, or access to information, subject to applicable law and legitimate business needs.
+            </p>
+          </div>
+
+          <div>
+            <h2 className="text-xl font-semibold text-[#E6E8EE] mb-2">Security And Children</h2>
+            <p>
+              We use safeguards designed to protect account and submission information, but no system can guarantee absolute security. Deal Blast Pro is not intended for children, and we do not knowingly collect information from children.
+            </p>
+          </div>
+
+          <div>
+            <h2 className="text-xl font-semibold text-[#E6E8EE] mb-2">Policy Changes And Contact</h2>
+            <p>
+              We may update this Privacy Policy as the product, services, or legal requirements change. Questions or requests can be submitted through the Contact page.
             </p>
           </div>
         </section>
 
-        <p className="mt-8 text-xs text-[#8B92A3]">Last updated: Public working template. This is not legal advice.</p>
+        <p className="mt-8 text-xs text-[#8B92A3]">Last updated: July 15, 2026</p>
       </main>
 
-      <footer className="border-t border-[#252A38] py-8 text-center text-xs text-[#8B92A3]">
-        Deal Blast Pro<br />
-        {footerLinks.map((link, index) => (
-          <span key={link.to}>
-            <Link to={link.to} className="hover:text-white">{link.label}</Link>
-            {index < footerLinks.length - 1 ? ' - ' : ''}
-          </span>
-        ))}
-      </footer>
+      <PublicFooter />
     </div>
   )
 }

@@ -439,13 +439,22 @@ export default function Settings() {
   }
 
   const isPaidCancellationStatus = currentBillingStatus === 'Paid Active' || currentBillingStatus === 'Comped'
+  const platformOwnerDeactivationBlocked = hasSuperAdminAccess && !ownerPreviewActive
   const deletionActionLabel = 'Deactivate Account'
-  const deletionModalMessage = isPaidCancellationStatus
+  const deletionModalMessage = platformOwnerDeactivationBlocked
+    ? 'Platform owner accounts cannot be deactivated from this page.'
+    : isPaidCancellationStatus
     ? 'This will deactivate this user access and workspace account in Deal Blast Pro. It does not immediately hard-delete buyers, deals, submissions, files, or settings, and it does not cancel or change Stripe billing automatically. You will be signed out after the backend confirms deactivation.'
     : 'This will deactivate this user access and workspace account in Deal Blast Pro. It does not immediately hard-delete buyers, deals, submissions, inventory, settings, or files. You will be signed out after the backend confirms deactivation.'
 
   const requestAccountDeletion = async () => {
     if (deleteAccountText !== 'DELETE MY ACCOUNT' || deleteAccountLoading) return
+    if (platformOwnerDeactivationBlocked) {
+      const message = 'Platform owner accounts cannot be deactivated from this page.'
+      setDeleteAccountError(message)
+      toast.error(message)
+      return
+    }
 
     setDeleteAccountLoading(true)
     setDeleteAccountError('')
@@ -3524,7 +3533,7 @@ export default function Settings() {
                 )}
               </div>
               <button type="button" onClick={openDeleteAccountRequest} className="btn btn-ghost text-red-300 border-red-500/40 md:w-auto">
-                Request Account Deletion
+                {deletionActionLabel}
               </button>
             </div>
           </div>
@@ -4097,14 +4106,23 @@ export default function Settings() {
               {deletionModalMessage}
             </div>
 
-            {!deleteAccountConfirmed ? (
+            {platformOwnerDeactivationBlocked ? (
+              <div className="mt-5">
+                <div className="text-sm text-[#8B92A3]">
+                  Contact support or use the secure owner shutdown process for platform-level account changes.
+                </div>
+                <div className="mt-5 flex flex-wrap justify-end gap-2">
+                  <button type="button" onClick={closeDeleteAccountRequest} className="btn btn-ghost" autoFocus>Close</button>
+                </div>
+              </div>
+            ) : !deleteAccountConfirmed ? (
               <div className="mt-5">
                 <div className="text-sm text-[#8B92A3]">
                   Deal Blast Pro only updates the current workspace/account status. This request does not delete global records or other users&apos; data.
                 </div>
                 <div className="mt-5 flex flex-wrap justify-end gap-2">
                   <button type="button" onClick={closeDeleteAccountRequest} className="btn btn-ghost">Cancel</button>
-                  <button type="button" onClick={() => setDeleteAccountConfirmed(true)} className="btn btn-ghost text-red-300 border-red-500/40">Continue</button>
+                  <button type="button" onClick={() => setDeleteAccountConfirmed(true)} className="btn btn-ghost text-red-300 border-red-500/40" autoFocus>Continue</button>
                 </div>
               </div>
             ) : (
@@ -4117,6 +4135,7 @@ export default function Settings() {
                     onChange={e => setDeleteAccountText(e.target.value)}
                     placeholder="DELETE MY ACCOUNT"
                     disabled={deleteAccountLoading}
+                    autoFocus
                   />
                 </label>
                 {deleteAccountError && (

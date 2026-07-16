@@ -198,6 +198,7 @@ function App() {
         <Route path="/portal" element={<Portal />} />
         <Route path="/buyer-portal" element={<BuyerPortal />} />
         <Route path="/admin-login" element={<Login />} />
+        <Route path="/refunds" element={<Navigate to="/refund-policy" replace />} />
         <Route path="/admin-register" element={import.meta.env.PROD ? <Navigate to="/waitlist" replace /> : <Register />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { ArrowRight, CheckCircle2, FileText, Search, Send, ShieldCheck, UserRoundCheck } from 'lucide-react'
+import PublicFooter from '../../components/layout/PublicFooter'
 import PublicNav from '../../components/layout/PublicNav'
 
 const audience = [
@@ -17,7 +18,7 @@ const audience = [
   },
   {
     title: 'For subscription access',
-    desc: 'Join the prerelease waitlist, then move into Starter or Pro when your workflow is approved for access.'
+    desc: 'Join the waitlist for early access, product launch updates, and plan availability.'
   }
 ]
 
@@ -54,7 +55,7 @@ export default function Landing() {
                   <ArrowRight size={18} />
                 </Link>
                 <Link to="/pricing" className="btn btn-ghost text-base px-7 py-3">View Pricing</Link>
-                <Link to="/admin-login" className="btn btn-ghost text-base px-7 py-3">Approved Login</Link>
+                <Link to="/admin-login" className="btn btn-ghost text-base px-7 py-3">Sign In</Link>
               </div>
             </div>
 
@@ -170,28 +171,17 @@ export default function Landing() {
         <section className="max-w-4xl mx-auto px-6 py-14 text-center">
           <h2 className="text-3xl font-semibold mb-4">Start building your dispo workspace.</h2>
           <p className="text-[#8B92A3] mb-7">
-            Join the prerelease waitlist or compare planned Starter and Pro access while we prepare controlled onboarding.
+            Join the waitlist for Deal Blast Pro early access and product launch updates.
           </p>
           <div className="flex flex-col sm:flex-row flex-wrap gap-3 justify-center">
             <Link to="/waitlist" className="btn btn-green px-8 py-3 text-base">Join the Waitlist</Link>
             <Link to="/pricing" className="btn btn-ghost px-8 py-3 text-base">View Pricing</Link>
-            <Link to="/admin-login" className="btn btn-ghost px-8 py-3 text-base">Approved Login</Link>
+            <Link to="/admin-login" className="btn btn-ghost px-8 py-3 text-base">Sign In</Link>
           </div>
         </section>
       </main>
 
-      <footer className="border-t border-[#252A38] py-8 text-center text-xs text-[#8B92A3]">
-        Deal Blast Pro<br />
-        <Link to="/pricing" className="hover:text-white">Pricing</Link> -{' '}
-        <Link to="/portal" className="hover:text-white">Submit Deal</Link> -{' '}
-        <Link to="/buyer-portal" className="hover:text-white">Buyer Portal</Link> -{' '}
-        <Link to="/contact" className="hover:text-white">Contact</Link> -{' '}
-        <Link to="/privacy" className="hover:text-white">Privacy</Link> -{' '}
-        <Link to="/terms" className="hover:text-white">Terms</Link> -{' '}
-        <Link to="/refund-policy" className="hover:text-white">Refunds</Link> -{' '}
-        <Link to="/acceptable-use" className="hover:text-white">Acceptable Use</Link> -{' '}
-        <Link to="/security" className="hover:text-white">Security</Link>
-      </footer>
+      <PublicFooter />
     </div>
   )
 }

@@ -1,5 +1,6 @@
 ﻿import React from 'react'
 import { Link } from 'react-router-dom'
+import PublicFooter from '../../components/layout/PublicFooter'
 import PublicNav from '../../components/layout/PublicNav'
 
 const tiers = [
@@ -349,18 +350,7 @@ export default function Pricing() {
         </div>
       </main>
 
-      <footer className="border-t border-[#252A38] py-8 text-center text-xs text-[#8B92A3]">
-        Deal Blast Pro<br />
-        <Link to="/pricing" className="hover:text-white">Pricing</Link> -{' '}
-        <Link to="/portal" className="hover:text-white">Submit Deal</Link> -{' '}
-        <Link to="/buyer-portal" className="hover:text-white">Buyer Portal</Link> -{' '}
-        <Link to="/contact" className="hover:text-white">Contact</Link> -{' '}
-        <Link to="/privacy" className="hover:text-white">Privacy</Link> -{' '}
-        <Link to="/terms" className="hover:text-white">Terms</Link> -{' '}
-        <Link to="/refund-policy" className="hover:text-white">Refunds</Link> -{' '}
-        <Link to="/acceptable-use" className="hover:text-white">Acceptable Use</Link> -{' '}
-        <Link to="/security" className="hover:text-white">Security</Link>
-      </footer>
+      <PublicFooter />
     </div>
   )
 }

@@ -1,14 +1,5 @@
 import { Link } from 'react-router-dom'
-
-const footerLinks = [
-  { to: '/pricing', label: 'Pricing' },
-  { to: '/portal', label: 'Submit Deal' },
-  { to: '/buyer-portal', label: 'Buyer Portal' },
-  { to: '/contact', label: 'Contact' },
-  { to: '/privacy', label: 'Privacy' },
-  { to: '/terms', label: 'Terms' },
-  { to: '/security', label: 'Security' }
-]
+import PublicFooter from '../../components/layout/PublicFooter'
 
 export default function Terms() {
   return (
@@ -17,62 +8,85 @@ export default function Terms() {
         <Link to="/" className="text-sm text-[#3B82F6]">Back to home</Link>
         <h1 className="text-4xl font-semibold mt-6 mb-3">Terms of Service</h1>
         <p className="text-[#8B92A3] mb-8">
-          These public terms describe basic expectations for using Deal Blast Pro public pages and forms.
+          These Terms of Service govern access to and use of Deal Blast Pro, including public pages, submission forms, account features, subscriptions, and related services.
         </p>
-
-        <div className="rounded-lg border border-amber-400/30 bg-amber-400/10 p-4 text-sm text-amber-200 mb-8">
-          This page is a working template and should be reviewed by legal counsel before production use.
-        </div>
 
         <section className="space-y-6 text-sm leading-6 text-[#C5CAD6]">
           <div>
-            <h2 className="text-xl font-semibold text-[#E6E8EE] mb-2">Platform Purpose</h2>
+            <h2 className="text-xl font-semibold text-[#E6E8EE] mb-2">Platform And Eligibility</h2>
             <p>
-              Deal Blast Pro is a platform for collecting real estate deal information and buyer information through public forms and related workflows.
+              Deal Blast Pro is a product of House Buyer Investments LLC for real estate disposition, buyer management, submission review, and related business workflows. Users must be able to enter binding agreements and use the platform only for lawful business purposes.
             </p>
           </div>
 
           <div>
-            <h2 className="text-xl font-semibold text-[#E6E8EE] mb-2">No Guarantees</h2>
+            <h2 className="text-xl font-semibold text-[#E6E8EE] mb-2">Accounts And Security</h2>
             <p>
-              Submitting a deal does not guarantee review, marketing, acceptance, sale, funding, closing, or buyer interest. Buyer signup does not guarantee access to every deal or investment opportunity.
+              Users are responsible for accurate registration information, account security, password protection, and activity under their accounts. Account access may be limited, suspended, or terminated for misuse, security concerns, nonpayment, or violation of these Terms.
             </p>
           </div>
 
           <div>
-            <h2 className="text-xl font-semibold text-[#E6E8EE] mb-2">User Responsibilities</h2>
+            <h2 className="text-xl font-semibold text-[#E6E8EE] mb-2">Subscriptions, Trials, And Billing</h2>
             <p>
-              Users must submit accurate information and only upload files, photos, contracts, financial documents, or other materials they have the right to share.
+              Paid subscriptions, free trials, demos, and digital-credit purchases are subject to the plan details, checkout terms, billing provider rules, and Refund Policy in effect at the time of purchase or renewal.
             </p>
           </div>
 
           <div>
-            <h2 className="text-xl font-semibold text-[#E6E8EE] mb-2">No Professional Advice</h2>
+            <h2 className="text-xl font-semibold text-[#E6E8EE] mb-2">Submissions, Files, And User Content</h2>
             <p>
-              Deal Blast Pro does not provide legal, financial, tax, brokerage, or investment advice through the public pages. Users are responsible for their own due diligence and should consult qualified professionals when needed.
+              Users must submit accurate deal, buyer, and account information and may upload only files, photos, contracts, financial documents, or other materials they have the right to share. Users retain responsibility for their submissions and for removing unnecessary sensitive information.
             </p>
           </div>
 
           <div>
-            <h2 className="text-xl font-semibold text-[#E6E8EE] mb-2">Platform Changes</h2>
+            <h2 className="text-xl font-semibold text-[#E6E8EE] mb-2">Property Intelligence And Third-Party Data</h2>
             <p>
-              Platform access, features, workflows, and availability may change as production features are added, configured, tested, or updated.
+              Property Intelligence and other third-party data features may use outside providers such as RentCast when available. Third-party data can be incomplete, delayed, or inaccurate and should be independently verified before business decisions are made.
+            </p>
+          </div>
+
+          <div>
+            <h2 className="text-xl font-semibold text-[#E6E8EE] mb-2">Acceptable Use</h2>
+            <p>
+              Users may not scrape, spam, overload, reverse engineer, bypass access controls, upload malware, submit deceptive content, access another workspace, or use Deal Blast Pro for unlawful or harmful activity.
+            </p>
+          </div>
+
+          <div>
+            <h2 className="text-xl font-semibold text-[#E6E8EE] mb-2">No Guarantees Or Professional Advice</h2>
+            <p>
+              Deal Blast Pro does not guarantee any deal, buyer, funding, sale, closing, valuation, rent estimate, or investment outcome. The platform does not provide legal, tax, brokerage, investment, financial, or lending advice.
+            </p>
+          </div>
+
+          <div>
+            <h2 className="text-xl font-semibold text-[#E6E8EE] mb-2">Intellectual Property</h2>
+            <p>
+              Deal Blast Pro, its software, branding, workflows, and platform materials are owned by House Buyer Investments LLC or its licensors. Users may not copy or misuse the platform except as allowed through authorized access.
+            </p>
+          </div>
+
+          <div>
+            <h2 className="text-xl font-semibold text-[#E6E8EE] mb-2">Disclaimers, Liability, And Indemnification</h2>
+            <p>
+              Deal Blast Pro is provided subject to availability and may change over time. To the fullest extent permitted by law, liability is limited for indirect, incidental, consequential, special, exemplary, or lost-profit damages. Users agree to be responsible for claims arising from their misuse of the platform or materials they submit.
+            </p>
+          </div>
+
+          <div>
+            <h2 className="text-xl font-semibold text-[#E6E8EE] mb-2">Changes And Contact</h2>
+            <p>
+              We may update these Terms as features, services, or requirements change. Questions can be submitted through the Contact page.
             </p>
           </div>
         </section>
 
-        <p className="mt-8 text-xs text-[#8B92A3]">Last updated: Public working template. This is not legal advice.</p>
+        <p className="mt-8 text-xs text-[#8B92A3]">Last updated: July 15, 2026</p>
       </main>
 
-      <footer className="border-t border-[#252A38] py-8 text-center text-xs text-[#8B92A3]">
-        Deal Blast Pro<br />
-        {footerLinks.map((link, index) => (
-          <span key={link.to}>
-            <Link to={link.to} className="hover:text-white">{link.label}</Link>
-            {index < footerLinks.length - 1 ? ' - ' : ''}
-          </span>
-        ))}
-      </footer>
+      <PublicFooter />
     </div>
   )
 }

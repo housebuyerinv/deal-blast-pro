@@ -2,6 +2,7 @@
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { supabase } from '../../lib/supabase'
+import PublicFooter from '../../components/layout/PublicFooter'
 import { useAppStore } from '../../store/useAppStore'
 
 export default function Register() {
@@ -142,15 +143,7 @@ export default function Register() {
           <Link to="/pricing" className="text-[#3B82F6]">Pricing</Link>
         </div>
 
-        <footer className="border-t border-[#252A38] mt-8 py-6 text-center text-xs text-[#8B92A3]">
-          House Buyer Investments - Deal Blast Pro<br />
-          <Link to="/pricing" className="hover:text-white">Pricing</Link> -{' '}
-          <Link to="/portal" className="hover:text-white">Submit Deal</Link> -{' '}
-          <Link to="/contact" className="hover:text-white">Contact</Link> -{' '}
-          <Link to="/privacy" className="hover:text-white">Privacy</Link> -{' '}
-          <Link to="/terms" className="hover:text-white">Terms</Link> -{' '}
-          <Link to="/security" className="hover:text-white">Security</Link>
-        </footer>
+        <PublicFooter />
       </div>
     </div>
   )

@@ -28,7 +28,7 @@ export default function PublicNav() {
           <Link to="/portal" className="hover:text-white">Submit Deal</Link>
           <Link to="/buyer-portal" className="hover:text-white">Buyer Portal</Link>
           <Link to="/contact" className="hover:text-white">Contact</Link>
-          <Link to="/admin-login" className="px-3 py-1.5 hover:text-white">Admin Login</Link>
+          <Link to="/admin-login" className="px-3 py-1.5 hover:text-white">Sign In</Link>
           <Link to="/waitlist" className="btn btn-primary px-5 py-1.5 text-sm">Join Waitlist</Link>
         </div>
 

@@ -32,7 +32,7 @@ export default async function handler(req: any, res: any) {
     if (account.isOwnerAdmin) {
       return send(res, 403, {
         ok: false,
-        error: 'Contact support or use the secure owner shutdown process.',
+        error: 'Platform owner accounts cannot be deactivated from this page.',
         code: 'owner_admin_deactivation_blocked',
       })
     }

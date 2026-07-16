@@ -1,6 +1,7 @@
 ﻿import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
+import PublicFooter from '../../components/layout/PublicFooter'
 import PublicNav from '../../components/layout/PublicNav'
 import { submitContactMessage, type ContactSubmissionPayload } from '../../lib/contactSubmissionStorage'
 import { useAppStore } from '../../store/useAppStore'
@@ -140,17 +141,8 @@ export default function Contact() {
 
         <p className="text-xs text-center text-[#8B92A3] mt-6">We typically respond within 1-2 business days. If the form is unavailable, email housebuyerinv@gmail.com.</p>
 
-        <footer className="border-t border-[#252A38] mt-12 py-8 text-center text-xs text-[#8B92A3]">
-          Deal Blast Pro<br />
-          <Link to="/pricing" className="hover:text-white">Pricing</Link> -{' '}
-          <Link to="/portal" className="hover:text-white">Submit Deal</Link> -{' '}
-          <Link to="/buyer-portal" className="hover:text-white">Buyer Portal</Link> -{' '}
-          <Link to="/contact" className="hover:text-white">Contact</Link> -{' '}
-          <Link to="/privacy" className="hover:text-white">Privacy</Link> -{' '}
-          <Link to="/terms" className="hover:text-white">Terms</Link> -{' '}
-          <Link to="/security" className="hover:text-white">Security</Link>
-        </footer>
       </div>
+      <PublicFooter />
     </div>
   )
 }
