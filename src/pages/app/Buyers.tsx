@@ -3742,8 +3742,13 @@ const cleanBuyerName = (value: any, emailValue = '') => {
           continue
         }
 
+        const savedBuyer = Array.isArray(saveResult.data) ? saveResult.data.find((buyer: any) => safeLower(buyer.email).trim() === email) || saveResult.data[0] : null
+
         if (row.buyerPortalSubmissionId) {
-          await markBuyerPortalSubmissionsImported([row.buyerPortalSubmissionId])
+          await markBuyerPortalSubmissionsImported([row.buyerPortalSubmissionId], {
+            buyerId: savedBuyer?.id,
+            approvedBy: user?.id || user?.email || '',
+          })
         }
 
         approved++
@@ -3780,7 +3785,7 @@ const cleanBuyerName = (value: any, emailValue = '') => {
     } else if (approved > 0) {
       toast.warning(summary)
     } else if (failed > 0) {
-      toast.error('Buyer import requires owner-scoped buyer storage. No buyers were imported.')
+      toast.error('We could not access your buyer workspace. Please refresh and try again.')
     } else {
       toast.error(summary)
     }

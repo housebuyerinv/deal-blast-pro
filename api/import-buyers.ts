@@ -33,7 +33,7 @@ function asArray(value: any) {
   return text.split(/[;,|]/g).map(item => item.trim()).filter(Boolean)
 }
 
-function buyerToRow(buyer: any, workspaceId: string, userId: string, existing?: any) {
+function buyerToRow(buyer: any, workspaceId: string, userId: string, ownerUserId: string, existing?: any) {
   const now = new Date().toISOString()
   const email = normalizeEmail(buyer)
   const id = cleanString(existing?.id) || normalizeBuyerId(buyer)
@@ -53,7 +53,7 @@ function buyerToRow(buyer: any, workspaceId: string, userId: string, existing?: 
     id,
     workspace_id: workspaceId,
     created_by_user_id: userId,
-    owner_user_id: userId,
+    owner_user_id: ownerUserId || userId,
     email,
     name: cleanString(data.name || data.buyerName || data.fullName),
     company: cleanString(data.company),
@@ -128,9 +128,16 @@ export default async function handler(req: any, res: any) {
       return send(res, 403, { ok: false, code: 'account_inactive', error: 'This account is not active.' })
     }
 
-    const workspaceId = cleanString(account.plan?.workspace_id || account.workspace?.id)
+    const workspaceId = cleanString(account.workspace?.id || account.plan?.workspace_id)
     if (!workspaceId) {
-      return send(res, 409, { ok: false, code: 'missing_workspace', error: 'We could not identify your Deal Blast Pro workspace. Please refresh or contact support.' })
+      console.warn('[Deal Blast Pro] Buyer import missing workspace after authenticated resolution', {
+        userId: account.user?.id,
+        email: account.email,
+        hasProfile: Boolean(account.profile),
+        hasWorkspace: Boolean(account.workspace),
+        hasPlan: Boolean(account.plan),
+      })
+      return send(res, 409, { ok: false, code: 'missing_workspace', error: 'We could not access your buyer workspace. Please refresh and try again.' })
     }
 
     const body = parseJsonBody(req.body)
@@ -156,7 +163,8 @@ export default async function handler(req: any, res: any) {
       if (email && !existingByEmail.has(email)) existingByEmail.set(email, row)
     })
 
-    const payload = buyers.map((buyer: any) => buyerToRow(buyer, workspaceId, account.user.id, existingByEmail.get(normalizeEmail(buyer))))
+    const ownerUserId = cleanString(account.workspace?.owner_user_id || account.user.id)
+    const payload = buyers.map((buyer: any) => buyerToRow(buyer, workspaceId, account.user.id, ownerUserId, existingByEmail.get(normalizeEmail(buyer))))
 
     const { data, error } = await account.adminClient
       .from(BUYERS_TABLE)

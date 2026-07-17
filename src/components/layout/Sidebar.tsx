@@ -179,9 +179,9 @@ export default function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean;
       <div className="p-4 border-t border-[#252A38] text-[11px] text-[#8B92A3]">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 bg-[#22C55E] rounded-full animate-pulse" />
-          LIVE • {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          LIVE - {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </div>
-        <div className="mt-1">v1.0.4 • Demo Mode</div>
+        <div className="mt-1">v1.0.4 - {user ? 'Workspace Mode' : 'Demo Mode'}</div>
       </div>
     </aside>
   )

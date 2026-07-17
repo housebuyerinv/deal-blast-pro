@@ -109,7 +109,7 @@ async function importBuyersThroughApi(buyers: any[]): Promise<BuyerSyncResult<an
 
 function classifyBuyerImportError(code?: string) {
   if (code === 'auth_required' || code === 'invalid_session') return 'Your session has expired. Please sign in again.'
-  if (code === 'missing_workspace') return 'We could not identify your Deal Blast Pro workspace. Please refresh or contact support.'
+  if (code === 'missing_workspace') return 'We could not access your buyer workspace. Please refresh and try again.'
   if (code === 'capacity_exceeded') return 'Your selected buyers exceed the remaining capacity for your plan.'
   if (code === 'permission_denied') return 'You do not have permission to add buyers to this workspace.'
   if (code === 'network_error') return 'Buyer import could not reach the server. Please try again.'
@@ -672,7 +672,7 @@ export async function upsertBuyersToSupabase(buyers: any[]): Promise<BuyerSyncRe
     if (!scopeFilter) {
       return {
         ok: false,
-        error: 'Buyer sync requires an owner-scoped buyers table before cloud buyer saves are enabled.',
+        error: 'We could not access your buyer workspace. Please refresh and try again.',
       }
     }
 

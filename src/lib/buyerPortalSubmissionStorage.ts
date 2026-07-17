@@ -135,18 +135,39 @@ export const countPendingBuyerPortalSubmissions = async () => {
   return rows.length
 }
 
-export const markBuyerPortalSubmissionsImported = async (ids: string[]) => {
+export const markBuyerPortalSubmissionsImported = async (ids: string[], metadata: {
+  buyerId?: string
+  approvedBy?: string
+} = {}) => {
   if (!ids.length) return
 
   const client = requireSupabase()
+  const now = new Date().toISOString()
 
-  const { error } = await client
+  const fullUpdate = {
+    status: 'imported',
+    imported_at: now,
+    approved_at: now,
+    approved_by: metadata.approvedBy || null,
+    created_buyer_id: metadata.buyerId || null,
+  }
+  const fallbackUpdate = {
+    status: 'imported',
+    imported_at: now,
+  }
+
+  let { error } = await client
     .from(BUYER_PORTAL_SUBMISSIONS_TABLE)
-    .update({
-      status: 'imported',
-      imported_at: new Date().toISOString(),
-    })
+    .update(fullUpdate)
     .in('id', ids)
+
+  if (error && /approved_at|approved_by|created_buyer_id|column|schema/i.test(String(error.message || error.details || error))) {
+    const fallback = await client
+      .from(BUYER_PORTAL_SUBMISSIONS_TABLE)
+      .update(fallbackUpdate)
+      .in('id', ids)
+    error = fallback.error
+  }
 
   if (error) {
     throw error

@@ -75,24 +75,85 @@ export async function getAuthenticatedAccount(req: any) {
   const user = userData.user
   const email = cleanString(user.email)
   const isOwnerAdmin = isOwnerAdminEmail(email)
+  const fullName = cleanString(user.user_metadata?.full_name || user.user_metadata?.name || email.split('@')[0] || 'User')
+  const workspaceName = cleanString(user.user_metadata?.company || user.user_metadata?.business_name || `${fullName}'s Workspace`)
 
-  const { data: profile } = await adminClient
+  let { data: profile } = await adminClient
     .from('account_profiles')
     .select('user_id,email,full_name,display_name,business_name,company,role,account_status,deactivated_at')
     .eq('user_id', user.id)
     .maybeSingle()
 
-  const { data: workspace } = await adminClient
+  if (!profile) {
+    const { data: repairedProfile } = await adminClient
+      .from('account_profiles')
+      .upsert({
+        user_id: user.id,
+        email: email.toLowerCase(),
+        full_name: fullName,
+        company: cleanString(user.user_metadata?.company || user.user_metadata?.business_name),
+        role: 'Admin',
+      }, { onConflict: 'user_id' })
+      .select('user_id,email,full_name,display_name,business_name,company,role,account_status,deactivated_at')
+      .maybeSingle()
+    profile = repairedProfile || null
+  }
+
+  let { data: workspace } = await adminClient
     .from('workspaces')
     .select('id,owner_user_id,owner_email,name,account_status,deactivated_at')
     .eq('owner_user_id', user.id)
     .maybeSingle()
 
-  const { data: plan } = await adminClient
+  if (!workspace) {
+    const { data: repairedWorkspace } = await adminClient
+      .from('workspaces')
+      .upsert({
+        owner_user_id: user.id,
+        owner_email: email.toLowerCase(),
+        name: workspaceName,
+      }, { onConflict: 'owner_user_id' })
+      .select('id,owner_user_id,owner_email,name,account_status,deactivated_at')
+      .maybeSingle()
+    workspace = repairedWorkspace || null
+  }
+
+  let { data: plan } = await adminClient
     .from('workspace_plan_assignments')
     .select('workspace_id,user_id,plan_name,billing_status,trial_status,payment_status,access_status,access_deactivated_at,stripe_customer_id,stripe_subscription_id,subscription_status,current_period_end,cancel_at_period_end,outstanding_balance,latest_invoice_status,latest_invoice_hosted_url,latest_invoice_pdf,current_plan,effective_access_plan,scheduled_plan,scheduled_plan_change_at,billing_interval,stripe_price_id')
     .eq('user_id', user.id)
     .maybeSingle()
+
+  if (!plan && workspace?.id) {
+    const { data: planByWorkspace } = await adminClient
+      .from('workspace_plan_assignments')
+      .select('workspace_id,user_id,plan_name,billing_status,trial_status,payment_status,access_status,access_deactivated_at,stripe_customer_id,stripe_subscription_id,subscription_status,current_period_end,cancel_at_period_end,outstanding_balance,latest_invoice_status,latest_invoice_hosted_url,latest_invoice_pdf,current_plan,effective_access_plan,scheduled_plan,scheduled_plan_change_at,billing_interval,stripe_price_id')
+      .eq('workspace_id', workspace.id)
+      .maybeSingle()
+    plan = planByWorkspace || null
+  }
+
+  if (workspace?.id && (!plan || cleanString(plan.user_id) !== user.id || cleanString(plan.workspace_id) !== workspace.id)) {
+    const repairedPlan = {
+      ...(plan || {}),
+      workspace_id: workspace.id,
+      user_id: user.id,
+      plan_name: cleanString(plan?.plan_name) || (isOwnerAdmin ? 'Owner Admin' : 'Free'),
+      billing_status: cleanString(plan?.billing_status) || (isOwnerAdmin ? 'Comped' : 'Free Active'),
+      trial_status: cleanString(plan?.trial_status) || (isOwnerAdmin ? 'Comped' : 'Trial Active'),
+      payment_status: cleanString(plan?.payment_status) || (isOwnerAdmin ? 'No payment required' : 'No payment required'),
+      access_status: cleanString(plan?.access_status) || 'Active',
+      current_plan: cleanString(plan?.current_plan) || cleanString(plan?.plan_name) || (isOwnerAdmin ? 'Owner Admin' : 'Free'),
+      effective_access_plan: cleanString(plan?.effective_access_plan) || cleanString(plan?.plan_name) || (isOwnerAdmin ? 'Owner Admin' : 'Free'),
+    }
+
+    const { data: updatedPlan } = await adminClient
+      .from('workspace_plan_assignments')
+      .upsert(repairedPlan, { onConflict: 'workspace_id' })
+      .select('workspace_id,user_id,plan_name,billing_status,trial_status,payment_status,access_status,access_deactivated_at,stripe_customer_id,stripe_subscription_id,subscription_status,current_period_end,cancel_at_period_end,outstanding_balance,latest_invoice_status,latest_invoice_hosted_url,latest_invoice_pdf,current_plan,effective_access_plan,scheduled_plan,scheduled_plan_change_at,billing_interval,stripe_price_id')
+      .maybeSingle()
+    plan = updatedPlan || plan
+  }
 
   const profileStatus = cleanString(profile?.account_status || 'Active')
   const workspaceStatus = cleanString(workspace?.account_status || 'Active')
