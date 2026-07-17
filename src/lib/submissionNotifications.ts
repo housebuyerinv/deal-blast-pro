@@ -45,6 +45,33 @@ export function getLastSubmissionNotificationWarning() {
 
 export const notifySubmission = async (type: SubmissionNotificationType, data: any, options: SubmissionNotificationOptions = {}): Promise<SubmissionNotificationResult> => {
   try {
+    const relatedRecordId = options.relatedRecordId || data?.id || data?.submissionId
+
+    if (type === 'deal' || type === 'buyer') {
+      if (!relatedRecordId) {
+        recordNotificationWarning(type, 'Saved submission ID is missing.')
+        return { ok: false, reason: 'Saved submission ID is missing.', warning: 'Email Notifications Needs Review' }
+      }
+
+      const response = await fetch('/api/submission-notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type,
+          submissionId: relatedRecordId,
+        }),
+      })
+      const payload = await response.json().catch(() => ({}))
+
+      if (!response.ok || payload?.ok === false) {
+        console.warn('[Deal Blast Pro] Submission notification failed:', payload)
+        recordNotificationWarning(type, 'Email notification provider could not send.')
+        return { ok: false, data: payload, warning: 'Email Notifications Needs Review' }
+      }
+
+      return { ok: true, data: payload }
+    }
+
     if (!supabase) {
       recordNotificationWarning(type, 'Email notification provider is not configured.')
       return { ok: false, skipped: true, reason: 'Supabase client missing', warning: 'Email Notifications Needs Review' }
@@ -56,7 +83,7 @@ export const notifySubmission = async (type: SubmissionNotificationType, data: a
         data,
         eventType: options.eventType,
         workspaceId: options.workspaceId || 'default',
-        relatedRecordId: options.relatedRecordId || data?.id || data?.submissionId,
+        relatedRecordId,
       },
     })
 

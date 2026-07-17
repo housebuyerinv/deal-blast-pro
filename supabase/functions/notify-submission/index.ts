@@ -715,32 +715,53 @@ Review: ${portalUrl}`,
     const name = getValue(data, ['name', 'fullName', 'buyerName', 'contactName']) || 'New Buyer'
     const email = getValue(data, ['email', 'Email'])
     const phone = getValue(data, ['phone', 'mobile', 'cell'])
+    const company = getValue(data, ['company', 'entity', 'business'])
     const markets = getValue(data, ['markets', 'targetMarkets', 'target_markets'])
+    const assetTypes = getValue(data, ['assetTypes', 'asset_types', 'assetFocus'])
+    const buyerType = getValue(data, ['type', 'buyerType', 'buyer_type'])
     const budget = getValue(data, ['budget', 'budgetMax', 'maxBudget', 'purchaseBudget'])
     const strategy = getValue(data, ['strategy', 'exitStrategy', 'strategies', 'investmentStrategy'])
+    const proofCount = Array.isArray(data?.proofFiles)
+      ? data.proofFiles.length
+      : Array.isArray(data?.uploadedFiles)
+        ? data.uploadedFiles.length
+        : getValue(data, ['proofFileCount', 'proof_count']) || '0'
+    const reviewUrl = getValue(data, ['reviewUrl']) || portalUrl
 
     return {
-      subject: `New Buyer Portal Submission: ${name}`,
+      subject: `New Buyer Submission - ${name}`,
       text:
 `New buyer portal submission
 
+Submitted: ${safeText(getValue(data, ['submittedAt', 'createdAt']))}
 Name: ${safeText(name)}
+Company: ${safeText(company)}
 Email: ${safeText(email)}
 Phone: ${safeText(phone)}
 Markets: ${safeText(markets)}
+Asset Types: ${safeText(assetTypes)}
+Buyer Type: ${safeText(buyerType)}
 Budget: ${formatMoney(budget)}
 Strategy: ${safeText(strategy)}
+Proof-of-funds file count: ${safeText(proofCount)}
 
-Review: ${portalUrl}`,
+Sign in to Deal Blast Pro to review the complete submission.
+Review: ${reviewUrl}`,
       html: `
         <h2>New Buyer Portal Submission</h2>
+        <p><strong>Submitted:</strong> ${escapeHtml(getValue(data, ['submittedAt', 'createdAt']))}</p>
         <p><strong>Name:</strong> ${escapeHtml(name)}</p>
+        <p><strong>Company:</strong> ${escapeHtml(company)}</p>
         <p><strong>Email:</strong> ${escapeHtml(email)}</p>
         <p><strong>Phone:</strong> ${escapeHtml(phone)}</p>
         <p><strong>Markets:</strong> ${escapeHtml(markets)}</p>
+        <p><strong>Asset Types:</strong> ${escapeHtml(assetTypes)}</p>
+        <p><strong>Buyer Type:</strong> ${escapeHtml(buyerType)}</p>
         <p><strong>Budget:</strong> ${escapeHtml(formatMoney(budget))}</p>
         <p><strong>Strategy:</strong> ${escapeHtml(strategy)}</p>
-        <p><a href="${portalUrl}">Open Deal Blast Pro</a></p>
+        <p><strong>Proof-of-funds file count:</strong> ${escapeHtml(proofCount)}</p>
+        <p>Sign in to Deal Blast Pro to review the complete submission.</p>
+        <p><a href="${reviewUrl}">Open Buyer Portal Review Center</a></p>
       `,
       sms: `New buyer submission: ${name}. ${email || phone || ''}. Strategy: ${strategy || 'not provided'}.`
     }
@@ -751,14 +772,23 @@ Review: ${portalUrl}`,
   const email = getValue(data, ['email', 'sellerEmail', 'seller_email'])
   const phone = getValue(data, ['phone', 'sellerPhone', 'seller_phone'])
   const price = getValue(data, ['askingPrice', 'asking_price', 'price', 'purchasePrice'])
+  const arv = getValue(data, ['arv', 'estimatedArv', 'afterRepairValue'])
   const market = [getValue(data, ['city']), getValue(data, ['state'])].filter(Boolean).join(', ') || getValue(data, ['market', 'location'])
   const asset = getValue(data, ['assetType', 'asset_type', 'propertyType', 'property_type'])
+  const bedrooms = getValue(data, ['bedrooms', 'beds'])
+  const bathrooms = getValue(data, ['bathrooms', 'baths'])
+  const sqft = getValue(data, ['sqft', 'squareFeet', 'square_feet'])
+  const uploadedFiles = Array.isArray(data?.uploadedFiles) ? data.uploadedFiles : []
+  const photoCount = uploadedFiles.filter((file: any) => String(file?.fileType || file?.type || '').startsWith('image/')).length
+  const documentCount = uploadedFiles.length ? uploadedFiles.length - photoCount : getValue(data, ['documentCount']) || '0'
+  const reviewUrl = getValue(data, ['reviewUrl']) || portalUrl
 
   return {
-    subject: `New Deal Portal Submission: ${address}`,
+    subject: address === 'New Deal' ? 'New Deal Submission Received' : `New Deal Submission - ${address}`,
     text:
 `New deal portal submission
 
+Submitted: ${safeText(getValue(data, ['submittedAt', 'createdAt']))}
 Property: ${safeText(address)}
 Seller/Contact: ${safeText(seller)}
 Email: ${safeText(email)}
@@ -766,10 +796,16 @@ Phone: ${safeText(phone)}
 Market: ${safeText(market)}
 Asset Type: ${safeText(asset)}
 Asking Price: ${formatMoney(price)}
+ARV: ${formatMoney(arv)}
+Beds/Baths/Sq Ft: ${safeText([bedrooms, bathrooms, sqft].filter(Boolean).join(' / '))}
+Photo Count: ${safeText(photoCount)}
+Document Count: ${safeText(documentCount)}
 
-Review: ${portalUrl}`,
+Sign in to Deal Blast Pro to review the complete submission.
+Review: ${reviewUrl}`,
     html: `
       <h2>New Deal Portal Submission</h2>
+      <p><strong>Submitted:</strong> ${escapeHtml(getValue(data, ['submittedAt', 'createdAt']))}</p>
       <p><strong>Property:</strong> ${escapeHtml(address)}</p>
       <p><strong>Seller/Contact:</strong> ${escapeHtml(seller)}</p>
       <p><strong>Email:</strong> ${escapeHtml(email)}</p>
@@ -777,7 +813,12 @@ Review: ${portalUrl}`,
       <p><strong>Market:</strong> ${escapeHtml(market)}</p>
       <p><strong>Asset Type:</strong> ${escapeHtml(asset)}</p>
       <p><strong>Asking Price:</strong> ${escapeHtml(formatMoney(price))}</p>
-      <p><a href="${portalUrl}">Open Deal Blast Pro</a></p>
+      <p><strong>ARV:</strong> ${escapeHtml(formatMoney(arv))}</p>
+      <p><strong>Beds/Baths/Sq Ft:</strong> ${escapeHtml([bedrooms, bathrooms, sqft].filter(Boolean).join(' / '))}</p>
+      <p><strong>Photo Count:</strong> ${escapeHtml(photoCount)}</p>
+      <p><strong>Document Count:</strong> ${escapeHtml(documentCount)}</p>
+      <p>Sign in to Deal Blast Pro to review the complete submission.</p>
+      <p><a href="${reviewUrl}">Open Deal Submission Review</a></p>
     `,
     sms: `New deal submission: ${address}. ${price ? 'Ask ' + formatMoney(price) + '. ' : ''}${seller || email || phone || ''}`
   }
