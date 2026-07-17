@@ -4,6 +4,7 @@ import { useAppStore } from '../../store/useAppStore'
 import { Link } from 'react-router-dom'
 import { DollarSign, AlertTriangle, TrendingUp, Clock, FileText, Target } from 'lucide-react'
 import { listPendingDealSubmissions } from '../../lib/dealSubmissionStorage'
+import { downloadInventoryExport } from '../../lib/inventoryDownload'
 import { useEffect } from 'react'
 
 const safeLower = (value: any) => String(value ?? '').toLowerCase();
@@ -52,6 +53,10 @@ export default function Inventory() {
   const [viewMode, setViewMode] = useState<'grid' | 'pipeline'>('grid')
   const [needsAttentionOnly, setNeedsAttentionOnly] = useState(false)
   const [selectedDeals, setSelectedDeals] = useState<string[]>([])
+  const [downloadOpen, setDownloadOpen] = useState(false)
+  const [downloadMode, setDownloadMode] = useState<'selected' | 'all'>('all')
+  const [downloadScope, setDownloadScope] = useState<'all' | 'filtered'>('all')
+  const [downloadPreparing, setDownloadPreparing] = useState(false)
   const [sortMode, setSortMode] = useState<'newest' | 'oldest' | 'last-updated' | 'price-high' | 'price-low' | 'fee-high' | 'fee-low' | 'grade-a-f' | 'grade-f-a' | 'matches-most' | 'matches-least' | 'potential-most' | 'potential-least' | 'days-newest' | 'days-oldest' | 'needs-first' | 'closing-first' | 'under-first' | 'active-first' | 'type-az' | 'city-az' | 'state-az' | 'address-az' | 'address-za'>('newest')
 
   const filtered = (filter === 'All' ? allInventory : allInventory.filter(d => {
@@ -258,6 +263,48 @@ export default function Inventory() {
 
   const clearSelection = () => setSelectedDeals([])
 
+  const selectedInventoryDeals = allInventory.filter(d => selectedDeals.includes(d.id))
+
+  const openDownload = (mode: 'selected' | 'all') => {
+    if (mode === 'selected' && !selectedDeals.length) return
+    setDownloadMode(mode)
+    setDownloadScope(mode === 'selected' ? 'filtered' : 'all')
+    setDownloadOpen(true)
+  }
+
+  const downloadDealsForCurrentChoice = () => {
+    if (downloadMode === 'selected') return selectedInventoryDeals
+    return downloadScope === 'filtered' ? sortedDeals : allInventory
+  }
+
+  const runDownload = async (format: 'pdf' | 'xlsx' | 'csv' | 'json' | 'zip') => {
+    if (downloadPreparing) return
+    const deals = downloadDealsForCurrentChoice()
+    if (!deals.length) {
+      alert('No inventory deals are available for this download.')
+      return
+    }
+    setDownloadPreparing(true)
+    try {
+      await downloadInventoryExport({
+        format,
+        scope: downloadMode === 'selected' ? 'selected' : downloadScope,
+        deals,
+        allDeals: allInventory,
+        filteredDeals: sortedDeals,
+        filters: { search, typeFilter, statusFilter: filter, needsAttentionOnly, sortMode },
+      })
+      alert('Download ready.')
+      if (downloadMode === 'selected') clearSelection()
+      setDownloadOpen(false)
+    } catch (error) {
+      console.warn('[Deal Blast Pro] Inventory download failed', error)
+      alert("We couldn't prepare this download. Please try again.")
+    } finally {
+      setDownloadPreparing(false)
+    }
+  }
+
   const bulkUpdateStatus = (newStatus: string) => {
     selectedDeals.forEach(id => {
       useAppStore.getState().updateDeal(id, { status: newStatus as any })
@@ -275,14 +322,6 @@ export default function Inventory() {
         useAppStore.getState().updateDeal(id, { /* demo */ })
       }
     })
-    clearSelection()
-  }
-
-  const bulkExport = () => {
-    const selected = allInventory.filter(d => selectedDeals.includes(d.id))
-    const csv = selected.map(d => `${d.property.address},${d.submitter.name},${d.status}`).join('\n')
-    navigator.clipboard.writeText(csv)
-    alert(`Exported ${selected.length} deals (demo CSV copied to clipboard)`)
     clearSelection()
   }
 
@@ -337,7 +376,23 @@ export default function Inventory() {
           <div className="uppercase tracking-widest text-xs text-[#8B92A3]">INVENTORY HUB</div>
           <div className="text-2xl font-semibold">Active Portfolio — {filtered.length} deals</div>
         </div>
-        <Link to="/app/submissions" className="btn btn-ghost">Review Submissions ({pendingSubmissionCount})</Link>
+        <div className="flex flex-wrap justify-end gap-2">
+          <button
+            onClick={() => openDownload('selected')}
+            disabled={!selectedDeals.length || downloadPreparing}
+            className="btn btn-ghost disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Download Selected
+          </button>
+          <button
+            onClick={() => openDownload('all')}
+            disabled={!allInventory.length || downloadPreparing}
+            className="btn btn-ghost disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Download All
+          </button>
+          <Link to="/app/submissions" className="btn btn-ghost">Review Submissions ({pendingSubmissionCount})</Link>
+        </div>
       </div>
 
       {/* Portfolio KPI Bar - Command Center style */}
@@ -468,6 +523,52 @@ export default function Inventory() {
         </div>
       </div>
 
+      {downloadOpen && (
+        <div className="fixed inset-0 z-[220] bg-black/60 flex items-center justify-center p-4" onClick={() => !downloadPreparing && setDownloadOpen(false)}>
+          <div className="w-full max-w-lg rounded-xl border border-[#252A38] bg-[#12151F] p-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-lg font-semibold text-[#E6E8EE]">
+                  {downloadMode === 'selected' ? 'Download Selected Deals' : 'Download Inventory'}
+                </div>
+                <div className="text-sm text-[#8B92A3] mt-1">
+                  {downloadMode === 'selected'
+                    ? `${selectedInventoryDeals.length} selected deal${selectedInventoryDeals.length === 1 ? '' : 's'}`
+                    : downloadScope === 'filtered'
+                      ? `${sortedDeals.length} current filtered result${sortedDeals.length === 1 ? '' : 's'}`
+                      : `${allInventory.length} inventory deal${allInventory.length === 1 ? '' : 's'}`}
+                </div>
+              </div>
+              <button disabled={downloadPreparing} onClick={() => setDownloadOpen(false)} className="btn btn-ghost text-xs disabled:opacity-50">Close</button>
+            </div>
+
+            {downloadMode === 'all' && (
+              <div className="mt-4 rounded border border-[#252A38] bg-[#0A0C12] p-3">
+                <div className="text-xs uppercase tracking-widest text-[#8B92A3] mb-2">Scope</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button onClick={() => setDownloadScope('all')} className={`btn btn-ghost text-xs ${downloadScope === 'all' ? 'ring-1 ring-[#22C55E]' : ''}`}>All Inventory</button>
+                  <button onClick={() => setDownloadScope('filtered')} className={`btn btn-ghost text-xs ${downloadScope === 'filtered' ? 'ring-1 ring-[#22C55E]' : ''}`}>Current Filtered Results</button>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <button disabled={downloadPreparing} onClick={() => runDownload('pdf')} className="btn btn-green text-xs disabled:opacity-50">Download as PDF</button>
+              <button disabled={downloadPreparing} onClick={() => runDownload('xlsx')} className="btn btn-ghost text-xs disabled:opacity-50">Download as Excel</button>
+              <button disabled={downloadPreparing} onClick={() => runDownload('csv')} className="btn btn-ghost text-xs disabled:opacity-50">Download as CSV</button>
+              <button disabled={downloadPreparing} onClick={() => runDownload('json')} className="btn btn-ghost text-xs disabled:opacity-50">Download as JSON</button>
+              {downloadMode === 'all' && (
+                <button disabled={downloadPreparing} onClick={() => runDownload('zip')} className="btn btn-ghost text-xs sm:col-span-2 disabled:opacity-50">Download Complete Package</button>
+              )}
+            </div>
+
+            <div className="mt-3 text-xs text-[#8B92A3]">
+              {downloadPreparing ? 'Preparing your inventory export...' : 'Uploaded private file URLs are not included. Document and photo manifests are included instead.'}
+            </div>
+          </div>
+        </div>
+      )}
+
       {isClosingView ? (
         /* Dedicated Closing view with required fields */
         <div className="space-y-2">
@@ -511,7 +612,7 @@ export default function Inventory() {
                 <button onClick={() => bulkUpdateStatus('Dead')} className="btn btn-ghost text-xs px-3 py-1 text-red-400">Mark Dead</button>
                 <button onClick={() => bulkToggleNeedsAttention(true)} className="btn btn-ghost text-xs px-3 py-1">Add Needs Attention</button>
                 <button onClick={() => bulkToggleNeedsAttention(false)} className="btn btn-ghost text-xs px-3 py-1">Remove Needs Attention</button>
-                <button onClick={bulkExport} className="btn btn-ghost text-xs px-3 py-1">Export Selected</button>
+                <button onClick={() => openDownload('selected')} className="btn btn-ghost text-xs px-3 py-1">Download Selected</button>
                 <button onClick={bulkDelete} className="btn btn-ghost text-xs px-3 py-1 text-red-400">Delete Selected</button>
                 <button onClick={() => {
                   const ids = sortedDeals.map((d: any) => d.id)

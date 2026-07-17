@@ -2,9 +2,10 @@
 ﻿import React, { useState, useRef } from 'react'
 import { useAppStore } from '../../store/useAppStore'
 import { useNavigate } from 'react-router-dom'
-import { X, ExternalLink, Edit2, FileText, Users, CheckCircle, AlertTriangle, Save, Upload, Calculator, Target, Wrench, TrendingUp } from 'lucide-react'
+import { X, ExternalLink, Edit2, FileText, Users, CheckCircle, AlertTriangle, Save, Upload, Calculator, Target, Wrench, TrendingUp, Download } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatCurrency } from '../../lib/utils'
+import { downloadDealExport } from '../../lib/inventoryDownload'
 
 const safeLower = (value: any) => String(value ?? '').toLowerCase();
 
@@ -60,6 +61,8 @@ export default function DealTerminalDrawer({ dealId, onClose }: Props) {
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [lightboxPhotos, setLightboxPhotos] = useState<any[]>([])
   const [lightboxIndex, setLightboxIndex] = useState(0)
+  const [downloadMenuOpen, setDownloadMenuOpen] = useState(false)
+  const [downloadPreparing, setDownloadPreparing] = useState(false)
 
   // Bulk selection for Documents & Photos Manager (point 3)
   const [selectedDocIds, setSelectedDocIds] = useState<string[]>([])
@@ -461,6 +464,21 @@ export default function DealTerminalDrawer({ dealId, onClose }: Props) {
     // Status will reflect live in header via selector; deal now visible in Closing filter
   }
 
+  const runDealDownload = async (format: 'pdf' | 'xlsx' | 'csv' | 'json') => {
+    if (downloadPreparing) return
+    setDownloadPreparing(true)
+    try {
+      await downloadDealExport(safeDeal, format)
+      toast.success('Download ready')
+      setDownloadMenuOpen(false)
+    } catch (error) {
+      console.warn('[Inventory Download] Deal download failed', error)
+      toast.error("We couldn't prepare this download. Please try again.")
+    } finally {
+      setDownloadPreparing(false)
+    }
+  }
+
   // Use merged effective docs for all display + missing logic (fixes "uploads not appearing")
   const sourceLabel = safeDeal.source ? ` • ${safeDeal.source}` : ''
 
@@ -489,6 +507,7 @@ export default function DealTerminalDrawer({ dealId, onClose }: Props) {
               <button onClick={goToInventory} className="btn btn-ghost text-xs flex items-center gap-1"><ExternalLink size={14}/> Go to Inventory</button>
               <button onClick={editDeal} className="btn btn-ghost text-xs flex items-center gap-1"><Edit2 size={14}/> Edit Deal</button>
               <button onClick={viewDocuments} className="btn btn-ghost text-xs flex items-center gap-1"><FileText size={14}/> View Documents</button>
+              <button onClick={() => setDownloadMenuOpen(open => !open)} className="btn btn-green text-xs flex items-center gap-1"><Download size={14}/> Download Deal</button>
               <button onClick={buyerMatch} className="btn btn-ghost text-xs flex items-center gap-1"><Users size={14}/> Buyer Match</button>
               <button onClick={goToClosing} className="btn btn-ghost text-xs flex items-center gap-1"><CheckCircle size={14}/> Closing</button>
               <button onClick={updateMissing} className="btn btn-ghost text-xs flex items-center gap-1 text-amber-400"><AlertTriangle size={14}/> Update Missing Info</button>
@@ -513,6 +532,18 @@ export default function DealTerminalDrawer({ dealId, onClose }: Props) {
             </>
           )}
         </div>
+
+        {downloadMenuOpen && !isEditing && (
+          <div className="border-b border-[#252A38] px-4 py-3 bg-[#10141D] flex flex-wrap items-center gap-2 sticky top-[104px] z-10">
+            <span className="text-xs font-semibold text-[#C5CAD6] mr-1">Download Deal</span>
+            <button disabled={downloadPreparing} onClick={() => runDealDownload('pdf')} className="btn btn-green text-xs">PDF Report</button>
+            <button disabled={downloadPreparing} onClick={() => runDealDownload('xlsx')} className="btn btn-ghost text-xs">Excel</button>
+            <button disabled={downloadPreparing} onClick={() => runDealDownload('csv')} className="btn btn-ghost text-xs">CSV</button>
+            <button disabled={downloadPreparing} onClick={() => runDealDownload('json')} className="btn btn-ghost text-xs">JSON</button>
+            <button disabled={downloadPreparing} onClick={() => setDownloadMenuOpen(false)} className="btn btn-ghost text-xs ml-auto">Close</button>
+            {downloadPreparing && <span className="text-xs text-[#8B92A3]">Preparing download...</span>}
+          </div>
+        )}
 
         {/* SECTIONS: read-only by default; full inline edit forms when isEditing (for existing deal only) */}
         <div className="flex-1 p-5 space-y-4 bg-[#0A0C12] text-sm">
@@ -1065,6 +1096,9 @@ export default function DealTerminalDrawer({ dealId, onClose }: Props) {
 
         {/* Footer */}
         <div className="border-t border-[#252A38] p-4 flex gap-2 shrink-0 bg-[#0A0C12] sticky bottom-0 z-10">
+          {!isEditing && (
+            <button onClick={() => setDownloadMenuOpen(open => !open)} className="btn btn-green flex items-center gap-2"><Download size={16}/> Download Deal</button>
+          )}
           <button onClick={onClose} className="btn btn-primary flex-1">Close Drawer</button>
           <button onClick={() => drawerScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })} className="btn btn-ghost">Back to Top</button>
         </div>
