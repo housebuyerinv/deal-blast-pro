@@ -30,11 +30,18 @@ function clean(value: any) {
   return String(value || '').trim()
 }
 
+export function getPendingAuthEmailChange(authUser: any) {
+  return clean(authUser?.new_email || authUser?.newEmail || authUser?.email_change || authUser?.emailChange).toLowerCase()
+}
+
 export function getFriendlyEmailChangeError(error: any) {
   const message = clean(error?.message || error?.error_description || error?.code).toLowerCase()
   if (!message) return 'Unable to update email right now. Please try again.'
   if (message.includes('already') || message.includes('registered') || message.includes('exists')) {
     return 'That email address is already in use.'
+  }
+  if ((message.includes('otp') || message.includes('link')) && (message.includes('expired') || message.includes('invalid'))) {
+    return 'This email change link is invalid or has expired. Request a new change when ready.'
   }
   if (message.includes('invalid') || message.includes('format')) {
     return 'Enter a valid email address.'
@@ -77,6 +84,19 @@ export async function auditEmailChangeEvent(input: {
   if (!supabase || !input.userId) return
   try {
     const workspaceId = await resolveAccountWorkspaceId(input.userId)
+    if (input.status === 'email_change_requested' || input.status === 'email_change_completed') {
+      const { data: existing } = await supabase
+        .from('account_profile_email_change_events')
+        .select('id')
+        .eq('user_id', input.userId)
+        .eq('event_type', input.status)
+        .eq('requested_email', clean(input.requestedEmail).toLowerCase())
+        .order('created_at', { ascending: false })
+        .limit(1)
+
+      if (existing && existing.length > 0) return
+    }
+
     await supabase.from('account_profile_email_change_events').insert({
       user_id: input.userId,
       workspace_id: workspaceId,
@@ -212,6 +232,7 @@ export async function syncVerifiedAuthEmailToProfile() {
   if (userError) throw userError
   const authUser = userData.user
   const verifiedEmail = clean(authUser?.email).toLowerCase()
+  const pendingEmail = getPendingAuthEmailChange(authUser)
   if (!authUser?.id || !verifiedEmail) throw new Error('Sign in before syncing your verified email.')
 
   const { data: before } = await supabase
@@ -221,6 +242,7 @@ export async function syncVerifiedAuthEmailToProfile() {
     .maybeSingle()
 
   const previousEmail = clean(before?.email).toLowerCase()
+  let profileUpdated = false
   if (previousEmail && previousEmail !== verifiedEmail) {
     const { error } = await supabase
       .from('account_profiles')
@@ -241,6 +263,7 @@ export async function syncVerifiedAuthEmailToProfile() {
       throw error
     }
 
+    profileUpdated = true
     await auditEmailChangeEvent({
       userId: authUser.id,
       currentEmail: previousEmail,
@@ -250,5 +273,10 @@ export async function syncVerifiedAuthEmailToProfile() {
     })
   }
 
-  return { verifiedEmail, previousEmail }
+  return {
+    verifiedEmail,
+    previousEmail,
+    pendingEmail: pendingEmail && pendingEmail !== verifiedEmail ? pendingEmail : '',
+    completed: Boolean(previousEmail && previousEmail !== verifiedEmail && profileUpdated),
+  }
 }

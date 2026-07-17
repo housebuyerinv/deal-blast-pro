@@ -11,6 +11,16 @@ import {
   syncVerifiedAuthEmailToProfile,
 } from '../../lib/accountProfile'
 
+function readCallbackError() {
+  const params = new URLSearchParams(window.location.search)
+  const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+  const errorCode = params.get('error_code') || hashParams.get('error_code')
+  const errorDescription = params.get('error_description') || hashParams.get('error_description')
+  const error = params.get('error') || hashParams.get('error')
+  if (!error && !errorCode && !errorDescription) return null
+  return new Error(errorDescription || errorCode || error || 'Authentication callback failed.')
+}
+
 export default function AuthCallback() {
   const navigate = useNavigate()
   const login = useAppStore(s => s.login)
@@ -25,6 +35,8 @@ export default function AuthCallback() {
         const code = params.get('code')
         const callbackType = params.get('type')
         const isEmailChangeCallback = callbackType === 'email_change'
+        const callbackError = readCallbackError()
+        if (callbackError) throw callbackError
 
         if (code) {
           const { error } = await supabase.auth.exchangeCodeForSession(code)
@@ -42,7 +54,7 @@ export default function AuthCallback() {
         }
 
         const userEmail = data.user.email
-        let syncedEmailResult: { verifiedEmail: string; previousEmail: string } | null = null
+        let syncedEmailResult: Awaited<ReturnType<typeof syncVerifiedAuthEmailToProfile>> | null = null
         if (isEmailChangeCallback) {
           syncedEmailResult = await syncVerifiedAuthEmailToProfile()
         }
@@ -86,12 +98,25 @@ export default function AuthCallback() {
 
         if (!cancelled) {
           if (isEmailChangeCallback) {
-            if (syncedEmailResult?.verifiedEmail) {
+            if (syncedEmailResult?.completed) {
               try {
                 localStorage.removeItem(`dbp:pending-email-change:${data.user.id}`)
               } catch {}
+              toast.success('Email address updated successfully.')
+              navigate('/app/settings', { replace: true })
+              return
             }
-            toast.success('Email address updated successfully.')
+
+            if (syncedEmailResult?.pendingEmail) {
+              try {
+                localStorage.setItem(`dbp:pending-email-change:${data.user.id}`, syncedEmailResult.pendingEmail)
+              } catch {}
+              toast.info('Email change pending. Confirmation is required from both your current email and your new email.')
+              navigate('/app/settings?emailChange=pending', { replace: true })
+              return
+            }
+
+            toast.info('Email confirmation processed. Sign in again if the email change has not completed.')
             navigate('/app/settings', { replace: true })
           } else {
             toast.success('Email verified. Welcome back.')
@@ -99,19 +124,23 @@ export default function AuthCallback() {
           }
         }
       } catch (err: any) {
-        try {
-          const { data } = await supabase.auth.getUser()
-          const authUser = data.user
-          if (authUser?.id) {
-            await auditEmailChangeEvent({
-              userId: authUser.id,
-              currentEmail: authUser.email || '',
-              requestedEmail: authUser.email || '',
-              status: 'email_change_failed',
-              metadata: { failure_category: getFriendlyEmailChangeError(err) },
-            })
-          }
-        } catch {}
+        const params = new URLSearchParams(window.location.search)
+        const isEmailChangeCallback = params.get('type') === 'email_change'
+        if (isEmailChangeCallback) {
+          try {
+            const { data } = await supabase.auth.getUser()
+            const authUser = data.user
+            if (authUser?.id) {
+              await auditEmailChangeEvent({
+                userId: authUser.id,
+                currentEmail: authUser.email || '',
+                requestedEmail: authUser.email || '',
+                status: 'email_change_failed',
+                metadata: { failure_category: getFriendlyEmailChangeError(err) },
+              })
+            }
+          } catch {}
+        }
         if (!cancelled) {
           toast.error(getFriendlyEmailChangeError(err))
           navigate('/admin-login', { replace: true })

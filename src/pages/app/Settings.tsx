@@ -39,6 +39,7 @@ import {
 import { billingLinkFields, billingLinkLabels, buildStripeCheckoutUrl, getBillingSetupWithLaunchDefaults, getPlanPaymentLink, isValidPaymentUrl, type BillingFrequency, type PaidPlan } from '../../lib/billingLinks'
 import { AlertTriangle, Lock, Mail } from 'lucide-react'
 import {
+  getPendingAuthEmailChange,
   loadAccountProfile,
   profileToUserNames,
   requestVerifiedEmailChange,
@@ -1364,6 +1365,7 @@ export default function Settings() {
     setProfileLoading(true)
     try {
       const { authUser, profile } = await loadAccountProfile()
+      const authPendingEmail = getPendingAuthEmailChange(authUser)
       const names = profileToUserNames(profile, authUser.email || user.email)
       const next = {
         fullName: names.fullName || user.fullName || user.name || '',
@@ -1373,7 +1375,12 @@ export default function Settings() {
       }
       setProfileForm(next)
       setProfileInitial(next)
-      if (pendingEmailChange && pendingEmailChange === next.email.toLowerCase()) {
+      if (authPendingEmail && authPendingEmail !== next.email.toLowerCase()) {
+        setPendingEmailChange(authPendingEmail)
+        if (pendingEmailStorageKey) {
+          try { localStorage.setItem(pendingEmailStorageKey, authPendingEmail) } catch {}
+        }
+      } else if (pendingEmailChange && pendingEmailChange === next.email.toLowerCase()) {
         try { localStorage.removeItem(pendingEmailStorageKey) } catch {}
         setPendingEmailChange('')
       }
@@ -1456,7 +1463,7 @@ export default function Settings() {
         try { localStorage.setItem(pendingEmailStorageKey, requestedEmail) } catch {}
       }
       setPendingEmailChange(requestedEmail)
-      setEmailChangeMessage('Check your email to confirm this change.')
+      setEmailChangeMessage('Check both your current email and your new email to confirm this change.')
       toast.success('Check your email to confirm this change.')
       setEmailChangeValue('')
     } catch (error: any) {
@@ -2933,7 +2940,7 @@ export default function Settings() {
                       <span>{profileForm.email || user?.email || 'Not Provided'}</span>
                       {pendingEmailChange && pendingEmailChange !== String(profileForm.email || user?.email || '').toLowerCase() && (
                         <span className="mt-1 text-[11px] text-[#93C5FD]">
-                          Pending verification: {pendingEmailChange}
+                          Pending verification: {pendingEmailChange}. Confirmation is required from both your current email and your new email.
                         </span>
                       )}
                     </div>
@@ -2972,7 +2979,7 @@ export default function Settings() {
                     <div className="min-w-0 flex-1">
                       <div className="font-semibold text-[#E6E8EE]">Change verified email</div>
                       <div className="text-sm text-[#AAB2C5] mt-1">
-                        Enter the new email address. The current sign-in email stays active until Supabase verifies the change.
+                        Enter the new email address. The current sign-in email stays active until Supabase verifies the change from both email addresses.
                       </div>
                       <div className="mt-3 flex flex-col sm:flex-row gap-2">
                         <input
