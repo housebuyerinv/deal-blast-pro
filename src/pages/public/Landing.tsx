@@ -76,7 +76,7 @@ export default function Landing() {
         <section className="max-w-7xl mx-auto px-6 py-14">
           <div className="mb-8">
             <div className="text-[#22C55E] text-sm font-semibold tracking-[1px]">BUILT FOR REAL ESTATE DEAL WORKFLOWS</div>
-            <h2 className="text-3xl font-semibold mt-2">Software for real estate dealmakers, not just wholesalers.</h2>
+            <h2 className="text-3xl font-semibold mt-2">Built for every side of the real estate deal.</h2>
             <p className="mt-3 max-w-3xl text-[#8B92A3]">
               Organize opportunities, buyers, documents, inventory, and follow-up from one connected workspace.
             </p>
