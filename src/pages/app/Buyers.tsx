@@ -12,6 +12,16 @@ import Tooltip from '../../components/Tooltip'
 import { fetchBuyersFromSupabase, updateBuyerInSupabase, deleteBuyersFromSupabase, deleteAllBuyersFromSupabase, upsertBuyersToSupabase } from '../../lib/buyerSupabaseSync'
 import { getEffectivePlan } from '../../lib/planAccess'
 import { canUseBuyerPortalReview, formatBuyerCapacityRemaining, getBuyerCapacity } from '../../lib/planEntitlements'
+import {
+  buildCreativeFinanceSourceText,
+  cloneCreativeFinanceDetails,
+  formatCreativeFinanceAmount,
+  formatCreativeFinancePercent,
+  hasCreativeFinanceDetails,
+  mergeCreativeFinanceDetails,
+  parseCreativeFinanceDetails,
+  type CreativeFinanceDetails,
+} from '../../lib/creativeFinanceParser'
 
 const safeLower = (value: any) => String(value ?? '').toLowerCase();
 
@@ -2101,79 +2111,38 @@ const cleanBuyerName = (value: any, emailValue = '') => {
   }
 
   const parseCreativeTerms = (text: string) => {
-    const raw = String(text || '').replace(/[â€“â€”]/g, '-')
-
-    const normalizeMoneyMax = (value: string) => {
-      const v = String(value || '').trim()
-      if (!v) return ''
-      const moneyMatches = Array.from(
-        v.matchAll(/\$\s*\d[\d,]*(?:\.\d+)?\s*[kKmM]?|\d[\d,]*(?:\.\d+)?\s*[kKmM]/g)
-      ).map(m => m[0].trim())
-      if (!moneyMatches.length) return ''
-      return moneyMatches[moneyMatches.length - 1]
-    }
-
-    const normalizePercentMax = (value: string) => {
-      const v = String(value || '').trim()
-      if (!v) return ''
-      const nums = Array.from(v.matchAll(/\d+(?:\.\d+)?/g)).map(m => Number(m[0]))
-      if (!nums.length) return ''
-      return nums[nums.length - 1] + '%'
-    }
-
-    const normalizeBalloonMax = (value: string) => {
-      const v = String(value || '').trim()
-      if (!v) return ''
-      const nums = Array.from(v.matchAll(/\d+/g)).map(m => Number(m[0]))
-      if (!nums.length) return ''
-      return nums[nums.length - 1] + ' years'
-    }
-
-    const normalizeCapMax = (value: string) => {
-      const v = String(value || '').trim()
-      if (!v) return ''
-      const nums = Array.from(v.matchAll(/\d+(?:\.\d+)?/g)).map(m => Number(m[0]))
-      if (!nums.length) return ''
-      return nums[nums.length - 1] + '% cap'
-    }
-
-    const downRaw =
-      raw.match(/(?:down payment|down|dp)\s*[:\-]?\s*\$?\s*\d[\d,]*(?:\.\d+)?\s*[kKmM]?(?:\s*-\s*\$?\s*\d[\d,]*(?:\.\d+)?\s*[kKmM]?)?/i)?.[0] ||
-      raw.match(/\$?\s*\d[\d,]*(?:\.\d+)?\s*[kKmM]?(?:\s*-\s*\$?\s*\d[\d,]*(?:\.\d+)?\s*[kKmM]?)?\s*(?:down payment|down|dp)/i)?.[0] || ''
-
-    const monthlyRaw =
-      raw.match(/(?:monthly payment|monthly budget|monthly|per month|\/\s*mo|\/\s*mth|mo|mth)\s*[:\-]?\s*\$?\s*\d[\d,]*(?:\.\d+)?\s*[kKmM]?/i)?.[0] ||
-      raw.match(/\$?\s*\d[\d,]*(?:\.\d+)?\s*[kKmM]?\s*(?:\/\s*mo|\/\s*mth|per month|monthly|mo|mth)/i)?.[0] || ''
-
-    const interestRaw =
-      raw.match(/(?:interest rate|rate|interest)\s*[:\-]?\s*\d+(?:\.\d+)?\s*%?(?:\s*-\s*\d+(?:\.\d+)?\s*%?)?/i)?.[0] ||
-      raw.match(/\d+(?:\.\d+)?\s*%?(?:\s*-\s*\d+(?:\.\d+)?\s*%?)?\s*(?:interest|rate)/i)?.[0] || ''
-
-    const balloonRaw =
-      raw.match(/(?:balloon term|balloon)\s*[:\-]?\s*\d+\s*(?:-\s*\d+\s*)?(?:year|yr|yrs|years|month|mo|mos|months)?/i)?.[0] ||
-      raw.match(/\d+\s*(?:-\s*\d+\s*)?(?:year|yr|yrs|years|month|mo|mos|months)\s*(?:balloon|term)?/i)?.[0] || ''
-
-    const capRaw =
-      raw.match(/(?:cap rate target|target cap|cap rate|cap)\s*[:\-]?\s*\d+(?:\.\d+)?\s*%?(?:\s*-\s*\d+(?:\.\d+)?\s*%?)?/i)?.[0] ||
-      raw.match(/\d+(?:\.\d+)?\s*%?(?:\s*-\s*\d+(?:\.\d+)?\s*%?)?\s*(?:cap|cap rate)/i)?.[0] || ''
-
-    const structures = []
-    if (/seller\s*financ(?:e|ing)/i.test(raw)) structures.push('Seller Finance')
-    if (/owner\s*financ(?:e|ing)/i.test(raw)) structures.push('Owner Finance')
-    if (/subject[ -]?to|subto|sub-to/i.test(raw)) structures.push('Subject-To')
-    if (/wrap/i.test(raw)) structures.push('Wrap')
-    if (/lease option/i.test(raw)) structures.push('Lease Option')
-    if (/rent to own|rto/i.test(raw)) structures.push('Rent To Own')
-    if (/contract for deed/i.test(raw)) structures.push('Contract For Deed')
-    if (/creative/i.test(raw)) structures.push('Creative Finance')
-
+    const details = parseCreativeFinanceDetails(text)
+    const downPaymentParts = [
+      details.minimumDownPayment !== undefined ? formatCreativeFinanceAmount(details.minimumDownPayment) : '',
+      details.maximumDownPayment !== undefined ? formatCreativeFinanceAmount(details.maximumDownPayment) : '',
+    ].filter(Boolean)
+    const downPercentParts = [
+      details.minimumDownPaymentPercent !== undefined ? formatCreativeFinancePercent(details.minimumDownPaymentPercent) : '',
+      details.maximumDownPaymentPercent !== undefined ? formatCreativeFinancePercent(details.maximumDownPaymentPercent) : '',
+    ].filter(Boolean)
     return {
-      downPaymentMax: normalizeMoneyMax(downRaw),
-      monthlyPaymentMax: normalizeMoneyMax(monthlyRaw),
-      interestRateMax: normalizePercentMax(interestRaw),
-      balloonTerm: normalizeBalloonMax(balloonRaw),
-      capRateTarget: normalizeCapMax(capRaw),
-      creativeStructure: Array.from(new Set(structures)).join(', ')
+      ...details,
+      creativeFinanceDetails: cloneCreativeFinanceDetails(details),
+      creativeStructures: details.creativeStructure
+        ? details.creativeStructure.split(';').map(part => part.trim()).filter(Boolean)
+        : [],
+      downPaymentMax: details.maximumDownPayment !== undefined
+        ? formatCreativeFinanceAmount(details.maximumDownPayment)
+        : downPercentParts.length
+          ? downPercentParts[downPercentParts.length - 1]
+          : '',
+      downPaymentRange: downPaymentParts.length === 2
+        ? downPaymentParts.join(' - ')
+        : downPercentParts.length === 2
+          ? downPercentParts.join(' - ')
+          : '',
+      monthlyPaymentMax: details.maximumMonthlyPayment !== undefined ? formatCreativeFinanceAmount(details.maximumMonthlyPayment) : '',
+      interestRateMax: details.maximumInterestRate !== undefined ? formatCreativeFinancePercent(details.maximumInterestRate) : '',
+      capRateTarget: '',
+      balloonTerm: details.balloonTermYears ? `${details.balloonTermYears} years` : details.balloonTermMonths ? `${details.balloonTermMonths} months` : '',
+      amortizationTerm: details.amortizationYears ? `${details.amortizationYears} years` : details.amortizationMonths ? `${details.amortizationMonths} months` : '',
+      creativeStructure: details.creativeStructure || '',
+      creativeFinanceNotes: details.creativeFinanceNotes || '',
     }
   }
 
@@ -2275,7 +2244,10 @@ const cleanBuyerName = (value: any, emailValue = '') => {
     const markets = normalizeExplicitMarkets(locationText, combined)
     const assetTypes = detectAssetTypes(buyBoxText || combined)
     const creativeTerms = parseCreativeTerms(combined)
+    const creativeDetails = mergeCreativeFinanceDetails(creativeTerms.creativeFinanceDetails)
+    const hasCreativeTerms = hasCreativeFinanceDetails(creativeDetails)
     const strategies = normalizeBuyerStrategies({ notes: text, buyBox: buyBoxText, rawText: combined })
+    const creativeNotes = creativeDetails.creativeFinanceNotes || ''
 
     return {
       name: cleanBuyerName(nameField || emailPrefixName, email),
@@ -2291,11 +2263,19 @@ const cleanBuyerName = (value: any, emailValue = '') => {
       investmentStrategy: strategies.join(', '),
       budgetMin: budget.budgetMin || undefined,
       budgetMax: budget.budgetMax || undefined,
-      notes: text.trim(),
+      notes: [text.trim(), creativeNotes ? `Creative Finance Details: ${creativeNotes}` : ''].filter(Boolean).join('\n\n'),
       status: 'Active' as const,
-      sellerFinance: /seller\s*financ(?:e|ing)|owner\s*financ(?:e|ing)/i.test(combined) || strategies.includes('Seller Finance'),
-      creativeFinance: isCreative || strategies.some(strategy => ['Creative Finance', 'Seller Finance', 'Subject To', 'Wrap', 'Lease Option', 'Novation'].includes(strategy)),
+      sellerFinance: !!creativeDetails.sellerFinanceAccepted || /seller\s*financ(?:e|ing)|owner\s*financ(?:e|ing)/i.test(combined) || strategies.includes('Seller Finance'),
+      creativeFinance: hasCreativeTerms || isCreative || strategies.some(strategy => ['Creative Finance', 'Seller Finance', 'Subject To', 'Wrap', 'Lease Option', 'Novation'].includes(strategy)),
+      subjectToAccepted: !!creativeDetails.subjectToAccepted,
+      assumableAccepted: !!creativeDetails.assumableAccepted,
+      leaseOptionAccepted: !!creativeDetails.leaseOptionAccepted,
+      wrapAccepted: !!creativeDetails.wrapAccepted,
+      sellerCarryAccepted: !!creativeDetails.sellerCarryAccepted,
+      dscrAccepted: !!creativeDetails.dscrAccepted,
       ...creativeTerms,
+      creativeFinanceDetails: cloneCreativeFinanceDetails(creativeDetails),
+      creativeStructures: [...((creativeTerms.creativeStructures as string[]) || [])],
       tags: [
         ...(/class\s*c\+?/i.test(combined) ? ['Class C+'] : []),
         ...(/class\s*b/i.test(combined) ? ['Class B'] : [])
@@ -3194,6 +3174,7 @@ const cleanBuyerName = (value: any, emailValue = '') => {
 
       const creativeParseText = [
         combinedText,
+        buildCreativeFinanceSourceText(raw),
         downText ? 'Down Payment ' + downText : '',
         monthlyText ? 'Monthly Payment ' + monthlyText : '',
         interestText ? 'Interest Rate ' + interestText : '',
@@ -3221,9 +3202,12 @@ const cleanBuyerName = (value: any, emailValue = '') => {
       const isCash = /\b(cash buyer|cash|proof of funds|pof|closes cash|cash close)\b/i.test(combinedText) && !isCreative
       const budgets = parseBudgetRange(raw)
       const creativeTerms = parseCreativeTerms(creativeParseText)
+      const creativeDetails = mergeCreativeFinanceDetails(creativeTerms.creativeFinanceDetails)
+      const hasCreativeTerms = hasCreativeFinanceDetails(creativeDetails)
+      const creativeStructures = [...((creativeTerms.creativeStructures as string[]) || [])]
       const explicitBuyerType = pick(raw, ['Buyer Type', 'Type', 'Investor Type', 'Strategy'])
       const parsedType = explicitBuyerType ||
-        (isCreative ? (isSellerFinance ? 'Seller Finance Buyer' : 'Creative Finance Buyer') :
+        ((isCreative || hasCreativeTerms) ? (isSellerFinance || creativeDetails.sellerFinanceAccepted ? 'Seller Finance Buyer' : 'Creative Finance Buyer') :
           isCash ? 'Cash Buyer' :
             /\bhedge fund|fund\b/i.test(combinedText) ? 'Hedge Fund' :
               /\bwholesaler|jv|joint venture\b/i.test(combinedText) ? 'JV / Wholesaler' :
@@ -3256,18 +3240,34 @@ const cleanBuyerName = (value: any, emailValue = '') => {
         exitStrategy: strategies.join(', '),
         investmentStrategy: strategies.join(', '),
         rawText: rawImportedText,
+        originalCriteria: notes,
         budgetMin: budgets.budgetMin,
         budgetMax: budgets.budgetMax,
-        creativeFinance: isCreative || strategies.some(strategy => ['Creative Finance', 'Seller Finance', 'Subject To', 'Wrap', 'Lease Option', 'Novation'].includes(strategy)),
-        sellerFinance: isSellerFinance || strategies.includes('Seller Finance'),
-        cashBuyer: isCash || strategies.some(strategy => ['Fix & Flip', 'BRRRR', 'Buy & Hold', 'Section 8', 'Wholesale', 'DSCR Rental'].includes(strategy)),
+        creativeFinance: hasCreativeTerms || isCreative || strategies.some(strategy => ['Creative Finance', 'Seller Finance', 'Subject To', 'Wrap', 'Lease Option', 'Novation'].includes(strategy)),
+        sellerFinance: !!creativeDetails.sellerFinanceAccepted || isSellerFinance || strategies.includes('Seller Finance'),
+        subjectToAccepted: !!creativeDetails.subjectToAccepted,
+        assumableAccepted: !!creativeDetails.assumableAccepted,
+        leaseOptionAccepted: !!creativeDetails.leaseOptionAccepted,
+        wrapAccepted: !!creativeDetails.wrapAccepted,
+        sellerCarryAccepted: !!creativeDetails.sellerCarryAccepted,
+        dscrAccepted: !!creativeDetails.dscrAccepted,
+        cashBuyer: /cash accepted|will buy all cash/i.test(String(creativeDetails.creativeStructure || '')) || isCash || strategies.some(strategy => ['Fix & Flip', 'BRRRR', 'Buy & Hold', 'Section 8', 'Wholesale', 'DSCR Rental'].includes(strategy)),
         downPaymentMax: formatDownPaymentField(creativeTerms.downPaymentMax || downText || ''),
+        downPaymentRange: creativeTerms.downPaymentRange || '',
         monthlyPaymentMax: formatMonthlyPaymentField(creativeTerms.monthlyPaymentMax || monthlyText || ''),
         interestRateMax: creativeTerms.interestRateMax || interestText || '',
         capRateTarget: creativeTerms.capRateTarget || capText || '',
         balloonTerm: creativeTerms.balloonTerm || balloonText || '',
+        amortizationTerm: creativeTerms.amortizationTerm || '',
         creativeStructure: creativeTerms.creativeStructure || (isSellerFinance ? 'Seller Finance' : ''),
-        notes: [rawNotes, parserNotes.join(' ')].filter(Boolean).join('\n\n'),
+        creativeFinanceDetails: cloneCreativeFinanceDetails(creativeDetails),
+        creativeStructures,
+        creativeFinanceNotes: creativeDetails.creativeFinanceNotes || '',
+        notes: [
+          rawNotes,
+          creativeDetails.creativeFinanceNotes ? `Creative Finance Details: ${creativeDetails.creativeFinanceNotes}` : '',
+          parserNotes.join(' ')
+        ].filter(Boolean).join('\n\n'),
         status: /(\bhot\b|vip|priority|responded|active|recent buyer)/i.test(combinedText) ? 'Hot' : 'New',
         source: 'CSV/TXT Import',
         tags: [
@@ -3420,8 +3420,118 @@ const cleanBuyerName = (value: any, emailValue = '') => {
     return parsed?.[field] || 'Any'
   }
 
+  const getCreativeFinanceDetailsForBuyer = (buyer: any): CreativeFinanceDetails => {
+    const buyerData = buyer && typeof buyer.data === 'object' && buyer.data ? buyer.data : {}
+    return mergeCreativeFinanceDetails(
+      buyer?.creativeFinanceDetails,
+      buyerData.creativeFinanceDetails,
+      {
+        sellerFinanceAccepted: buyer?.sellerFinance || buyerData.sellerFinance,
+        creativeFinanceAccepted: buyer?.creativeFinance || buyerData.creativeFinance,
+        subjectToAccepted: buyer?.subjectToAccepted || buyerData.subjectToAccepted,
+        assumableAccepted: buyer?.assumableAccepted || buyerData.assumableAccepted,
+        leaseOptionAccepted: buyer?.leaseOptionAccepted || buyerData.leaseOptionAccepted,
+        wrapAccepted: buyer?.wrapAccepted || buyerData.wrapAccepted,
+        sellerCarryAccepted: buyer?.sellerCarryAccepted || buyerData.sellerCarryAccepted,
+        dscrAccepted: buyer?.dscrAccepted || buyerData.dscrAccepted,
+        creativeStructure: buyer?.creativeStructure || buyer?.creative_structure || buyerData.creativeStructure,
+        creativeFinanceNotes: buyer?.creativeFinanceNotes || buyerData.creativeFinanceNotes,
+        maximumDownPayment: buyer?.maximumDownPayment || buyerData.maximumDownPayment,
+        maximumDownPaymentPercent: buyer?.maximumDownPaymentPercent || buyerData.maximumDownPaymentPercent,
+        minimumDownPayment: buyer?.minimumDownPayment || buyerData.minimumDownPayment,
+        minimumDownPaymentPercent: buyer?.minimumDownPaymentPercent || buyerData.minimumDownPaymentPercent,
+        maximumMonthlyPayment: buyer?.maximumMonthlyPayment || buyerData.maximumMonthlyPayment,
+        maximumInterestRate: buyer?.maximumInterestRate || buyerData.maximumInterestRate,
+        balloonTermYears: buyer?.balloonTermYears || buyerData.balloonTermYears,
+        balloonTermMonths: buyer?.balloonTermMonths || buyerData.balloonTermMonths,
+        amortizationYears: buyer?.amortizationYears || buyerData.amortizationYears,
+        amortizationMonths: buyer?.amortizationMonths || buyerData.amortizationMonths,
+        pitiIncluded: buyer?.pitiIncluded || buyerData.pitiIncluded,
+        existingMortgageAccepted: buyer?.existingMortgageAccepted || buyerData.existingMortgageAccepted,
+        mortgageRateMaximum: buyer?.mortgageRateMaximum || buyerData.mortgageRateMaximum,
+        equityRequirement: buyer?.equityRequirement || buyerData.equityRequirement,
+        occupancyRequirement: buyer?.occupancyRequirement || buyerData.occupancyRequirement,
+      }
+    )
+  }
+
+  const getCreativeFinanceDisplayFields = (buyer: any) => {
+    const details = getCreativeFinanceDetailsForBuyer(buyer)
+    const acceptedStructures = [
+      details.creativeStructure,
+      Array.isArray(buyer?.creativeStructures) ? buyer.creativeStructures.join('; ') : '',
+    ].filter(Boolean).join('; ')
+    const downPaymentRange =
+      details.minimumDownPaymentPercent !== undefined || details.maximumDownPaymentPercent !== undefined
+        ? [details.minimumDownPaymentPercent, details.maximumDownPaymentPercent]
+            .filter(value => value !== undefined)
+            .map(formatCreativeFinancePercent)
+            .join(' - ')
+        : details.minimumDownPayment !== undefined || details.maximumDownPayment !== undefined
+          ? [details.minimumDownPayment, details.maximumDownPayment]
+              .filter(value => value !== undefined)
+              .map(formatCreativeFinanceAmount)
+              .join(' - ')
+          : ''
+    const fields = [
+      ['Accepted Structures', acceptedStructures],
+      ['Maximum Down Payment', details.maximumDownPayment !== undefined ? formatCreativeFinanceAmount(details.maximumDownPayment) : details.maximumDownPaymentPercent !== undefined ? formatCreativeFinancePercent(details.maximumDownPaymentPercent) : buyer?.downPaymentMax],
+      ['Down Payment Range', downPaymentRange || buyer?.downPaymentRange],
+      ['Maximum Monthly Payment', details.maximumMonthlyPayment !== undefined ? formatCreativeFinanceAmount(details.maximumMonthlyPayment) : buyer?.monthlyPaymentMax],
+      ['Interest Rate Preference', details.maximumInterestRate !== undefined ? `Under ${formatCreativeFinancePercent(details.maximumInterestRate)}` : details.preferredInterestRate !== undefined ? formatCreativeFinancePercent(details.preferredInterestRate) : buyer?.interestRateMax],
+      ['Balloon Term', details.balloonTermYears ? `${details.balloonTermYears} years` : details.balloonTermMonths ? `${details.balloonTermMonths} months` : buyer?.balloonTerm],
+      ['Amortization', details.amortizationYears ? `${details.amortizationYears} years` : details.amortizationMonths ? `${details.amortizationMonths} months` : buyer?.amortizationTerm],
+      ['Existing Mortgage Requirements', [
+        details.existingMortgageAccepted ? 'Existing mortgage accepted' : '',
+        details.mortgageRateMaximum !== undefined ? `Mortgage rate under ${formatCreativeFinancePercent(details.mortgageRateMaximum)}` : '',
+      ].filter(Boolean).join('; ')],
+      ['PITI Requirement', details.pitiIncluded ? 'PITI included' : ''],
+      ['Equity Requirement', details.equityRequirement],
+      ['Occupancy Requirement', details.occupancyRequirement],
+      ['Creative Finance Notes', details.creativeFinanceNotes],
+    ].map(([label, value]) => ({
+      label: String(label),
+      value: value === undefined || value === null ? '' : String(value).trim(),
+    }))
+
+    return fields.filter(field => field.value)
+  }
+
+  const updateCreativeFinanceDetail = (row: any, field: keyof CreativeFinanceDetails, value: any) => {
+    const current = getCreativeFinanceDetailsForBuyer(row)
+    const nextDetails = cloneCreativeFinanceDetails({ ...current, [field]: value })
+    const mirrored: any = {
+      creativeFinanceDetails: nextDetails,
+      data: {
+        ...(row.data || {}),
+        creativeFinanceDetails: nextDetails,
+      },
+    }
+    if (field === 'creativeStructure') {
+      mirrored.creativeStructure = value
+      mirrored.creative_structure = value
+    }
+    if (field === 'creativeFinanceNotes') mirrored.creativeFinanceNotes = value
+    if (field === 'maximumDownPayment') mirrored.downPaymentMax = value
+    if (field === 'maximumMonthlyPayment') mirrored.monthlyPaymentMax = value
+    if (field === 'maximumInterestRate') mirrored.interestRateMax = value
+    return mirrored
+  }
+
   const updatePendingRow = (id: string, changes: any) => {
-    setPendingImport(prev => prev.map(r => r._id === id ? { ...r, ...changes } : r))
+    setPendingImport(prev => prev.map(r => {
+      if (r._id !== id) return r
+      const next = { ...r, ...changes }
+      if (changes.creativeFinanceDetails) {
+        next.creativeFinanceDetails = cloneCreativeFinanceDetails(changes.creativeFinanceDetails)
+        next.data = {
+          ...(r.data || {}),
+          ...(changes.data || {}),
+          creativeFinanceDetails: cloneCreativeFinanceDetails(changes.creativeFinanceDetails),
+        }
+      }
+      return next
+    }))
   }
 
   useEffect(() => {
@@ -3529,6 +3639,51 @@ const cleanBuyerName = (value: any, emailValue = '') => {
     const creativeFinance = toBool(buyer.creativeFinance)
     const sellerFinance = toBool(buyer.sellerFinance)
     const strategies = normalizeBuyerStrategies(buyer)
+    const parsedCreativeDetails = parseCreativeFinanceDetails({
+      ...buyer,
+      criteria: buyer.criteria || buyer.originalCriteria || buyer.notes || buyer.buyBox,
+    })
+    const creativeFinanceDetails = mergeCreativeFinanceDetails(
+      parsedCreativeDetails,
+      buyer.creativeFinanceDetails,
+      buyer.data?.creativeFinanceDetails,
+      {
+        creativeFinanceNotes: buyer.creativeFinanceNotes || buyer.data?.creativeFinanceNotes,
+        creativeStructure: buyer.creativeStructure || buyer.creative_structure || buyer.data?.creativeStructure,
+      }
+    )
+    const hasCreativeTerms = hasCreativeFinanceDetails(creativeFinanceDetails)
+    const creativeStructures = creativeFinanceDetails.creativeStructure
+      ? creativeFinanceDetails.creativeStructure.split(';').map(part => part.trim()).filter(Boolean)
+      : Array.isArray(buyer.creativeStructures) ? [...buyer.creativeStructures] : []
+    const downPaymentMax = formatDownPaymentField(
+      buyer.downPaymentMax ||
+      buyer['Down Payment Max'] ||
+      buyer.downPayment ||
+      (creativeFinanceDetails.maximumDownPayment !== undefined ? formatCreativeFinanceAmount(creativeFinanceDetails.maximumDownPayment) : '') ||
+      (creativeFinanceDetails.maximumDownPaymentPercent !== undefined ? formatCreativeFinancePercent(creativeFinanceDetails.maximumDownPaymentPercent) : '')
+    )
+    const monthlyPaymentMax = formatMonthlyPaymentField(
+      buyer.monthlyPaymentMax ||
+      buyer['Monthly Payment Max'] ||
+      buyer.monthlyPayment ||
+      (creativeFinanceDetails.maximumMonthlyPayment !== undefined ? formatCreativeFinanceAmount(creativeFinanceDetails.maximumMonthlyPayment) : '')
+    )
+    const interestRateMax =
+      buyer.interestRateMax ||
+      buyer['Interest Rate Max'] ||
+      buyer.interestRate ||
+      (creativeFinanceDetails.maximumInterestRate !== undefined ? formatCreativeFinancePercent(creativeFinanceDetails.maximumInterestRate) : '')
+    const balloonTerm =
+      buyer.balloonTerm ||
+      buyer['Balloon Term'] ||
+      buyer.balloon ||
+      (creativeFinanceDetails.balloonTermYears ? `${creativeFinanceDetails.balloonTermYears} years` : '') ||
+      (creativeFinanceDetails.balloonTermMonths ? `${creativeFinanceDetails.balloonTermMonths} months` : '')
+    const amortizationTerm =
+      buyer.amortizationTerm ||
+      (creativeFinanceDetails.amortizationYears ? `${creativeFinanceDetails.amortizationYears} years` : '') ||
+      (creativeFinanceDetails.amortizationMonths ? `${creativeFinanceDetails.amortizationMonths} months` : '')
 
     return {
       ...buyer,
@@ -3544,13 +3699,25 @@ const cleanBuyerName = (value: any, emailValue = '') => {
       bedRequirement: buyer.bedRequirement && buyer.bedRequirement !== 'Any' ? buyer.bedRequirement : parsePropertyRequirements([buyer.notes, buyer.buyBox, buyer.rawText, buyer.assetTypes].filter(Boolean).join(' | ')).bedRequirement,
       bathRequirement: buyer.bathRequirement && buyer.bathRequirement !== 'Any' ? buyer.bathRequirement : parsePropertyRequirements([buyer.notes, buyer.buyBox, buyer.rawText, buyer.assetTypes].filter(Boolean).join(' | ')).bathRequirement,
       unitRequirement: buyer.unitRequirement && buyer.unitRequirement !== 'Any' ? buyer.unitRequirement : parsePropertyRequirements([buyer.notes, buyer.buyBox, buyer.rawText, buyer.assetTypes].filter(Boolean).join(' | ')).unitRequirement,
-      downPaymentMax: formatDownPaymentField(buyer.downPaymentMax || buyer['Down Payment Max'] || buyer.downPayment),
-      monthlyPaymentMax: formatMonthlyPaymentField(buyer.monthlyPaymentMax || buyer['Monthly Payment Max'] || buyer.monthlyPayment),
-      interestRateMax: buyer.interestRateMax || buyer['Interest Rate Max'] || buyer.interestRate || '',
+      downPaymentMax,
+      monthlyPaymentMax,
+      interestRateMax,
       capRateTarget: buyer.capRateTarget || buyer['Cap Rate Target'] || buyer.capRate || '',
-      balloonTerm: buyer.balloonTerm || buyer['Balloon Term'] || buyer.balloon || '',
-      sellerFinance,
-      creativeFinance,
+      balloonTerm,
+      amortizationTerm,
+      creativeStructure: creativeFinanceDetails.creativeStructure || buyer.creativeStructure || buyer.creative_structure || '',
+      creative_structure: creativeFinanceDetails.creativeStructure || buyer.creative_structure || buyer.creativeStructure || '',
+      creativeFinanceNotes: creativeFinanceDetails.creativeFinanceNotes || buyer.creativeFinanceNotes || '',
+      creativeFinanceDetails: cloneCreativeFinanceDetails(creativeFinanceDetails),
+      creativeStructures: [...creativeStructures],
+      sellerFinance: sellerFinance || !!creativeFinanceDetails.sellerFinanceAccepted,
+      creativeFinance: creativeFinance || hasCreativeTerms,
+      subjectToAccepted: !!creativeFinanceDetails.subjectToAccepted,
+      assumableAccepted: !!creativeFinanceDetails.assumableAccepted,
+      leaseOptionAccepted: !!creativeFinanceDetails.leaseOptionAccepted,
+      wrapAccepted: !!creativeFinanceDetails.wrapAccepted,
+      sellerCarryAccepted: !!creativeFinanceDetails.sellerCarryAccepted,
+      dscrAccepted: !!creativeFinanceDetails.dscrAccepted,
       cashBuyer: buyer.cashBuyer !== undefined ? toBool(buyer.cashBuyer) : /\bcash\b|pof|proof of funds/i.test([buyer.type, buyer.Type, buyer['Buyer Type'], buyer.notes, buyer.Notes, buyer.buyBox].filter(Boolean).join(' ')),
       strategies,
       strategy: strategies.join(', '),
@@ -3558,8 +3725,17 @@ const cleanBuyerName = (value: any, emailValue = '') => {
       investmentStrategy: strategies.join(', '),
       otherStrategy: buyer.otherStrategy || buyer.other_strategy || '',
       notes: buyer.notes || buyer.Notes || '',
+      buyBoxSummary: buyer.buyBoxSummary || buyer.buy_box_summary || buyer.notes || buyer.Notes || '',
+      originalCriteria: buyer.originalCriteria || buyer.criteria || buyer.Criteria || buyer.notes || '',
       tags: splitToArray(buyer.tags || buyer.Tags),
       status: buyer.status || buyer.Status || 'New',
+      data: {
+        ...(buyer.data || {}),
+        creativeFinanceDetails: cloneCreativeFinanceDetails(creativeFinanceDetails),
+        creativeStructures: [...creativeStructures],
+        creativeFinanceNotes: creativeFinanceDetails.creativeFinanceNotes || buyer.creativeFinanceNotes || '',
+        originalCriteria: buyer.originalCriteria || buyer.criteria || buyer.Criteria || buyer.notes || '',
+      },
     }
   }
 
@@ -4919,6 +5095,23 @@ const company = getDisplayCompany(buyerAny) || 'Company Missing';
                       <input className="input" value={editBuyer.creativeStructure || editBuyer.creative_structure || ''} onChange={e => setEditBuyer({...editBuyer, creativeStructure: e.target.value, creative_structure: e.target.value, data: { ...(editBuyer.data || {}), creativeStructure: e.target.value, creative_structure: e.target.value }})} placeholder="Seller Finance, Subto, Wrap" />
                     </div>
                   </div>
+                  {(() => {
+                    const creativeFields = getCreativeFinanceDisplayFields(editBuyer)
+                    if (!creativeFields.length) return null
+                    return (
+                      <div className="mt-3 rounded-lg border border-[#252A38] bg-[#0B0F17] p-3">
+                        <div className="font-semibold mb-2 text-sm text-[#22C55E]">Creative Finance Details</div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                          {creativeFields.map(field => (
+                            <div key={field.label} className="rounded-lg border border-[#252A38] bg-[#070A0F] p-2">
+                              <div className="text-[10px] uppercase tracking-wide text-[#8B92A3]">{field.label}</div>
+                              <div className="text-xs text-white whitespace-pre-wrap">{field.value}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })()}
                 </div>
               </div>
 
@@ -6054,11 +6247,84 @@ const company = getDisplayCompany(buyerAny) || 'Company Missing';
                                 <input
                                   className="w-full mt-1 rounded-lg border border-gray-800 bg-gray-950 px-3 py-2 text-sm text-white"
                                   value={row.creativeStructure || ''}
-                                  onChange={e => updatePendingRow(row._id, { creativeStructure: e.target.value })}
+                                  onChange={e => updatePendingRow(row._id, updateCreativeFinanceDetail(row, 'creativeStructure', e.target.value))}
                                   placeholder="Only if explicitly provided"
                                 />
                               </div>
                             </div>
+
+                            {(() => {
+                              const creativeFields = getCreativeFinanceDisplayFields(row)
+                              const shouldShowCreativeDetails = row.creativeFinance || row.sellerFinance || hasCreativeFinanceDetails(getCreativeFinanceDetailsForBuyer(row))
+                              if (!shouldShowCreativeDetails) return null
+
+                              return (
+                                <div className="mt-4 rounded-xl border border-[#252A38] bg-[#0B0F17] p-3">
+                                  <div className="font-semibold mb-2 text-sm text-[#22C55E]">Creative Finance Details</div>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                    {creativeFields.length ? creativeFields.map(field => (
+                                      <div key={field.label} className="rounded-lg border border-[#252A38] bg-[#070A0F] p-2">
+                                        <div className="text-[10px] uppercase tracking-wide text-[#8B92A3]">{field.label}</div>
+                                        <div className="text-xs text-white whitespace-pre-wrap">{field.value || 'Not Provided'}</div>
+                                      </div>
+                                    )) : (
+                                      <div className="rounded-lg border border-[#252A38] bg-[#070A0F] p-2 text-xs text-[#8B92A3] md:col-span-2">
+                                        Not Provided
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
+                                    <div>
+                                      <label className="text-xs text-[#8B92A3]">Down Payment Range</label>
+                                      <input
+                                        className="input"
+                                        value={row.downPaymentRange || ''}
+                                        onChange={e => updatePendingRow(row._id, { downPaymentRange: e.target.value })}
+                                        placeholder="Only if provided"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="text-xs text-[#8B92A3]">Amortization</label>
+                                      <input
+                                        className="input"
+                                        value={row.amortizationTerm || ''}
+                                        onChange={e => updatePendingRow(row._id, { amortizationTerm: e.target.value })}
+                                        placeholder="Only if provided"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="text-xs text-[#8B92A3]">Mortgage Rate Max</label>
+                                      <input
+                                        className="input"
+                                        value={getCreativeFinanceDetailsForBuyer(row).mortgageRateMaximum ?? ''}
+                                        onChange={e => updatePendingRow(row._id, updateCreativeFinanceDetail(row, 'mortgageRateMaximum', e.target.value === '' ? '' : Number(e.target.value)))}
+                                        placeholder="Only if provided"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="text-xs text-[#8B92A3]">PITI Requirement</label>
+                                      <select
+                                        className="input"
+                                        value={getCreativeFinanceDetailsForBuyer(row).pitiIncluded ? 'Yes' : ''}
+                                        onChange={e => updatePendingRow(row._id, updateCreativeFinanceDetail(row, 'pitiIncluded', e.target.value === 'Yes'))}
+                                      >
+                                        <option value="">Only if provided</option>
+                                        <option value="Yes">PITI included</option>
+                                      </select>
+                                    </div>
+                                    <div className="md:col-span-2">
+                                      <label className="text-xs text-[#8B92A3]">Creative Finance Notes</label>
+                                      <textarea
+                                        className="input h-20"
+                                        value={getCreativeFinanceDetailsForBuyer(row).creativeFinanceNotes || ''}
+                                        onChange={e => updatePendingRow(row._id, updateCreativeFinanceDetail(row, 'creativeFinanceNotes', e.target.value))}
+                                        placeholder="Only if provided"
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                              )
+                            })()}
 
 <div className="text-xs text-[#8B92A3]">Notes / Buy Box Summary</div>
                                 <textarea className="input h-24" value={row.notes || ''} onChange={e => {
