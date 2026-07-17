@@ -699,7 +699,7 @@ const getMarketDisplayList = (...values: any[]) => {
 // BUYER_BUDGET_PROOF_FIX_V1
 const normalizeBuyerBudgetMin = (value: any) => {
   const n = Number(String(value ?? '').replace(/[^0-9.]/g, ''))
-  if (!Number.isFinite(n) || n <= 1 || n > MAX_REASONABLE_BUYER_BUDGET) return 0
+  if (!Number.isFinite(n) || n <= 0 || n > MAX_REASONABLE_BUYER_BUDGET) return 0
   return Math.round(n)
 }
 
@@ -712,6 +712,26 @@ const normalizeBuyerBudgetMax = (value: any) => {
 const displayBudgetInputValue = (value: any) => {
   const n = normalizeBuyerBudgetMax(value)
   return n > 0 ? String(n) : ''
+}
+
+const hasOwnBuyerEditField = (source: any, key: string) =>
+  !!source && typeof source === 'object' && Object.prototype.hasOwnProperty.call(source, key)
+
+const firstExplicitBuyerEditValue = (source: any, keys: string[], fallback: any = '') => {
+  if (source && typeof source === 'object') {
+    for (const key of keys) {
+      if (Object.prototype.hasOwnProperty.call(source, key)) return source[key]
+    }
+  }
+
+  const data = source?.data && typeof source.data === 'object' ? source.data : null
+  if (data) {
+    for (const key of keys) {
+      if (Object.prototype.hasOwnProperty.call(data, key)) return data[key]
+    }
+  }
+
+  return fallback
 }
 
 const getBuyerProofFiles = (buyer: any) => {
@@ -962,50 +982,38 @@ export default function Buyers() {
     const existingBuyerDataForSave: any = existingBuyerForSave && typeof existingBuyerForSave.data === 'object' && existingBuyerForSave.data ? existingBuyerForSave.data : {}
     const normalizedBudgetMin = normalizeBuyerBudgetMin(strategySyncedUpdates?.budgetMin)
     const normalizedBudgetMax = normalizeBuyerBudgetMax(strategySyncedUpdates?.budgetMax)
-    const cleanAssetTypes = Array.isArray(strategySyncedUpdates?.assetTypes) && strategySyncedUpdates.assetTypes.length
-      ? strategySyncedUpdates.assetTypes
-      : Array.isArray(strategySyncedUpdates?.assetFocus) && strategySyncedUpdates.assetFocus.length
-        ? strategySyncedUpdates.assetFocus
-        : Array.isArray(strategySyncedUpdates?.asset_focus) && strategySyncedUpdates.asset_focus.length
-          ? strategySyncedUpdates.asset_focus
-          : Array.isArray(strategySyncedUpdates?.data?.assetTypes) && strategySyncedUpdates.data.assetTypes.length
-            ? strategySyncedUpdates.data.assetTypes
-            : Array.isArray(existingBuyerForSave?.assetTypes) && existingBuyerForSave.assetTypes.length
-              ? existingBuyerForSave.assetTypes
-              : Array.isArray(existingBuyerDataForSave?.assetTypes) && existingBuyerDataForSave.assetTypes.length
-                ? existingBuyerDataForSave.assetTypes
-                : []
-    const cleanNotes = firstMeaningfulBuyerText(
-      strategySyncedUpdates?.notes,
-      strategySyncedUpdates?.buyBox,
-      strategySyncedUpdates?.buy_box,
-      strategySyncedUpdates?.criteria,
-      strategySyncedUpdates?.buyBoxSummary,
-      strategySyncedUpdates?.buyerNotes,
-      strategySyncedUpdates?.data?.notes,
-      strategySyncedUpdates?.data?.buyBox,
-      strategySyncedUpdates?.data?.buy_box,
-      strategySyncedUpdates?.data?.criteria,
-      strategySyncedUpdates?.data?.rawText,
-      existingBuyerForSave?.notes,
-      existingBuyerDataForSave?.notes,
-      existingBuyerForSave?.buyBox,
-      existingBuyerDataForSave?.buyBox,
-      existingBuyerForSave?.buy_box,
-      existingBuyerDataForSave?.buy_box,
-      existingBuyerForSave?.criteria,
-      existingBuyerDataForSave?.criteria,
-      existingBuyerForSave?.rawText,
-      existingBuyerDataForSave?.rawText
+    const explicitAssetTypes = firstExplicitBuyerEditValue(strategySyncedUpdates, ['assetTypes', 'assetFocus', 'asset_focus', 'propertyTypes', 'property_types'], undefined)
+    const cleanAssetTypes = Array.isArray(explicitAssetTypes)
+      ? explicitAssetTypes
+      : Array.isArray(existingBuyerForSave?.assetTypes)
+        ? existingBuyerForSave.assetTypes
+        : Array.isArray(existingBuyerDataForSave?.assetTypes)
+          ? existingBuyerDataForSave.assetTypes
+          : []
+    const cleanNotes = firstExplicitBuyerEditValue(
+      strategySyncedUpdates,
+      ['notes', 'buyBox', 'buy_box', 'criteria', 'buyBoxSummary', 'buyerNotes', 'rawText'],
+      firstMeaningfulBuyerText(
+        existingBuyerForSave?.notes,
+        existingBuyerDataForSave?.notes,
+        existingBuyerForSave?.buyBox,
+        existingBuyerDataForSave?.buyBox,
+        existingBuyerForSave?.buy_box,
+        existingBuyerDataForSave?.buy_box,
+        existingBuyerForSave?.criteria,
+        existingBuyerDataForSave?.criteria,
+        existingBuyerForSave?.rawText,
+        existingBuyerDataForSave?.rawText
+      )
     )
 
     const cleanSellerFinanceTerms = {
-      downPaymentMax: firstMeaningfulBuyerText(strategySyncedUpdates?.downPaymentMax, strategySyncedUpdates?.downPayment, strategySyncedUpdates?.data?.downPaymentMax, strategySyncedUpdates?.data?.downPayment, existingBuyerForSave?.downPaymentMax, existingBuyerDataForSave?.downPaymentMax, existingBuyerForSave?.downPayment, existingBuyerDataForSave?.downPayment),
-      monthlyPaymentMax: firstMeaningfulBuyerText(strategySyncedUpdates?.monthlyPaymentMax, strategySyncedUpdates?.monthlyPayment, strategySyncedUpdates?.data?.monthlyPaymentMax, strategySyncedUpdates?.data?.monthlyPayment, existingBuyerForSave?.monthlyPaymentMax, existingBuyerDataForSave?.monthlyPaymentMax, existingBuyerForSave?.monthlyPayment, existingBuyerDataForSave?.monthlyPayment),
-      interestRateMax: firstMeaningfulBuyerText(strategySyncedUpdates?.interestRateMax, strategySyncedUpdates?.interestRate, strategySyncedUpdates?.data?.interestRateMax, strategySyncedUpdates?.data?.interestRate, existingBuyerForSave?.interestRateMax, existingBuyerDataForSave?.interestRateMax, existingBuyerForSave?.interestRate, existingBuyerDataForSave?.interestRate),
-      capRateTarget: firstMeaningfulBuyerText(strategySyncedUpdates?.capRateTarget, strategySyncedUpdates?.capRate, strategySyncedUpdates?.data?.capRateTarget, strategySyncedUpdates?.data?.capRate, existingBuyerForSave?.capRateTarget, existingBuyerDataForSave?.capRateTarget, existingBuyerForSave?.capRate, existingBuyerDataForSave?.capRate),
-      balloonTerm: firstMeaningfulBuyerText(strategySyncedUpdates?.balloonTerm, strategySyncedUpdates?.balloon, strategySyncedUpdates?.data?.balloonTerm, strategySyncedUpdates?.data?.balloon, existingBuyerForSave?.balloonTerm, existingBuyerDataForSave?.balloonTerm, existingBuyerForSave?.balloon, existingBuyerDataForSave?.balloon),
-      creativeStructure: firstMeaningfulBuyerText(strategySyncedUpdates?.creativeStructure, strategySyncedUpdates?.creative_structure, strategySyncedUpdates?.data?.creativeStructure, strategySyncedUpdates?.data?.creative_structure, existingBuyerForSave?.creativeStructure, existingBuyerDataForSave?.creativeStructure, existingBuyerForSave?.creative_structure, existingBuyerDataForSave?.creative_structure),
+      downPaymentMax: firstExplicitBuyerEditValue(strategySyncedUpdates, ['downPaymentMax', 'downPayment'], firstMeaningfulBuyerText(existingBuyerForSave?.downPaymentMax, existingBuyerDataForSave?.downPaymentMax, existingBuyerForSave?.downPayment, existingBuyerDataForSave?.downPayment)),
+      monthlyPaymentMax: firstExplicitBuyerEditValue(strategySyncedUpdates, ['monthlyPaymentMax', 'monthlyPayment'], firstMeaningfulBuyerText(existingBuyerForSave?.monthlyPaymentMax, existingBuyerDataForSave?.monthlyPaymentMax, existingBuyerForSave?.monthlyPayment, existingBuyerDataForSave?.monthlyPayment)),
+      interestRateMax: firstExplicitBuyerEditValue(strategySyncedUpdates, ['interestRateMax', 'interestRate'], firstMeaningfulBuyerText(existingBuyerForSave?.interestRateMax, existingBuyerDataForSave?.interestRateMax, existingBuyerForSave?.interestRate, existingBuyerDataForSave?.interestRate)),
+      capRateTarget: firstExplicitBuyerEditValue(strategySyncedUpdates, ['capRateTarget', 'capRate'], firstMeaningfulBuyerText(existingBuyerForSave?.capRateTarget, existingBuyerDataForSave?.capRateTarget, existingBuyerForSave?.capRate, existingBuyerDataForSave?.capRate)),
+      balloonTerm: firstExplicitBuyerEditValue(strategySyncedUpdates, ['balloonTerm', 'balloon'], firstMeaningfulBuyerText(existingBuyerForSave?.balloonTerm, existingBuyerDataForSave?.balloonTerm, existingBuyerForSave?.balloon, existingBuyerDataForSave?.balloon)),
+      creativeStructure: firstExplicitBuyerEditValue(strategySyncedUpdates, ['creativeStructure', 'creative_structure'], firstMeaningfulBuyerText(existingBuyerForSave?.creativeStructure, existingBuyerDataForSave?.creativeStructure, existingBuyerForSave?.creative_structure, existingBuyerDataForSave?.creative_structure)),
     }
 
     const cleanUpdates = {
@@ -1018,11 +1026,24 @@ export default function Buyers() {
       budget_min: normalizedBudgetMin,
       budget_max: normalizedBudgetMax,
       minBudget: normalizedBudgetMin,
+      min_budget: normalizedBudgetMin,
       maxBudget: normalizedBudgetMax,
+      max_budget: normalizedBudgetMax,
+      priceMin: normalizedBudgetMin,
+      price_min: normalizedBudgetMin,
+      priceMax: normalizedBudgetMax,
+      price_max: normalizedBudgetMax,
+      maxPrice: normalizedBudgetMax,
+      max_price: normalizedBudgetMax,
+      budget: normalizedBudgetMax,
       notes: cleanNotes,
       buyBox: firstMeaningfulBuyerText(strategySyncedUpdates?.buyBox, strategySyncedUpdates?.buy_box, cleanNotes),
       buy_box: firstMeaningfulBuyerText(strategySyncedUpdates?.buy_box, strategySyncedUpdates?.buyBox, cleanNotes),
       criteria: firstMeaningfulBuyerText(strategySyncedUpdates?.criteria, cleanNotes),
+      creativeFinance: hasOwnBuyerEditField(updates, 'creativeFinance') ? !!updates.creativeFinance : !!strategySyncedUpdates?.creativeFinance,
+      sellerFinance: hasOwnBuyerEditField(updates, 'sellerFinance') ? !!updates.sellerFinance : !!strategySyncedUpdates?.sellerFinance,
+      cashBuyer: hasOwnBuyerEditField(updates, 'cashBuyer') ? !!updates.cashBuyer : !!strategySyncedUpdates?.cashBuyer,
+      nationwide: hasOwnBuyerEditField(updates, 'nationwide') ? !!updates.nationwide : !!strategySyncedUpdates?.nationwide,
       assetTypes: cleanAssetTypes,
       assetFocus: cleanAssetTypes,
       asset_focus: cleanAssetTypes,
@@ -1051,6 +1072,10 @@ export default function Buyers() {
         buyBox: firstMeaningfulBuyerText(strategySyncedUpdates?.buyBox, strategySyncedUpdates?.buy_box, cleanNotes),
         buy_box: firstMeaningfulBuyerText(strategySyncedUpdates?.buy_box, strategySyncedUpdates?.buyBox, cleanNotes),
         criteria: firstMeaningfulBuyerText(strategySyncedUpdates?.criteria, cleanNotes),
+        creativeFinance: hasOwnBuyerEditField(updates, 'creativeFinance') ? !!updates.creativeFinance : !!strategySyncedUpdates?.creativeFinance,
+        sellerFinance: hasOwnBuyerEditField(updates, 'sellerFinance') ? !!updates.sellerFinance : !!strategySyncedUpdates?.sellerFinance,
+        cashBuyer: hasOwnBuyerEditField(updates, 'cashBuyer') ? !!updates.cashBuyer : !!strategySyncedUpdates?.cashBuyer,
+        nationwide: hasOwnBuyerEditField(updates, 'nationwide') ? !!updates.nationwide : !!strategySyncedUpdates?.nationwide,
         assetTypes: cleanAssetTypes,
         assetFocus: cleanAssetTypes,
         asset_focus: cleanAssetTypes,
@@ -1067,7 +1092,16 @@ export default function Buyers() {
         budget_min: normalizedBudgetMin,
         budget_max: normalizedBudgetMax,
         minBudget: normalizedBudgetMin,
+        min_budget: normalizedBudgetMin,
         maxBudget: normalizedBudgetMax,
+        max_budget: normalizedBudgetMax,
+        priceMin: normalizedBudgetMin,
+        price_min: normalizedBudgetMin,
+        priceMax: normalizedBudgetMax,
+        price_max: normalizedBudgetMax,
+        maxPrice: normalizedBudgetMax,
+        max_price: normalizedBudgetMax,
+        budget: normalizedBudgetMax,
       },
       proofFiles: getBuyerProofFiles(updates).length ? getBuyerProofFiles(updates) : strategySyncedUpdates?.proofFiles,
       uploadedFiles: Array.isArray(strategySyncedUpdates?.uploadedFiles) ? updates.uploadedFiles : strategySyncedUpdates?.uploadedFiles,
@@ -1098,10 +1132,21 @@ export default function Buyers() {
       budgetMax: submittedUpdates.budgetMax,
       budget_min: submittedUpdates.budget_min,
       budget_max: submittedUpdates.budget_max,
-      notes: firstMeaningfulBuyerText(submittedUpdates.notes, result.data?.notes, result.data?.data?.notes),
-      buyBox: firstMeaningfulBuyerText(submittedUpdates.buyBox, submittedUpdates.notes, result.data?.buyBox, result.data?.data?.buyBox),
-      buy_box: firstMeaningfulBuyerText(submittedUpdates.buy_box, submittedUpdates.notes, result.data?.buy_box, result.data?.data?.buy_box),
-      criteria: firstMeaningfulBuyerText(submittedUpdates.criteria, submittedUpdates.notes, result.data?.criteria, result.data?.data?.criteria),
+      minBudget: submittedUpdates.minBudget,
+      min_budget: submittedUpdates.min_budget,
+      maxBudget: submittedUpdates.maxBudget,
+      max_budget: submittedUpdates.max_budget,
+      priceMin: submittedUpdates.priceMin,
+      price_min: submittedUpdates.price_min,
+      priceMax: submittedUpdates.priceMax,
+      price_max: submittedUpdates.price_max,
+      maxPrice: submittedUpdates.maxPrice,
+      max_price: submittedUpdates.max_price,
+      budget: submittedUpdates.budget,
+      notes: hasOwnBuyerEditField(submittedUpdates, 'notes') ? submittedUpdates.notes : firstMeaningfulBuyerText(result.data?.notes, result.data?.data?.notes),
+      buyBox: hasOwnBuyerEditField(submittedUpdates, 'buyBox') ? submittedUpdates.buyBox : firstMeaningfulBuyerText(result.data?.buyBox, result.data?.data?.buyBox),
+      buy_box: hasOwnBuyerEditField(submittedUpdates, 'buy_box') ? submittedUpdates.buy_box : firstMeaningfulBuyerText(result.data?.buy_box, result.data?.data?.buy_box),
+      criteria: hasOwnBuyerEditField(submittedUpdates, 'criteria') ? submittedUpdates.criteria : firstMeaningfulBuyerText(result.data?.criteria, result.data?.data?.criteria),
       downPaymentMax: submittedUpdates.downPaymentMax,
       downPayment: submittedUpdates.downPayment,
       monthlyPaymentMax: submittedUpdates.monthlyPaymentMax,
@@ -1154,10 +1199,21 @@ export default function Buyers() {
             budgetMax: savedBuyer.budgetMax,
             budget_min: savedBuyer.budget_min,
             budget_max: savedBuyer.budget_max,
-            notes: firstMeaningfulBuyerText(savedBuyer.notes, buyer?.notes, buyer?.data?.notes),
-            buyBox: firstMeaningfulBuyerText(savedBuyer.buyBox, savedBuyer.notes, buyer?.buyBox, buyer?.data?.buyBox),
-            buy_box: firstMeaningfulBuyerText(savedBuyer.buy_box, savedBuyer.notes, buyer?.buy_box, buyer?.data?.buy_box),
-            criteria: firstMeaningfulBuyerText(savedBuyer.criteria, savedBuyer.notes, buyer?.criteria, buyer?.data?.criteria),
+            minBudget: savedBuyer.minBudget,
+            min_budget: savedBuyer.min_budget,
+            maxBudget: savedBuyer.maxBudget,
+            max_budget: savedBuyer.max_budget,
+            priceMin: savedBuyer.priceMin,
+            price_min: savedBuyer.price_min,
+            priceMax: savedBuyer.priceMax,
+            price_max: savedBuyer.price_max,
+            maxPrice: savedBuyer.maxPrice,
+            max_price: savedBuyer.max_price,
+            budget: savedBuyer.budget,
+            notes: hasOwnBuyerEditField(savedBuyer, 'notes') ? savedBuyer.notes : firstMeaningfulBuyerText(buyer?.notes, buyer?.data?.notes),
+            buyBox: hasOwnBuyerEditField(savedBuyer, 'buyBox') ? savedBuyer.buyBox : firstMeaningfulBuyerText(buyer?.buyBox, buyer?.data?.buyBox),
+            buy_box: hasOwnBuyerEditField(savedBuyer, 'buy_box') ? savedBuyer.buy_box : firstMeaningfulBuyerText(buyer?.buy_box, buyer?.data?.buy_box),
+            criteria: hasOwnBuyerEditField(savedBuyer, 'criteria') ? savedBuyer.criteria : firstMeaningfulBuyerText(buyer?.criteria, buyer?.data?.criteria),
             downPaymentMax: savedBuyer.downPaymentMax,
             downPayment: savedBuyer.downPayment,
             monthlyPaymentMax: savedBuyer.monthlyPaymentMax,

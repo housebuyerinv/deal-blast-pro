@@ -198,6 +198,8 @@ function normalizeEmail(buyer: any) {
 
 function rowToBuyer(row: any) {
   const data = row?.data && typeof row.data === 'object' ? row.data : {}
+  const hasBudgetMinColumn = row && Object.prototype.hasOwnProperty.call(row, 'budget_min')
+  const hasBudgetMaxColumn = row && Object.prototype.hasOwnProperty.call(row, 'budget_max')
 
   return {
     ...data,
@@ -212,8 +214,8 @@ function rowToBuyer(row: any) {
     source: row.source || data.source || '',
     markets: Array.isArray(row.markets) && row.markets.length ? row.markets : Array.isArray(data.markets) ? data.markets : [],
     assetTypes: Array.isArray(row.asset_types) && row.asset_types.length ? row.asset_types : Array.isArray(data.assetTypes) ? data.assetTypes : [],
-    budgetMin: row.budget_min ?? data.budgetMin ?? data.budget_min,
-    budgetMax: row.budget_max ?? data.budgetMax ?? data.budget_max,
+    budgetMin: hasBudgetMinColumn ? row.budget_min : data.budgetMin ?? data.budget_min,
+    budgetMax: hasBudgetMaxColumn ? row.budget_max : data.budgetMax ?? data.budget_max,
     strategy: row.strategy || data.strategy || '',
     notes: row.notes || data.notes || '',
     createdAt: data.createdAt || row.created_at,
@@ -221,10 +223,51 @@ function rowToBuyer(row: any) {
   }
 }
 
+function firstOwnBuyerValue(source: any, keys: string[]) {
+  if (!source || typeof source !== 'object') return undefined
+
+  for (const key of keys) {
+    if (Object.prototype.hasOwnProperty.call(source, key)) {
+      return source[key]
+    }
+  }
+
+  const data = source.data && typeof source.data === 'object' ? source.data : null
+  if (!data) return undefined
+
+  for (const key of keys) {
+    if (Object.prototype.hasOwnProperty.call(data, key)) {
+      return data[key]
+    }
+  }
+
+  return undefined
+}
+
+function normalizeNullableBuyerBudget(value: any) {
+  if (value === null || value === undefined) return null
+  if (typeof value === 'number') return Number.isFinite(value) && value > 0 ? Math.round(value) : null
+
+  const text = String(value).trim()
+  if (!text) return null
+
+  const multiplier = /\bm\b|million/i.test(text) ? 1000000 : /\bk\b|thousand/i.test(text) ? 1000 : 1
+  const n = Number(text.replace(/[^0-9.]/g, ''))
+
+  if (!Number.isFinite(n) || n <= 0) return null
+  return Math.round(n * multiplier)
+}
+
 function buyerToRow(buyer: any) {
   const id = normalizeBuyerId(buyer)
   const email = normalizeEmail(buyer)
   const now = new Date().toISOString()
+  const budgetMin = normalizeNullableBuyerBudget(
+    firstOwnBuyerValue(buyer, ['budgetMin', 'budget_min', 'minBudget', 'min_budget', 'priceMin', 'price_min'])
+  )
+  const budgetMax = normalizeNullableBuyerBudget(
+    firstOwnBuyerValue(buyer, ['budgetMax', 'budget_max', 'maxBudget', 'max_budget', 'priceMax', 'price_max', 'maxPrice', 'max_price', 'budget'])
+  )
 
   const data = {
     ...buyer,
@@ -235,6 +278,21 @@ function buyerToRow(buyer: any) {
     markets: Array.isArray(buyer?.markets) ? buyer.markets : [],
     assetTypes: Array.isArray(buyer?.assetTypes) ? buyer.assetTypes : [],
     tags: Array.isArray(buyer?.tags) ? buyer.tags : [],
+    budgetMin,
+    budgetMax,
+    budget_min: budgetMin,
+    budget_max: budgetMax,
+    minBudget: budgetMin,
+    min_budget: budgetMin,
+    maxBudget: budgetMax,
+    max_budget: budgetMax,
+    priceMin: budgetMin,
+    price_min: budgetMin,
+    priceMax: budgetMax,
+    price_max: budgetMax,
+    maxPrice: budgetMax,
+    max_price: budgetMax,
+    budget: budgetMax,
   }
 
   return {
@@ -249,9 +307,9 @@ function buyerToRow(buyer: any) {
     markets: Array.isArray(data.markets) ? data.markets : [],
     asset_types: Array.isArray(data.assetTypes) ? data.assetTypes : [],
     strategy: data.strategy || data.exitStrategy || data.investmentStrategy || '',
-    budget_min: data.budgetMin ?? data.budget_min ?? null,
-    budget_max: data.budgetMax ?? data.budget_max ?? data.budget ?? null,
-    notes: data.notes || data.buyBox || data.buy_box || '',
+    budget_min: budgetMin,
+    budget_max: budgetMax,
+    notes: data.notes ?? data.buyBox ?? data.buy_box ?? '',
     data,
     updated_at: now,
     created_at: buyer?.createdAt || buyer?.created_at || now,
@@ -313,6 +371,11 @@ const numberValue = (...values: any[]) => {
   }
 
   return undefined;
+};
+
+const hasOwnBuyerField = (source: any, keys: string[]) => {
+  if (!source || typeof source !== 'object') return false;
+  return keys.some(key => Object.prototype.hasOwnProperty.call(source, key));
 };
 
 const boolValue = (...values: any[]) => {
@@ -440,6 +503,16 @@ const repairBuyerForDisplay = (buyer: any) => {
     buyer?.zipcodes
   );
 
+  const hasStructuredBudgetMax = hasOwnBuyerField(buyer, [
+    'budgetMax',
+    'budget_max',
+    'maxBudget',
+    'max_budget',
+    'price_max',
+    'priceMax',
+    'maxPrice',
+    'max_price'
+  ]);
   const budgetMin = numberValue(
     buyer?.budgetMin,
     buyer?.budget_min,
@@ -448,14 +521,17 @@ const repairBuyerForDisplay = (buyer: any) => {
     buyer?.price_min
   );
 
-  const budgetMax = numberValue(
+  const structuredBudgetMax = numberValue(
     buyer?.budgetMax,
     buyer?.budget_max,
     buyer?.maxBudget,
     buyer?.max_budget,
     buyer?.price_max,
-    buyer?.budget
+    buyer?.priceMax,
+    buyer?.maxPrice,
+    buyer?.max_price
   );
+  const budgetMax = structuredBudgetMax ?? (hasStructuredBudgetMax ? undefined : numberValue(buyer?.budget));
 
   const downPaymentMax = numberValue(
     buyer?.downPaymentMax,
@@ -554,23 +630,27 @@ const repairBuyerForDisplay = (buyer: any) => {
 
 function mergeBuyerRecords(existing: any, buyer: any) {
   const now = new Date().toISOString()
+  const hasBuyerField = (key: string) =>
+    buyer && typeof buyer === 'object' && Object.prototype.hasOwnProperty.call(buyer, key)
+  const explicitArray = (key: string, fallback: any) =>
+    hasBuyerField(key) && Array.isArray(buyer?.[key]) ? buyer[key] : fallback
 
   return {
     ...existing,
     ...buyer,
     id: existing?.id || buyer?.id,
     email: normalizeEmail(buyer) || normalizeEmail(existing),
-    name: buyer?.name || existing?.name,
-    company: buyer?.company || existing?.company,
-    phone: buyer?.phone || existing?.phone,
-    mobile: buyer?.mobile || existing?.mobile,
-    markets: Array.isArray(buyer?.markets) && buyer.markets.length ? buyer.markets : existing?.markets,
-    targetMarkets: Array.isArray(buyer?.targetMarkets) && buyer.targetMarkets.length ? buyer.targetMarkets : existing?.targetMarkets,
-    assetTypes: Array.isArray(buyer?.assetTypes) && buyer.assetTypes.length ? buyer.assetTypes : existing?.assetTypes,
-    assetFocus: Array.isArray(buyer?.assetFocus) && buyer.assetFocus.length ? buyer.assetFocus : existing?.assetFocus,
-    zipCodes: Array.isArray(buyer?.zipCodes) && buyer.zipCodes.length ? buyer.zipCodes : existing?.zipCodes,
-    notes: buyer?.notes || existing?.notes,
-    buyBoxSummary: buyer?.buyBoxSummary || existing?.buyBoxSummary,
+    name: hasBuyerField('name') ? buyer.name : existing?.name,
+    company: hasBuyerField('company') ? buyer.company : existing?.company,
+    phone: hasBuyerField('phone') ? buyer.phone : existing?.phone,
+    mobile: hasBuyerField('mobile') ? buyer.mobile : existing?.mobile,
+    markets: explicitArray('markets', existing?.markets),
+    targetMarkets: explicitArray('targetMarkets', existing?.targetMarkets),
+    assetTypes: explicitArray('assetTypes', existing?.assetTypes),
+    assetFocus: explicitArray('assetFocus', existing?.assetFocus),
+    zipCodes: explicitArray('zipCodes', existing?.zipCodes),
+    notes: hasBuyerField('notes') ? buyer.notes : existing?.notes,
+    buyBoxSummary: hasBuyerField('buyBoxSummary') ? buyer.buyBoxSummary : existing?.buyBoxSummary,
     createdAt: existing?.createdAt || buyer?.createdAt || buyer?.created_at,
     updatedAt: now,
   }
