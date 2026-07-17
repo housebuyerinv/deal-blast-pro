@@ -5,20 +5,20 @@ import PublicNav from '../../components/layout/PublicNav'
 
 const audience = [
   {
-    title: 'For wholesalers',
-    desc: 'Collect opportunities, keep buyer interest organized, and move from review to outreach with less scattered follow-up.'
+    title: 'For wholesalers and dispo teams',
+    desc: 'Collect opportunities, organize buyers, track inventory, and move deals from review to targeted outreach with less scattered follow-up.'
   },
   {
-    title: 'For dispo teams',
-    desc: 'Give operators one workspace for submissions, inventory, buyer fit, exports, and follow-up activity.'
+    title: 'For agents and brokers',
+    desc: 'Review investor-friendly opportunities, organize property details and documents, and connect deals with qualified buyers and partners.'
   },
   {
-    title: 'For investor-friendly deal flow',
-    desc: 'Review inbound deals before marketing them and keep private contact details out of public pages.'
+    title: 'For investors and acquisition teams',
+    desc: 'Evaluate incoming opportunities, track active deals, maintain buyer criteria, and keep acquisition and disposition activity organized.'
   },
   {
-    title: 'For subscription access',
-    desc: 'Join the waitlist for early access, product launch updates, and plan availability.'
+    title: 'For real estate teams and deal partners',
+    desc: 'Give your team one workspace for submissions, buyer matching, documents, status updates, exports, and follow-up.'
   }
 ]
 
@@ -75,12 +75,15 @@ export default function Landing() {
 
         <section className="max-w-7xl mx-auto px-6 py-14">
           <div className="mb-8">
-            <div className="text-[#22C55E] text-sm font-semibold tracking-[1px]">BUILT FOR DISPO WORKFLOW</div>
-            <h2 className="text-3xl font-semibold mt-2">Software for real estate operators, not just another lead form.</h2>
+            <div className="text-[#22C55E] text-sm font-semibold tracking-[1px]">BUILT FOR REAL ESTATE DEAL WORKFLOWS</div>
+            <h2 className="text-3xl font-semibold mt-2">Software for real estate dealmakers, not just wholesalers.</h2>
+            <p className="mt-3 max-w-3xl text-[#8B92A3]">
+              Organize opportunities, buyers, documents, inventory, and follow-up from one connected workspace.
+            </p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
             {audience.map((item) => (
-              <div key={item.title} className="card p-5">
+              <div key={item.title} className="card p-5 h-full">
                 <h3 className="text-xl font-semibold mb-2">{item.title}</h3>
                 <p className="text-sm text-[#8B92A3]">{item.desc}</p>
               </div>
@@ -93,10 +96,10 @@ export default function Landing() {
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-8">
               <div>
                 <div className="text-[#22C55E] text-sm font-semibold tracking-[1px]">HOW IT WORKS</div>
-                <h2 className="text-3xl font-semibold mt-2">From inbound opportunity to focused buyer outreach.</h2>
+                <h2 className="text-3xl font-semibold mt-2">From incoming opportunity to organized deal follow-up.</h2>
               </div>
               <p className="max-w-xl text-sm text-[#8B92A3]">
-                The public portals are part of the workflow, but the product is the operating workspace behind review, matching, and follow-up.
+                The public portals are part of the workflow, but the product is the operating workspace behind review, matching, inventory, exports, and follow-up.
               </p>
             </div>
 
