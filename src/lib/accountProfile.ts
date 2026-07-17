@@ -17,6 +17,13 @@ export type EditableAccountProfile = {
   businessName: string
 }
 
+type EmailChangeAuditStatus =
+  | 'email_change_requested'
+  | 'email_change_completed'
+  | 'email_change_failed'
+  | 'email_change_canceled'
+  | 'email_change_expired'
+
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 function clean(value: any) {
@@ -44,17 +51,36 @@ export function getFriendlyEmailChangeError(error: any) {
   return 'Unable to update email right now. Please try again.'
 }
 
+async function resolveAccountWorkspaceId(userId: string) {
+  if (!supabase || !userId) return null
+  try {
+    const { data, error } = await supabase
+      .from('workspaces')
+      .select('id')
+      .eq('owner_user_id', userId)
+      .maybeSingle()
+
+    if (error) return null
+    return data?.id || null
+  } catch {
+    return null
+  }
+}
+
 export async function auditEmailChangeEvent(input: {
   userId: string
   currentEmail: string
   requestedEmail: string
-  status: 'requested' | 'verification_pending' | 'completed' | 'failed' | 'canceled' | 'expired'
+  status: EmailChangeAuditStatus
   metadata?: Record<string, any>
 }) {
   if (!supabase || !input.userId) return
   try {
+    const workspaceId = await resolveAccountWorkspaceId(input.userId)
     await supabase.from('account_profile_email_change_events').insert({
       user_id: input.userId,
+      workspace_id: workspaceId,
+      event_type: input.status,
       current_email: clean(input.currentEmail).toLowerCase(),
       requested_email: clean(input.requestedEmail).toLowerCase(),
       status: input.status,
@@ -162,8 +188,8 @@ export async function requestVerifiedEmailChange(newEmailInput: string) {
       userId: userData.user.id,
       currentEmail,
       requestedEmail: newEmail,
-      status: 'failed',
-      metadata: { reason: getFriendlyEmailChangeError(error) },
+      status: 'email_change_failed',
+      metadata: { failure_category: getFriendlyEmailChangeError(error) },
     })
     throw new Error(getFriendlyEmailChangeError(error))
   }
@@ -172,7 +198,8 @@ export async function requestVerifiedEmailChange(newEmailInput: string) {
     userId: userData.user.id,
     currentEmail,
     requestedEmail: newEmail,
-    status: 'verification_pending',
+    status: 'email_change_requested',
+    metadata: { result: 'verification_pending' },
   })
 
   return { requestedEmail: newEmail }
@@ -208,8 +235,8 @@ export async function syncVerifiedAuthEmailToProfile() {
         userId: authUser.id,
         currentEmail: previousEmail,
         requestedEmail: verifiedEmail,
-        status: 'failed',
-        metadata: { reason: 'Profile email sync failed after Auth verification.' },
+        status: 'email_change_failed',
+        metadata: { failure_category: 'profile_sync_failed_after_auth_verification' },
       })
       throw error
     }
@@ -218,7 +245,8 @@ export async function syncVerifiedAuthEmailToProfile() {
       userId: authUser.id,
       currentEmail: previousEmail,
       requestedEmail: verifiedEmail,
-      status: 'completed',
+      status: 'email_change_completed',
+      metadata: { result: 'verified_auth_email_synced_to_profile' },
     })
   }
 

@@ -107,8 +107,8 @@ export default function AuthCallback() {
               userId: authUser.id,
               currentEmail: authUser.email || '',
               requestedEmail: authUser.email || '',
-              status: 'failed',
-              metadata: { reason: getFriendlyEmailChangeError(err) },
+              status: 'email_change_failed',
+              metadata: { failure_category: getFriendlyEmailChangeError(err) },
             })
           }
         } catch {}
