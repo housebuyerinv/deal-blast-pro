@@ -113,23 +113,15 @@ export default function Pricing() {
     <div className="min-h-screen bg-[#0A0C12] text-[#E6E8EE]">
       <PublicNav />
       <main className="max-w-7xl mx-auto px-6 py-12">
-        <div className="text-center mb-6">
+        <div className="text-center mb-4">
           <h1 className="text-4xl font-semibold tracking-tight">Simple, transparent pricing</h1>
           <p className="mt-3 text-[#8B92A3]">Start small, then upgrade when your deal flow and buyer outreach need more room.</p>
           <p className="mt-2 text-sm text-[#C5CAD6]">Start with Free, Starter, or Pro. Agency and Enterprise options are available by request.</p>
           <p className="mt-2 text-xs text-[#8B92A3]">Features labeled Coming Soon are not yet available for customer use. Plan limits and feature availability are enforced by account and workspace.</p>
-          <div className="mt-5 grid gap-2 md:hidden">
+          <div className="mt-4 grid gap-2 md:hidden">
             <Link to="/waitlist" className="btn btn-green w-full justify-center py-3 text-sm">
               Join Waitlist
             </Link>
-            <div className="grid grid-cols-2 gap-2">
-              <Link to="/pricing" className="btn btn-ghost justify-center px-3 py-2.5 text-sm">
-                Starter Details
-              </Link>
-              <Link to="/pricing" className="btn btn-ghost justify-center px-3 py-2.5 text-sm">
-                Pro Details
-              </Link>
-            </div>
           </div>
         </div>
 
