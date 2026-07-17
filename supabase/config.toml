@@ -7,6 +7,8 @@ additional_redirect_urls = [
   "https://deal-blast-pro.vercel.app/auth/callback?type=email_change",
   "https://deal-blast-os7xzf8hh-housebuyerinv.vercel.app/auth/callback",
   "https://deal-blast-os7xzf8hh-housebuyerinv.vercel.app/auth/callback?type=email_change",
+  "https://deal-blast-9xx91z9ps-housebuyerinv.vercel.app/auth/callback",
+  "https://deal-blast-9xx91z9ps-housebuyerinv.vercel.app/auth/callback?type=email_change",
 ]
 
 [auth.email]
