@@ -8,8 +8,13 @@ export type AccountProfile = {
   business_name?: string | null
   company?: string | null
   avatar_url?: string | null
+  onboarding_version_completed?: number | null
+  onboarding_completed_at?: string | null
+  onboarding_dismissed_at?: string | null
   updated_at?: string | null
 }
+
+export const CURRENT_ONBOARDING_VERSION = 1
 
 export type EditableAccountProfile = {
   fullName: string
@@ -142,7 +147,7 @@ export async function loadAccountProfile() {
 
   const { data, error } = await supabase
     .from('account_profiles')
-    .select('user_id,email,full_name,display_name,business_name,company,avatar_url,updated_at')
+    .select('user_id,email,full_name,display_name,business_name,company,avatar_url,onboarding_version_completed,onboarding_completed_at,onboarding_dismissed_at,updated_at')
     .eq('user_id', authUser.id)
     .maybeSingle()
 
@@ -151,6 +156,61 @@ export async function loadAccountProfile() {
     authUser,
     profile: data as AccountProfile | null,
   }
+}
+
+export async function loadAuthenticatedOnboardingState() {
+  if (!supabase) throw new Error('Supabase is not configured.')
+
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+  if (userError) throw userError
+  const authUser = userData.user
+  if (!authUser?.id) throw new Error('Sign in before loading onboarding state.')
+
+  const { data, error } = await supabase
+    .from('account_profiles')
+    .select('user_id,email,onboarding_version_completed,onboarding_completed_at,onboarding_dismissed_at,updated_at')
+    .eq('user_id', authUser.id)
+    .maybeSingle()
+
+  if (error) throw error
+  return {
+    authUser,
+    profile: data as AccountProfile | null,
+  }
+}
+
+export async function saveAuthenticatedOnboardingState(input: {
+  completed?: boolean
+  skipped?: boolean
+  completedAt?: string
+  dismissedAt?: string
+}) {
+  if (!supabase) throw new Error('Supabase is not configured.')
+
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+  if (userError) throw userError
+  const authUser = userData.user
+  if (!authUser?.id || !authUser.email) throw new Error('Sign in before saving onboarding state.')
+
+  const now = new Date().toISOString()
+  const row: any = {
+    user_id: authUser.id,
+    email: authUser.email.toLowerCase(),
+    full_name: authUser.user_metadata?.full_name || authUser.email.split('@')[0] || 'User',
+    onboarding_version_completed: CURRENT_ONBOARDING_VERSION,
+    updated_by_user_id: authUser.id,
+  }
+  if (input.completed) row.onboarding_completed_at = input.completedAt || now
+  if (input.skipped) row.onboarding_dismissed_at = input.dismissedAt || now
+
+  const { data, error } = await supabase
+    .from('account_profiles')
+    .upsert(row, { onConflict: 'user_id' })
+    .select('user_id,email,onboarding_version_completed,onboarding_completed_at,onboarding_dismissed_at,updated_at')
+    .single()
+
+  if (error) throw error
+  return data as AccountProfile
 }
 
 export async function saveAccountProfile(input: EditableAccountProfile) {

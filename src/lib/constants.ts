@@ -121,6 +121,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
     tourCompleted: false,
     tourSkipped: false,
     tourCompletedAt: '',
+    onboardingVersionCompleted: 0,
+    onboardingCompletedAt: '',
+    onboardingDismissedAt: '',
     agencyEnterpriseEnabled: false,
     promoNoticeVisible: false,
     updatedAt: ''

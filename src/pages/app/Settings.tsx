@@ -373,18 +373,11 @@ export default function Settings() {
   }
 
   const resetOnboardingTour = () => {
-    updateSettings({
-      onboarding: {
-        ...onboardingSettings,
-        tourCompleted: false,
-        tourSkipped: false,
-        tourCompletedAt: '',
-        updatedAt: new Date().toISOString(),
-      }
-    })
-    toast.success('Onboarding tour reset for this workspace.')
     if ((window as any).restartDealBlastTour) {
       ;(window as any).restartDealBlastTour()
+      toast.success('Onboarding tour restarted. Your saved completion remains intact unless you finish or skip again.')
+    } else {
+      toast.info('Open the app workspace to restart the onboarding tour.')
     }
   }
 
@@ -3630,7 +3623,7 @@ export default function Settings() {
 
               <div className="md:min-w-[260px] flex flex-col gap-2">
                 <button onClick={resetOnboardingTour} className="btn btn-ghost w-full">
-                  Reset Onboarding Tour
+                  Restart Onboarding Tour
                 </button>
                 <button
                   onClick={() => updateAgencyEnterpriseRelease(!onboardingSettings.agencyEnterpriseEnabled)}

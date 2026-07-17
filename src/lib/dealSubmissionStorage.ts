@@ -58,11 +58,26 @@ export function isActionableDealSubmission(submission: any) {
   return ACTIONABLE_SUBMISSION_STATUSES.has(status)
 }
 
+export function isConvertedDealSubmission(submission: any) {
+  const status = getDealSubmissionQueueStatus(submission)
+  return CONVERTED_SUBMISSION_STATUSES.has(status)
+}
+
+export function getDealSubmissionConversionMeta(submission: any) {
+  const data = submission?.deal_data || {}
+  return {
+    convertedAt: submission?.converted_at || data?.convertedAt || data?.converted_at || '',
+    convertedBy: submission?.converted_by || data?.convertedBy || data?.converted_by || '',
+    inventoryDealId: submission?.inventory_deal_id || data?.inventoryDealId || data?.inventory_deal_id || '',
+    previousStatus: data?.previousSubmissionStatus || data?.previous_submission_status || '',
+  }
+}
+
 export function getDealSubmissionQueueBucket(submission: any) {
   const status = getDealSubmissionQueueStatus(submission)
   if (CONVERTED_SUBMISSION_STATUSES.has(status)) return 'converted'
   if (ARCHIVED_SUBMISSION_STATUSES.has(status)) return 'archived'
-  if (status === 'needs info' || status === 'needs_info' || status === 'needs review' || status === 'needs_review') return 'needsInfo'
+  if (status === 'needs info' || status === 'needs_info' || status === 'needs more information') return 'needsInfo'
   return ACTIONABLE_SUBMISSION_STATUSES.has(status) ? 'new' : 'archived'
 }
 
@@ -373,6 +388,79 @@ export async function listDealSubmissionsForReview() {
   }
 }
 
+export async function markDealSubmissionConverted(submission: any, input: {
+  inventoryDealId: string
+  convertedBy: string
+  previousStatus?: string
+}) {
+  const id = typeof submission === 'string' ? submission : submission?.id
+  if (!id) return { ok: false, error: new Error('Missing submission ID') }
+  if (!input.inventoryDealId) return { ok: false, error: new Error('Missing linked Inventory deal ID') }
+
+  const ready = requireSupabase()
+  if (!ready.ok) return { ok: false, error: ready.error }
+
+  try {
+    const now = new Date().toISOString()
+    const existingDealData = typeof submission === 'string' ? {} : (submission?.deal_data || {})
+    const conversionAudit = Array.isArray(existingDealData?.conversionAudit) ? existingDealData.conversionAudit : []
+    const dealData = {
+      ...existingDealData,
+      submissionStatus: 'Converted',
+      convertedAt: now,
+      convertedBy: input.convertedBy,
+      inventoryDealId: input.inventoryDealId,
+      previousSubmissionStatus: input.previousStatus || getDealSubmissionQueueStatus(submission),
+      conversionAudit: [
+        ...conversionAudit,
+        {
+          event: 'submission_converted',
+          previousStatus: input.previousStatus || getDealSubmissionQueueStatus(submission),
+          newStatus: 'converted',
+          inventoryDealId: input.inventoryDealId,
+          convertedBy: input.convertedBy,
+          at: now,
+        },
+      ],
+    }
+
+    const fullUpdate = {
+      status: 'converted',
+      converted_at: now,
+      converted_by: input.convertedBy,
+      inventory_deal_id: input.inventoryDealId,
+      deal_data: dealData,
+      updated_at: now,
+    }
+
+    const fallbackUpdate = {
+      status: 'converted',
+      deal_data: dealData,
+      updated_at: now,
+    }
+
+    let { error } = await ready.client
+      .from('deal_submissions')
+      .update(fullUpdate)
+      .eq('id', id)
+
+    if (error && /converted_at|converted_by|inventory_deal_id|column|schema/i.test(String(error.message || error.details || error))) {
+      const fallback = await ready.client
+        .from('deal_submissions')
+        .update(fallbackUpdate)
+        .eq('id', id)
+      error = fallback.error
+    }
+
+    if (error) return { ok: false, error }
+
+    notifyDealSubmissionQueueChanged()
+    return { ok: true }
+  } catch (error) {
+    return { ok: false, error }
+  }
+}
+
 export async function markDealSubmissionImported(ids: string[]) {
   if (!ids.length) return { ok: true }
 
@@ -383,7 +471,7 @@ export async function markDealSubmissionImported(ids: string[]) {
     const { error } = await ready.client
       .from('deal_submissions')
       .update({
-        status: 'imported',
+        status: 'converted',
         updated_at: new Date().toISOString(),
       })
       .in('id', ids)

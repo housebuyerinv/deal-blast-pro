@@ -1,6 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { X } from 'lucide-react'
 import { toast } from 'sonner'
+import {
+  CURRENT_ONBOARDING_VERSION,
+  loadAuthenticatedOnboardingState,
+  saveAuthenticatedOnboardingState,
+} from '../lib/accountProfile'
 import { DEFAULT_SETTINGS } from '../lib/constants'
 import { useAppStore } from '../store/useAppStore'
 
@@ -18,33 +23,117 @@ const TOUR_STEPS = [
 export default function OnboardingTour() {
   const [isOpen, setIsOpen] = useState(false)
   const [step, setStep] = useState(1)
+  const [manualRestart, setManualRestart] = useState(false)
+  const reconciledUserId = useRef('')
+  const migratedUserIds = useRef(new Set<string>())
   const { user, settings, updateSettings } = useAppStore()
-  const onboarding = {
+  const onboarding = useMemo(() => ({
     ...DEFAULT_SETTINGS.onboarding!,
     ...(settings.onboarding || {}),
-  }
+  }), [settings.onboarding])
+  const completedVersion = Number(onboarding.onboardingVersionCompleted || 0)
+  const hasCurrentVersion = completedVersion >= CURRENT_ONBOARDING_VERSION
+  const hasLegacyCompletion = Boolean(onboarding.tourCompleted || onboarding.tourSkipped)
+
+  useEffect(() => {
+    if (!user?.id) return
+    if (reconciledUserId.current === user.id) return
+    reconciledUserId.current = user.id
+
+    let active = true
+    ;(async () => {
+      try {
+        const result = await loadAuthenticatedOnboardingState()
+        if (!active || result.authUser.id !== user.id) return
+        const serverVersion = Number(result.profile?.onboarding_version_completed || 0)
+        const serverHasCurrentVersion = serverVersion >= CURRENT_ONBOARDING_VERSION
+
+        if (serverHasCurrentVersion) {
+          updateSettings({
+            onboarding: {
+              ...onboarding,
+              tourCompleted: Boolean(result.profile?.onboarding_completed_at) || onboarding.tourCompleted,
+              tourSkipped: Boolean(result.profile?.onboarding_dismissed_at) || onboarding.tourSkipped,
+              tourCompletedAt: onboarding.tourCompletedAt || result.profile?.onboarding_completed_at || result.profile?.onboarding_dismissed_at || '',
+              onboardingVersionCompleted: serverVersion,
+              onboardingCompletedAt: result.profile?.onboarding_completed_at || onboarding.onboardingCompletedAt || '',
+              onboardingDismissedAt: result.profile?.onboarding_dismissed_at || onboarding.onboardingDismissedAt || '',
+              updatedAt: result.profile?.updated_at || onboarding.updatedAt || new Date().toISOString(),
+            },
+          })
+          setIsOpen(false)
+          return
+        }
+
+        if (hasLegacyCompletion && !migratedUserIds.current.has(user.id)) {
+          migratedUserIds.current.add(user.id)
+          const completedAt = onboarding.onboardingCompletedAt || onboarding.tourCompletedAt || new Date().toISOString()
+          const dismissedAt = onboarding.onboardingDismissedAt || onboarding.tourCompletedAt || new Date().toISOString()
+          await saveAuthenticatedOnboardingState({
+            completed: Boolean(onboarding.tourCompleted),
+            skipped: Boolean(onboarding.tourSkipped),
+            completedAt,
+            dismissedAt,
+          })
+          if (!active) return
+          updateSettings({
+            onboarding: {
+              ...onboarding,
+              onboardingVersionCompleted: CURRENT_ONBOARDING_VERSION,
+              onboardingCompletedAt: onboarding.tourCompleted ? completedAt : onboarding.onboardingCompletedAt || '',
+              onboardingDismissedAt: onboarding.tourSkipped ? dismissedAt : onboarding.onboardingDismissedAt || '',
+              updatedAt: new Date().toISOString(),
+            },
+          })
+        }
+      } catch (error) {
+        console.warn('[Deal Blast Pro] Onboarding profile reconciliation failed', error)
+      }
+    })()
+
+    return () => {
+      active = false
+    }
+  }, [user?.id, hasLegacyCompletion, onboarding, updateSettings])
 
   useEffect(() => {
     if (!user) return
-    if (onboarding.planSelectionCompleted && !onboarding.tourCompleted && !onboarding.tourSkipped) {
+    if (manualRestart) return
+    if (onboarding.planSelectionCompleted && !hasCurrentVersion && !onboarding.tourCompleted && !onboarding.tourSkipped) {
       const timer = setTimeout(() => setIsOpen(true), 1200)
       return () => clearTimeout(timer)
     }
-  }, [user, onboarding.planSelectionCompleted, onboarding.tourCompleted, onboarding.tourSkipped])
+  }, [user, onboarding.planSelectionCompleted, hasCurrentVersion, onboarding.tourCompleted, onboarding.tourSkipped, manualRestart])
 
   const currentStep = TOUR_STEPS.find(s => s.id === step) || TOUR_STEPS[0]
 
-  const persistTourState = (skipped: boolean) => {
+  const persistTourState = async (skipped: boolean) => {
+    const now = new Date().toISOString()
     updateSettings({
       onboarding: {
         ...onboarding,
         tourCompleted: !skipped,
         tourSkipped: skipped,
-        tourCompletedAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        tourCompletedAt: now,
+        onboardingVersionCompleted: CURRENT_ONBOARDING_VERSION,
+        onboardingCompletedAt: skipped ? onboarding.onboardingCompletedAt || '' : now,
+        onboardingDismissedAt: skipped ? now : onboarding.onboardingDismissedAt || '',
+        updatedAt: now,
       },
     })
     setIsOpen(false)
+    setManualRestart(false)
+    try {
+      await saveAuthenticatedOnboardingState({
+        completed: !skipped,
+        skipped,
+        completedAt: skipped ? undefined : now,
+        dismissedAt: skipped ? now : undefined,
+      })
+    } catch (error) {
+      console.warn('[Deal Blast Pro] Onboarding profile save failed', error)
+      toast.error('Tour saved locally, but cloud sync needs review.')
+    }
     toast.success(skipped ? 'Tour skipped. You can restart it from Settings.' : 'Tour completed. You can restart it from Settings.')
   }
 
@@ -64,21 +153,20 @@ export default function OnboardingTour() {
     persistTourState(true)
   }
 
-  const restartTour = () => {
-    updateSettings({
-      onboarding: {
-        ...onboarding,
-        tourCompleted: false,
-        tourSkipped: false,
-        tourCompletedAt: '',
-        updatedAt: new Date().toISOString(),
-      },
-    })
+  const restartTour = useCallback(() => {
+    setManualRestart(true)
     setStep(1)
     setIsOpen(true)
-  }
+  }, [])
 
-  ;(window as any).restartDealBlastTour = restartTour
+  useEffect(() => {
+    ;(window as any).restartDealBlastTour = restartTour
+    return () => {
+      if ((window as any).restartDealBlastTour === restartTour) {
+        delete (window as any).restartDealBlastTour
+      }
+    }
+  }, [restartTour])
 
   if (!isOpen) return null
 

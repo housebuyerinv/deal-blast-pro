@@ -416,6 +416,9 @@ export interface AppSettings {
     tourCompleted: boolean
     tourSkipped: boolean
     tourCompletedAt?: string
+    onboardingVersionCompleted?: number
+    onboardingCompletedAt?: string
+    onboardingDismissedAt?: string
     agencyEnterpriseEnabled: boolean
     promoNoticeVisible: boolean
     updatedAt?: string

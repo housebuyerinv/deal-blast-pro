@@ -1,16 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { supabase } from '../../lib/supabaseClient'
 import { useAppStore } from '../../store/useAppStore'
 import {
 
   dismissDealSubmission,
+  getDealSubmissionConversionMeta,
   getDealSubmissionQueueBucket,
   hasMissingDealSubmissionDocs,
   isActionableDealSubmission,
+  isConvertedDealSubmission,
   listDealSubmissionsForReview,
-  markDealSubmissionImported,
+  markDealSubmissionConverted,
 } from '../../lib/dealSubmissionStorage'
 
 const safeLower = (value: any) => String(value ?? '').toLowerCase();
@@ -517,8 +519,13 @@ function DetailBox({ label, value, highlight = false }: { label: string; value: 
 }
 
 export default function Submissions() {
+  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const addDeal = useAppStore((state: any) => state.addDeal)
+  const deleteDeal = useAppStore((state: any) => state.deleteDeal)
+  const safeOpenDeal = useAppStore((state: any) => state.safeOpenDeal)
+  const deals = useAppStore((state: any) => state.deals || [])
+  const user = useAppStore((state: any) => state.user)
   const [subs, setSubs] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
@@ -621,6 +628,15 @@ export default function Submissions() {
     await loadSubmissions()
   }
 
+  const openInventoryDeal = (dealId: string) => {
+    if (!dealId) {
+      toast.error('No linked Inventory Hub deal is available for this submission.')
+      return
+    }
+    safeOpenDeal(dealId)
+    navigate('/app/inventory')
+  }
+
   const moveToInventory = async (sub: any) => {
     setApprovingIds(prev => ({ ...prev, [sub.id]: true }))
     setApprovalErrors(prev => {
@@ -630,8 +646,32 @@ export default function Submissions() {
     })
 
     try {
+      const conversionMeta = getDealSubmissionConversionMeta(sub)
+      if (isConvertedDealSubmission(sub) && conversionMeta.inventoryDealId) {
+        openInventoryDeal(conversionMeta.inventoryDealId)
+        toast.info('This submission is already converted. Opening the linked Inventory Hub deal.')
+        return
+      }
+
+      const parsed = sub.parsed || parseSubmission(sub)
+      if (!cleanText(parsed.address) || parsed.address === 'Address not provided') {
+        const safe = safeApprovalError('Property address is required before approving to Inventory Hub.')
+        setApprovalErrors(prev => ({ ...prev, [sub.id]: { ...safe, checkedAt: new Date().toISOString() } }))
+        toast.error('Approval failed. Open error details on the submission row.')
+        return
+      }
+
+      const existingDeal = deals.find((deal: any) =>
+        deal?.originalSubmissionId === sub.id ||
+        deal?.sourceSubmissionId === sub.id ||
+        deal?.originalSubmission?.id === sub.id
+      )
       const dealPayload = buildInventoryDealFromSubmission(sub)
-      const createdDeal = addDeal(dealPayload as any)
+      const createdDeal = existingDeal || addDeal({
+        ...(dealPayload as any),
+        sourceSubmissionId: sub.id,
+      })
+      const createdNewDeal = !existingDeal
 
       if (!createdDeal?.id) {
         const safe = safeApprovalError('Could not create inventory deal from submission')
@@ -640,8 +680,13 @@ export default function Submissions() {
         return
       }
 
-      const result = await markDealSubmissionImported([sub.id])
+      const result = await markDealSubmissionConverted(sub, {
+        inventoryDealId: createdDeal.id,
+        convertedBy: user?.id || user?.email || 'unknown',
+        previousStatus: sub.status || sub.deal_data?.submissionStatus || 'pending',
+      })
       if (!result.ok) {
+        if (createdNewDeal) deleteDeal(createdDeal.id)
         const safe = safeApprovalError(result.error)
         console.warn('[Deal Blast Pro] Deal submission approval failed', {
           action: 'moveToInventory',
@@ -661,7 +706,7 @@ export default function Submissions() {
         delete next[sub.id]
         return next
       })
-      toast.success('Submission moved to Inventory Hub')
+      toast.success(existingDeal ? 'Submission linked to existing Inventory Hub deal' : 'Submission approved to Inventory Hub')
       await loadSubmissions()
     } catch (error) {
       const safe = safeApprovalError(error)
@@ -757,6 +802,8 @@ export default function Submissions() {
     const p = reviewSub.parsed || parseSubmission(reviewSub)
     const allSubmittedFields = flattenSubmissionFields(data)
     const additionalFields = allSubmittedFields.filter(field => !KNOWN_ADDITIONAL_LABELS.has(field.label))
+    const converted = isConvertedDealSubmission(reviewSub)
+    const conversionMeta = getDealSubmissionConversionMeta(reviewSub)
 
     return (
       <div className="fixed inset-0 bg-black/70 z-[200] flex items-center justify-center p-4">
@@ -812,6 +859,13 @@ export default function Submissions() {
               <DetailBox label="Submitted From Page" value={cleanText(data.page, 'Not provided')} />
               <DetailBox label="Submission Status" value={cleanText(reviewSub.status, 'Not provided')} />
               <DetailBox label="Queue Source" value={formatSource(reviewSub.source)} />
+              {converted && (
+                <>
+                  <DetailBox label="Converted At" value={conversionMeta.convertedAt ? new Date(conversionMeta.convertedAt).toLocaleString() : 'Missing conversion timestamp'} highlight />
+                  <DetailBox label="Converted By" value={cleanText(conversionMeta.convertedBy, 'Missing converting user')} highlight />
+                  <DetailBox label="Linked Inventory Deal" value={cleanText(conversionMeta.inventoryDealId, 'Missing linked deal')} highlight />
+                </>
+              )}
             </div>
           </div>
 
@@ -845,27 +899,38 @@ export default function Submissions() {
           )}
 
           <div className="flex flex-wrap gap-2 pt-4 border-t border-white/10">
-            <button
-              onClick={() => moveToInventory(reviewSub)}
-              disabled={Boolean(approvingIds[reviewSub.id])}
-              className="btn btn-green disabled:opacity-60"
-            >
-              {approvingIds[reviewSub.id] ? 'Approving...' : 'Move to Inventory'}
-            </button>
+            {converted ? (
+              <button
+                onClick={() => openInventoryDeal(conversionMeta.inventoryDealId)}
+                className="btn btn-green"
+              >
+                Open Inventory Deal
+              </button>
+            ) : (
+              <button
+                onClick={() => moveToInventory(reviewSub)}
+                disabled={Boolean(approvingIds[reviewSub.id])}
+                className="btn btn-green disabled:opacity-60"
+              >
+                {approvingIds[reviewSub.id] ? 'Approving...' : 'Approve to Inventory'}
+              </button>
+            )}
             <button onClick={() => copySummary(reviewSub)} className="btn btn-ghost">Copy Summary</button>
-            <button
-              onClick={async () => {
-                if (!confirm('Delete this submission?')) return
-                const result = await dismissDealSubmission([reviewSub.id])
-                if (!result.ok) return toast.error('Could not delete submission')
-                setReviewSub(null)
-                toast.success('Submission deleted')
-                await loadSubmissions()
-              }}
-              className="btn btn-ghost text-red-400"
-            >
-              Delete
-            </button>
+            {!converted && (
+              <button
+                onClick={async () => {
+                  if (!confirm('Delete this submission?')) return
+                  const result = await dismissDealSubmission([reviewSub.id])
+                  if (!result.ok) return toast.error('Could not delete submission')
+                  setReviewSub(null)
+                  toast.success('Submission deleted')
+                  await loadSubmissions()
+                }}
+                className="btn btn-ghost text-red-400"
+              >
+                Delete
+              </button>
+            )}
             <button onClick={() => setReviewSub(null)} className="btn btn-ghost ml-auto">Cancel</button>
           </div>
         </div>
@@ -936,7 +1001,14 @@ export default function Submissions() {
       {renderReviewModal()}
 
       <div className="grid gap-3">
-        {!loadError && preparedSubs.map((sub: any) => (
+        {!loadError && preparedSubs.map((sub: any) => {
+          const converted = isConvertedDealSubmission(sub)
+          const conversionMeta = getDealSubmissionConversionMeta(sub)
+          const bucket = getDealSubmissionQueueBucket(sub)
+          const badge = converted ? 'CONVERTED' : bucket === 'needsInfo' ? 'NEEDS INFO' : 'NEW'
+          const badgeClass = converted ? 'badge bg-[#3B82F6] text-white text-xs mt-2' : bucket === 'needsInfo' ? 'badge bg-amber-500 text-black text-xs mt-2' : 'badge bg-[#22C55E] text-black text-xs mt-2'
+
+          return (
           <div key={sub.id} className="card p-4">
             <div className="flex justify-between items-center gap-4">
             <div className="flex items-center gap-4 min-w-0">
@@ -955,19 +1027,35 @@ export default function Submissions() {
                   {sub.parsed.asking ? `Asking Price: ${money(sub.parsed.asking)}` : 'Asking price not provided'}
                   {sub.parsed.arv ? ` | ARV: ${money(sub.parsed.arv)}` : ''}
                 </div>
-                <span className="badge bg-[#22C55E] text-black text-xs mt-2">NEW</span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={badgeClass}>{badge}</span>
+                  {converted && (
+                    <span className="text-xs text-[#8B92A3] mt-2">
+                      Converted to Inventory{conversionMeta.convertedAt ? ` ${new Date(conversionMeta.convertedAt).toLocaleDateString()}` : ''}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 
             <div className="flex gap-2 shrink-0">
-              <button onClick={() => setReviewSub(sub)} className="btn btn-ghost">Review Full Submission</button>
-              <button
-                onClick={() => moveToInventory(sub)}
-                disabled={Boolean(approvingIds[sub.id])}
-                className="btn btn-green disabled:opacity-60"
-              >
-                {approvingIds[sub.id] ? 'Approving...' : 'Move to Inventory'}
-              </button>
+              <button onClick={() => setReviewSub(sub)} className="btn btn-ghost">{converted ? 'View Submission' : 'Review Submission'}</button>
+              {converted ? (
+                <button
+                  onClick={() => openInventoryDeal(conversionMeta.inventoryDealId)}
+                  className="btn btn-green"
+                >
+                  Open Inventory Deal
+                </button>
+              ) : (
+                <button
+                  onClick={() => moveToInventory(sub)}
+                  disabled={Boolean(approvingIds[sub.id])}
+                  className="btn btn-green disabled:opacity-60"
+                >
+                  {approvingIds[sub.id] ? 'Approving...' : 'Approve to Inventory'}
+                </button>
+              )}
             </div>
             </div>
             {approvalErrors[sub.id] && (
@@ -992,7 +1080,8 @@ export default function Submissions() {
               </div>
             )}
           </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )
