@@ -2,6 +2,10 @@ import { getAuthenticatedAccount, cleanString } from './_accountAuth.js'
 
 const BUYERS_TABLE = process.env.SUPABASE_BUYERS_TABLE || process.env.VITE_SUPABASE_BUYERS_TABLE || 'buyers'
 
+type BuyerCapacity =
+  | { kind: 'finite'; plan: string; limit: number; used: number; remaining: number }
+  | { kind: 'unlimited'; plan: string; used: number }
+
 function send(res: any, status: number, payload: any) {
   res.status(status).json(payload)
 }
@@ -31,6 +35,59 @@ function asArray(value: any) {
   const text = cleanString(value)
   if (!text) return []
   return text.split(/[;,|]/g).map(item => item.trim()).filter(Boolean)
+}
+
+function planBuyerLimit(planName: string) {
+  switch (cleanString(planName).toLowerCase()) {
+    case 'free demo':
+    case 'free':
+      return 25
+    case 'starter':
+      return 250
+    case 'pro':
+      return 1000
+    case 'agency':
+      return 2000
+    case 'enterprise':
+      return 5000
+    default:
+      return 25
+  }
+}
+
+function resolveBuyerCapacity(input: {
+  isOwnerAdmin: boolean
+  planName: string
+  savedCount: number
+  purchasedCapacity?: any
+  capacityMode?: any
+  capacityLimit?: any
+}): BuyerCapacity {
+  const used = Math.max(0, Number(input.savedCount) || 0)
+  const plan = cleanString(input.planName) || 'Free'
+  const mode = cleanString(input.capacityMode).toLowerCase()
+  const customLimit = Number(input.capacityLimit)
+
+  if (input.isOwnerAdmin || mode === 'unlimited') {
+    return { kind: 'unlimited', plan: 'Owner Admin', used }
+  }
+
+  const purchased = Math.max(0, Number(input.purchasedCapacity) || 0)
+  const limit = mode === 'custom' && Number.isFinite(customLimit) && customLimit >= 0
+    ? Math.floor(customLimit)
+    : planBuyerLimit(plan) + purchased
+  return {
+    kind: 'finite',
+    plan,
+    limit,
+    used,
+    remaining: Math.max(0, limit - used),
+  }
+}
+
+function canAddBuyers(capacity: BuyerCapacity, netNewCount: number) {
+  if (capacity.kind === 'unlimited') return true
+  return Math.max(0, Number(netNewCount) || 0) <= capacity.remaining
 }
 
 function buyerToRow(buyer: any, workspaceId: string, userId: string, ownerUserId: string, existing?: any) {
@@ -145,7 +202,7 @@ export default async function handler(req: any, res: any) {
     const buyers = rawBuyers.filter((buyer: any) => normalizeEmail(buyer))
     if (!buyers.length) return send(res, 400, { ok: false, code: 'validation_failed', error: 'Some selected buyers could not be imported. Review the highlighted rows.' })
 
-    const emails = Array.from(new Set(buyers.map(normalizeEmail).filter(Boolean)))
+    const emails: string[] = Array.from(new Set(buyers.map(normalizeEmail).filter(Boolean)))
     const { data: existingRows, error: existingError } = await account.adminClient
       .from(BUYERS_TABLE)
       .select('id,email,data,created_at')
@@ -162,6 +219,36 @@ export default async function handler(req: any, res: any) {
       const email = normalizeEmail(row)
       if (email && !existingByEmail.has(email)) existingByEmail.set(email, row)
     })
+
+    const { count: savedBuyerCount, error: countError } = await account.adminClient
+      .from(BUYERS_TABLE)
+      .select('id', { count: 'exact', head: true })
+      .eq('workspace_id', workspaceId)
+
+    if (countError) {
+      const classified = classifySupabaseError(countError)
+      return send(res, classified.status, { ok: false, code: classified.code, error: classified.error })
+    }
+
+    const netNewCount = emails.filter(email => !existingByEmail.has(email)).length
+    const capacity = resolveBuyerCapacity({
+      isOwnerAdmin: Boolean(account.isOwnerAdmin),
+      planName: cleanString(account.plan?.effective_access_plan || account.plan?.current_plan || account.planName),
+      purchasedCapacity: account.plan?.purchased_buyer_capacity,
+      capacityMode: account.plan?.buyer_capacity_mode,
+      capacityLimit: account.plan?.buyer_capacity_limit,
+      savedCount: Number(savedBuyerCount) || 0,
+    })
+
+    if (capacity.kind === 'finite' && !canAddBuyers(capacity, netNewCount)) {
+      return send(res, 409, {
+        ok: false,
+        code: 'capacity_exceeded',
+        error: `You can add up to ${capacity.remaining.toLocaleString()} new buyer${capacity.remaining === 1 ? '' : 's'} on your current plan.`,
+        capacity,
+        netNewCount,
+      })
+    }
 
     const ownerUserId = cleanString(account.workspace?.owner_user_id || account.user.id)
     const payload = buyers.map((buyer: any) => buyerToRow(buyer, workspaceId, account.user.id, ownerUserId, existingByEmail.get(normalizeEmail(buyer))))
@@ -181,6 +268,8 @@ export default async function handler(req: any, res: any) {
       data: Array.isArray(data) ? data.map(rowToBuyer) : [],
       workspaceId,
       imported: Array.isArray(data) ? data.length : 0,
+      capacity,
+      netNewCount,
     })
   } catch (error: any) {
     const status = Number(error?.status) || 500

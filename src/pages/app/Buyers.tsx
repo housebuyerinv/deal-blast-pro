@@ -4230,7 +4230,7 @@ const cleanBuyerName = (value: any, emailValue = '') => {
   const importSelectableRows = pendingImport.filter(isSelectableImportRow)
   const importWouldExceedCapacity = !buyerCapacity.isUnlimited && selectedImportNewRows > buyerCapacity.remaining
   const importCapacityReached = !buyerCapacity.isUnlimited && selectedImportNewRows >= buyerCapacity.remaining
-  const importCapacityLabel = buyerCapacity.isUnlimited ? 'Custom' : buyerCapacity.limit?.toLocaleString()
+  const importCapacityLabel = buyerCapacity.isUnlimited ? 'Unlimited' : buyerCapacity.limit?.toLocaleString()
   const importAvailableLabel = buyerCapacity.isUnlimited ? 'Unlimited' : buyerCapacity.remaining.toLocaleString()
 
   const canSelectImportRow = (row: any) => {
@@ -4289,7 +4289,7 @@ const cleanBuyerName = (value: any, emailValue = '') => {
           <div className="text-xs tracking-[1.5px] text-[#8B92A3]">ASSET STRATEGY</div>
           <div className="text-2xl font-semibold">Buyer Database - {buyers.length} records</div>
           <div className="text-xs text-[#8B92A3] mt-1">
-            Workspace buyer records: {buyerCapacity.current.toLocaleString()} / {buyerCapacity.isUnlimited ? 'Custom' : buyerCapacity.limit?.toLocaleString()} saved
+            Workspace buyer records: {buyerCapacity.current.toLocaleString()} / {buyerCapacity.isUnlimited ? 'Unlimited' : buyerCapacity.limit?.toLocaleString()} saved
             {buyerCapacity.isUnlimited ? '' : `, ${formatBuyerCapacityRemaining(buyerCapacity.remaining, buyerCapacity.isUnlimited)} remaining`}
           </div>
         </div>

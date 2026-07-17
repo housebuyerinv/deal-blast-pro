@@ -120,14 +120,14 @@ export async function getAuthenticatedAccount(req: any) {
 
   let { data: plan } = await adminClient
     .from('workspace_plan_assignments')
-    .select('workspace_id,user_id,plan_name,billing_status,trial_status,payment_status,access_status,access_deactivated_at,stripe_customer_id,stripe_subscription_id,subscription_status,current_period_end,cancel_at_period_end,outstanding_balance,latest_invoice_status,latest_invoice_hosted_url,latest_invoice_pdf,current_plan,effective_access_plan,scheduled_plan,scheduled_plan_change_at,billing_interval,stripe_price_id')
+    .select('workspace_id,user_id,plan_name,billing_status,trial_status,payment_status,access_status,access_deactivated_at,stripe_customer_id,stripe_subscription_id,subscription_status,current_period_end,cancel_at_period_end,outstanding_balance,latest_invoice_status,latest_invoice_hosted_url,latest_invoice_pdf,current_plan,effective_access_plan,scheduled_plan,scheduled_plan_change_at,billing_interval,stripe_price_id,purchased_buyer_capacity,buyer_capacity_mode,buyer_capacity_limit')
     .eq('user_id', user.id)
     .maybeSingle()
 
   if (!plan && workspace?.id) {
     const { data: planByWorkspace } = await adminClient
       .from('workspace_plan_assignments')
-      .select('workspace_id,user_id,plan_name,billing_status,trial_status,payment_status,access_status,access_deactivated_at,stripe_customer_id,stripe_subscription_id,subscription_status,current_period_end,cancel_at_period_end,outstanding_balance,latest_invoice_status,latest_invoice_hosted_url,latest_invoice_pdf,current_plan,effective_access_plan,scheduled_plan,scheduled_plan_change_at,billing_interval,stripe_price_id')
+      .select('workspace_id,user_id,plan_name,billing_status,trial_status,payment_status,access_status,access_deactivated_at,stripe_customer_id,stripe_subscription_id,subscription_status,current_period_end,cancel_at_period_end,outstanding_balance,latest_invoice_status,latest_invoice_hosted_url,latest_invoice_pdf,current_plan,effective_access_plan,scheduled_plan,scheduled_plan_change_at,billing_interval,stripe_price_id,purchased_buyer_capacity,buyer_capacity_mode,buyer_capacity_limit')
       .eq('workspace_id', workspace.id)
       .maybeSingle()
     plan = planByWorkspace || null
@@ -145,14 +145,29 @@ export async function getAuthenticatedAccount(req: any) {
       access_status: cleanString(plan?.access_status) || 'Active',
       current_plan: cleanString(plan?.current_plan) || cleanString(plan?.plan_name) || (isOwnerAdmin ? 'Owner Admin' : 'Free'),
       effective_access_plan: cleanString(plan?.effective_access_plan) || cleanString(plan?.plan_name) || (isOwnerAdmin ? 'Owner Admin' : 'Free'),
+      buyer_capacity_mode: isOwnerAdmin ? 'unlimited' : cleanString(plan?.buyer_capacity_mode) || 'finite',
+      buyer_capacity_limit: isOwnerAdmin ? null : plan?.buyer_capacity_limit ?? null,
     }
 
     const { data: updatedPlan } = await adminClient
       .from('workspace_plan_assignments')
       .upsert(repairedPlan, { onConflict: 'workspace_id' })
-      .select('workspace_id,user_id,plan_name,billing_status,trial_status,payment_status,access_status,access_deactivated_at,stripe_customer_id,stripe_subscription_id,subscription_status,current_period_end,cancel_at_period_end,outstanding_balance,latest_invoice_status,latest_invoice_hosted_url,latest_invoice_pdf,current_plan,effective_access_plan,scheduled_plan,scheduled_plan_change_at,billing_interval,stripe_price_id')
+      .select('workspace_id,user_id,plan_name,billing_status,trial_status,payment_status,access_status,access_deactivated_at,stripe_customer_id,stripe_subscription_id,subscription_status,current_period_end,cancel_at_period_end,outstanding_balance,latest_invoice_status,latest_invoice_hosted_url,latest_invoice_pdf,current_plan,effective_access_plan,scheduled_plan,scheduled_plan_change_at,billing_interval,stripe_price_id,purchased_buyer_capacity,buyer_capacity_mode,buyer_capacity_limit')
       .maybeSingle()
     plan = updatedPlan || plan
+  }
+
+  if (isOwnerAdmin && workspace?.id && cleanString(plan?.buyer_capacity_mode).toLowerCase() !== 'unlimited') {
+    const { data: updatedCapacityPlan } = await adminClient
+      .from('workspace_plan_assignments')
+      .update({
+        buyer_capacity_mode: 'unlimited',
+        buyer_capacity_limit: null,
+      })
+      .eq('workspace_id', workspace.id)
+      .select('workspace_id,user_id,plan_name,billing_status,trial_status,payment_status,access_status,access_deactivated_at,stripe_customer_id,stripe_subscription_id,subscription_status,current_period_end,cancel_at_period_end,outstanding_balance,latest_invoice_status,latest_invoice_hosted_url,latest_invoice_pdf,current_plan,effective_access_plan,scheduled_plan,scheduled_plan_change_at,billing_interval,stripe_price_id,purchased_buyer_capacity,buyer_capacity_mode,buyer_capacity_limit')
+      .maybeSingle()
+    plan = updatedCapacityPlan || plan
   }
 
   const profileStatus = cleanString(profile?.account_status || 'Active')
