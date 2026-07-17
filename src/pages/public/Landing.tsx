@@ -59,7 +59,7 @@ export default function Landing() {
               </div>
             </div>
 
-            <div className="panel p-5 border-[#3B82F6]/30">
+            <div className="panel p-5 sm:p-6 border-[#3B82F6]/30 flex flex-col justify-center">
               <div className="text-sm text-[#8B92A3] mb-4">Workspace snapshot</div>
               <div className="space-y-3">
                 {['Submission review', 'Buyer database', 'Pipeline tracking', 'Stripe subscription access'].map((item) => (
@@ -68,9 +68,6 @@ export default function Landing() {
                     <span className="text-sm">{item}</span>
                   </div>
                 ))}
-              </div>
-              <div className="mt-5 rounded-lg border border-[#22C55E]/20 bg-[#22C55E]/10 p-4 text-sm text-[#C5CAD6]">
-                Your information is used to review opportunities and buyer fit. We do not publish private contact details on public pages.
               </div>
             </div>
           </div>
@@ -123,7 +120,7 @@ export default function Landing() {
           </div>
         </section>
 
-        <section className="max-w-7xl mx-auto px-6 py-14 grid lg:grid-cols-2 gap-5">
+        <section className="max-w-7xl mx-auto px-6 pt-14 pb-10 grid lg:grid-cols-2 gap-5">
           <div className="card p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-lg bg-[#22C55E]/15 text-[#22C55E] flex items-center justify-center">
@@ -157,18 +154,7 @@ export default function Landing() {
           </div>
         </section>
 
-        <section className="border-y border-[#252A38] bg-[#12151F]">
-          <div className="max-w-7xl mx-auto px-6 py-10">
-            <div className="rounded-lg border border-[#22C55E]/20 bg-[#22C55E]/10 p-5 flex flex-col md:flex-row md:items-center gap-4">
-              <ShieldCheck className="text-[#22C55E] shrink-0" size={28} />
-              <p className="text-[#C5CAD6]">
-                Your information is used to review opportunities and buyer fit. We do not publish private contact details on public pages.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        <section className="max-w-4xl mx-auto px-6 py-14 text-center">
+        <section className="max-w-4xl mx-auto px-6 pt-4 pb-14 text-center">
           <h2 className="text-3xl font-semibold mb-4">Start building your dispo workspace.</h2>
           <p className="text-[#8B92A3] mb-7">
             Join the waitlist for Deal Blast Pro early access and product launch updates.
