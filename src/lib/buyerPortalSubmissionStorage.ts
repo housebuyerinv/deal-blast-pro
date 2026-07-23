@@ -27,6 +27,19 @@ const REVIEWABLE_BUYER_PORTAL_STATUSES = new Set([
   'pending verification',
 ])
 
+const REVIEWABLE_BUYER_PORTAL_DB_STATUSES = [
+  'pending_review',
+  'pending',
+  'new',
+  'Pending Review',
+  'New',
+  'Submitted / Pending Review',
+  'Needs Recheck',
+  'needs_recheck',
+  'Pending Verification',
+  'pending_verification',
+]
+
 const RESOLVED_BUYER_PORTAL_STATUSES = new Set([
   'approved',
   'imported',
@@ -109,18 +122,7 @@ export const listPendingBuyerPortalSubmissions = async () => {
   const { data, error } = await client
     .from(BUYER_PORTAL_SUBMISSIONS_TABLE)
     .select('id, status, buyer_data, created_at')
-    .in('status', [
-      'pending_review',
-      'pending',
-      'new',
-      'Pending Review',
-      'New',
-      'Submitted / Pending Review',
-      'Needs Recheck',
-      'needs_recheck',
-      'Pending Verification',
-      'pending_verification',
-    ])
+    .in('status', REVIEWABLE_BUYER_PORTAL_DB_STATUSES)
     .order('created_at', { ascending: false })
 
   if (error) {
@@ -131,8 +133,28 @@ export const listPendingBuyerPortalSubmissions = async () => {
 }
 
 export const countPendingBuyerPortalSubmissions = async () => {
-  const rows = await listPendingBuyerPortalSubmissions()
-  return rows.length
+  const client = requireSupabase()
+  const { count, error } = await client
+    .from(BUYER_PORTAL_SUBMISSIONS_TABLE)
+    .select('id', { count: 'exact', head: true })
+    .in('status', REVIEWABLE_BUYER_PORTAL_DB_STATUSES)
+
+  if (error) throw error
+  return count || 0
+}
+
+export const listRecentBuyerPortalSubmissionActivity = async (limit = 4) => {
+  const client = requireSupabase()
+  const safeLimit = Math.min(4, Math.max(1, Math.floor(limit || 4)))
+  const { data, error } = await client
+    .from(BUYER_PORTAL_SUBMISSIONS_TABLE)
+    .select('id, status, buyer_data, created_at')
+    .in('status', REVIEWABLE_BUYER_PORTAL_DB_STATUSES)
+    .order('created_at', { ascending: false })
+    .limit(safeLimit)
+
+  if (error) throw error
+  return data || []
 }
 
 export const markBuyerPortalSubmissionsImported = async (ids: string[], metadata: {

@@ -2441,8 +2441,16 @@ const cleanBuyerName = (value: any, emailValue = '') => {
 
   useEffect(() => {
     void refreshBuyerPortalQueueCount()
-    const id = window.setInterval(() => { void refreshBuyerPortalQueueCount() }, 3000)
-    return () => window.clearInterval(id)
+    const refresh = () => { void refreshBuyerPortalQueueCount() }
+    window.addEventListener('focus', refresh)
+    window.addEventListener('dealblastpro:buyer-portal-queue-changed', refresh)
+    const id = window.setInterval(refresh, 60000)
+
+    return () => {
+      window.removeEventListener('focus', refresh)
+      window.removeEventListener('dealblastpro:buyer-portal-queue-changed', refresh)
+      window.clearInterval(id)
+    }
   }, [])
 
   const importBuyerPortalQueue = async () => {

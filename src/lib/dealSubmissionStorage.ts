@@ -19,6 +19,24 @@ const ACTIONABLE_SUBMISSION_STATUSES = new Set([
   'needs_info',
 ])
 
+const ACTIONABLE_SUBMISSION_DB_STATUSES = [
+  'new',
+  'New',
+  'pending',
+  'Pending',
+  'pending review',
+  'Pending Review',
+  'pending_review',
+  'submitted',
+  'Submitted',
+  'needs review',
+  'Needs Review',
+  'needs_review',
+  'needs info',
+  'Needs Info',
+  'needs_info',
+]
+
 const CONVERTED_SUBMISSION_STATUSES = new Set([
   'converted',
   'imported',
@@ -366,6 +384,48 @@ export async function listPendingDealSubmissions() {
   const result = await listDealSubmissionsForReview()
   if (!result.ok) return result
   return { ok: true, data: (result.data || []).filter(isActionableDealSubmission) }
+}
+
+export async function countPendingDealSubmissions() {
+  const ready = requireSupabase()
+  if (!ready.ok) return { ok: false, error: ready.error, count: 0 }
+
+  try {
+    const { count, error } = await withTimeout<any>(
+      ready.client
+        .from('deal_submissions')
+        .select('id', { count: 'exact', head: true })
+        .in('status', ACTIONABLE_SUBMISSION_DB_STATUSES),
+      'Deal submission count timed out.'
+    )
+
+    if (error) return { ok: false, error, count: 0 }
+    return { ok: true, count: count || 0 }
+  } catch (error) {
+    return { ok: false, error, count: 0 }
+  }
+}
+
+export async function listRecentDealSubmissionActivity(limit = 4) {
+  const ready = requireSupabase()
+  if (!ready.ok) return { ok: false, error: ready.error, data: [] }
+  const safeLimit = Math.min(4, Math.max(1, Math.floor(limit || 4)))
+
+  try {
+    const { data, error } = await withTimeout<any>(
+      ready.client
+        .from('deal_submissions')
+        .select('id,status,deal_data,created_at,updated_at,converted_at,inventory_deal_id')
+        .order('updated_at', { ascending: false })
+        .limit(safeLimit),
+      'Recent deal submission activity load timed out.'
+    )
+
+    if (error) return { ok: false, error, data: [] }
+    return { ok: true, data: data || [] }
+  } catch (error) {
+    return { ok: false, error, data: [] }
+  }
 }
 
 export async function listDealSubmissionsForReview() {
