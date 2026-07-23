@@ -1,5 +1,6 @@
 import { notifySubmission } from './submissionNotifications'
 import { supabase } from './supabaseClient'
+import { deterministicInventoryDealId } from './submissionInventoryIdentity'
 
 const DEAL_SUBMISSION_FILE_BUCKET = 'deal-submission-files'
 const FILE_UPLOAD_WARNING = 'Submission received, but file upload could not be completed. Please email files separately.'
@@ -440,6 +441,31 @@ export async function updateDealSubmissionData(submission: any, dealData: Record
   }
 }
 
+export async function reserveSubmissionInventoryConversion(submission: any, convertedBy: string, preferredInventoryDealId?: string) {
+  const id = String(submission?.id || '').trim()
+  if (!id) return { ok: false, error: new Error('Missing submission ID') }
+
+  const ready = requireSupabase()
+  if (!ready.ok) return { ok: false, error: ready.error }
+
+  try {
+    const { data, error } = await ready.client.rpc('reserve_deal_submission_inventory_conversion', {
+      p_submission_id: id,
+      p_inventory_deal_id: preferredInventoryDealId || deterministicInventoryDealId(id),
+      p_converted_by: convertedBy,
+    })
+    if (error) return { ok: false, error }
+    const reserved = Array.isArray(data) ? data[0] : data
+    if (!reserved?.inventory_deal_id) {
+      return { ok: false, error: new Error('Conversion reservation did not return an Inventory deal ID') }
+    }
+    notifyDealSubmissionQueueChanged()
+    return { ok: true, data: reserved, inventoryDealId: reserved.inventory_deal_id }
+  } catch (error) {
+    return { ok: false, error }
+  }
+}
+
 export async function markDealSubmissionConverted(submission: any, input: {
   inventoryDealId: string
   convertedBy: string
@@ -453,9 +479,14 @@ export async function markDealSubmissionConverted(submission: any, input: {
   if (!ready.ok) return { ok: false, error: ready.error }
 
   try {
-    const now = new Date().toISOString()
+    const existingConversion = getDealSubmissionConversionMeta(submission)
+    const now = existingConversion.convertedAt || new Date().toISOString()
     const existingDealData = typeof submission === 'string' ? {} : (submission?.deal_data || {})
     const conversionAudit = Array.isArray(existingDealData?.conversionAudit) ? existingDealData.conversionAudit : []
+    const alreadyAudited = conversionAudit.some((entry: any) =>
+      entry?.event === 'submission_converted' &&
+      entry?.inventoryDealId === input.inventoryDealId
+    )
     const dealData = {
       ...existingDealData,
       submissionStatus: 'Converted',
@@ -463,16 +494,15 @@ export async function markDealSubmissionConverted(submission: any, input: {
       convertedBy: input.convertedBy,
       inventoryDealId: input.inventoryDealId,
       previousSubmissionStatus: input.previousStatus || getDealSubmissionQueueStatus(submission),
-      conversionAudit: [
-        ...conversionAudit,
-        {
+      conversionAudit: alreadyAudited ? conversionAudit : [
+        ...conversionAudit, {
           event: 'submission_converted',
           previousStatus: input.previousStatus || getDealSubmissionQueueStatus(submission),
           newStatus: 'converted',
           inventoryDealId: input.inventoryDealId,
           convertedBy: input.convertedBy,
           at: now,
-        },
+        }
       ],
     }
 

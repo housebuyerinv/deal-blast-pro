@@ -11,6 +11,7 @@ import { seedDeals, seedBuyers, seedOffers, seedActivities } from '../lib/mockDa
 import { computeMatchScore, getTier } from '../lib/matchingEngine'
 import { isApiMode } from '../services/storage'
 import { isSuperAdmin } from '../lib/accessControl'
+import { findInventoryDealBySubmission } from '../lib/submissionInventoryIdentity'
 import { getOwnerPreviewPlan, isOwnerPreviewActive } from '../lib/planAccess'
 import { getBuyerCapacity, getPlanEntitlement } from '../lib/planEntitlements'
 import { getPastDuePolicyMessage, getPastDueStage } from '../lib/accountLifecycle'
@@ -927,7 +928,21 @@ export const useAppStore = create<AppStore>()(
 
       // Deals
       addDeal: (partial) => {
-        const id = 'D' + Date.now().toString(36).toUpperCase()
+        const sourceSubmissionId = String(
+          (partial as any)?.sourceSubmissionId ||
+          (partial as any)?.originalSubmissionId ||
+          (partial as any)?.originalSubmission?.id ||
+          ''
+        ).trim()
+        if (sourceSubmissionId) {
+          const existing = findInventoryDealBySubmission(get().deals, sourceSubmissionId)
+          if (existing) return existing
+        }
+
+        const requestedId = sourceSubmissionId ? String((partial as any)?.id || '').trim() : ''
+        const id = requestedId || ('D' + Date.now().toString(36).toUpperCase())
+        const idCollision = get().deals.find((deal: any) => deal?.id === id)
+        if (idCollision) return idCollision
         const now = new Date().toISOString()
         const deal: Deal = {
           ...partial,
