@@ -13,6 +13,7 @@ import {
   isConvertedDealSubmission,
   listDealSubmissionsForReview,
   markDealSubmissionConverted,
+  updateDealSubmissionData,
 } from '../../lib/dealSubmissionStorage'
 
 const safeLower = (value: any) => String(value ?? '').toLowerCase();
@@ -38,9 +39,17 @@ function safeApprovalError(error: any, fallback = 'Approval failed.') {
   }
 }
 
-type FieldDef = { key: string; 
-
-label: string; money?: boolean; bool?: boolean }
+type FieldDef = {
+  key: string
+  label: string
+  money?: boolean
+  bool?: boolean
+  number?: boolean
+  whole?: boolean
+  percent?: boolean
+  date?: boolean
+  email?: boolean
+}
 type SectionDef = { title: string; fields: FieldDef[] }
 
 const DOC_CATS = [
@@ -59,7 +68,7 @@ const PORTAL_SECTIONS: SectionDef[] = [
     title: '1. Contact Info',
     fields: [
       { key: 'name', label: 'Your name' },
-      { key: 'email', label: 'Email' },
+      { key: 'email', label: 'Email', email: true },
       { key: 'phone', label: 'Phone' },
       { key: 'role', label: 'Role' },
       { key: 'company', label: 'Company' },
@@ -76,12 +85,12 @@ const PORTAL_SECTIONS: SectionDef[] = [
       { key: 'county', label: 'County' },
       { key: 'assetType', label: 'Asset type' },
       { key: 'occupancy', label: 'Occupancy status' },
-      { key: 'yearBuilt', label: 'Year built' },
-      { key: 'beds', label: 'Beds' },
-      { key: 'baths', label: 'Baths' },
-      { key: 'sqFt', label: 'Sq Ft' },
-      { key: 'units', label: 'Units / doors' },
-      { key: 'lotSize', label: 'Lot size' },
+      { key: 'yearBuilt', label: 'Year built', number: true, whole: true },
+      { key: 'beds', label: 'Beds', number: true },
+      { key: 'baths', label: 'Baths', number: true },
+      { key: 'sqFt', label: 'Sq Ft', number: true },
+      { key: 'units', label: 'Units / doors', number: true, whole: true },
+      { key: 'lotSize', label: 'Lot size', number: true },
     ],
   },
   {
@@ -104,9 +113,11 @@ const PORTAL_SECTIONS: SectionDef[] = [
       { key: 'rehab', label: 'Rehab estimate', money: true },
       { key: 'rent', label: 'Rent, monthly', money: true },
       { key: 'noi', label: 'NOI, annual', money: true },
-      { key: 'capRate', label: 'Cap rate' },
+      { key: 'capRate', label: 'Cap rate', percent: true },
       { key: 'mortgageBalance', label: 'Current mortgage balance', money: true },
       { key: 'downPayment', label: 'Down payment needed', money: true },
+      { key: 'monthlyPayment', label: 'Creative finance monthly payment', money: true },
+      { key: 'balloonDate', label: 'Balloon date', date: true },
       { key: 'wholesaleFee', label: 'Wholesale / assignment fee', money: true },
       { key: 'sellerFinanceTerms', label: 'Seller finance terms' },
       { key: 'notes', label: 'Notes / deal summary' },
@@ -259,6 +270,76 @@ function getField(data: any, key: string) {
   }
 
   return nested[key]
+}
+
+const NESTED_FIELD_PATHS: Record<string, string> = {
+  name: 'submitter.name', email: 'submitter.email', phone: 'submitter.phone', role: 'submitter.role',
+  company: 'submitter.company', bestContactTime: 'submitter.bestContactTime',
+  address: 'property.address', city: 'property.city', state: 'property.state', zip: 'property.zip',
+  county: 'property.county', assetType: 'property.type', occupancy: 'property.occupancy',
+  yearBuilt: 'property.yearBuilt', beds: 'property.beds', baths: 'property.baths',
+  sqFt: 'property.sqFt', units: 'property.units', lotSize: 'property.lotSize',
+  askingPrice: 'pricing.askingPrice', contractPrice: 'pricing.contractPrice', arv: 'pricing.arv',
+  rehab: 'pricing.rehab', rent: 'pricing.rent', noi: 'pricing.noi', capRate: 'pricing.capRate',
+  wholesaleFee: 'pricing.wholesaleFee',
+  freeAndClearStatus: 'debt.freeAndClearStatus', debtTotalOwed: 'debt.totalAmountOwed',
+  debtLoanBalance: 'debt.mortgageBalance', debtMonthlyPayment: 'debt.monthlyPayment',
+  debtPaymentsCurrent: 'debt.paymentsCurrent', debtLiensJudgments: 'debt.liens',
+  debtNotes: 'debt.notes', directToSeller: 'directness.toSeller',
+  proofOfControl: 'directness.proofOfControl', permissionsConfirmed: 'directness.permissionsConfirmed',
+  consent: 'directness.consent', sellerMotivation: 'directness.sellerMotivation',
+  accessInstructions: 'directness.accessInstructions', lockboxInfo: 'directness.lockboxShowing',
+  titleLienIssues: 'directness.titleLienIssues',
+}
+
+function hasPath(value: any, path: string) {
+  const parts = path.split('.')
+  let current = value
+  for (const part of parts) {
+    if (!current || typeof current !== 'object' || !Object.prototype.hasOwnProperty.call(current, part)) return false
+    current = current[part]
+  }
+  return true
+}
+
+function setPath(value: any, path: string, nextValue: any) {
+  const parts = path.split('.')
+  let current = value
+  parts.forEach((part, index) => {
+    if (index === parts.length - 1) {
+      current[part] = nextValue
+      return
+    }
+    if (!current[part] || typeof current[part] !== 'object' || Array.isArray(current[part])) current[part] = {}
+    current = current[part]
+  })
+}
+
+function editableFieldPath(data: any, key: string) {
+  if (Object.prototype.hasOwnProperty.call(data || {}, key)) return key
+  const nestedPath = NESTED_FIELD_PATHS[key]
+  return nestedPath && hasPath(data, nestedPath) ? nestedPath : key
+}
+
+const PROTECTED_EDIT_PATHS = new Set([
+  'docs', 'documents', 'files', 'uploadedFiles', 'adminWarnings', 'submittedAt', 'submissionStatus',
+  'conversionAudit', 'convertedAt', 'convertedBy', 'inventoryDealId', 'page', 'source', 'id',
+  'uploaded_files', 'admin_warnings', 'submitted_at', 'submission_status', 'conversion_audit',
+  'converted_at', 'converted_by', 'inventory_deal_id',
+])
+
+function collectEditableAdditionalFields(value: any, prefix = '', rows: Array<{ path: string; label: string; value: any }> = []) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return rows
+  Object.entries(value).forEach(([key, item]) => {
+    const path = prefix ? `${prefix}.${key}` : key
+    if (PROTECTED_EDIT_PATHS.has(path) || RAW_FIELD_EXCLUDE_KEYS.has(key)) return
+    if (item && typeof item === 'object' && !Array.isArray(item)) {
+      collectEditableAdditionalFields(item, path, rows)
+    } else if (!Array.isArray(item)) {
+      rows.push({ path, label: titleFromPath(path), value: item })
+    }
+  })
+  return rows
 }
 
 function formatValue(data: any, field: FieldDef) {
@@ -536,6 +617,11 @@ export default function Submissions() {
   const [reviewSub, setReviewSub] = useState<any>(null)
   const [approvalErrors, setApprovalErrors] = useState<Record<string, { reason: string; nextStep: string; checkedAt: string }>>({})
   const [approvingIds, setApprovingIds] = useState<Record<string, boolean>>({})
+  const [editingSubmission, setEditingSubmission] = useState(false)
+  const [editValues, setEditValues] = useState<Record<string, any>>({})
+  const [editErrors, setEditErrors] = useState<Record<string, string>>({})
+  const [savingSubmission, setSavingSubmission] = useState(false)
+  const [editStatus, setEditStatus] = useState<{ kind: 'success' | 'error'; message: string } | null>(null)
 
   const loadSubmissions = async () => {
     setLoading(true)
@@ -592,6 +678,113 @@ export default function Submissions() {
   }), [subs])
 
   const preparedSubs = useMemo(() => visibleSubs.map((sub: any) => ({ ...sub, parsed: parseSubmission(sub) })), [visibleSubs])
+
+  const beginEditSubmission = (submission: any) => {
+    const data = submission?.deal_data || {}
+    const values: Record<string, any> = {}
+    PORTAL_SECTIONS.forEach(section => section.fields.forEach(field => {
+      const value = getField(data, field.key)
+      values[field.key] = field.bool ? boolLike(value) : (value ?? '')
+    }))
+    collectEditableAdditionalFields(data).forEach(field => {
+      values[`custom:${field.path}`] = field.value ?? ''
+    })
+    setEditValues(values)
+    setEditErrors({})
+    setEditStatus(null)
+    setEditingSubmission(true)
+  }
+
+  const cancelEditSubmission = () => {
+    setEditingSubmission(false)
+    setEditValues({})
+    setEditErrors({})
+    setEditStatus(null)
+  }
+
+  const validateEditValues = (data: any) => {
+    const errors: Record<string, string> = {}
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+    PORTAL_SECTIONS.forEach(section => section.fields.forEach(field => {
+      const value = editValues[field.key]
+      const text = typeof value === 'string' ? value.trim() : value
+      if (text === '' || text === undefined || text === null) return
+      if (field.email && !emailPattern.test(String(text))) errors[field.key] = 'Enter a valid email address.'
+      if (field.number || field.money || field.percent) {
+        const parsed = Number(String(text).replace(/[$,%\s,]/g, ''))
+        if (!Number.isFinite(parsed)) errors[field.key] = 'Enter a valid number.'
+        else if (field.whole && !Number.isInteger(parsed)) errors[field.key] = 'Enter a whole number.'
+        else if (field.percent && (parsed < 0 || parsed > 100)) errors[field.key] = 'Enter a percentage from 0 to 100.'
+      }
+      if (field.date && Number.isNaN(Date.parse(String(text)))) errors[field.key] = 'Enter a valid date.'
+    }))
+
+    collectEditableAdditionalFields(data).forEach(field => {
+      const key = `custom:${field.path}`
+      const value = editValues[key]
+      const text = typeof value === 'string' ? value.trim() : value
+      if (text === '' || text === undefined || text === null) return
+      if (typeof field.value === 'number' && !Number.isFinite(Number(String(text).replace(/[$,%\s,]/g, '')))) {
+        errors[key] = 'Enter a valid number.'
+      } else if (/percent|percentage|rate/i.test(field.path)) {
+        const parsed = Number(String(text).replace(/[%\s,]/g, ''))
+        if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100) errors[key] = 'Enter a percentage from 0 to 100.'
+      } else if (/date|deadline|closing/i.test(field.path) && Number.isNaN(Date.parse(String(text)))) {
+        errors[key] = 'Enter a valid date.'
+      }
+    })
+    return errors
+  }
+
+  const saveSubmissionEdits = async () => {
+    if (!reviewSub || savingSubmission) return
+    const originalData = reviewSub.deal_data || {}
+    const errors = validateEditValues(originalData)
+    setEditErrors(errors)
+    setEditStatus(null)
+    if (Object.keys(errors).length) return
+
+    const nextData = typeof structuredClone === 'function'
+      ? structuredClone(originalData)
+      : JSON.parse(JSON.stringify(originalData))
+
+    PORTAL_SECTIONS.forEach(section => section.fields.forEach(field => {
+      const rawValue = editValues[field.key]
+      if (rawValue === '' || rawValue === undefined || rawValue === null) return
+      let value: any = rawValue
+      if (field.number || field.money || field.percent) value = Number(String(rawValue).replace(/[$,%\s,]/g, ''))
+      if (field.bool) value = Boolean(rawValue)
+      setPath(nextData, editableFieldPath(originalData, field.key), value)
+    }))
+
+    collectEditableAdditionalFields(originalData).forEach(field => {
+      const rawValue = editValues[`custom:${field.path}`]
+      if (rawValue === '' || rawValue === undefined || rawValue === null) return
+      const value = typeof field.value === 'number'
+        ? Number(String(rawValue).replace(/[$,%\s,]/g, ''))
+        : typeof field.value === 'boolean'
+          ? Boolean(rawValue)
+          : rawValue
+      setPath(nextData, field.path, value)
+    })
+
+    setSavingSubmission(true)
+    const result = await updateDealSubmissionData(reviewSub, nextData)
+    setSavingSubmission(false)
+    if (!result.ok) {
+      const message = cleanText((result.error as any)?.message || result.error, 'Could not save submission changes.')
+      setEditStatus({ kind: 'error', message })
+      return
+    }
+
+    const updated = { ...(result.data || reviewSub), parsed: parseSubmission(result.data || reviewSub) }
+    setReviewSub(updated)
+    setSubs(prev => prev.map(sub => sub.id === updated.id ? updated : sub))
+    setEditingSubmission(false)
+    setEditStatus({ kind: 'success', message: 'Submission changes saved.' })
+    toast.success('Submission changes saved')
+  }
 
   useEffect(() => {
     const submissionId = searchParams.get('submissionId')
@@ -802,8 +995,13 @@ export default function Submissions() {
     const p = reviewSub.parsed || parseSubmission(reviewSub)
     const allSubmittedFields = flattenSubmissionFields(data)
     const additionalFields = allSubmittedFields.filter(field => !KNOWN_ADDITIONAL_LABELS.has(field.label))
+    const knownEditPaths = new Set(PORTAL_SECTIONS.flatMap(section => section.fields.flatMap(field =>
+      [field.key, NESTED_FIELD_PATHS[field.key]].filter(Boolean) as string[]
+    )))
+    const editableAdditionalFields = collectEditableAdditionalFields(data).filter(field => !knownEditPaths.has(field.path))
     const converted = isConvertedDealSubmission(reviewSub)
     const conversionMeta = getDealSubmissionConversionMeta(reviewSub)
+    const canEditSubmission = Boolean(user?.id || user?.email)
 
     return (
       <div className="fixed inset-0 bg-black/70 z-[200] flex items-center justify-center p-4">
@@ -816,21 +1014,60 @@ export default function Submissions() {
                 {[p.city, p.state, p.zip].filter(Boolean).join(', ') || 'Location not provided'} | {formatSource(reviewSub.source)}
               </div>
             </div>
-            <button onClick={() => setReviewSub(null)} className="btn btn-ghost h-fit">Close</button>
+            <div className="flex gap-2">
+              {!editingSubmission && canEditSubmission && (
+                <button onClick={() => beginEditSubmission(reviewSub)} className="btn btn-ghost h-fit">Edit Submission</button>
+              )}
+              <button onClick={() => { cancelEditSubmission(); setReviewSub(null) }} className="btn btn-ghost h-fit">Close</button>
+            </div>
           </div>
 
-          <div className="grid md:grid-cols-4 gap-3 mb-5">
-            <DetailBox label="Asking Price" value={money(p.asking)} highlight />
-            <DetailBox label="ARV" value={money(p.arv)} highlight />
-            <DetailBox label="Submitter" value={p.submitter} />
-            <DetailBox label="Source" value={formatSource(reviewSub.source)} />
-          </div>
+          {!editingSubmission && (
+            <div className="grid md:grid-cols-4 gap-3 mb-5">
+              <DetailBox label="Asking Price" value={money(p.asking)} highlight />
+              <DetailBox label="ARV" value={money(p.arv)} highlight />
+              <DetailBox label="Submitter" value={p.submitter} />
+              <DetailBox label="Source" value={formatSource(reviewSub.source)} />
+            </div>
+          )}
+
+          {editStatus && (
+            <div className={`mb-5 rounded-xl border p-3 text-sm ${editStatus.kind === 'success' ? 'border-green-500/40 bg-green-500/10 text-green-200' : 'border-red-500/40 bg-red-500/10 text-red-200'}`}>
+              {editStatus.message}
+            </div>
+          )}
 
           {PORTAL_SECTIONS.map(section => (
             <div key={section.title} className="mb-5">
               <div className="text-sm font-semibold mb-2">{section.title.replace(/^\d+\.\s*/, '')}</div>
               <div className="grid md:grid-cols-2 gap-3">
-                {section.fields.map(field => (
+                {section.fields.map(field => editingSubmission ? (
+                  <label key={field.key} className="rounded-xl border border-[#252A38] bg-[#0F111A] p-3">
+                    <div className="text-xs text-[#8B92A3] mb-1">{field.label}</div>
+                    {field.bool ? (
+                      <input
+                        type="checkbox"
+                        checked={Boolean(editValues[field.key])}
+                        onChange={event => setEditValues(prev => ({ ...prev, [field.key]: event.target.checked }))}
+                      />
+                    ) : /notes|instructions|terms|explanation|issues|liens|motivation/i.test(field.key) ? (
+                      <textarea
+                        className={`input min-h-[76px] ${editErrors[field.key] ? 'border-red-500/70' : ''}`}
+                        value={editValues[field.key] ?? ''}
+                        onChange={event => setEditValues(prev => ({ ...prev, [field.key]: event.target.value }))}
+                      />
+                    ) : (
+                      <input
+                        className={`input ${editErrors[field.key] ? 'border-red-500/70' : ''}`}
+                        type={field.date ? 'date' : field.email ? 'email' : (field.number || field.money || field.percent) ? 'text' : 'text'}
+                        inputMode={field.number || field.money || field.percent ? 'decimal' : undefined}
+                        value={editValues[field.key] ?? ''}
+                        onChange={event => setEditValues(prev => ({ ...prev, [field.key]: event.target.value }))}
+                      />
+                    )}
+                    {editErrors[field.key] && <div className="text-xs text-red-300 mt-1">{editErrors[field.key]}</div>}
+                  </label>
+                ) : (
                   <DetailBox
                     key={field.key}
                     label={field.label}
@@ -872,7 +1109,28 @@ export default function Submissions() {
           <div className="mb-5">
             <div className="text-sm font-semibold mb-2">Additional Fields</div>
             <div className="grid md:grid-cols-2 gap-3">
-              {additionalFields.length > 0 ? additionalFields.map((field, index) => (
+              {editingSubmission && editableAdditionalFields.length > 0 ? editableAdditionalFields.map(field => {
+                const key = `custom:${field.path}`
+                return (
+                  <label key={field.path} className="rounded-xl border border-[#252A38] bg-[#0F111A] p-3">
+                    <div className="text-xs text-[#8B92A3] mb-1">{field.label}</div>
+                    {typeof field.value === 'boolean' ? (
+                      <input
+                        type="checkbox"
+                        checked={Boolean(editValues[key])}
+                        onChange={event => setEditValues(prev => ({ ...prev, [key]: event.target.checked }))}
+                      />
+                    ) : (
+                      <input
+                        className={`input ${editErrors[key] ? 'border-red-500/70' : ''}`}
+                        value={editValues[key] ?? ''}
+                        onChange={event => setEditValues(prev => ({ ...prev, [key]: event.target.value }))}
+                      />
+                    )}
+                    {editErrors[key] && <div className="text-xs text-red-300 mt-1">{editErrors[key]}</div>}
+                  </label>
+                )
+              }) : !editingSubmission && additionalFields.length > 0 ? additionalFields.map((field, index) => (
                 <DetailBox key={`${field.label}-${index}`} label={field.label} value={field.value || 'Not Provided'} />
               )) : (
                 <DetailBox label="Additional Fields" value="Not Provided" />
@@ -899,7 +1157,14 @@ export default function Submissions() {
           )}
 
           <div className="flex flex-wrap gap-2 pt-4 border-t border-white/10">
-            {converted ? (
+            {editingSubmission ? (
+              <>
+                <button onClick={saveSubmissionEdits} disabled={savingSubmission} className="btn btn-green disabled:opacity-60">
+                  {savingSubmission ? 'Saving...' : 'Save Changes'}
+                </button>
+                <button onClick={cancelEditSubmission} disabled={savingSubmission} className="btn btn-ghost">Cancel</button>
+              </>
+            ) : converted ? (
               <button
                 onClick={() => openInventoryDeal(conversionMeta.inventoryDealId)}
                 className="btn btn-green"
@@ -915,8 +1180,8 @@ export default function Submissions() {
                 {approvingIds[reviewSub.id] ? 'Approving...' : 'Approve to Inventory'}
               </button>
             )}
-            <button onClick={() => copySummary(reviewSub)} className="btn btn-ghost">Copy Summary</button>
-            {!converted && (
+            {!editingSubmission && <button onClick={() => copySummary(reviewSub)} className="btn btn-ghost">Copy Summary</button>}
+            {!editingSubmission && !converted && (
               <button
                 onClick={async () => {
                   if (!confirm('Delete this submission?')) return
@@ -931,7 +1196,7 @@ export default function Submissions() {
                 Delete
               </button>
             )}
-            <button onClick={() => setReviewSub(null)} className="btn btn-ghost ml-auto">Cancel</button>
+            {!editingSubmission && <button onClick={() => setReviewSub(null)} className="btn btn-ghost ml-auto">Cancel</button>}
           </div>
         </div>
       </div>

@@ -388,6 +388,58 @@ export async function listDealSubmissionsForReview() {
   }
 }
 
+export async function updateDealSubmissionData(submission: any, dealData: Record<string, any>) {
+  const id = submission?.id
+  if (!id) return { ok: false, error: new Error('Missing submission ID') }
+
+  const ready = requireSupabase()
+  if (!ready.ok) return { ok: false, error: ready.error }
+
+  const existingData = submission?.deal_data && typeof submission.deal_data === 'object'
+    ? submission.deal_data
+    : {}
+  const nextData = {
+    ...existingData,
+    ...dealData,
+    docs: existingData.docs,
+    documents: existingData.documents,
+    files: existingData.files,
+    uploadedFiles: existingData.uploadedFiles,
+    submittedAt: existingData.submittedAt,
+    submissionStatus: existingData.submissionStatus,
+    conversionAudit: existingData.conversionAudit,
+    convertedAt: existingData.convertedAt,
+    convertedBy: existingData.convertedBy,
+    inventoryDealId: existingData.inventoryDealId,
+  }
+
+  Object.keys(nextData).forEach(key => {
+    if (nextData[key] === undefined) delete nextData[key]
+  })
+
+  try {
+    const now = new Date().toISOString()
+    let { error } = await ready.client
+      .from('deal_submissions')
+      .update({ deal_data: nextData, updated_at: now })
+      .eq('id', id)
+
+    if (error && /updated_at|column|schema/i.test(String(error.message || error.details || error))) {
+      const fallback = await ready.client
+        .from('deal_submissions')
+        .update({ deal_data: nextData })
+        .eq('id', id)
+      error = fallback.error
+    }
+
+    if (error) return { ok: false, error }
+    notifyDealSubmissionQueueChanged()
+    return { ok: true, data: { ...submission, deal_data: nextData, updated_at: now } }
+  } catch (error) {
+    return { ok: false, error }
+  }
+}
+
 export async function markDealSubmissionConverted(submission: any, input: {
   inventoryDealId: string
   convertedBy: string
