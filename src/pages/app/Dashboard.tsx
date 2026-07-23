@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAppStore } from '../../store/useAppStore'
 import { Plus, Users, Upload, Send, Building2, Clock, FileText, DollarSign, AlertTriangle } from 'lucide-react'
-import { countPendingBuyerPortalSubmissions } from '../../lib/buyerPortalSubmissionStorage'
-import { hasMissingDealSubmissionDocs, listPendingDealSubmissions } from '../../lib/dealSubmissionStorage'
+import { countPendingBuyerPortalSubmissions, listPendingBuyerPortalSubmissions } from '../../lib/buyerPortalSubmissionStorage'
+import { getDealSubmissionConversionMeta, hasMissingDealSubmissionDocs, listDealSubmissionsForReview, listPendingDealSubmissions } from '../../lib/dealSubmissionStorage'
 import { isSuperAdmin } from '../../lib/accessControl'
 import { getBillingNotice, isOwnerPreviewActive } from '../../lib/planAccess'
 
@@ -405,14 +405,7 @@ export default function Dashboard() {
           {/* Recent Activity (only one) */}
           <div className="lg:col-span-4 card p-5">
             <div className="font-medium mb-3 flex justify-between">Recent Activity <Link to="/app/settings" className="text-xs text-[#3B82F6]">View all</Link></div>
-            <div className="space-y-2 text-sm">
-              {currentDeals.slice(0, 4).map(d => (
-                <div key={d.id} onClick={() => useAppStore.getState().safeOpenDeal(d.id)} className="flex justify-between p-2 -mx-2 rounded hover:bg-[#171B26] cursor-pointer">
-                  <div>{d?.property?.address || 'Untitled deal'} <span className="text-[#8B92A3]">({d.status})</span></div>
-                  <div className="text-xs text-[#8B92A3]">{new Date(d.updatedAt).toLocaleDateString()}</div>
-                </div>
-              ))}
-            </div>
+            <RecentActivity />
           </div>
         </div>
 
@@ -474,6 +467,123 @@ function TimeDateWidget() {
           <option key={o.value} value={o.value}>{o.label}</option>
         ))}
       </select>
+    </div>
+  )
+}
+
+function RecentActivity() {
+  const [activities, setActivities] = useState<any[]>([])
+
+  useEffect(() => {
+    let active = true
+
+    const load = async () => {
+      const store = useAppStore.getState()
+      const liveDealIds = new Set((store.deals || []).filter((deal: any) =>
+        deal?.id && String(deal.status || '').toLowerCase() !== 'dead'
+      ).map((deal: any) => deal.id))
+      const rows: any[] = []
+
+      Object.entries(store.activities || {}).forEach(([dealId, entries]) => {
+        if (dealId !== '__global' && !liveDealIds.has(dealId)) return
+        ;(entries as any[]).forEach(entry => rows.push({
+          ...entry,
+          dealId: dealId === '__global' ? null : dealId,
+          timestamp: entry.timestamp,
+        }))
+      })
+
+      try {
+        const result = await listDealSubmissionsForReview()
+        if (result.ok) {
+          ;(result.data || []).forEach((submission: any) => {
+            const data = submission.deal_data || {}
+            const address = data?.property?.address || data.address || 'New deal submission'
+            rows.push({
+              id: `deal-submission-${submission.id}`,
+              type: 'New deal submission',
+              description: address,
+              timestamp: data.submittedAt || submission.created_at,
+            })
+
+            const conversion = getDealSubmissionConversionMeta(submission)
+            if (conversion.convertedAt) {
+              rows.push({
+                id: `deal-conversion-${submission.id}`,
+                type: 'Submission approved',
+                description: `${address} converted to Inventory Hub`,
+                timestamp: conversion.convertedAt,
+                dealId: conversion.inventoryDealId || null,
+              })
+            }
+          })
+        }
+      } catch {}
+
+      try {
+        const submissions = await listPendingBuyerPortalSubmissions()
+        submissions.forEach((submission: any) => {
+          const data = submission.buyer_data || {}
+          rows.push({
+            id: `buyer-submission-${submission.id}`,
+            type: 'New buyer portal submission',
+            description: data.name || data.fullName || data.email || 'Buyer waiting for review',
+            timestamp: data.submittedAt || submission.created_at,
+          })
+        })
+      } catch {}
+
+      const seen = new Set<string>()
+      const sorted = rows
+        .filter(row => row.timestamp)
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+        .filter(row => {
+          const key = row.id || `${row.type}|${row.description}|${row.timestamp}`
+          if (seen.has(key)) return false
+          seen.add(key)
+          return true
+        })
+        .slice(0, 4)
+
+      if (active) setActivities(sorted)
+    }
+
+    const refresh = () => { void load() }
+    void load()
+    const unsubscribe = useAppStore.subscribe(refresh)
+    window.addEventListener('focus', refresh)
+    window.addEventListener('dealblastpro:storage-sync', refresh)
+    window.addEventListener('dealblastpro:buyer-portal-queue-changed', refresh)
+    window.addEventListener('dealblastpro:deal-submission-queue-changed', refresh)
+    const interval = window.setInterval(refresh, 10000)
+
+    return () => {
+      active = false
+      unsubscribe()
+      window.removeEventListener('focus', refresh)
+      window.removeEventListener('dealblastpro:storage-sync', refresh)
+      window.removeEventListener('dealblastpro:buyer-portal-queue-changed', refresh)
+      window.removeEventListener('dealblastpro:deal-submission-queue-changed', refresh)
+      window.clearInterval(interval)
+    }
+  }, [])
+
+  if (!activities.length) {
+    return <div className="text-sm text-[#8B92A3]">No recent activity yet.</div>
+  }
+
+  return (
+    <div className="space-y-2 text-sm">
+      {activities.map(activity => (
+        <div
+          key={activity.id || `${activity.type}-${activity.timestamp}`}
+          onClick={() => activity.dealId && useAppStore.getState().safeOpenDeal(activity.dealId)}
+          className={`flex justify-between gap-3 p-2 -mx-2 rounded ${activity.dealId ? 'hover:bg-[#171B26] cursor-pointer' : ''}`}
+        >
+          <div>{activity.type} <span className="text-[#8B92A3]">— {activity.description}</span></div>
+          <div className="text-xs text-[#8B92A3] whitespace-nowrap">{new Date(activity.timestamp).toLocaleDateString()}</div>
+        </div>
+      ))}
     </div>
   )
 }
