@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import { BUYERS_TABLE, fetchBuyersFromSupabase } from './buyerSupabaseSync'
+import { BUYERS_TABLE, fetchBuyersFromSupabase, invalidateBuyerHydrationCache } from './buyerSupabaseSync'
 
 type RecoveryScope = {
   userId: string
@@ -240,6 +240,7 @@ export async function parseBuyerRecoveryImportFile(file: File): Promise<Recovera
 }
 
 export async function scanBuyerRecoverySources(currentBuyers: any[] = [], importedBuyers: RecoverableBuyer[] = []): Promise<BuyerRecoveryScanResult> {
+  invalidateBuyerHydrationCache()
   const scope = await getScope()
   const supportedOwnerColumns = scope ? await findSupportedOwnerColumns(scope) : []
   const ownerScopeActive = supportedOwnerColumns.length > 0
@@ -248,7 +249,7 @@ export async function scanBuyerRecoverySources(currentBuyers: any[] = [], import
   let legacyRows: any[] = []
 
   if (scope && ownerScopeActive) {
-    const scopedResult = await fetchBuyersFromSupabase()
+    const scopedResult = await fetchBuyersFromSupabase({ force: true })
     if (scopedResult.ok && Array.isArray(scopedResult.data)) {
       supabaseOwnedRows = scopedResult.data
     }

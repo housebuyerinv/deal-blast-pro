@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAppStore } from '../../store/useAppStore'
 import { Plus, Users, Upload, Send, Building2, Clock, FileText, DollarSign, AlertTriangle } from 'lucide-react'
 import { countPendingBuyerPortalSubmissions } from '../../lib/buyerPortalSubmissionStorage'
-import { hasMissingDealSubmissionDocs, listPendingDealSubmissions } from '../../lib/dealSubmissionStorage'
+import { countPendingDealSubmissions } from '../../lib/dealSubmissionStorage'
 import { isSuperAdmin } from '../../lib/accessControl'
 import { getBillingNotice, isOwnerPreviewActive } from '../../lib/planAccess'
 
@@ -13,7 +13,6 @@ export default function Dashboard() {
   // DASHBOARD_PENDING_PORTAL_COUNT_FIX
   const [pendingBuyerPortalCount, setPendingBuyerPortalCount] = useState(0)
   const [pendingDealSubmissionCount, setPendingDealSubmissionCount] = useState(0)
-  const [pendingDocsSubmissionCount, setPendingDocsSubmissionCount] = useState(0)
 
   const refreshPendingBuyerPortalCount = async () => {
     try {
@@ -26,14 +25,11 @@ export default function Dashboard() {
 
   const refreshPendingDealSubmissionCount = async () => {
     try {
-      const result = await listPendingDealSubmissions()
-      const rows = result.ok && Array.isArray(result.data) ? result.data : []
-      setPendingDealSubmissionCount(rows.length)
-      setPendingDocsSubmissionCount(rows.filter((sub: any) => hasMissingDealSubmissionDocs(sub)).length)
+      const result = await countPendingDealSubmissions()
+      setPendingDealSubmissionCount(result.ok ? result.count : 0)
     } catch (error) {
       console.warn('[Deal Blast Pro] Failed to refresh deal submission pending count', error)
       setPendingDealSubmissionCount(0)
-      setPendingDocsSubmissionCount(0)
     }
   }
 
@@ -47,17 +43,13 @@ export default function Dashboard() {
     }
 
     window.addEventListener('focus', refresh)
-    window.addEventListener('storage', refresh)
-    window.addEventListener('dealblastpro:storage-sync', refresh)
     window.addEventListener('dealblastpro:buyer-portal-queue-changed', refresh)
     window.addEventListener('dealblastpro:deal-submission-queue-changed', refresh)
 
-    const interval = window.setInterval(refresh, 10000)
+    const interval = window.setInterval(refresh, 60000)
 
     return () => {
       window.removeEventListener('focus', refresh)
-      window.removeEventListener('storage', refresh)
-      window.removeEventListener('dealblastpro:storage-sync', refresh)
       window.removeEventListener('dealblastpro:buyer-portal-queue-changed', refresh)
       window.removeEventListener('dealblastpro:deal-submission-queue-changed', refresh)
       window.clearInterval(interval)
@@ -110,7 +102,7 @@ export default function Dashboard() {
     { label: 'Submissions', value: totalDealSubmissionNotifications, link: '/app/submissions', color: 'text-[#3B82F6]' },
     { label: 'Buyer Matches', value: buyers.length, link: '/app/buyers', color: 'text-[#22C55E]' },
     { label: 'Offers Received', value: pendingLiveOffers.length, link: '/app/pipeline', color: 'text-amber-400' },
-    { label: 'Pending Docs', value: pendingDocsSubmissionCount, link: '/app/submissions?filter=pending-docs', color: 'text-[#F59E0B]' },
+    { label: 'Pending Docs', value: 'Review', link: '/app/submissions?filter=pending-docs', color: 'text-[#F59E0B]' },
   ]
 
   const totalBuyerReviewNotifications = pendingBuyerPortalCount

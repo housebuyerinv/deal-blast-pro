@@ -718,6 +718,9 @@ export const useAppStore = create<AppStore>()(
           ? (get().workspaceInstanceId || makeWorkspaceInstanceId(nextUser))
           : makeWorkspaceInstanceId(nextUser)
 
+        if (!shouldPreserveWorkspace || currentUser?.id !== nextUser.id) {
+          void import('../lib/buyerSupabaseSync').then(m => m.invalidateBuyerHydrationCache())
+        }
         set({
           ...(shouldPreserveWorkspace ? {} : cleanWorkspaceState()),
           workspaceInstanceId,
@@ -727,15 +730,18 @@ export const useAppStore = create<AppStore>()(
           user: nextUser
         })
       },
-      logout: () => set({
-        ...cleanWorkspaceState(),
-        user: null,
-        trial: TRIAL_DEFAULT,
-        workspaceInstanceId: null,
-        workspaceOwnerId: null,
-        workspaceOwnerEmail: null,
-        workspaceDataScopeKey: null,
-      }),
+      logout: () => {
+        void import('../lib/buyerSupabaseSync').then(m => m.invalidateBuyerHydrationCache())
+        set({
+          ...cleanWorkspaceState(),
+          user: null,
+          trial: TRIAL_DEFAULT,
+          workspaceInstanceId: null,
+          workspaceOwnerId: null,
+          workspaceOwnerEmail: null,
+          workspaceDataScopeKey: null,
+        })
+      },
       updateUserProfile: (updates) => {
         const u = get().user
         if (!u) return
@@ -1518,21 +1524,38 @@ export const useAppStore = create<AppStore>()(
           assetTypes: partial.assetTypes || [],
           markets: partial.markets || []
         }
-        set(s => ({ buyers: [...s.buyers, buyer] }))
+        void import('../lib/buyerSupabaseSync')
+          .then(m => m.insertBuyerToSupabase(buyer))
+          .then(result => {
+            if (!result.ok || !result.data) {
+              console.warn('[Deal Blast Pro] Buyer Supabase insert failed:', result.error)
+              return
+            }
+            const savedBuyer = { ...buyer, ...result.data, id: result.data.id || buyer.id }
+            set(s => ({
+              buyers: s.buyers.some(existing =>
+                existing.id === savedBuyer.id || safeLower(existing.email) === safeLower(savedBuyer.email)
+              )
+                ? s.buyers.map(existing =>
+                    existing.id === savedBuyer.id || safeLower(existing.email) === safeLower(savedBuyer.email)
+                      ? { ...existing, ...savedBuyer }
+                      : existing
+                  )
+                : [...s.buyers, savedBuyer],
+            }))
+            const savedBuyerAny = savedBuyer as any
+            if (
+              savedBuyerAny.buyerPortalSubmission ||
+              savedBuyerAny.verificationStatus === 'Submitted / Pending Review' ||
+              String(savedBuyerAny.status || '') === 'Submitted / Pending Review'
+            ) {
+              get().logActivity(null, 'Buyer Verification Submitted', 'New buyer verification submitted: ' + (savedBuyer.name || savedBuyer.email))
+            } else {
+              get().logActivity(null, 'Buyer Added', 'Buyer added: ' + (savedBuyer.name || savedBuyer.email))
+            }
+          })
+          .catch(error => console.warn('[Deal Blast Pro] Buyer Supabase insert crashed:', error))
 
-          void import('../lib/buyerSupabaseSync')
-            .then(m => m.insertBuyerToSupabase(buyer))
-            .then(result => {
-              if (!result.ok) console.warn('[Deal Blast Pro] Buyer Supabase insert failed:', result.error)
-            })
-            .catch(error => console.warn('[Deal Blast Pro] Buyer Supabase insert crashed:', error))
-
-        const buyerAny = buyer as any
-        if (buyerAny.buyerPortalSubmission || buyerAny.verificationStatus === 'Submitted / Pending Review' || String((buyer as any).status || '') === 'Submitted / Pending Review') {
-          get().logActivity(null, 'Buyer Verification Submitted', 'New buyer verification submitted: ' + (buyer.name || buyer.email))
-        } else {
-          get().logActivity(null, 'Buyer Added', 'Buyer added: ' + (buyer.name || buyer.email))
-        }
         return buyer
       },
       updateBuyer: (id, updates) => {
@@ -1546,49 +1569,53 @@ export const useAppStore = create<AppStore>()(
           updatedAt: new Date().toISOString(),
         }
 
-        let updatedBuyer: any = null
-        set(s => ({
-          buyers: s.buyers.map(b => {
-            if (b.id !== id) return b
-            updatedBuyer = { ...b, ...cleanUpdates }
-            return updatedBuyer
-          })
-        }))
+        const currentBuyer = get().buyers.find(b => b.id === id)
+        const updatedBuyer: any = currentBuyer ? { ...currentBuyer, ...cleanUpdates } : null
 
         if (updatedBuyer) {
           void import('../lib/buyerSupabaseSync')
             .then(m => m.updateBuyerInSupabase(id, updatedBuyer))
             .then(result => {
-              if (!result.ok) console.warn('[Deal Blast Pro] Buyer Supabase update failed:', result.error)
+              if (!result.ok) {
+                console.warn('[Deal Blast Pro] Buyer Supabase update failed:', result.error)
+                return
+              }
+              if (result.data) {
+                set(s => ({
+                  buyers: s.buyers.map(existing =>
+                    existing.id === id ? { ...existing, ...updatedBuyer, ...result.data, id: existing.id } : existing
+                  ),
+                }))
+              }
             })
             .catch(error => console.warn('[Deal Blast Pro] Buyer Supabase update crashed:', error))
         }
       },
       deleteBuyer: (id) => {
-        set(s => {
-          const nextBuyerResponses = { ...(s.buyerResponses || {}) }
-          delete nextBuyerResponses[id]
-
-          const nextDealSuppressions: any = {}
-          Object.entries(s.dealSuppressions || {}).forEach(([dealId, rows]: any) => {
-            nextDealSuppressions[dealId] = Array.isArray(rows)
-              ? rows.filter((row: any) => row.buyerId !== id)
-              : rows
-          })
-
-          return {
-            buyers: s.buyers.filter(b => b.id !== id),
-            viewedBuyerIds: s.viewedBuyerIds.filter(x => x !== id),
-            buyerResponses: nextBuyerResponses,
-            dealSuppressions: nextDealSuppressions,
-            followUps: (s.followUps || []).filter((f: any) => f.buyerId !== id),
-          }
-        })
-
         void import('../lib/buyerSupabaseSync')
           .then(m => m.deleteBuyersFromSupabase([id]))
           .then(result => {
-            if (!result.ok) console.warn('[Deal Blast Pro] Buyer Supabase delete failed:', result.error)
+            if (!result.ok) {
+              console.warn('[Deal Blast Pro] Buyer Supabase delete failed:', result.error)
+              return
+            }
+            set(s => {
+              const nextBuyerResponses = { ...(s.buyerResponses || {}) }
+              delete nextBuyerResponses[id]
+              const nextDealSuppressions: any = {}
+              Object.entries(s.dealSuppressions || {}).forEach(([dealId, rows]: any) => {
+                nextDealSuppressions[dealId] = Array.isArray(rows)
+                  ? rows.filter((row: any) => row.buyerId !== id)
+                  : rows
+              })
+              return {
+                buyers: s.buyers.filter(b => b.id !== id),
+                viewedBuyerIds: s.viewedBuyerIds.filter(x => x !== id),
+                buyerResponses: nextBuyerResponses,
+                dealSuppressions: nextDealSuppressions,
+                followUps: (s.followUps || []).filter((f: any) => f.buyerId !== id),
+              }
+            })
           })
           .catch(error => console.warn('[Deal Blast Pro] Buyer Supabase delete crashed:', error))
       },

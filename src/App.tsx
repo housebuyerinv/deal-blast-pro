@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAppStore } from './store/useAppStore'
 import { supabase } from './lib/supabase'
-import { profileToUserNames } from './lib/accountProfile'
+import { loadPaymentPendingAccountStatus, profileToUserNames } from './lib/accountProfile'
 import { DEFAULT_SETTINGS } from './lib/constants'
 import type { TrialState } from './lib/types'
 
@@ -39,7 +39,6 @@ import Upgrade from './pages/app/Upgrade'
 
 import { ErrorBoundary } from './components/ui/ErrorBoundary'
 import { useCloudAutoSave } from './lib/cloudAutoSave'
-import { loadCloudTrialActivation } from './lib/cloudSync'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const user = useAppStore(s => s.user)
@@ -203,31 +202,63 @@ function App() {
     if (billingStatus !== 'Payment Pending') return
 
     let cancelled = false
+    let inFlight = false
+    let lastRefreshStartedAt = 0
+    let activeController: AbortController | null = null
     const checkActivation = async () => {
-      const activation = await loadCloudTrialActivation()
-      if (cancelled || !activation?.plan || !activation.billingStatus) return
+      if (
+        cancelled ||
+        inFlight ||
+        useAppStore.getState().trial.billingStatus !== 'Payment Pending' ||
+        Date.now() - lastRefreshStartedAt < 1000
+      ) return
 
-      activateManualPlan({
-        plan: activation.plan,
-        billingStatus: activation.billingStatus,
-        billingFrequency: activation.billingFrequency || 'monthly',
-        paymentProvider: activation.paymentProvider || 'Stripe',
-        billingPeriodStart: activation.billingPeriodStart,
-        billingPeriodEnd: activation.billingPeriodEnd,
-        billingAdminNote: activation.billingAdminNote || 'Activated automatically from Stripe webhook',
-      })
+      inFlight = true
+      lastRefreshStartedAt = Date.now()
+      activeController = new AbortController()
+      try {
+        const activation = await loadPaymentPendingAccountStatus(activeController.signal)
+        if (
+          cancelled ||
+          !activation?.plan ||
+          !activation.billingStatus ||
+          activation.billingStatus === 'Payment Pending'
+        ) return
+
+        activateManualPlan({
+          plan: activation.plan,
+          billingStatus: activation.billingStatus,
+          billingFrequency: activation.billingFrequency,
+          paymentProvider: 'Stripe',
+          billingPeriodStart: '',
+          billingPeriodEnd: activation.billingPeriodEnd,
+          billingAdminNote: 'Activated automatically from authoritative account status.',
+        })
+      } catch (error: any) {
+        if (!cancelled && error?.name !== 'AbortError') {
+          console.warn('[Deal Blast Pro] Payment Pending account-status refresh failed', error)
+        }
+      } finally {
+        inFlight = false
+        activeController = null
+      }
     }
 
-    checkActivation()
-    const interval = window.setInterval(checkActivation, 15000)
-    window.addEventListener('focus', checkActivation)
-    document.addEventListener('visibilitychange', checkActivation)
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') void checkActivation()
+    }
+
+    void checkActivation()
+    const interval = window.setInterval(() => { void checkActivation() }, 60000)
+    window.addEventListener('focus', refreshWhenVisible)
+    document.addEventListener('visibilitychange', refreshWhenVisible)
 
     return () => {
       cancelled = true
+      activeController?.abort()
       window.clearInterval(interval)
-      window.removeEventListener('focus', checkActivation)
-      document.removeEventListener('visibilitychange', checkActivation)
+      window.removeEventListener('focus', refreshWhenVisible)
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
     }
   }, [billingStatus, activateManualPlan])
 

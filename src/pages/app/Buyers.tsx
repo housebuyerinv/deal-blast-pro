@@ -962,7 +962,7 @@ const formatManualBuyerName = (value: any, emailValue = '') => {
 export default function Buyers() {
   const { 
     buyers, isNewBuyer, markBuyerViewed,
-    addToSuppression, updateBuyer, deleteBuyer,
+    addToSuppression,
     getBuyerMatchHistory, user, trial, settings
   } = useAppStore()
   const effectivePlan = getEffectivePlan(trial, user, settings)
@@ -1173,7 +1173,6 @@ export default function Buyers() {
     }
 
     writeBuyerEditOverride(savedBuyer)
-    updateBuyer(cleanId, savedBuyer as any)
 
     // BUYER_FORCE_GRID_UPDATE_AFTER_SAVE_V1
     // Force the visible Deal Blast Pro buyer grid/store to use the values just saved.
@@ -1262,7 +1261,24 @@ export default function Buyers() {
       return false
     }
 
-    cleanIds.forEach(id => deleteBuyer(id))
+    const removeSet = new Set(cleanIds)
+    useAppStore.setState((state: any) => {
+      const nextBuyerResponses = { ...(state.buyerResponses || {}) }
+      cleanIds.forEach(id => delete nextBuyerResponses[id])
+      const nextDealSuppressions: any = {}
+      Object.entries(state.dealSuppressions || {}).forEach(([dealId, rows]: any) => {
+        nextDealSuppressions[dealId] = Array.isArray(rows)
+          ? rows.filter((row: any) => !removeSet.has(String(row?.buyerId || '')))
+          : rows
+      })
+      return {
+        buyers: (state.buyers || []).filter((buyer: any) => !removeSet.has(String(buyer?.id || ''))),
+        viewedBuyerIds: (state.viewedBuyerIds || []).filter((id: string) => !removeSet.has(id)),
+        buyerResponses: nextBuyerResponses,
+        dealSuppressions: nextDealSuppressions,
+        followUps: (state.followUps || []).filter((followUp: any) => !removeSet.has(String(followUp?.buyerId || ''))),
+      }
+    })
     setSelectedBuyerIds(prev => prev.filter(id => !cleanIds.includes(id)))
     if (selectedBuyer && cleanIds.includes(selectedBuyer.id)) setSelectedBuyer(null)
 
@@ -1748,8 +1764,15 @@ const [showImport, setShowImport] = useState(false)
       }
     }
 
-    updateBuyer(keeper.id, (updateResult.data || merged) as any)
-    duplicateIds.forEach(id => deleteBuyer(id))
+    const savedKeeper = updateResult.data || merged
+    const duplicateSet = new Set(duplicateIds)
+    useAppStore.setState((state: any) => ({
+      buyers: (state.buyers || [])
+        .map((buyer: any) => buyer.id === keeper.id ? { ...buyer, ...savedKeeper, id: keeper.id } : buyer)
+        .filter((buyer: any) => !duplicateSet.has(buyer.id)),
+      viewedBuyerIds: (state.viewedBuyerIds || []).filter((id: string) => !duplicateSet.has(id)),
+      followUps: (state.followUps || []).filter((followUp: any) => !duplicateSet.has(String(followUp?.buyerId || ''))),
+    }))
 
     setSelectedBuyerIds([])
     if (selectedBuyer && duplicateIds.includes(selectedBuyer.id)) setSelectedBuyer(null)
@@ -2441,8 +2464,16 @@ const cleanBuyerName = (value: any, emailValue = '') => {
 
   useEffect(() => {
     void refreshBuyerPortalQueueCount()
-    const id = window.setInterval(() => { void refreshBuyerPortalQueueCount() }, 3000)
-    return () => window.clearInterval(id)
+    const refresh = () => { void refreshBuyerPortalQueueCount() }
+    window.addEventListener('focus', refresh)
+    window.addEventListener('dealblastpro:buyer-portal-queue-changed', refresh)
+    const id = window.setInterval(refresh, 60000)
+
+    return () => {
+      window.removeEventListener('focus', refresh)
+      window.removeEventListener('dealblastpro:buyer-portal-queue-changed', refresh)
+      window.clearInterval(id)
+    }
   }, [])
 
   const importBuyerPortalQueue = async () => {
@@ -4000,7 +4031,7 @@ const cleanBuyerName = (value: any, emailValue = '') => {
       setPendingPortalImport(prev => prev.filter((r: any) => !approvedIds.includes(r._id)))
     }
 
-    const cloud = await fetchBuyersFromSupabase()
+    const cloud = await fetchBuyersFromSupabase({ force: true })
     if (cloud.ok) {
       useAppStore.setState({ buyers: Array.isArray(cloud.data) ? cloud.data as any : [] })
     } else {
@@ -4090,7 +4121,7 @@ const cleanBuyerName = (value: any, emailValue = '') => {
       return
     }
 
-    const cloud = await fetchBuyersFromSupabase()
+    const cloud = await fetchBuyersFromSupabase({ force: true })
     if (cloud.ok) {
       useAppStore.setState({ buyers: Array.isArray(cloud.data) ? cloud.data as any : [] })
     } else {

@@ -8,7 +8,7 @@ export const BUYERS_TABLE =
 export type BuyerSyncResult<T = any> = {
   ok: boolean
   data?: T
-  error?: string
+  error?: string | null
 }
 
 type BuyerScope = {
@@ -29,6 +29,47 @@ const buyerScopeColumns = [
 ] as const
 
 let resolvedBuyerScopeColumn: string | null = null
+const BUYER_HYDRATION_FRESH_MS = 5 * 60 * 1000
+type BuyerHydrationResult = BuyerSyncResult<any[]>
+type BuyerHydrationCacheEntry = {
+  completedAt: number
+  result: BuyerHydrationResult
+}
+const buyerHydrationCache = new Map<string, BuyerHydrationCacheEntry>()
+const buyerHydrationInFlight = new Map<string, Promise<BuyerHydrationResult>>()
+let activeBuyerScopeKey = ''
+let buyerHydrationGeneration = 0
+
+function buyerScopeCacheKey(scope: BuyerScope) {
+  return `${scope.userId}:${scope.workspaceId}`
+}
+
+function trackBuyerScope(scope: BuyerScope) {
+  const nextKey = buyerScopeCacheKey(scope)
+  if (activeBuyerScopeKey && activeBuyerScopeKey !== nextKey) {
+    buyerHydrationGeneration += 1
+    buyerHydrationCache.clear()
+    buyerHydrationInFlight.clear()
+    resolvedBuyerScopeColumn = null
+  }
+  activeBuyerScopeKey = nextKey
+  return nextKey
+}
+
+export function invalidateBuyerHydrationCache() {
+  buyerHydrationGeneration += 1
+  buyerHydrationCache.clear()
+  buyerHydrationInFlight.clear()
+  activeBuyerScopeKey = ''
+  resolvedBuyerScopeColumn = null
+}
+
+function invalidateActiveBuyerHydrationCache() {
+  buyerHydrationGeneration += 1
+  if (!activeBuyerScopeKey) return
+  buyerHydrationCache.delete(activeBuyerScopeKey)
+  buyerHydrationInFlight.delete(activeBuyerScopeKey)
+}
 
 async function getActiveSupabaseSession() {
   if (!supabase) return null
@@ -672,7 +713,7 @@ function dedupeBuyersByEmailOrId(buyers: any[]) {
 }
 
 
-export async function fetchBuyersFromSupabase() {
+export async function fetchBuyersFromSupabase(options?: { force?: boolean }) {
   if (!supabase) {
     return { ok: false, data: [], error: 'Supabase client not configured' }
   }
@@ -682,41 +723,59 @@ export async function fetchBuyersFromSupabase() {
     return { ok: true, data: [], error: null }
   }
 
-  const scopeFilter = await resolveBuyerScopeFilter(scope)
-  if (!scopeFilter) {
-    return {
-      ok: false,
-      data: [],
-      error: 'Buyer sync requires an owner-scoped buyers table; refusing to load a shared global buyer list.',
-    }
+  const cacheKey = trackBuyerScope(scope)
+  const cached = buyerHydrationCache.get(cacheKey)
+  if (!options?.force && cached && Date.now() - cached.completedAt < BUYER_HYDRATION_FRESH_MS) {
+    return cached.result
   }
 
-  const pageSize = 1000
-  const allRows: any[] = []
+  const existingRequest = buyerHydrationInFlight.get(cacheKey)
+  if (existingRequest) return existingRequest
 
-  for (let from = 0; 
-
-; from += pageSize) {
-    const to = from + pageSize - 1
-
-    const { data, error } = await supabase
-      .from(BUYERS_TABLE)
-      .select('*')
-      .eq(scopeFilter.column, scopeFilter.value)
-      .order('created_at', { ascending: false })
-      .range(from, to)
-
-    if (error) {
-      return { ok: false, data: allRows, error: error.message || String(error) }
+  const requestGeneration = buyerHydrationGeneration
+  const request = (async (): Promise<BuyerHydrationResult> => {
+    const scopeFilter = await resolveBuyerScopeFilter(scope)
+    if (!scopeFilter) {
+      return {
+        ok: false,
+        data: [],
+        error: 'Buyer sync requires an owner-scoped buyers table; refusing to load a shared global buyer list.',
+      }
     }
 
-    const page = Array.isArray(data) ? data : []
-    allRows.push(...page)
+    const pageSize = 1000
+    const allRows: any[] = []
 
-    if (page.length < pageSize) break
+    for (let from = 0; ; from += pageSize) {
+      const to = from + pageSize - 1
+      const { data, error } = await supabase
+        .from(BUYERS_TABLE)
+        .select('*')
+        .eq(scopeFilter.column, scopeFilter.value)
+        .order('created_at', { ascending: false })
+        .range(from, to)
+
+      if (error) return { ok: false, data: allRows, error: error.message || String(error) }
+      const page = Array.isArray(data) ? data : []
+      allRows.push(...page)
+      if (page.length < pageSize) break
+    }
+
+    if (requestGeneration !== buyerHydrationGeneration || activeBuyerScopeKey !== cacheKey) {
+      return { ok: false, data: [], error: 'Buyer hydration was superseded by newer workspace data.' }
+    }
+
+    const result = { ok: true, data: dedupeBuyersByEmailOrId(allRows), error: null }
+    buyerHydrationCache.set(cacheKey, { completedAt: Date.now(), result })
+    return result
+  })()
+
+  buyerHydrationInFlight.set(cacheKey, request)
+  try {
+    return await request
+  } finally {
+    if (buyerHydrationInFlight.get(cacheKey) === request) buyerHydrationInFlight.delete(cacheKey)
   }
-
-  return { ok: true, data: dedupeBuyersByEmailOrId(allRows), error: null }
 }
 
 
@@ -743,7 +802,10 @@ export async function upsertBuyersToSupabase(buyers: any[]): Promise<BuyerSyncRe
     if (!incoming.length) return { ok: true, data: [] }
 
     const apiResult = await importBuyersThroughApi(incoming)
-    if (apiResult) return apiResult
+    if (apiResult) {
+      if (apiResult.ok) invalidateActiveBuyerHydrationCache()
+      return apiResult
+    }
 
     const scope = await getBuyerScope()
     if (!scope) return { ok: false, error: 'Your session has expired. Please sign in again.' }
@@ -756,13 +818,19 @@ export async function upsertBuyersToSupabase(buyers: any[]): Promise<BuyerSyncRe
       }
     }
 
-    // First look up existing buyer rows and reuse their ids when the email already exists.
-    // This keeps approvals working even before the database has a UNIQUE(email) constraint.
-    const existingRows = await fetchBuyersFromSupabase()
+    // Reuse existing ids with a targeted email lookup; never hydrate the full buyer list for a mutation.
+    const incomingEmails = Array.from(new Set(incoming.map(normalizeEmail).filter(Boolean)))
+    const { data: existingRows, error: existingError } = await supabase
+      .from(BUYERS_TABLE)
+      .select('id,email,data,created_at,updated_at')
+      .eq(scopeFilter.column, scopeFilter.value)
+      .in('email', incomingEmails)
+    if (existingError) return { ok: false, error: existingError.message || String(existingError) }
     const existingByEmail = new Map<string, any>()
 
-    if (existingRows.ok && Array.isArray(existingRows.data)) {
-      existingRows.data.forEach((buyer: any) => {
+    if (Array.isArray(existingRows)) {
+      existingRows.forEach((row: any) => {
+        const buyer = rowToBuyer(row)
         const emailKey = normalizeEmail(buyer)
         if (!emailKey || existingByEmail.has(emailKey)) return
         existingByEmail.set(emailKey, buyer)
@@ -791,9 +859,11 @@ export async function upsertBuyersToSupabase(buyers: any[]): Promise<BuyerSyncRe
 
     if (error) return { ok: false, error: error.message }
 
+    const saved = Array.isArray(data) ? data.map(rowToBuyer) : []
+    invalidateActiveBuyerHydrationCache()
     return {
       ok: true,
-      data: Array.isArray(data) ? data.map(rowToBuyer) : [],
+      data: saved,
     }
   } catch (err: any) {
     return { ok: false, error: err?.message || String(err) }
@@ -812,21 +882,11 @@ export async function insertBuyerToSupabase(buyer: any): Promise<BuyerSyncResult
 
 export async function updateBuyerInSupabase(id: string, updates: any): Promise<BuyerSyncResult<any>> {
   try {
-    if (!supabase) return { ok: false, error: 'Supabase client missing' }
-
-    const existing = await fetchBuyersFromSupabase()
-    const current = existing.ok
-      ? existing.data?.find((b: any) => b.id === id) || {}
-      : {}
-
-    const merged = {
-      ...current,
+    const result = await upsertBuyersToSupabase([{
       ...updates,
       id,
       updatedAt: new Date().toISOString(),
-    }
-
-    const result = await upsertBuyersToSupabase([merged])
+    }])
     if (!result.ok) return result
 
     return { ok: true, data: result.data?.[0] }
@@ -883,6 +943,7 @@ export async function deleteBuyersFromSupabase(ids: string[]): Promise<BuyerSync
       }
     }
 
+    invalidateActiveBuyerHydrationCache()
     return { ok: true, data: true }
   } catch (err: any) {
     return { ok: false, error: err?.message || String(err) }

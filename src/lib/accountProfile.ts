@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient'
+import type { TrialState } from './types'
 
 export type AccountProfile = {
   user_id: string
@@ -15,6 +16,55 @@ export type AccountProfile = {
 }
 
 export const CURRENT_ONBOARDING_VERSION = 1
+
+const BILLING_STATUS_FIELDS = 'plan_name,billing_status,billing_interval,current_period_end'
+
+export type PaymentPendingAccountStatus = {
+  plan: TrialState['plan']
+  billingStatus: NonNullable<TrialState['billingStatus']>
+  billingFrequency: NonNullable<TrialState['billingFrequency']>
+  billingPeriodEnd: string
+}
+
+export async function loadPaymentPendingAccountStatus(signal?: AbortSignal): Promise<PaymentPendingAccountStatus | null> {
+  if (!supabase) throw new Error('Supabase is not configured.')
+
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
+  if (sessionError) throw sessionError
+  const userId = sessionData.session?.user?.id
+  if (!userId) return null
+
+  let query = supabase
+    .from('workspace_plan_assignments')
+    .select(BILLING_STATUS_FIELDS)
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  if (signal) query = query.abortSignal(signal)
+  const { data, error } = await query
+  if (error) throw error
+  if (!data?.plan_name || !data?.billing_status) return null
+
+  const plan = String(data.plan_name) === 'Free Demo' ? 'Free' : String(data.plan_name)
+  const supportedPlans = new Set(['Free', 'Starter', 'Pro', 'Agency', 'Enterprise'])
+  const supportedStatuses = new Set([
+    'Free Active',
+    'Trial Active',
+    'Payment Pending',
+    'Paid Active',
+    'Past Due',
+    'Cancelled',
+    'Comped',
+  ])
+  if (!supportedPlans.has(plan) || !supportedStatuses.has(String(data.billing_status))) return null
+
+  return {
+    plan: plan as TrialState['plan'],
+    billingStatus: String(data.billing_status) as NonNullable<TrialState['billingStatus']>,
+    billingFrequency: data.billing_interval === 'annual' ? 'annual' : 'monthly',
+    billingPeriodEnd: String(data.current_period_end || ''),
+  }
+}
 
 export type EditableAccountProfile = {
   fullName: string

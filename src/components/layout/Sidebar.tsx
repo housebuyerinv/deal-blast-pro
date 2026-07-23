@@ -5,7 +5,7 @@ import {
   FileText, Target, Calendar, Calculator
 } from 'lucide-react'
 import { useAppStore } from '../../store/useAppStore'
-import { isActionableDealSubmission, listDealSubmissionsForReview } from '../../lib/dealSubmissionStorage'
+import { countPendingDealSubmissions } from '../../lib/dealSubmissionStorage'
 import { countPendingBuyerPortalSubmissions } from '../../lib/buyerPortalSubmissionStorage'
 import { isInternalAdmin } from '../../lib/accessControl'
 import { canAccessRoute } from '../../lib/planAccess'
@@ -68,21 +68,19 @@ export default function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean;
     let cancelled = false
 
     const refreshSubmissionBadge = async () => {
-      const result = await listDealSubmissionsForReview()
+      const result = await countPendingDealSubmissions()
       if (cancelled) return
-      setSubmissions(result.ok ? (result.data || []).filter(isActionableDealSubmission).length : 0)
+      setSubmissions(result.ok ? result.count : 0)
     }
 
     refreshSubmissionBadge()
     window.addEventListener('focus', refreshSubmissionBadge)
     window.addEventListener('dealblastpro:deal-submission-queue-changed', refreshSubmissionBadge)
-    window.addEventListener('dealblastpro:storage-sync', refreshSubmissionBadge)
 
     return () => {
       cancelled = true
       window.removeEventListener('focus', refreshSubmissionBadge)
       window.removeEventListener('dealblastpro:deal-submission-queue-changed', refreshSubmissionBadge)
-      window.removeEventListener('dealblastpro:storage-sync', refreshSubmissionBadge)
     }
   }, [])
 
@@ -102,15 +100,13 @@ export default function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean;
     void refreshBuyerPortalBadge()
     window.addEventListener('focus', refreshBuyerPortalBadge)
     window.addEventListener('dealblastpro:buyer-portal-queue-changed', refreshBuyerPortalBadge)
-    window.addEventListener('dealblastpro:storage-sync', refreshBuyerPortalBadge)
 
-    const interval = window.setInterval(refreshBuyerPortalBadge, 10000)
+    const interval = window.setInterval(refreshBuyerPortalBadge, 60000)
 
     return () => {
       cancelled = true
       window.removeEventListener('focus', refreshBuyerPortalBadge)
       window.removeEventListener('dealblastpro:buyer-portal-queue-changed', refreshBuyerPortalBadge)
-      window.removeEventListener('dealblastpro:storage-sync', refreshBuyerPortalBadge)
       window.clearInterval(interval)
     }
   }, [])
