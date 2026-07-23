@@ -693,7 +693,7 @@ export default function DealCalculator() {
       if (payload.cache?.status === 'hit') {
         setPropertyLookupStatus('Cached result. No lookup credit used.')
       } else if (payload.usage?.creditUsed) {
-        setPropertyLookupStatus(`Lookup complete. ${payload.usage.providerRequestCount || 0} provider requests used.`)
+        setPropertyLookupStatus('Property data loaded successfully.')
       }
     } catch (error: any) {
       setPropertyLookupError(error?.message || 'Property Intelligence lookup failed')
@@ -2044,7 +2044,7 @@ Deal Blast Pro`
           ['Living Area', propertyLookupSummary.property?.livingAreaSqft ? `${Number(propertyLookupSummary.property.livingAreaSqft).toLocaleString()} sqft` : ''],
           ['Building Area', propertyLookupSummary.property?.buildingAreaSqft ? `${Number(propertyLookupSummary.property.buildingAreaSqft).toLocaleString()} sqft` : ''],
           ['Lot Size', propertyLookupSummary.property?.lotSizeSqft ? `${Number(propertyLookupSummary.property.lotSizeSqft).toLocaleString()} sqft` : ''],
-          ['Year Built', propertyLookupSummary.property?.yearBuilt],
+          ['Year Built', propertyLookupSummary.property?.yearBuilt ? String(propertyLookupSummary.property.yearBuilt) : ''],
           ['Units', propertyLookupSummary.property?.units],
           ['Stories', propertyLookupSummary.property?.stories],
           ['Zoning', propertyLookupSummary.property?.zoning],
