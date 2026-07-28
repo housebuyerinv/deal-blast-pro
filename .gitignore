@@ -79,3 +79,5 @@ make-delete-audit-clean.ps1
 # Local working notes
 Analytics.txt
 TODO_NEXT.md
+diagnose-buyer-db-fields.cjs
+patch-buyer-review.js
