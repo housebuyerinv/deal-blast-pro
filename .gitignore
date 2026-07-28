@@ -1,23 +1,81 @@
-.vercel
-.env*
-node_modules/
+﻿node_modules/
 dist/
-.npm-cache/
+build/
+artifacts/
+
+.env
+.env.*
+!.env.example
+
+supabase/.temp/
+.vercel/
+
+*.log
+vite-dev.err
+
+*backup*.json
+deal-blast-pro-full-data-backup-*.json
+
+.buyer-match-ui-restore/
+buyer-match-restore/
+
+*.patch
+*.phase1backup
+DELETE_AUDIT_CLEAN.txt
+
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Vercel local caches
 .vercel-cache/
 .vercel-data/
-*.log
-*.zip
+
+# Local backup folders and broken-file recovery
+backups/
+_broken-tsx-backups/
+test-artifacts/
+verification-screenshots/
+
+# Backup source files
+*.bak
+*.backup
+*.broken-*
+*.before-*
+*.backup-before-*
+
+# TypeScript build cache
 *.tsbuildinfo
-build*.txt
-buyer-*.zip
-deal-*.zip
+
+# Debug archives
+*.zip
+
+# Local build output and diagnostic text
+build-*.txt
+build-errors*.txt
+build-final.txt
+
+# One-time local repair and patch scripts
 patch-*.cjs
 fix-*.cjs
 repair-*.cjs
-*_backup*
-*.bak
-*.backup
-test-artifacts/
-verification-screenshots/
-backups/
-_broken-tsx-backups/
+scan-*.cjs
+dedupe-*.cjs
+stop-*.cjs
+
+# Local Python repair scripts
+add_*.py
+fix_*.py
+force_*.py
+remove_*.py
+safe_*.py
+
+# Local repair utilities
+build-pipeline-fix.bat
+final-build.ps1
+make-delete-audit-clean.ps1
+
+# Local working notes
+Analytics.txt
+TODO_NEXT.md
