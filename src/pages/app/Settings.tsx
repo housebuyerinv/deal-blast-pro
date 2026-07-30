@@ -908,7 +908,7 @@ export default function Settings() {
           <div className="flex flex-col md:flex-row md:items-start justify-between gap-3 mb-4">
             <div>
               <div className="text-xs uppercase tracking-[2px] text-[#8B92A3] mb-1">Billing Center</div>
-              <div className="text-lg font-semibold text-[#E6E8EE]">Free Plan & Upgrade Options</div>
+              <div className="text-lg font-semibold text-[#E6E8EE]">Free Plan Billing Summary</div>
               <div className="text-sm text-[#8B92A3] mt-1">Free accounts do not have a paid Stripe subscription to manage.</div>
             </div>
             <button onClick={downloadBillingSummaryPdf} className="btn btn-ghost text-xs md:w-auto">Download Billing Summary PDF</button>
@@ -928,14 +928,8 @@ export default function Settings() {
             ))}
           </div>
 
-          <div className="panel p-3">
-            <div className="text-sm font-semibold mb-2">Upgrade Options</div>
-            <div className="text-sm text-[#C5CAD6] mb-3">Upgrade to Starter or Pro when you need larger limits, buyer matching, and paid workflow tools.</div>
-            <div className="flex flex-wrap gap-2">
-              <button onClick={() => openUpgradePayment('Starter', settingsBillingFrequency)} className="btn btn-green text-xs">Upgrade to Starter</button>
-              <button onClick={() => openUpgradePayment('Pro', settingsBillingFrequency)} className="btn btn-ghost text-xs">Upgrade to Pro</button>
-              <button onClick={() => window.location.href = '/pricing'} className="btn btn-ghost text-xs">View Pricing</button>
-            </div>
+          <div className="panel p-3 text-sm text-[#C5CAD6]">
+            There is no paid subscription, payment method, invoice, or renewal to manage for this Free account.
           </div>
         </div>
       )

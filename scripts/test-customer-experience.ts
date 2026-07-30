@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
 import {
   canShowSamplePropertyIntelligence,
   getBillingControlPolicy,
@@ -28,5 +29,16 @@ assert.equal(preview.simulated, true)
 assert.equal(preview.showManage, true)
 assert.equal(preview.showUpgrade, true)
 assert.equal(preview.showCancel, true)
+
+const settingsSource = await readFile(new URL('../src/pages/app/Settings.tsx', import.meta.url), 'utf8')
+assert.equal(settingsSource.includes('Free Plan & Upgrade Options'), false)
+assert.equal(settingsSource.includes('Free Plan Billing Summary'), true)
+assert.equal((settingsSource.match(/handleUserFacingUpgrade\('Starter'\)/g) || []).length, 1)
+assert.equal(settingsSource.includes('Preview simulation only. These controls do not contact Stripe or change billing.'), true)
+assert.equal(settingsSource.includes('Manage Billing</button>'), true)
+assert.equal(settingsSource.includes('Change Plan</button>'), true)
+assert.equal(settingsSource.includes('Downgrade Plan</button>'), true)
+assert.equal(settingsSource.includes('Cancel Subscription</button>'), true)
+assert.equal(settingsSource.includes('Undo Scheduled Cancellation</button>'), true)
 
 console.log('Customer experience policy tests passed.')

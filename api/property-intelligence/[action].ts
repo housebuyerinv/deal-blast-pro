@@ -1,7 +1,13 @@
 import { canUsePropertyIntelligence, getAuthenticatedAccount } from '../_accountAuth.js'
+import {
+  buildGeoapifyAutocompleteUrl,
+  categorizeGeoapifyStatus,
+  isGeoapifyAutocompletePayload,
+  parseGeoapifyAutocompletePayload,
+  readGeoapifyConfig,
+} from '../_geoapify.js'
 
 const RENTCAST_BASE_URL = 'https://api.rentcast.io/v1'
-const GEOAPIFY_AUTOCOMPLETE_URL = 'https://api.geoapify.com/v1/geocode/autocomplete'
 const CUSTOMER_SOURCE = 'Property Intelligence'
 const UNAVAILABLE_MESSAGE = 'Property Intelligence is temporarily unavailable. Manual property analysis remains available.'
 const COMPLETE_ADDRESS_MESSAGE = 'Select a complete address from the suggestions before loading Property Intelligence.'
@@ -44,15 +50,15 @@ function readRuntimeConfig() {
   const enabledRaw = clean(process.env.PROPERTY_INTELLIGENCE_ENABLED).toLowerCase()
   const provider = clean(process.env.PROPERTY_INTELLIGENCE_PROVIDER).toLowerCase()
   const apiKey = clean(process.env.RENTCAST_API_KEY)
-  const geoapifyApiKey = clean(process.env.GEOAPIFY_API_KEY)
+  const geoapify = readGeoapifyConfig()
   return {
     enabled: enabledRaw === 'true',
     provider,
     apiKey,
     apiKeyPresent: apiKey.length > 0,
     apiKeyLength: apiKey.length,
-    geoapifyApiKey,
-    autocompleteConfigured: geoapifyApiKey.length > 0,
+    geoapifyApiKey: geoapify.apiKey,
+    autocompleteConfigured: geoapify.configured,
     configured: enabledRaw === 'true' && provider === 'rentcast' && apiKey.length > 0,
   }
 }
@@ -111,6 +117,7 @@ function providerHttpStatus(category: string, fallback = 500) {
   if (category === 'credits_exhausted') return 402
   if (category === 'provider_rate_limit' || category === 'usage_rate_limit') return 429
   if (category === 'provider_not_configured') return 503
+  if (category === 'autocomplete_authentication_failed' || category === 'provider_network_failure') return 503
   if (category === 'provider_timeout') return 504
   if (category === 'invalid_api_key' || category === 'inactive_subscription' || category === 'provider_billing_issue') return 503
   if (category === 'provider_http_error' || category === 'provider_schema_error') return 503
@@ -124,6 +131,8 @@ function customerCode(category: string) {
   if (category === 'credits_exhausted') return 'credits_exhausted'
   if (category === 'usage_tracking_unavailable') return 'usage_tracking_unavailable'
   if (category === 'provider_not_configured') return 'provider_not_configured'
+  if (category === 'autocomplete_authentication_failed') return 'autocomplete_authentication_failed'
+  if (category === 'provider_network_failure') return 'provider_network_failure'
   if (category === 'provider_timeout') return 'provider_timeout'
   return 'provider_unavailable'
 }
@@ -208,6 +217,15 @@ function normalizeAddress(record: any) {
 function pickFirstRecord(payload: any) {
   const rows = Array.isArray(payload) ? payload : payload?.data || payload?.properties || []
   return Array.isArray(rows) ? rows[0] : null
+}
+
+function logAutocompleteDiagnostic(providerStatusCode: number, providerErrorCategory: string, keyConfigured: boolean, requestAction: string) {
+  console.warn('[Property Intelligence Autocomplete]', JSON.stringify({
+    providerStatusCode,
+    providerErrorCategory,
+    keyConfigured,
+    requestAction,
+  }))
 }
 
 function normalizeProperty(record: any) {
@@ -552,13 +570,9 @@ async function geoapifyAutocomplete(input: string, limit: number, config: Return
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS)
   try {
-    const url = new URL(GEOAPIFY_AUTOCOMPLETE_URL)
-    url.searchParams.set('text', input)
-    url.searchParams.set('filter', 'countrycode:us')
-    url.searchParams.set('format', 'json')
-    url.searchParams.set('limit', String(limit))
-    url.searchParams.set('apiKey', config.geoapifyApiKey)
+    const url = buildGeoapifyAutocompleteUrl(input, limit, config.geoapifyApiKey)
     const response = await fetch(url.toString(), {
+      method: 'GET',
       headers: { Accept: 'application/json' },
       signal: controller.signal,
     })
@@ -566,29 +580,31 @@ async function geoapifyAutocomplete(input: string, limit: number, config: Return
     if (!response.ok) {
       throw Object.assign(new Error('Address suggestions are temporarily unavailable.'), {
         status: response.status,
-        category: categorizeProviderError(response.status, payload),
+        category: categorizeGeoapifyStatus(response.status),
+        providerStatus: response.status,
       })
     }
-    return Array.isArray(payload?.results) ? payload.results : []
+    if (!isGeoapifyAutocompletePayload(payload)) {
+      throw Object.assign(new Error('Address suggestions returned an unsupported response.'), {
+        status: 503,
+        category: 'provider_schema_error',
+        providerStatus: response.status,
+      })
+    }
+    return parseGeoapifyAutocompletePayload(payload, limit)
   } catch (error: any) {
     if (error?.name === 'AbortError') {
       throw Object.assign(new Error('Address suggestions timed out.'), { status: 504, category: 'provider_timeout' })
     }
+    if (!error?.category) {
+      throw Object.assign(new Error('Address suggestions could not reach the provider.'), {
+        status: 503,
+        category: 'provider_network_failure',
+      })
+    }
     throw error
   } finally {
     clearTimeout(timeout)
-  }
-}
-
-function normalizeGeoapifyAddress(result: any) {
-  return {
-    line1: clean(result?.address_line1 || [result?.housenumber, result?.street].filter(Boolean).join(' ')),
-    city: clean(result?.city || result?.town || result?.village || result?.county),
-    state: clean(result?.state_code || result?.state),
-    postalCode: clean(result?.postcode),
-    county: clean(result?.county),
-    latitude: result?.lat,
-    longitude: result?.lon,
   }
 }
 
@@ -653,6 +669,8 @@ function customerError(error: any) {
   if (error?.category === 'usage_tracking_unavailable') return 'Property Intelligence usage tracking is temporarily unavailable.'
   if (error?.category === 'no_property_found') return 'Property data is unavailable for this address.'
   if (error?.category === 'provider_not_configured') return PROVIDER_NOT_CONFIGURED_MESSAGE
+  if (error?.category === 'autocomplete_authentication_failed') return 'Address suggestions are not authorized. Enter a complete property address manually.'
+  if (error?.category === 'provider_network_failure') return 'Address suggestions cannot reach the provider right now. Enter a complete property address manually.'
   if (error?.category === 'provider_timeout') return TIMEOUT_MESSAGE
   if (error?.category === 'provider_rate_limit' || error?.category === 'usage_rate_limit') return RATE_LIMIT_MESSAGE
   return PROVIDER_UNAVAILABLE_MESSAGE
@@ -773,6 +791,7 @@ export default async function handler(req: any, res: any) {
         })
       }
       if (!config.autocompleteConfigured) {
+        logAutocompleteDiagnostic(0, 'provider_not_configured', false, action)
         return send(res, 503, {
           error: 'Address suggestions are not configured. Enter a complete property address manually.',
           code: 'autocomplete_not_configured',
@@ -790,21 +809,7 @@ export default async function handler(req: any, res: any) {
           cache: 'hit',
         })
       }
-      const results = await geoapifyAutocomplete(query, limit, config)
-      const suggestions = results
-        .map((result: any) => {
-          const address = normalizeGeoapifyAddress(result)
-          const label = clean(result?.formatted) || [address.line1, address.city, address.state, address.postalCode].filter(Boolean).join(', ')
-          return {
-            id: clean(result?.place_id || label),
-            address,
-            label,
-            confidence: Number(result?.rank?.confidence || 0.85),
-            source: 'Geoapify',
-          }
-        })
-        .filter((suggestion: any) => suggestion.id && suggestion.label && suggestion.address.line1 && suggestion.address.city && suggestion.address.state)
-        .slice(0, limit)
+      const suggestions = await geoapifyAutocomplete(query, limit, config)
       writeCache(cacheKey, suggestions, AUTOCOMPLETE_CACHE_TTL_MS)
       return send(res, 200, {
         results: suggestions,
@@ -1099,12 +1104,17 @@ export default async function handler(req: any, res: any) {
     const status = Number(error?.status || 500)
     const category = error?.category || categorizeProviderError(status, error?.payload)
     const publicStatus = providerHttpStatus(category, status)
-    logDiagnostic(category, {
-      endpoint: error?.endpoint || action,
-      httpStatus: status,
-      safeResponse: safeProviderSummary(error?.payload || { message: error?.message }),
-      requestAddress: req.query.address || req.query.propertyId,
-    })
+    if (action === 'autocomplete') {
+      const providerStatusCode = Number(error?.providerStatus ?? (category === 'provider_network_failure' || category === 'provider_timeout' ? 0 : status))
+      logAutocompleteDiagnostic(providerStatusCode, category, config.autocompleteConfigured, action)
+    } else {
+      logDiagnostic(category, {
+        endpoint: error?.endpoint || action,
+        httpStatus: status,
+        safeResponse: safeProviderSummary(error?.payload || { message: error?.message }),
+        requestAddress: req.query.address || req.query.propertyId,
+      })
+    }
     return send(res, publicStatus, {
       error: customerError({ ...error, category }),
       code: customerCode(category),

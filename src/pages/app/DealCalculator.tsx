@@ -631,8 +631,16 @@ export default function DealCalculator() {
       setPropertyLookupResults(results)
       if (results.length === 0) setPropertyAutocompleteMessage('No verified address suggestions found. You can continue with a complete manual address.')
       setPropertyLookupSummary(null)
-    } catch {
-      setPropertyAutocompleteMessage('Address suggestions are temporarily unavailable. You can continue with a complete manual address.')
+    } catch (error: any) {
+      const messageByCode: Record<string, string> = {
+        autocomplete_not_configured: 'Address suggestions are not configured. You can continue with a complete manual address.',
+        provider_not_configured: 'Address suggestions are not configured. You can continue with a complete manual address.',
+        autocomplete_authentication_failed: 'Address suggestions are not authorized. You can continue with a complete manual address.',
+        rate_limited: 'Address suggestions are receiving too many requests. Wait a moment or continue with a complete manual address.',
+        provider_network_failure: 'Address suggestions cannot reach the provider right now. You can continue with a complete manual address.',
+        provider_timeout: 'Address suggestions timed out. You can continue with a complete manual address.',
+      }
+      setPropertyAutocompleteMessage(messageByCode[error?.code] || 'Address suggestions are temporarily unavailable. You can continue with a complete manual address.')
       setPropertyLookupResults([])
     } finally {
       setPropertyAutocompleteLoading(false)

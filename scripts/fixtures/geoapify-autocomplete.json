@@ -1,0 +1,19 @@
+{
+  "results": [
+    {
+      "address_line1": "1113 Murtha Way",
+      "city": "Latrobe",
+      "state": "Pennsylvania",
+      "state_code": "PA",
+      "postcode": "15650",
+      "county": "Westmoreland County",
+      "formatted": "1113 Murtha Way, Latrobe, PA 15650, United States of America",
+      "lat": 40.297536,
+      "lon": -79.36259,
+      "place_id": "fixture-place-id",
+      "rank": {
+        "confidence": 0.96
+      }
+    }
+  ]
+}
