@@ -703,22 +703,18 @@ export default function DealCalculator() {
     }
   }
 
-  const selectPropertyIntelligenceResult = async (result: any) => {
+  const selectPropertyIntelligenceResult = (result: any) => {
     setPropertyLookupResults([])
-    setPropertyAutocompleteLoading(true)
-    setPropertyAutocompleteMessage('Verifying selected address...')
-    try {
-      const payload = await fetchPropertyIntelligence('autocomplete-details', { placeId: result?.id })
-      const address = payload?.address || {}
+    setPropertyAutocompleteLoading(false)
+    const address = result?.address || {}
+    if (address.line1 && address.city && address.state) {
       setSelectedPropertyAddress(address)
-      setPropertySearch(payload?.label || formatAddressLabel(address))
-      setPropertyAutocompleteMessage('Verified address selected. Choose Load Property Intelligence when you are ready.')
-    } catch (error: any) {
+      setPropertySearch(result?.label || formatAddressLabel(address))
+      setPropertyAutocompleteMessage('Complete address selected. Choose Load Property Intelligence when you are ready.')
+    } else {
       setSelectedPropertyAddress(null)
       setPropertySearch(result?.label || propertySearch)
-      setPropertyAutocompleteMessage(error?.message || 'The selected address could not be verified. You can continue with a complete manual address.')
-    } finally {
-      setPropertyAutocompleteLoading(false)
+      setPropertyAutocompleteMessage('The selected suggestion was incomplete. You can continue with a complete manual address.')
     }
   }
 
@@ -2189,7 +2185,7 @@ Deal Blast Pro`
                     } else if (e.key === 'Enter') {
                       e.preventDefault()
                       const result = propertyLookupResults[activeSuggestionIndex]
-                      if (result) void selectPropertyIntelligenceResult(result)
+                      if (result) selectPropertyIntelligenceResult(result)
                       else void loadPropertyIntelligenceForAddress(selectedPropertyAddress || parseTypedPropertyAddress(propertySearch))
                     } else if (e.key === 'Escape') {
                       setPropertyLookupResults([])
@@ -2207,7 +2203,7 @@ Deal Blast Pro`
                         <button
                           key={result.id || label}
                           type="button"
-                          onClick={() => void selectPropertyIntelligenceResult(result)}
+                          onClick={() => selectPropertyIntelligenceResult(result)}
                           className={`w-full px-3 py-2 text-left text-sm ${index === activeSuggestionIndex ? 'bg-[#1D4ED8]/30' : 'hover:bg-[#171B26]'}`}
                         >
                           <div className="font-medium text-[#E6E8EE]">{label}</div>
@@ -2222,6 +2218,17 @@ Deal Blast Pro`
                     {propertyAutocompleteMessage}
                   </div>
                 )}
+                <div className="mt-1 text-[10px] leading-4 text-[#6B7280]">
+                  Powered by{' '}
+                  <a
+                    href="https://www.geoapify.com/"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline decoration-[#6B7280]/60 underline-offset-2 hover:text-[#AAB0BE]"
+                  >
+                    Geoapify
+                  </a>
+                </div>
               </div>
               <div className="flex items-end">
                 <div className="w-full lg:w-48">
