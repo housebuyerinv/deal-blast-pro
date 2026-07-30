@@ -1,5 +1,5 @@
 import type { AppSettings, TrialState, User } from './types'
-import { isSuperAdmin } from './accessControl'
+import { hasOwnerAdminBypass, isSuperAdmin } from './accessControl'
 import { getPastDueEffectivePlan, getPastDuePolicyMessage, getPastDueStage } from './accountLifecycle'
 
 export type PlanName = TrialState['plan'] | 'Owner Admin'
@@ -85,6 +85,7 @@ export function getAllowedRoutes(
   user?: Pick<User, 'email'> | null,
   settings?: Pick<AppSettings, 'ownerPreviewPlan'> | null,
 ): AppRoute[] {
+  if (hasOwnerAdminBypass(user)) return ALL_APP_ROUTES
   const plan = getEffectivePlan(trial, user, settings)
   if (plan === 'Owner Admin') return ALL_APP_ROUTES
   return Array.from(new Set([...(PLAN_ROUTE_ACCESS[plan] || PLAN_ROUTE_ACCESS.Free), '/app/settings' as AppRoute]))
@@ -96,6 +97,7 @@ export function canAccessRoute(
   user?: Pick<User, 'email'> | null,
   settings?: Pick<AppSettings, 'ownerPreviewPlan'> | null,
 ) {
+  if (hasOwnerAdminBypass(user)) return true
   return getAllowedRoutes(trial, user, settings).includes(route as AppRoute)
 }
 

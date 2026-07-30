@@ -73,7 +73,7 @@ const moneyToNumber = (value: string): number | undefined => {
 const compactText = (value: string) =>
   String(value || '')
     .replace(/[–—]/g, '-')
-    .replace(/â€“|â€”/g, '-')
+    .replace(/\u00e2\u20ac\u201c|\u00e2\u20ac\u201d/g, '-')
     .replace(/\s+/g, ' ')
     .trim()
 

@@ -7,9 +7,9 @@ import {
 import { useAppStore } from '../../store/useAppStore'
 import { countPendingDealSubmissions } from '../../lib/dealSubmissionStorage'
 import { countPendingBuyerPortalSubmissions } from '../../lib/buyerPortalSubmissionStorage'
-import { isInternalAdmin } from '../../lib/accessControl'
+import { hasOwnerAdminBypass, isInternalAdmin } from '../../lib/accessControl'
 import { canAccessRoute } from '../../lib/planAccess'
-import { getEffectivePlan, isOwnerPreviewActive } from '../../lib/planAccess'
+import { getEffectivePlan } from '../../lib/planAccess'
 import { canUseBuyerPortalReview } from '../../lib/planEntitlements'
 import { canUseLaunchedFeature } from '../../lib/featureLaunch'
 
@@ -57,7 +57,8 @@ export default function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean;
   const [submissions, setSubmissions] = useState(0)
   const [buyerPortalQueueCount, setBuyerPortalQueueCount] = useState(0)
   const pendingFollowups = getPendingFollowUps().length
-  const hasInternalAdminAccess = isInternalAdmin(user) && !isOwnerPreviewActive(user, settings)
+  const hasInternalAdminAccess = isInternalAdmin(user)
+  const ownerAdminBypass = hasOwnerAdminBypass(user)
   const effectivePlan = getEffectivePlan(trial, user, settings)
   const buyerPortalReviewAllowed = canUseBuyerPortalReview(effectivePlan) && canUseLaunchedFeature('buyerPortalReviewCenter', effectivePlan, hasInternalAdminAccess)
   const dealSubmissionReviewAllowed = canUseLaunchedFeature('dealSubmissionReviewCenter', effectivePlan, hasInternalAdminAccess)
@@ -127,7 +128,7 @@ export default function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean;
 
       <div className="flex-1 py-3">
         {navGroups.map(group => {
-          const visibleItems = hasInternalAdminAccess ? group.items : group.items.filter(item => {
+          const visibleItems = ownerAdminBypass || hasInternalAdminAccess ? group.items : group.items.filter(item => {
             if (item.to === '/app/submissions') return dealSubmissionReviewAllowed
             return canAccessRoute(item.to, trial, user, settings)
           })

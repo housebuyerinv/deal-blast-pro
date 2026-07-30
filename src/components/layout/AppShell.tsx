@@ -298,25 +298,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   const isPaidAccess = ['Paid Active', 'Comped'].includes(String(billingStatus))
-  const hasInternalAdminAccess = isInternalAdmin(user) && !ownerPreviewActive
-
-  if (user && ownerPreviewActive && !canAccessRoute(location.pathname, trial, user, settings)) {
-    const requiredPlan = getRequiredPlanForRoute(location.pathname)
-    return (
-      <div className="min-h-screen bg-[#0A0C12] text-[#E6E8EE] flex items-center justify-center p-4">
-        <div className="w-full max-w-xl rounded border border-[#252A38] bg-[#0F111A] p-6 text-center shadow-xl">
-          <div className="text-xs uppercase tracking-[2px] text-[#8B92A3] mb-2">Owner Preview Active</div>
-          <h1 className="text-2xl font-semibold mb-3">This feature is included with {requiredPlan}.</h1>
-          <p className="text-sm text-[#C5CAD6] mb-5">You are previewing as {ownerPreviewPlan}. This does not change your owner account or billing.</p>
-          <div className="flex flex-col sm:flex-row gap-2 justify-center">
-            <button onClick={() => updateSettings({ ownerPreviewPlan: 'Owner Admin' })} className="btn btn-green">Exit Preview Mode</button>
-            <button onClick={() => navigate('/app/dashboard')} className="btn btn-ghost">Return to Command Center</button>
-            <button onClick={() => navigate('/app/settings')} className="btn btn-ghost">Settings & Trial</button>
-          </div>
-        </div>
-      </div>
-    )
-  }
+  const hasInternalAdminAccess = isInternalAdmin(user)
 
   if (user && !ownerPreviewActive && isPaidAccess && !hasInternalAdminAccess && !canAccessRoute(location.pathname, trial, user, settings)) {
     const requiredPlan = getRequiredPlanForRoute(location.pathname)

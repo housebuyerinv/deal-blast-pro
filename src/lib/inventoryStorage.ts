@@ -2,6 +2,7 @@ import type { Deal } from './types'
 import { supabase } from './supabaseClient'
 
 const INVENTORY_COLUMNS = 'id,source_submission_id,status,deal_data,created_at,updated_at'
+let inventoryLoadInFlight: ReturnType<typeof loadInventoryDeals> | null = null
 
 const rowToDeal = (row: any): Deal => ({
   ...(row?.deal_data || {}),
@@ -12,7 +13,7 @@ const rowToDeal = (row: any): Deal => ({
   updatedAt: row.updated_at || row?.deal_data?.updatedAt,
 }) as Deal
 
-export async function listInventoryDeals() {
+async function loadInventoryDeals() {
   if (!supabase) return { ok: false as const, error: new Error('Supabase client is not configured'), data: [] }
   try {
     const { data, error } = await supabase
@@ -24,6 +25,16 @@ export async function listInventoryDeals() {
   } catch (error) {
     return { ok: false as const, error, data: [] }
   }
+}
+
+export function listInventoryDeals() {
+  if (inventoryLoadInFlight) return inventoryLoadInFlight
+  const request = loadInventoryDeals()
+  inventoryLoadInFlight = request
+  void request.finally(() => {
+    if (inventoryLoadInFlight === request) inventoryLoadInFlight = null
+  })
+  return request
 }
 
 export async function convertSubmissionToInventory(

@@ -1,5 +1,7 @@
 ﻿import React from 'react'
 
+import { AlertTriangle } from 'lucide-react'
+
 interface Props {
   
   boundaryKey?: string;children: React.ReactNode
@@ -39,7 +41,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
     if (this.state.hasError) {
       return this.props.fallback || (
         <div className="card p-8 m-6 text-center">
-          <div className="text-4xl mb-4">âš ï¸</div>
+          <AlertTriangle size={40} className="mx-auto mb-4 text-amber-400" aria-hidden="true" />
           <h2 className="text-xl font-semibold mb-2">Something went wrong</h2>
           <p className="text-[#8B92A3] mb-4">A component failed to render. Copy the error below so we can patch the exact file.</p>
           {this.state.error && (

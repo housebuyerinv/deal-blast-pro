@@ -6,6 +6,7 @@ const DEAL_SUBMISSION_FILE_BUCKET = 'deal-submission-files'
 const FILE_UPLOAD_WARNING = 'Submission received, but file upload could not be completed. Please email files separately.'
 const DEAL_SUBMISSION_LOAD_TIMEOUT_MS = 12000
 const DEAL_SUBMISSION_WRITE_TIMEOUT_MS = 20000
+let submissionReviewLoadInFlight: ReturnType<typeof loadDealSubmissionsForReview> | null = null
 
 const ACTIONABLE_SUBMISSION_STATUSES = new Set([
   'new',
@@ -428,7 +429,7 @@ export async function listRecentDealSubmissionActivity(limit = 4) {
   }
 }
 
-export async function listDealSubmissionsForReview() {
+async function loadDealSubmissionsForReview() {
   const ready = requireSupabase()
   if (!ready.ok) return { ok: false, error: ready.error, data: [] }
 
@@ -447,6 +448,16 @@ export async function listDealSubmissionsForReview() {
   } catch (error) {
     return { ok: false, error, data: [] }
   }
+}
+
+export function listDealSubmissionsForReview() {
+  if (submissionReviewLoadInFlight) return submissionReviewLoadInFlight
+  const request = loadDealSubmissionsForReview()
+  submissionReviewLoadInFlight = request
+  void request.finally(() => {
+    if (submissionReviewLoadInFlight === request) submissionReviewLoadInFlight = null
+  })
+  return request
 }
 
 export async function updateDealSubmissionData(submission: any, dealData: Record<string, any>) {

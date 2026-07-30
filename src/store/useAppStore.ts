@@ -10,7 +10,7 @@ import { DEFAULT_SETTINGS, TRIAL_DEFAULT } from '../lib/constants'
 import { seedDeals, seedBuyers, seedOffers, seedActivities } from '../lib/mockData'
 import { computeMatchScore, getTier } from '../lib/matchingEngine'
 import { isApiMode } from '../services/storage'
-import { isSuperAdmin } from '../lib/accessControl'
+import { hasOwnerAdminBypass } from '../lib/accessControl'
 import { findInventoryDealBySubmission } from '../lib/submissionInventoryIdentity'
 import { getOwnerPreviewPlan, isOwnerPreviewActive } from '../lib/planAccess'
 import { getBuyerCapacity, getPlanEntitlement } from '../lib/planEntitlements'
@@ -771,7 +771,7 @@ export const useAppStore = create<AppStore>()(
         return normalizeAppRole(String(get().user?.role || 'Viewer'))
       },
       hasPermission: (permission) => {
-        if (isSuperAdmin(get().user) && !isOwnerPreviewActive(get().user, get().settings)) return true
+        if (hasOwnerAdminBypass(get().user)) return true
         const role = normalizeAppRole(String(get().user?.role || 'Viewer'))
         return ROLE_PERMISSIONS[role].includes(permission)
       },
@@ -833,7 +833,7 @@ export const useAppStore = create<AppStore>()(
       // Trial gating
       useTrialAction: (action) => {
         const ownerPreviewActive = isOwnerPreviewActive(get().user, get().settings)
-        if (isSuperAdmin(get().user) && !ownerPreviewActive) return true
+        if (hasOwnerAdminBypass(get().user)) return true
         const { trial } = get()
         const previewPlan = getOwnerPreviewPlan(get().settings)
         const effectiveTrial = ownerPreviewActive
@@ -1369,7 +1369,7 @@ export const useAppStore = create<AppStore>()(
               buyerId: buyer.id,
               type: 'Buyer Follow-Up',
               priority: match.score >= 95 ? 'High' : 'Medium',
-              notes: `Strong match (${match.score}%) ÃƒÆ’Ã†'Ãƒâ€ 'ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚¢ÃƒÆ’Ã†'Ãƒâ€šÃ‚¢ÃƒÆ’Ã‚¢Ãƒ¢Ã¢â‚¬Å¡Ã‚¬Ãƒâ€¦Ã‚¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚¬ÃƒÆ’Ã†'Ãƒâ€šÃ‚¢ÃƒÆ’Ã‚¢Ãƒ¢Ã¢â€š¬Ã…¡Ãƒâ€šÃ‚¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ follow up on ${deal.property.address}`,
+              notes: `Strong match (${match.score}%) — follow up on ${deal.property.address}`,
               dueDate: new Date(now + 2 * 86400000).toISOString()
             })
             created++
@@ -1510,7 +1510,7 @@ export const useAppStore = create<AppStore>()(
 
         get().recordBlastLog(sampleDeal.id, {
           template: 'Multifamily',
-          subject: `8-Unit Value-Add in Birmingham ÃƒÆ’Ã†'Ãƒâ€ 'ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚¢ÃƒÆ’Ã†'Ãƒâ€šÃ‚¢ÃƒÆ’Ã‚¢Ãƒ¢Ã¢â‚¬Å¡Ã‚¬Ãƒâ€¦Ã‚¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚¬ÃƒÆ’Ã†'Ãƒâ€šÃ‚¢ÃƒÆ’Ã‚¢Ãƒ¢Ã¢â€š¬Ã…¡Ãƒâ€šÃ‚¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ ${sampleDeal.pricing.askingPrice}`,
+          subject: `8-Unit Value-Add in Birmingham — ${sampleDeal.pricing.askingPrice}`,
           recipientCount: buyerIds.length,
           suppressedCount: 0,
           duplicateCount: 0,
@@ -1664,7 +1664,7 @@ export const useAppStore = create<AppStore>()(
         const previewPlan = isOwnerPreviewActive(state.user, state.settings)
           ? getOwnerPreviewPlan(state.settings)
           : state.trial.plan
-        const capacity = getBuyerCapacity(isSuperAdmin(state.user) && !isOwnerPreviewActive(state.user, state.settings) ? 'Owner Admin' : previewPlan, state.buyers.length)
+        const capacity = getBuyerCapacity(hasOwnerAdminBypass(state.user) ? 'Owner Admin' : previewPlan, state.buyers.length)
         let added = 0, dups = 0, suppressed = 0
         const toAdd: Buyer[] = []
         const updatesByEmail: Record<string, Partial<Buyer>> = {}
@@ -1856,7 +1856,7 @@ export const useAppStore = create<AppStore>()(
                     ...o, 
                     status, 
                     counterAmount: counter, 
-                    history: [...o.history, { ts: new Date().toISOString(), note: `Status ÃƒÆ’Ã†'Ãƒâ€ 'ÃƒÆ’Ã¢â‚¬ Ãƒ¢Ã¢â€š¬Ã¢â€ž¢ÃƒÆ’Ã†'Ãƒ¢Ã¢â€š¬Ã…¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚¢ÃƒÆ’Ã†'Ãƒâ€ 'ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚¢ÃƒÆ’Ã†'Ãƒâ€šÃ‚¢ÃƒÆ’Ã‚¢Ãƒ¢Ã¢â‚¬Å¡Ã‚¬Ãƒâ€¦Ã‚¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚¬ÃƒÆ’Ã†'Ãƒ¢Ã¢â€š¬Ã…¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ ÃƒÆ’Ã†'Ãƒâ€ 'ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚¢ÃƒÆ’Ã†'Ãƒâ€šÃ‚¢ÃƒÆ’Ã‚¢Ãƒ¢Ã¢â‚¬Å¡Ã‚¬Ãƒâ€¦Ã‚¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚¬ÃƒÆ’Ã†'Ãƒâ€šÃ‚¢ÃƒÆ’Ã‚¢Ãƒ¢Ã¢â‚¬Å¡Ã‚¬Ãƒâ€¦Ã‚¾ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚¢ ${status}${counter ? ` (counter $${counter})` : ''}` }] 
+                    history: [...o.history, { ts: new Date().toISOString(), note: `Status → ${status}${counter ? ` (counter $${counter})` : ''}` }]
                   }
                 : o
             )

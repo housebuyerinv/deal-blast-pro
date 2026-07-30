@@ -1907,9 +1907,9 @@ const [showImport, setShowImport] = useState(false)
         if (index > 0 && smallWords.has(lower)) return lower
 
         return lower
-          .split(/([-'ï¿½])/)
+          .split(/([-'\u2018\u2019])/)
           .map((piece: any) => {
-            if (piece === '-' || piece === "'" || piece === 'ï¿½') return piece
+            if (piece === '-' || piece === "'" || piece === '\u2018' || piece === '\u2019') return piece
             if (!piece) return piece
             return piece.charAt(0).toUpperCase() + piece.slice(1)
           })
@@ -2117,7 +2117,7 @@ const cleanBuyerName = (value: any, emailValue = '') => {
 
   const parsePropertyRequirements = (textValue: any) => {
     const raw = String(textValue || '')
-    const text = safeLower(raw).replace(/[ï¿½ï¿½]/g, '-')
+    const text = safeLower(raw).replace(/[\u2013\u2014]/g, '-')
 
     let bedRequirement = 'Any'
     let bathRequirement = 'Any'
@@ -2977,7 +2977,7 @@ const cleanBuyerName = (value: any, emailValue = '') => {
     )
 
     const notes = String(merged.notes || merged.buyBox || merged.buy_box || merged.rawText || '')
-    const noteNameMatch = notes.match(/^\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})\s*(?:[ï¿½ï¿½-]|,|\|)/)
+    const noteNameMatch = notes.match(/^\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})\s*(?:[\u2013\u2014-]|,|\|)/)
 
     const noteName = cleanNameValue(noteNameMatch?.[1])
 

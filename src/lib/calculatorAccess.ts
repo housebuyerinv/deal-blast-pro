@@ -1,6 +1,5 @@
 import type { AppSettings, TrialState, User } from './types'
-import { isSuperAdmin } from './accessControl'
-import { getOwnerPreviewPlan } from './planAccess'
+import { hasOwnerAdminBypass } from './accessControl'
 
 export type CalculatorTabId = 'arv' | 'rehab' | 'mao' | 'rental' | 'creative'
 type PlanName = TrialState['plan']
@@ -44,10 +43,8 @@ export function getEffectiveCalculatorPlan(
   user?: Pick<User, 'email'> | null,
   settings?: Pick<AppSettings, 'ownerPreviewPlan'> | null,
 ): CalculatorMinimumPlan | 'Owner Admin' {
-  if (isSuperAdmin(user)) {
-    const previewPlan = getOwnerPreviewPlan(settings)
-    return previewPlan === 'Owner Admin' ? 'Owner Admin' : previewPlan
-  }
+  void settings
+  if (hasOwnerAdminBypass(user)) return 'Owner Admin'
   return trial.plan === 'Free Demo' ? 'Free' : trial.plan || (trial.isPaid ? 'Pro' : 'Free')
 }
 
@@ -76,6 +73,7 @@ export function canAccessCalculatorEntitlement(
   user?: Pick<User, 'email'> | null,
   settings?: Pick<AppSettings, 'ownerPreviewPlan'> | null,
 ) {
+  if (hasOwnerAdminBypass(user)) return true
   const plan = getEffectiveCalculatorPlan(trial, user, settings)
   if (plan === 'Owner Admin') return true
   const config = CALCULATOR_ENTITLEMENTS[entitlement]

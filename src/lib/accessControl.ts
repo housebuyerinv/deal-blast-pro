@@ -11,6 +11,15 @@ export function isInternalAdmin(user?: Pick<User, 'email'> | null) {
   return isSuperAdmin(user)
 }
 
+/**
+ * Authoritative product-entitlement bypass for the allowlisted platform owner.
+ * This covers plans, trials, credits, billing gates, and feature navigation only.
+ * Callers must still enforce authentication, legal, consent, and proof-of-control safeguards.
+ */
+export function hasOwnerAdminBypass(user?: Pick<User, 'email'> | null) {
+  return isSuperAdmin(user)
+}
+
 export function isRegularUser(user?: Pick<User, 'email'> | null) {
   return !isSuperAdmin(user)
 }

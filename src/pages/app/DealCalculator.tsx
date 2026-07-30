@@ -12,7 +12,7 @@ import {
   type CalculatorEntitlementId,
   type CalculatorTabId,
 } from '../../lib/calculatorAccess'
-import { isSuperAdmin } from '../../lib/accessControl'
+import { hasOwnerAdminBypass } from '../../lib/accessControl'
 import { isOwnerPreviewActive } from '../../lib/planAccess'
 import { MOCK_PROPERTY_INTELLIGENCE_SAMPLE } from '../../lib/propertyIntelligence/mockProvider'
 import { supabase } from '../../lib/supabase'
@@ -268,7 +268,7 @@ export default function DealCalculator() {
   // ARV-only state for Step 1 (safe defaults, no selected deal required)
   const [activeTab, setActiveTab] = useState<CalcTab>('arv')
   const { trial, user, settings, deals } = useAppStore()
-  const ownerAdminMode = isSuperAdmin(user)
+  const ownerAdminMode = hasOwnerAdminBypass(user)
   const ownerPreviewActive = isOwnerPreviewActive(user, settings)
   const effectiveCalculatorPlan = getEffectiveCalculatorPlan(trial, user, settings)
   const calculatorAccessLabel = getCalculatorPlanSubtitle(effectiveCalculatorPlan)
@@ -2114,7 +2114,13 @@ Deal Blast Pro`
               </div>
             )}
 
-            {canUseLivePropertyData && propertyCreditBalance && (
+            {canUseLivePropertyData && ownerAdminMode && (
+              <div className="mb-4 rounded border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-100">
+                Owner Admin access is unrestricted. Property Intelligence requests do not consume lookup credits.
+              </div>
+            )}
+
+            {canUseLivePropertyData && !ownerAdminMode && propertyCreditBalance && (
               <div className="mb-4 grid gap-2 md:grid-cols-3">
                 <div className="panel p-3">
                   <div className="text-xs text-[#8B92A3]">Property Intelligence Lookups</div>
@@ -2293,7 +2299,7 @@ Deal Blast Pro`
                       <button
                         type="button"
                         onClick={() => {
-                          const ok = window.confirm('Refreshing this property will use 1 lookup credit.')
+                          const ok = ownerAdminMode || window.confirm('Refreshing this property will use 1 lookup credit.')
                           if (ok) void loadPropertyIntelligenceForAddress(propertyLookupSummary.address, { refresh: true })
                         }}
                         className="btn btn-ghost text-sm"
@@ -2529,8 +2535,8 @@ Deal Blast Pro`
           </div>
 
           <div className="mb-4 rounded border border-[#252A38] bg-[#0A0C12] p-3 text-sm text-[#C5CAD6]">
-            Property Intelligence is unavailable for this record. You can continue using manual property information and comparable entry.
-            This panel uses a development-safe mock provider until a licensed production data provider is configured.
+            No licensed production provider result is available for this record. The information below is explicitly Sample/Mock
+            Property Intelligence and must not be treated as live provider data.
           </div>
 
           <div className="mb-4 flex flex-wrap gap-1.5 text-xs">

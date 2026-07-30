@@ -624,8 +624,10 @@ export default function Submissions() {
   const [savingSubmission, setSavingSubmission] = useState(false)
   const [editStatus, setEditStatus] = useState<{ kind: 'success' | 'error'; message: string } | null>(null)
   const conversionInFlight = useRef(new Set<string>())
+  const submissionLoadSequence = useRef(0)
 
   const loadSubmissions = async () => {
+    const sequence = ++submissionLoadSequence.current
     setLoading(true)
     setLoadError('')
     try {
@@ -633,17 +635,15 @@ export default function Submissions() {
       if (!result.ok) {
         console.error('Failed to load deal submissions:', result.error)
         toast.error('Could not load deal submissions from Supabase')
-        setSubs([])
-        setLoadError('Unable to load deal submissions.')
+        if (sequence === submissionLoadSequence.current) setLoadError('Unable to load deal submissions.')
       } else {
-        setSubs(result.data || [])
+        if (sequence === submissionLoadSequence.current) setSubs(result.data || [])
       }
     } catch (error) {
       console.error('Failed to load deal submissions:', error)
-      setSubs([])
-      setLoadError('Unable to load deal submissions.')
+      if (sequence === submissionLoadSequence.current) setLoadError('Unable to load deal submissions.')
     } finally {
-      setLoading(false)
+      if (sequence === submissionLoadSequence.current) setLoading(false)
     }
   }
 

@@ -955,7 +955,7 @@ export default function Settings() {
                   disabled={Boolean(billingPortalAction)}
                   className="btn btn-green text-xs md:w-auto disabled:opacity-60"
                 >
-                  {billingPortalAction === 'portal' ? 'Opening...' : 'Manage Subscription'}
+                  {billingPortalAction === 'portal' ? 'Opening...' : 'Manage Billing / Open Billing Portal'}
                 </button>
                 <button
                   type="button"
@@ -967,9 +967,32 @@ export default function Settings() {
                 </button>
               </>
             )}
+            {ownerPreviewActive && (
+              <div className="rounded border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+                Preview only — billing actions are disabled and no real subscription change will occur.
+              </div>
+            )}
             <button onClick={downloadBillingSummaryPdf} className="btn btn-ghost text-xs md:w-auto">Download Billing Summary PDF</button>
           </div>
         </div>
+
+        {canOpenBillingPortal && (
+          <div className="mb-4 rounded border border-[#252A38] bg-[#0A0C12] p-3">
+            <div className="text-sm font-semibold text-[#E6E8EE] mb-2">Subscription Controls</div>
+            <div className="text-xs text-[#8B92A3] mb-3">
+              These actions open the existing secure Stripe customer portal. Changes are reflected here only after durable billing data is updated.
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={() => openBillingPortal('portal')} disabled={Boolean(billingPortalAction)} className="btn btn-ghost text-xs disabled:opacity-60">Change Plan</button>
+              <button type="button" onClick={() => openBillingPortal('portal')} disabled={Boolean(billingPortalAction)} className="btn btn-ghost text-xs disabled:opacity-60">Downgrade Plan</button>
+              {cancellationScheduledFromStripe ? (
+                <button type="button" onClick={() => openBillingPortal('portal')} disabled={Boolean(billingPortalAction)} className="btn btn-ghost text-xs disabled:opacity-60">Undo Scheduled Cancellation</button>
+              ) : (
+                <button type="button" onClick={() => openBillingPortal('portal')} disabled={Boolean(billingPortalAction)} className="btn btn-ghost text-xs text-amber-200 disabled:opacity-60">Cancel Subscription at Period End</button>
+              )}
+            </div>
+          </div>
+        )}
 
         {cancellationScheduledFromStripe && (
           <div className="mb-4 rounded border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200">

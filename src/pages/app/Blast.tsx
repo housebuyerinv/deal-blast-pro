@@ -4,6 +4,7 @@ import { useAppStore } from '../../store/useAppStore'
 import { copyToClipboard, downloadCSV, downloadText } from '../../lib/utils'
 import { toast } from 'sonner'
 import { useEffect } from 'react'
+import { AlertTriangle } from 'lucide-react'
 
 const safeLower = (value: any) => String(value ?? '').toLowerCase();
 const BLASTABLE_STATUSES = new Set(['Approved', 'Active', 'Blasted', 'Offers Received', 'Under Contract', 'Closing'])
@@ -218,6 +219,10 @@ export default function Blast() {
       toast.error('Select a deal and at least one buyer')
       return
     }
+    if (!deal.submitter?.consent) {
+      toast.error('Sender consent and proof of control must be verified before sending this blast.')
+      return
+    }
 
     const attachedDocs = (useAppStore.getState().documents[dealId] || [])
       .filter(d => selectedDocIds.includes(d.id))
@@ -270,10 +275,10 @@ export default function Blast() {
       {deal && (
         <div className="mb-3">
           {(!deal?.docs || deal.docs.length < 2) && (
-            <div className="text-xs bg-amber-500/10 border border-amber-500/40 text-amber-400 px-3 py-1 rounded mb-1">âš  This deal has few documents uploaded. Consider adding key files before blasting.</div>
+            <div className="flex items-center gap-1.5 text-xs bg-amber-500/10 border border-amber-500/40 text-amber-400 px-3 py-1 rounded mb-1"><AlertTriangle size={14} aria-hidden="true" /> This deal has few documents uploaded. Consider adding key files before blasting.</div>
           )}
           {!deal?.submitter?.consent && (
-            <div className="text-xs bg-red-500/10 border border-red-500/40 text-red-400 px-3 py-1 rounded">âš  Submitter consent not recorded — verify proof of control before sending.</div>
+            <div className="flex items-center gap-1.5 text-xs bg-red-500/10 border border-red-500/40 text-red-400 px-3 py-1 rounded"><AlertTriangle size={14} aria-hidden="true" /> Submitter consent not recorded — verify proof of control before sending.</div>
           )}
         </div>
       )}
@@ -483,7 +488,7 @@ export default function Blast() {
                     </label>
                   ))}
                 </div>
-                {selectedDocIds.length === 0 && <div className="text-amber-400 text-xs mt-1">âš  No buyer-facing docs selected — consider adding some in the deal terminal before blasting.</div>}
+                {selectedDocIds.length === 0 && <div className="flex items-center gap-1.5 text-amber-400 text-xs mt-1"><AlertTriangle size={14} aria-hidden="true" /> No buyer-facing docs selected — consider adding some in the deal terminal before blasting.</div>}
               </div>
             )}
           </div>

@@ -46,7 +46,7 @@ function getDealPotentialFee(deal: any) {
 export default function Inventory() {
   const { getInventoryDeals, isNewDeal, hydrateInventory } = useAppStore()
   const allInventory = getInventoryDeals()
-  const [inventoryLoading, setInventoryLoading] = useState(true)
+  const [inventoryLoading, setInventoryLoading] = useState(allInventory.length === 0)
   const [pendingSubmissionCount, setPendingSubmissionCount] = useState(0)
   const [filter, setFilter] = useState<'All' | 'Active' | 'Under Contract' | 'Closing' | 'Closed/Sold' | 'Dead'>('All')
   const [search, setSearch] = useState('')
@@ -386,7 +386,7 @@ export default function Inventory() {
         <div>
           <div className="uppercase tracking-widest text-xs text-[#8B92A3]">INVENTORY HUB</div>
           <div className="text-2xl font-semibold">
-            {inventoryLoading ? 'Loading inventory...' : `Active Portfolio — ${filtered.length} deals`}
+            {inventoryLoading && allInventory.length === 0 ? 'Loading inventory...' : `Active Portfolio — ${filtered.length} deals`}
           </div>
         </div>
         <div className="flex flex-wrap justify-end gap-2">
@@ -743,7 +743,7 @@ export default function Inventory() {
                             {gradeLabel} • {q.score}%
                           </span>
                           <span className={`badge text-xs px-1.5 py-0.5 mt-0.5 ${demand === 'High' ? 'bg-emerald-500/20 text-emerald-400' : demand === 'Moderate' ? 'bg-amber-500/20 text-amber-400' : demand === 'Low' ? 'bg-[#171B26] text-[#8B92A3]' : 'bg-[#171B26] text-[#8B92A3]'}`}>
-                            {demand === 'No' ? 'âšª No Demand' : `${demand} Demand`}
+                            {demand === 'No' ? 'No Demand' : `${demand} Demand`}
                           </span>
                         </>
                       )
