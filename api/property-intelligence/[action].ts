@@ -433,6 +433,20 @@ async function reserveLookupCredit(
   if (!workspaceId) {
     throw Object.assign(new Error('Workspace could not be verified.'), { status: 403, category: 'workspace_required' })
   }
+  if (account.isOwnerAdmin) {
+    return {
+      ok: true,
+      operationId: '',
+      creditSource: 'owner_internal',
+      creditUsed: false,
+      ownerBypass: true,
+      includedLimit: null,
+      includedUsed: 0,
+      includedRemaining: null,
+      purchasedRemaining: null,
+      resetDate: null,
+    }
+  }
   const { data, error } = await account.adminClient.rpc('reserve_property_intelligence_credit', {
     p_workspace_id: workspaceId,
     p_user_id: account.user.id,
@@ -843,12 +857,12 @@ export default async function handler(req: any, res: any) {
           normalizedAddressSent: lookup.fullAddress,
           cache: {
             status: forceRefresh ? 'refresh' : 'miss',
-            creditUsed: true,
+            creditUsed: !account.isOwnerAdmin,
             originalLookupAt: new Date().toISOString(),
             expiresAt: new Date(Date.now() + CACHE_TTL_MS).toISOString(),
           },
           usage: {
-            creditUsed: true,
+            creditUsed: !account.isOwnerAdmin,
             creditSource: reservation.creditSource,
             providerRequestCount,
             includedLimit: reservation.includedLimit,
