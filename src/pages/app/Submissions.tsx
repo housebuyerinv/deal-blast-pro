@@ -13,10 +13,9 @@ import {
   isActionableDealSubmission,
   isConvertedDealSubmission,
   listDealSubmissionsForReview,
-  markDealSubmissionConverted,
-  reserveSubmissionInventoryConversion,
   updateDealSubmissionData,
 } from '../../lib/dealSubmissionStorage'
+import { convertSubmissionToInventory } from '../../lib/inventoryStorage'
 
 const safeLower = (value: any) => String(value ?? '').toLowerCase();
 
@@ -604,7 +603,8 @@ function DetailBox({ label, value, highlight = false }: { label: string; value: 
 export default function Submissions() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const addDeal = useAppStore((state: any) => state.addDeal)
+  const cacheInventoryDeal = useAppStore((state: any) => state.cacheInventoryDeal)
+  const hydrateInventory = useAppStore((state: any) => state.hydrateInventory)
   const safeOpenDeal = useAppStore((state: any) => state.safeOpenDeal)
   const deals = useAppStore((state: any) => state.deals || [])
   const user = useAppStore((state: any) => state.user)
@@ -628,18 +628,23 @@ export default function Submissions() {
   const loadSubmissions = async () => {
     setLoading(true)
     setLoadError('')
-    const result = await listDealSubmissionsForReview()
-
-    if (!result.ok) {
-      console.error('Failed to load deal submissions:', result.error)
-      toast.error('Could not load deal submissions from Supabase')
+    try {
+      const result = await listDealSubmissionsForReview()
+      if (!result.ok) {
+        console.error('Failed to load deal submissions:', result.error)
+        toast.error('Could not load deal submissions from Supabase')
+        setSubs([])
+        setLoadError('Unable to load deal submissions.')
+      } else {
+        setSubs(result.data || [])
+      }
+    } catch (error) {
+      console.error('Failed to load deal submissions:', error)
       setSubs([])
       setLoadError('Unable to load deal submissions.')
-    } else {
-      setSubs(result.data || [])
+    } finally {
+      setLoading(false)
     }
-
-    setLoading(false)
   }
 
   useEffect(() => {
@@ -828,33 +833,14 @@ export default function Submissions() {
   }
 
   const openInventoryDeal = async (submission: any) => {
-    const linkedDeal = findInventoryDealForSubmission(submission)
+    let linkedDeal = findInventoryDealForSubmission(submission)
+    if (!linkedDeal?.id) {
+      await hydrateInventory()
+      linkedDeal = findInventoryDealBySubmission(useAppStore.getState().deals, submission?.id)
+    }
     if (!linkedDeal?.id) {
       toast.error('No linked Inventory Hub deal is available for this submission.')
       return
-    }
-
-    const conversionMeta = getDealSubmissionConversionMeta(submission)
-    if (conversionMeta.inventoryDealId !== linkedDeal.id) {
-      const reservation = await reserveSubmissionInventoryConversion(
-        submission,
-        user?.id || user?.email || 'unknown',
-        linkedDeal.id
-      )
-      if (!reservation.ok || reservation.inventoryDealId !== linkedDeal.id) {
-        toast.error('Could not validate the Inventory Hub relationship for this submission.')
-        return
-      }
-      const repaired = await markDealSubmissionConverted(reservation.data, {
-        inventoryDealId: linkedDeal.id,
-        convertedBy: user?.id || user?.email || 'unknown',
-        previousStatus: conversionMeta.previousStatus || submission?.status || 'pending',
-      })
-      if (!repaired.ok) {
-        toast.error('Could not repair the Inventory Hub link for this submission.')
-        return
-      }
-      await loadSubmissions()
     }
 
     safeOpenDeal(linkedDeal.id)
@@ -889,69 +875,19 @@ export default function Submissions() {
       }
 
       const convertedBy = user?.id || user?.email || 'unknown'
-      const reservation = await reserveSubmissionInventoryConversion(sub, convertedBy, connectedDeal?.id)
-      if (!reservation.ok) {
-        const safe = safeApprovalError(reservation.error, 'Could not reserve the Inventory relationship in Supabase.')
+      const dealPayload = buildInventoryDealFromSubmission(sub)
+      const conversion = await convertSubmissionToInventory(sub.id, dealPayload, convertedBy)
+      if (!conversion.ok) {
+        const safe = safeApprovalError(conversion.error, 'Could not persist the Inventory deal in Supabase.')
         setApprovalErrors(prev => ({ ...prev, [sub.id]: {
           ...safe,
-          reason: `Inventory linkage persistence failed: ${safe.reason}`,
+          reason: `Atomic Inventory conversion failed: ${safe.reason}`,
           checkedAt: new Date().toISOString(),
         } }))
-        toast.error('Inventory linkage could not be reserved. No duplicate deal was created.')
+        toast.error('Inventory conversion failed. The submission was not marked converted.')
         return
       }
-      const reservedSubmission = reservation.data
-      if (connectedDeal?.id && reservation.inventoryDealId !== connectedDeal.id) {
-        const safe = safeApprovalError('The authoritative submission mapping points to a different Inventory deal.')
-        setApprovalErrors(prev => ({ ...prev, [sub.id]: { ...safe, checkedAt: new Date().toISOString() } }))
-        toast.error('Inventory linkage conflict. No existing deal was opened or modified.')
-        return
-      }
-      const reservedInventoryDealId = connectedDeal?.id || reservation.inventoryDealId
-
-      if (!connectedDeal) {
-        const idCollision = deals.find((deal: any) => deal?.id === reservedInventoryDealId)
-        if (idCollision && !findInventoryDealForSubmission(sub)) {
-          const safe = safeApprovalError('The reserved Inventory ID belongs to a deal with a different submission identity.')
-          setApprovalErrors(prev => ({ ...prev, [sub.id]: { ...safe, checkedAt: new Date().toISOString() } }))
-          toast.error('Inventory linkage conflict. The unrelated deal was not opened or modified.')
-          return
-        }
-      }
-
-      const existingDeal = connectedDeal
-      const dealPayload = buildInventoryDealFromSubmission(sub)
-      const createdDeal = existingDeal || addDeal({
-        ...(dealPayload as any),
-        id: reservedInventoryDealId,
-        sourceSubmissionId: sub.id,
-      })
-
-      if (!createdDeal?.id) {
-        const safe = safeApprovalError('Could not create inventory deal from submission')
-        setApprovalErrors(prev => ({ ...prev, [sub.id]: { ...safe, checkedAt: new Date().toISOString() } }))
-        toast.error('Approval failed. Open error details on the submission row.')
-        return
-      }
-
-      const result = await markDealSubmissionConverted(reservedSubmission, {
-        inventoryDealId: createdDeal.id,
-        convertedBy,
-        previousStatus: sub.status || sub.deal_data?.submissionStatus || 'pending',
-      })
-      if (!result.ok) {
-        const safe = safeApprovalError(result.error)
-        console.warn('[Deal Blast Pro] Deal submission approval failed', {
-          action: 'moveToInventory',
-          submissionType: 'deal',
-          submissionId: sub.id,
-          targetTable: 'deal_submissions',
-          reason: safe.reason,
-        })
-        setApprovalErrors(prev => ({ ...prev, [sub.id]: { ...safe, checkedAt: new Date().toISOString() } }))
-        toast.error('Inventory deal retained, but submission linkage metadata needs retry.')
-        return
-      }
+      const createdDeal = cacheInventoryDeal(conversion.data)
 
       setReviewSub(null)
       setApprovalErrors(prev => {
@@ -959,7 +895,7 @@ export default function Submissions() {
         delete next[sub.id]
         return next
       })
-      toast.success(existingDeal ? 'Submission linked to existing Inventory Hub deal' : 'Submission approved to Inventory Hub')
+      toast.success(connectedDeal ? 'Submission linked to existing Inventory Hub deal' : 'Submission approved to Inventory Hub')
       await loadSubmissions()
       safeOpenDeal(createdDeal.id)
       navigate('/app/inventory')

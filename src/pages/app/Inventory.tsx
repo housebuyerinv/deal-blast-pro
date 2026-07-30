@@ -44,8 +44,9 @@ function getDealPotentialFee(deal: any) {
 }
 
 export default function Inventory() {
-  const { getInventoryDeals, isNewDeal } = useAppStore()
+  const { getInventoryDeals, isNewDeal, hydrateInventory } = useAppStore()
   const allInventory = getInventoryDeals()
+  const [inventoryLoading, setInventoryLoading] = useState(true)
   const [pendingSubmissionCount, setPendingSubmissionCount] = useState(0)
   const [filter, setFilter] = useState<'All' | 'Active' | 'Under Contract' | 'Closing' | 'Closed/Sold' | 'Dead'>('All')
   const [search, setSearch] = useState('')
@@ -138,21 +139,31 @@ export default function Inventory() {
   useEffect(() => {
     let alive = true
 
+    const refreshInventory = async () => {
+      try {
+        await hydrateInventory()
+      } finally {
+        if (alive) setInventoryLoading(false)
+      }
+    }
+
     const refreshPendingSubmissions = async () => {
       const result = await listPendingDealSubmissions()
       if (alive) setPendingSubmissionCount(result.ok ? (result.data || []).length : 0)
     }
 
-    void refreshPendingSubmissions()
+    void Promise.all([refreshInventory(), refreshPendingSubmissions()])
     window.addEventListener('focus', refreshPendingSubmissions)
+    window.addEventListener('focus', refreshInventory)
     window.addEventListener('dealblastpro:storage-sync', refreshPendingSubmissions)
 
     return () => {
       alive = false
       window.removeEventListener('focus', refreshPendingSubmissions)
+      window.removeEventListener('focus', refreshInventory)
       window.removeEventListener('dealblastpro:storage-sync', refreshPendingSubmissions)
     }
-  }, [])
+  }, [hydrateInventory])
 
   const renderPropertySnapshot = (deal: any) => {
     const t = safeLower(deal.property.type || '');
@@ -374,7 +385,9 @@ export default function Inventory() {
       <div className="flex justify-between mb-4 items-end">
         <div>
           <div className="uppercase tracking-widest text-xs text-[#8B92A3]">INVENTORY HUB</div>
-          <div className="text-2xl font-semibold">Active Portfolio — {filtered.length} deals</div>
+          <div className="text-2xl font-semibold">
+            {inventoryLoading ? 'Loading inventory...' : `Active Portfolio — ${filtered.length} deals`}
+          </div>
         </div>
         <div className="flex flex-wrap justify-end gap-2">
           <button

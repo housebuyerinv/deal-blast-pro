@@ -15,6 +15,7 @@ import { findInventoryDealBySubmission } from '../lib/submissionInventoryIdentit
 import { getOwnerPreviewPlan, isOwnerPreviewActive } from '../lib/planAccess'
 import { getBuyerCapacity, getPlanEntitlement } from '../lib/planEntitlements'
 import { getPastDuePolicyMessage, getPastDueStage } from '../lib/accountLifecycle'
+import { listInventoryDeals } from '../lib/inventoryStorage'
 
 // Module-level guard so initialize is truly one-shot even if called multiple times from effects or StrictMode
 const safeLower = (value: any) => String(value ?? '').toLowerCase();
@@ -121,6 +122,8 @@ issueKeys: string[] }>
   resetTrial: () => void
   
   // Deals
+  hydrateInventory: () => Promise<{ ok: boolean; error?: unknown }>
+  cacheInventoryDeal: (deal: Deal) => Deal
   addDeal: (deal: Omit<Deal, 'id' | 'createdAt' | 'updatedAt'>) => Deal
   updateDeal: (id: string, updates: Partial<Deal>) => void
   deleteDeal: (id: string) => void
@@ -692,6 +695,7 @@ export const useAppStore = create<AppStore>()(
           })
         }
         get().cleanupOrphanedDealData()
+        if (get().user) void get().hydrateInventory()
       },
 
       // Auth
@@ -730,6 +734,7 @@ export const useAppStore = create<AppStore>()(
           settings: shouldPreserveWorkspace ? get().settings : resetLifecycleSettings(DEFAULT_SETTINGS, workspaceInstanceId),
           user: nextUser
         })
+        void get().hydrateInventory()
       },
       logout: () => {
         void import('../lib/buyerSupabaseSync').then(m => m.invalidateBuyerHydrationCache())
@@ -933,6 +938,21 @@ export const useAppStore = create<AppStore>()(
       resetTrial: () => set({ trial: TRIAL_DEFAULT }),
 
       // Deals
+      hydrateInventory: async () => {
+        const result = await listInventoryDeals()
+        if (!result.ok) return { ok: false, error: result.error }
+        set({ deals: result.data })
+        get().cleanupOrphanedDealData()
+        return { ok: true }
+      },
+      cacheInventoryDeal: (deal) => {
+        set(s => ({
+          deals: s.deals.some(item => item.id === deal.id)
+            ? s.deals.map(item => item.id === deal.id ? deal : item)
+            : [deal, ...s.deals],
+        }))
+        return deal
+      },
       addDeal: (partial) => {
         const sourceSubmissionId = String(
           (partial as any)?.sourceSubmissionId ||

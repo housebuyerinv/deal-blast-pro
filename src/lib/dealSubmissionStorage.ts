@@ -436,7 +436,7 @@ export async function listDealSubmissionsForReview() {
     const { data, error } = await withTimeout<any>(
       ready.client
         .from('deal_submissions')
-        .select('*')
+        .select('id,status,source,deal_data,created_at,updated_at,converted_at,converted_by,inventory_deal_id')
         .order('created_at', { ascending: false })
         .limit(250),
       'Deal submission queue load timed out.'
