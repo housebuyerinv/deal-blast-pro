@@ -26,6 +26,7 @@ import { isSuperAdmin, isRegularUser } from '../../lib/accessControl'
 import { canAccessCalculatorTab } from '../../lib/calculatorAccess'
 import { getBillingNotice, getOwnerPreviewPlan, isOwnerPreviewActive, PLAN_ROUTE_ACCESS, type PlanName } from '../../lib/planAccess'
 import { getBuyerCapacity, getPlanEntitlement } from '../../lib/planEntitlements'
+import { getBillingControlPolicy } from '../../lib/customerExperiencePolicies'
 import { PAST_DUE_READ_ONLY_DAYS, PAST_DUE_RESTRICTED_DAYS } from '../../lib/accountLifecycle'
 import { PLAN_PRICING, PRICING_PLAN_ORDER, getPriceDisplay, type PricingPlanName } from '../../lib/planPricing'
 import {
@@ -243,6 +244,12 @@ export default function Settings() {
   const paidBillingStatuses = new Set(['Paid Active', 'Past Due', 'Payment Pending', 'Comped'])
   const canOpenBillingPortal = !ownerPreviewActive && effectivePlanForDisplay !== 'Free' && paidBillingStatuses.has(customerBillingStatus)
   const cancellationScheduledFromStripe = Boolean(billingCenter.cancelAtPeriodEnd)
+  const billingControlPolicy = getBillingControlPolicy({
+    plan: effectivePlanForDisplay,
+    billingStatus: customerBillingStatus,
+    ownerPreviewActive,
+    cancelAtPeriodEnd: cancellationScheduledFromStripe,
+  })
   const verifiedCurrentPeriodEnd = billingCenter.currentPeriodEnd || trial.billingPeriodEnd || deletionRequest.scheduledDeletionAt || ''
   const outstandingBalanceCents = Number(billingCenter.outstandingBalance || 0)
   const scheduledBillingPlan = billingCenter.scheduledPlan || trial.scheduledPlan || ''
@@ -947,7 +954,7 @@ export default function Settings() {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            {canOpenBillingPortal && (
+            {billingControlPolicy.showManage && (
               <>
                 <button
                   type="button"
@@ -976,20 +983,21 @@ export default function Settings() {
           </div>
         </div>
 
-        {canOpenBillingPortal && (
+        {(billingControlPolicy.showManage || billingControlPolicy.showUpgrade) && (
           <div className="mb-4 rounded border border-[#252A38] bg-[#0A0C12] p-3">
             <div className="text-sm font-semibold text-[#E6E8EE] mb-2">Subscription Controls</div>
             <div className="text-xs text-[#8B92A3] mb-3">
-              These actions open the existing secure Stripe customer portal. Changes are reflected here only after durable billing data is updated.
+              {billingControlPolicy.simulated
+                ? 'Preview simulation only. These controls do not contact Stripe or change billing.'
+                : 'These actions use the authenticated Stripe workflow. Changes appear here only after durable billing data is updated.'}
             </div>
             <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={() => openBillingPortal('portal')} disabled={Boolean(billingPortalAction)} className="btn btn-ghost text-xs disabled:opacity-60">Change Plan</button>
-              <button type="button" onClick={() => openBillingPortal('portal')} disabled={Boolean(billingPortalAction)} className="btn btn-ghost text-xs disabled:opacity-60">Downgrade Plan</button>
-              {cancellationScheduledFromStripe ? (
-                <button type="button" onClick={() => openBillingPortal('portal')} disabled={Boolean(billingPortalAction)} className="btn btn-ghost text-xs disabled:opacity-60">Undo Scheduled Cancellation</button>
-              ) : (
-                <button type="button" onClick={() => openBillingPortal('portal')} disabled={Boolean(billingPortalAction)} className="btn btn-ghost text-xs text-amber-200 disabled:opacity-60">Cancel Subscription at Period End</button>
-              )}
+              {billingControlPolicy.showManage && <button type="button" onClick={() => openBillingPortal('portal')} disabled={Boolean(billingPortalAction)} className="btn btn-green text-xs disabled:opacity-60">Manage Billing</button>}
+              {billingControlPolicy.showUpgrade && <button type="button" onClick={() => ownerPreviewActive ? toast.info('Preview mode only. No plan change was performed.') : window.location.assign('/app/upgrade')} className="btn btn-ghost text-xs">Upgrade Plan</button>}
+              {billingControlPolicy.showChange && <button type="button" onClick={() => openBillingPortal('portal')} disabled={Boolean(billingPortalAction)} className="btn btn-ghost text-xs disabled:opacity-60">Change Plan</button>}
+              {billingControlPolicy.showDowngrade && <button type="button" onClick={() => openBillingPortal('portal')} disabled={Boolean(billingPortalAction)} className="btn btn-ghost text-xs disabled:opacity-60">Downgrade Plan</button>}
+              {billingControlPolicy.showUndoCancellation && <button type="button" onClick={() => openBillingPortal('portal')} disabled={Boolean(billingPortalAction)} className="btn btn-ghost text-xs disabled:opacity-60">Undo Scheduled Cancellation</button>}
+              {billingControlPolicy.showCancel && <button type="button" onClick={openCancellationPortal} disabled={Boolean(billingPortalAction)} className="btn btn-ghost text-xs text-amber-200 disabled:opacity-60">Cancel Subscription</button>}
             </div>
           </div>
         )}
@@ -1946,6 +1954,10 @@ export default function Settings() {
   }
 
   async function openBillingPortal(mode: 'portal' | 'invoice' = 'portal') {
+    if (ownerPreviewActive) {
+      toast.info('Preview mode only. No Stripe billing action was performed.')
+      return
+    }
     if (!canOpenBillingPortal) {
       toast('No active paid subscription is available to manage.')
       return
@@ -1978,6 +1990,15 @@ export default function Settings() {
       toast.error(error?.message || 'Stripe billing portal could not be opened.')
       setBillingPortalAction('')
     }
+  }
+
+  const openCancellationPortal = () => {
+    if (ownerPreviewActive) {
+      toast.info('Preview mode only. No subscription cancellation was performed.')
+      return
+    }
+    if (!window.confirm('Open the secure Stripe billing portal to review cancellation at the end of the current billing period? No cancellation occurs until you confirm it in Stripe.')) return
+    void openBillingPortal('portal')
   }
 
   const runBuyerRecoveryScan = async (showPreview = false) => {

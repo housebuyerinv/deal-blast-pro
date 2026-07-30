@@ -15,6 +15,7 @@ import {
 import { hasOwnerAdminBypass } from '../../lib/accessControl'
 import { isOwnerPreviewActive } from '../../lib/planAccess'
 import { MOCK_PROPERTY_INTELLIGENCE_SAMPLE } from '../../lib/propertyIntelligence/mockProvider'
+import { canShowSamplePropertyIntelligence } from '../../lib/customerExperiencePolicies'
 import { supabase } from '../../lib/supabase'
 
 const safeLower = (value: any) => String(value ?? '').toLowerCase();
@@ -389,6 +390,7 @@ export default function DealCalculator() {
   const [propertySearch, setPropertySearch] = useState('')
   const [propertyLookupLoading, setPropertyLookupLoading] = useState(false)
   const [propertyAutocompleteLoading, setPropertyAutocompleteLoading] = useState(false)
+  const [propertyAutocompleteMessage, setPropertyAutocompleteMessage] = useState('')
   const [propertyLookupError, setPropertyLookupError] = useState('')
   const [propertyLookupResults, setPropertyLookupResults] = useState<any[]>([])
   const [propertyLookupSummary, setPropertyLookupSummary] = useState<any | null>(null)
@@ -620,20 +622,18 @@ export default function DealCalculator() {
     }
 
     setPropertyAutocompleteLoading(true)
+    setPropertyAutocompleteMessage('')
     setPropertyLookupError('')
 
     try {
       const payload = await fetchPropertyIntelligence('autocomplete', { query, limit: 8 })
-      setPropertyLookupResults(Array.isArray(payload.results) ? payload.results : [])
+      const results = Array.isArray(payload.results) ? payload.results : []
+      setPropertyLookupResults(results)
+      if (results.length === 0) setPropertyAutocompleteMessage('No verified address suggestions found. You can continue with a complete manual address.')
       setPropertyLookupSummary(null)
-    } catch (error: any) {
-      if (/autocomplete/i.test(error?.message || '')) {
-        setPropertyLookupResults([])
-        return
-      }
-      setPropertyLookupError(error?.message || 'Property Intelligence lookup failed')
+    } catch {
+      setPropertyAutocompleteMessage('Address suggestions are temporarily unavailable. You can continue with a complete manual address.')
       setPropertyLookupResults([])
-      setPropertyLookupSummary(null)
     } finally {
       setPropertyAutocompleteLoading(false)
     }
@@ -703,11 +703,23 @@ export default function DealCalculator() {
     }
   }
 
-  const openPropertyIntelligenceResult = async (result: any) => {
-    const address = result?.address || {}
-    setSelectedPropertyAddress(address)
-    setPropertySearch(formatAddressLabel(address))
-    await loadPropertyIntelligenceForAddress(address)
+  const selectPropertyIntelligenceResult = async (result: any) => {
+    setPropertyLookupResults([])
+    setPropertyAutocompleteLoading(true)
+    setPropertyAutocompleteMessage('Verifying selected address...')
+    try {
+      const payload = await fetchPropertyIntelligence('autocomplete-details', { placeId: result?.id })
+      const address = payload?.address || {}
+      setSelectedPropertyAddress(address)
+      setPropertySearch(payload?.label || formatAddressLabel(address))
+      setPropertyAutocompleteMessage('Verified address selected. Choose Load Property Intelligence when you are ready.')
+    } catch (error: any) {
+      setSelectedPropertyAddress(null)
+      setPropertySearch(result?.label || propertySearch)
+      setPropertyAutocompleteMessage(error?.message || 'The selected address could not be verified. You can continue with a complete manual address.')
+    } finally {
+      setPropertyAutocompleteLoading(false)
+    }
   }
 
   useEffect(() => {
@@ -717,9 +729,10 @@ export default function DealCalculator() {
       setPropertyAutocompleteLoading(false)
       return
     }
-    if (query.length < 3 || selectedPropertyAddress && query === formatAddressLabel(selectedPropertyAddress)) {
+    if (query.length < 5 || selectedPropertyAddress && query === formatAddressLabel(selectedPropertyAddress)) {
       setPropertyLookupResults([])
       setPropertyAutocompleteLoading(false)
+      if (query.length < 5) setPropertyAutocompleteMessage('')
       return
     }
 
@@ -2021,7 +2034,10 @@ Deal Blast Pro`
     }
 
     if (activeTab === 'propertyIntelligence') {
-      const allowSamplePropertyIntelligence = import.meta.env.DEV || ownerPreviewActive
+      const allowSamplePropertyIntelligence = canShowSamplePropertyIntelligence({
+        isOwnerAdmin: ownerAdminMode,
+        ownerPreviewActive,
+      })
 
       if (!allowSamplePropertyIntelligence) {
         const summaryCards = propertyLookupSummary ? [
@@ -2173,7 +2189,7 @@ Deal Blast Pro`
                     } else if (e.key === 'Enter') {
                       e.preventDefault()
                       const result = propertyLookupResults[activeSuggestionIndex]
-                      if (result) void openPropertyIntelligenceResult(result)
+                      if (result) void selectPropertyIntelligenceResult(result)
                       else void loadPropertyIntelligenceForAddress(selectedPropertyAddress || parseTypedPropertyAddress(propertySearch))
                     } else if (e.key === 'Escape') {
                       setPropertyLookupResults([])
@@ -2191,7 +2207,7 @@ Deal Blast Pro`
                         <button
                           key={result.id || label}
                           type="button"
-                          onClick={() => void openPropertyIntelligenceResult(result)}
+                          onClick={() => void selectPropertyIntelligenceResult(result)}
                           className={`w-full px-3 py-2 text-left text-sm ${index === activeSuggestionIndex ? 'bg-[#1D4ED8]/30' : 'hover:bg-[#171B26]'}`}
                         >
                           <div className="font-medium text-[#E6E8EE]">{label}</div>
@@ -2199,6 +2215,11 @@ Deal Blast Pro`
                         </button>
                       )
                     })}
+                  </div>
+                )}
+                {!propertyAutocompleteLoading && propertyAutocompleteMessage && propertyLookupResults.length === 0 && (
+                  <div className="mt-1 text-[11px] leading-4 text-[#8B92A3]" role="status">
+                    {propertyAutocompleteMessage}
                   </div>
                 )}
               </div>

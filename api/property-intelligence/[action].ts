@@ -1,6 +1,7 @@
 import { canUsePropertyIntelligence, getAuthenticatedAccount } from '../_accountAuth.js'
 
 const RENTCAST_BASE_URL = 'https://api.rentcast.io/v1'
+const GOOGLE_PLACES_BASE_URL = 'https://places.googleapis.com/v1'
 const CUSTOMER_SOURCE = 'Property Intelligence'
 const UNAVAILABLE_MESSAGE = 'Property Intelligence is temporarily unavailable. Manual property analysis remains available.'
 const COMPLETE_ADDRESS_MESSAGE = 'Select a complete address from the suggestions before loading Property Intelligence.'
@@ -42,12 +43,15 @@ function readRuntimeConfig() {
   const enabledRaw = clean(process.env.PROPERTY_INTELLIGENCE_ENABLED).toLowerCase()
   const provider = clean(process.env.PROPERTY_INTELLIGENCE_PROVIDER).toLowerCase()
   const apiKey = clean(process.env.RENTCAST_API_KEY)
+  const googlePlacesApiKey = clean(process.env.GOOGLE_PLACES_API_KEY)
   return {
     enabled: enabledRaw === 'true',
     provider,
     apiKey,
     apiKeyPresent: apiKey.length > 0,
     apiKeyLength: apiKey.length,
+    googlePlacesApiKey,
+    autocompleteConfigured: googlePlacesApiKey.length > 0,
     configured: enabledRaw === 'true' && provider === 'rentcast' && apiKey.length > 0,
   }
 }
@@ -543,6 +547,92 @@ async function rentcast(endpoint: string, params: Record<string, any>, config: R
   return { payload, httpStatus: response.status, responseMs: Date.now() - started, endpoint: url.pathname, url: url.toString() }
 }
 
+async function googlePlacesAutocomplete(input: string, config: ReturnType<typeof readRuntimeConfig>) {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS)
+  try {
+    const response = await fetch(`${GOOGLE_PLACES_BASE_URL}/places:autocomplete`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': config.googlePlacesApiKey,
+        'X-Goog-FieldMask': 'suggestions.placePrediction.placeId,suggestions.placePrediction.text.text',
+      },
+      body: JSON.stringify({
+        input,
+        includedRegionCodes: ['us'],
+      }),
+      signal: controller.signal,
+    })
+    const payload = await response.json().catch(() => null)
+    if (!response.ok) {
+      throw Object.assign(new Error('Address suggestions are temporarily unavailable.'), {
+        status: response.status,
+        category: categorizeProviderError(response.status, payload),
+      })
+    }
+    return Array.isArray(payload?.suggestions) ? payload.suggestions : []
+  } catch (error: any) {
+    if (error?.name === 'AbortError') {
+      throw Object.assign(new Error('Address suggestions timed out.'), { status: 504, category: 'provider_timeout' })
+    }
+    throw error
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
+async function googlePlaceDetails(placeId: string, config: ReturnType<typeof readRuntimeConfig>) {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS)
+  try {
+    const response = await fetch(`${GOOGLE_PLACES_BASE_URL}/places/${encodeURIComponent(placeId)}`, {
+      headers: {
+        Accept: 'application/json',
+        'X-Goog-Api-Key': config.googlePlacesApiKey,
+        'X-Goog-FieldMask': 'id,formattedAddress,addressComponents,location',
+      },
+      signal: controller.signal,
+    })
+    const payload = await response.json().catch(() => null)
+    if (!response.ok) {
+      throw Object.assign(new Error('The selected address could not be verified.'), {
+        status: response.status,
+        category: categorizeProviderError(response.status, payload),
+      })
+    }
+    return payload
+  } catch (error: any) {
+    if (error?.name === 'AbortError') {
+      throw Object.assign(new Error('Address verification timed out.'), { status: 504, category: 'provider_timeout' })
+    }
+    throw error
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
+function normalizeGooglePlace(place: any) {
+  const components = Array.isArray(place?.addressComponents) ? place.addressComponents : []
+  const component = (type: string, short = false) => {
+    const match = components.find((item: any) => Array.isArray(item?.types) && item.types.includes(type))
+    return clean(short ? match?.shortText : match?.longText)
+  }
+  const streetNumber = component('street_number')
+  const route = component('route')
+  const subpremise = component('subpremise')
+  return {
+    line1: [streetNumber, route].filter(Boolean).join(' ') + (subpremise ? `, ${subpremise}` : ''),
+    city: component('locality') || component('postal_town') || component('administrative_area_level_2'),
+    state: component('administrative_area_level_1', true),
+    postalCode: component('postal_code'),
+    county: component('administrative_area_level_2'),
+    latitude: place?.location?.latitude,
+    longitude: place?.location?.longitude,
+  }
+}
+
 async function getPropertyRecord(address: string, config: ReturnType<typeof readRuntimeConfig>) {
   const cacheKey = `property:${normalizeCacheAddress(address)}`
   const cached = readCache<any>(cacheKey)
@@ -715,11 +805,74 @@ export default async function handler(req: any, res: any) {
     }
 
     if (action === 'autocomplete') {
-      return send(res, 501, {
-        error: 'Address autocomplete is not configured. Enter a complete property address manually.',
-        code: 'autocomplete_not_configured',
-        autocompleteConfigured: false,
-        diagnostics: internal ? { category: 'provider_not_configured', missing: 'autocomplete_provider' } : undefined,
+      const query = clean(req.query.query)
+      if (query.length < 5) {
+        return send(res, 200, {
+          results: [],
+          autocompleteConfigured: true,
+          minimumCharacters: 5,
+        })
+      }
+      if (!config.autocompleteConfigured) {
+        return send(res, 503, {
+          error: 'Address suggestions are not configured. Enter a complete property address manually.',
+          code: 'autocomplete_not_configured',
+          autocompleteConfigured: false,
+          diagnostics: internal ? { category: 'provider_not_configured', missing: ['GOOGLE_PLACES_API_KEY'] } : undefined,
+        })
+      }
+      const limit = Math.min(8, Math.max(1, Number(req.query.limit) || 8))
+      const cacheKey = `autocomplete:${query.toLowerCase()}:${limit}`
+      const cached = readCache<any[]>(cacheKey)
+      if (cached) {
+        return send(res, 200, {
+          results: cached,
+          autocompleteConfigured: true,
+          cache: 'hit',
+        })
+      }
+      const predictions = await googlePlacesAutocomplete(query, config)
+      const suggestions = predictions
+        .map((suggestion: any) => {
+          const prediction = suggestion?.placePrediction
+          const label = clean(prediction?.text?.text)
+          return {
+            id: clean(prediction?.placeId),
+            label,
+            confidence: 0.9,
+            source: 'Google Places',
+          }
+        })
+        .filter((suggestion: any) => suggestion.id && suggestion.label)
+        .slice(0, limit)
+      writeCache(cacheKey, suggestions)
+      return send(res, 200, {
+        results: suggestions,
+        autocompleteConfigured: true,
+        cache: 'miss',
+      })
+    }
+
+    if (action === 'autocomplete-details') {
+      if (!config.autocompleteConfigured) {
+        return send(res, 503, {
+          error: 'Address verification is not configured. Enter a complete property address manually.',
+          code: 'autocomplete_not_configured',
+          autocompleteConfigured: false,
+        })
+      }
+      const placeId = clean(req.query.placeId)
+      if (!placeId) throw Object.assign(new Error('Select an address suggestion first.'), { status: 400, category: 'address_incomplete' })
+      const place = await googlePlaceDetails(placeId, config)
+      const address = normalizeGooglePlace(place)
+      if (!address.line1 || !address.city || !address.state) {
+        throw Object.assign(new Error('The selected suggestion is not a complete U.S. street address.'), { status: 400, category: 'address_incomplete' })
+      }
+      return send(res, 200, {
+        id: clean(place.id || placeId),
+        address,
+        label: clean(place.formattedAddress) || [address.line1, address.city, address.state, address.postalCode].filter(Boolean).join(', '),
+        source: 'Google Places',
       })
     }
 
