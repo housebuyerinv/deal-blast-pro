@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient'
 import type { TrialState } from './types'
+import { getWorkspaceDisplayName, validateWorkspaceNameInput } from './workspaceName'
 
 export type AccountProfile = {
   user_id: string
@@ -177,13 +178,13 @@ export function deriveDisplayName(profile: Partial<AccountProfile> | null | unde
 export function profileToUserNames(profile: Partial<AccountProfile> | null | undefined, fallbackEmail = '') {
   const fullName = clean(profile?.full_name)
   const displayName = clean(profile?.display_name)
-  const businessName = clean(profile?.business_name || profile?.company)
+  const businessName = getWorkspaceDisplayName(profile?.business_name, profile?.company)
   return {
     fullName,
     displayName,
     businessName,
     name: displayName || (fullName ? fullName.split(/\s+/)[0] : '') || clean(fallbackEmail).split('@')[0] || 'User',
-    company: businessName || 'Deal Blast Pro Workspace',
+    company: businessName,
   }
 }
 
@@ -268,7 +269,9 @@ export async function saveAccountProfile(input: EditableAccountProfile) {
 
   const fullName = clean(input.fullName)
   const displayName = clean(input.displayName)
-  const businessName = clean(input.businessName)
+  const workspaceName = validateWorkspaceNameInput(input.businessName)
+  if (!workspaceName.valid) throw new Error(workspaceName.error)
+  const businessName = workspaceName.value
   if (!fullName) throw new Error('Full Name is required.')
 
   const { data: userData, error: userError } = await supabase.auth.getUser()
@@ -293,6 +296,14 @@ export async function saveAccountProfile(input: EditableAccountProfile) {
     .single()
 
   if (error) throw error
+
+  if (businessName) {
+    const { error: workspaceError } = await supabase
+      .from('workspaces')
+      .update({ name: businessName })
+      .eq('owner_user_id', authUser.id)
+    if (workspaceError) throw workspaceError
+  }
   return data as AccountProfile
 }
 

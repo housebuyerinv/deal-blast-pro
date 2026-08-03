@@ -7,9 +7,8 @@ import {
 import { useAppStore } from '../../store/useAppStore'
 import { countPendingDealSubmissions } from '../../lib/dealSubmissionStorage'
 import { countPendingBuyerPortalSubmissions } from '../../lib/buyerPortalSubmissionStorage'
-import { hasOwnerAdminBypass, isInternalAdmin } from '../../lib/accessControl'
-import { canAccessRoute } from '../../lib/planAccess'
-import { getEffectivePlan } from '../../lib/planAccess'
+import { isInternalAdmin } from '../../lib/accessControl'
+import { canAccessRoute, getEffectivePlan, hasEffectiveOwnerAdminBypass, isOwnerPreviewActive } from '../../lib/planAccess'
 import { canUseBuyerPortalReview } from '../../lib/planEntitlements'
 import { canUseLaunchedFeature } from '../../lib/featureLaunch'
 
@@ -57,8 +56,9 @@ export default function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean;
   const [submissions, setSubmissions] = useState(0)
   const [buyerPortalQueueCount, setBuyerPortalQueueCount] = useState(0)
   const pendingFollowups = getPendingFollowUps().length
-  const hasInternalAdminAccess = isInternalAdmin(user)
-  const ownerAdminBypass = hasOwnerAdminBypass(user)
+  const previewActive = isOwnerPreviewActive(user, settings)
+  const hasInternalAdminAccess = isInternalAdmin(user) && !previewActive
+  const ownerAdminBypass = hasEffectiveOwnerAdminBypass(user, settings)
   const effectivePlan = getEffectivePlan(trial, user, settings)
   const buyerPortalReviewAllowed = canUseBuyerPortalReview(effectivePlan) && canUseLaunchedFeature('buyerPortalReviewCenter', effectivePlan, hasInternalAdminAccess)
   const dealSubmissionReviewAllowed = canUseLaunchedFeature('dealSubmissionReviewCenter', effectivePlan, hasInternalAdminAccess)

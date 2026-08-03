@@ -61,6 +61,28 @@ export function isOwnerPreviewActive(user?: Pick<User, 'email'> | null, settings
   return isSuperAdmin(user) && getOwnerPreviewPlan(settings) !== 'Owner Admin'
 }
 
+export function hasEffectiveOwnerAdminBypass(
+  user?: Pick<User, 'email'> | null,
+  settings?: Pick<AppSettings, 'ownerPreviewPlan'> | null,
+) {
+  return hasOwnerAdminBypass(user) && !isOwnerPreviewActive(user, settings)
+}
+
+export function getOwnerPreviewContext(
+  user?: Pick<User, 'email'> | null,
+  settings?: Pick<AppSettings, 'ownerPreviewPlan'> | null,
+) {
+  const plan = getOwnerPreviewPlan(settings)
+  const active = isOwnerPreviewActive(user, settings)
+  return {
+    active,
+    plan,
+    role: active ? 'Workspace Owner' as const : 'Owner Admin' as const,
+    billingStatus: active ? (plan === 'Free' ? 'Free Active' as const : 'Preview Active' as const) : 'Owner Admin' as const,
+    mutatesAccount: false,
+  }
+}
+
 export function getEffectivePlan(
   trial: TrialState,
   user?: Pick<User, 'email'> | null,
@@ -85,9 +107,7 @@ export function getAllowedRoutes(
   user?: Pick<User, 'email'> | null,
   settings?: Pick<AppSettings, 'ownerPreviewPlan'> | null,
 ): AppRoute[] {
-  // Owner Admin keeps unrestricted access unless they explicitly enter Preview.
-  // Preview must exercise the same navigation contract as the selected plan.
-  if (hasOwnerAdminBypass(user) && !isOwnerPreviewActive(user, settings)) return ALL_APP_ROUTES
+  if (hasEffectiveOwnerAdminBypass(user, settings)) return ALL_APP_ROUTES
   const plan = getEffectivePlan(trial, user, settings)
   if (plan === 'Owner Admin') return ALL_APP_ROUTES
   return Array.from(new Set([...(PLAN_ROUTE_ACCESS[plan] || PLAN_ROUTE_ACCESS.Free), '/app/settings' as AppRoute]))
@@ -99,7 +119,7 @@ export function canAccessRoute(
   user?: Pick<User, 'email'> | null,
   settings?: Pick<AppSettings, 'ownerPreviewPlan'> | null,
 ) {
-  if (hasOwnerAdminBypass(user) && !isOwnerPreviewActive(user, settings)) return true
+  if (hasEffectiveOwnerAdminBypass(user, settings)) return true
   return getAllowedRoutes(trial, user, settings).includes(route as AppRoute)
 }
 

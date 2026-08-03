@@ -11,7 +11,7 @@ import FirstLoginSetup from '../FirstLoginSetup'
 import OnboardingTour from '../OnboardingTour'
 import { buildStripeCheckoutUrl, getBillingSetupWithLaunchDefaults, getPlanPaymentLink, isValidPaymentUrl, type BillingFrequency, type PaidPlan } from '../../lib/billingLinks'
 import { isInternalAdmin, isSuperAdmin } from '../../lib/accessControl'
-import { canAccessRoute, getEffectivePlan, getOwnerPreviewPlan, getRequiredPlanForRoute, isOwnerPreviewActive } from '../../lib/planAccess'
+import { canAccessRoute, getEffectivePlan, getOwnerPreviewPlan, getRequiredPlanForRoute, hasEffectiveOwnerAdminBypass, isOwnerPreviewActive } from '../../lib/planAccess'
 import { getPastDuePolicyMessage, getPastDueStage } from '../../lib/accountLifecycle'
 import { canUseLaunchedFeature, getFeatureLockedMessage } from '../../lib/featureLaunch'
 import { supabase } from '../../lib/supabase'
@@ -117,6 +117,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const hasOwnerAdminAccess = isSuperAdmin(user)
   const ownerPreviewActive = isOwnerPreviewActive(user, settings)
   const ownerPreviewPlan = getOwnerPreviewPlan(settings)
+  const effectiveOwnerAdminAccess = hasEffectiveOwnerAdminBypass(user, settings)
   const deletionRequest = settings.deletionRequest || DEFAULT_SETTINGS.deletionRequest!
   const deletionMatchesCurrentWorkspace = deletionRequest.workspaceInstanceId
     ? deletionRequest.workspaceInstanceId === workspaceInstanceId
@@ -258,7 +259,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   if (
     user &&
     restrictedFeature &&
-    !canUseLaunchedFeature(restrictedFeature, effectivePlan, hasOwnerAdminAccess)
+    !canUseLaunchedFeature(restrictedFeature, effectivePlan, effectiveOwnerAdminAccess)
   ) {
     const message = getFeatureLockedMessage(restrictedFeature, effectivePlan)
     return (
@@ -278,7 +279,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     )
   }
 
-  if (user && !hasOwnerAdminAccess && isFreePlan && !canAccessRoute(location.pathname, trial, user, settings)) {
+  if (user && isFreePlan && !canAccessRoute(location.pathname, trial, user, settings)) {
     return (
       <div className="min-h-screen bg-[#0A0C12] text-[#E6E8EE] flex items-center justify-center p-4">
         <div className="w-full max-w-xl rounded border border-[#252A38] bg-[#0F111A] p-6 text-center shadow-xl">
@@ -298,9 +299,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   const isPaidAccess = ['Paid Active', 'Comped'].includes(String(billingStatus))
-  const hasInternalAdminAccess = isInternalAdmin(user)
+  const hasInternalAdminAccess = isInternalAdmin(user) && !ownerPreviewActive
 
-  if (user && !ownerPreviewActive && isPaidAccess && !hasInternalAdminAccess && !canAccessRoute(location.pathname, trial, user, settings)) {
+  if (user && (isPaidAccess || ownerPreviewActive) && !hasInternalAdminAccess && !canAccessRoute(location.pathname, trial, user, settings)) {
     const requiredPlan = getRequiredPlanForRoute(location.pathname)
     return (
       <div className="min-h-screen bg-[#0A0C12] text-[#E6E8EE] flex items-center justify-center p-4">

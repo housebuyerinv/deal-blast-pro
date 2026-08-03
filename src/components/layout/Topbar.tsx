@@ -1,4 +1,5 @@
 import { useAppStore } from '../../store/useAppStore'
+import { getWorkspaceDisplayName } from '../../lib/workspaceName'
 import { Menu, LogOut } from 'lucide-react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useState, useEffect } from 'react'
@@ -11,11 +12,17 @@ export default function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const { user, trial, logout, settings } = useAppStore()
   const navigate = useNavigate()
 
-  const normalizedPlan = trial.plan === 'Free Demo' ? 'Free' : trial.plan
-  const isPaidPlan = !!normalizedPlan && normalizedPlan !== 'Free' || trial.isPaid
   const superAdmin = isSuperAdmin(user)
   const previewActive = isOwnerPreviewActive(user, settings)
   const previewPlan = getOwnerPreviewPlan(settings)
+  const displayedTrial = previewActive && previewPlan !== 'Owner Admin'
+    ? {
+      ...trial,
+      plan: previewPlan === 'Free Demo' ? 'Free' : previewPlan,
+      isPaid: !['Free', 'Free Demo'].includes(previewPlan),
+      billingStatus: ['Free', 'Free Demo'].includes(previewPlan) ? 'Free Active' as const : 'Paid Active' as const,
+    }
+    : trial
   const handleLogout = async () => {
     await supabase.auth.signOut().catch(() => {})
     logout()
@@ -45,7 +52,7 @@ export default function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
           <Menu size={18} />
         </button>
         <div className="hidden lg:block text-sm text-[#8B92A3]">
-          {user?.businessName || user?.company || 'Deal Blast Pro Workspace'}
+          {getWorkspaceDisplayName(user?.businessName, user?.company)}
         </div>
         <div className="hidden md:block text-xs text-[#8B92A3] tabular-nums ml-3 pl-3 border-l border-[#252A38]">
           {dateTimeStr}
@@ -54,7 +61,7 @@ export default function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
       </div>
 
       <div className="flex items-center gap-3 text-sm">
-        <PlanStatusBadge trial={trial} onClick={isPaidPlan ? undefined : () => navigate('/app/upgrade')} />
+        <PlanStatusBadge trial={displayedTrial} onClick={displayedTrial.isPaid ? undefined : () => navigate('/app/upgrade')} />
 
         {(previewActive || superAdmin) && (
           <div className="bg-[#12151F] border border-[#252A38] text-xs rounded px-2 py-1 text-[#22C55E]">

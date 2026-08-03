@@ -10,6 +10,7 @@ import {
   profileToUserNames,
   syncVerifiedAuthEmailToProfile,
 } from '../../lib/accountProfile'
+import { getWorkspaceDisplayName } from '../../lib/workspaceName'
 
 function readCallbackError() {
   const params = new URLSearchParams(window.location.search)
@@ -76,7 +77,7 @@ export default function AuthCallback() {
         const profileNames = profileToUserNames({
           full_name: statusPayload?.profile?.fullName || data.user.user_metadata?.full_name || data.user.user_metadata?.name || '',
           display_name: statusPayload?.profile?.displayName || '',
-          business_name: statusPayload?.profile?.businessName || statusPayload?.workspace?.name || '',
+          business_name: getWorkspaceDisplayName(statusPayload?.profile?.businessName, statusPayload?.workspace?.name),
         }, userEmail)
         const fullName = profileNames.name
 
@@ -88,7 +89,7 @@ export default function AuthCallback() {
           newWorkspace,
           fullName: profileNames.fullName,
           displayName: profileNames.displayName,
-          businessName: profileNames.businessName || statusPayload?.workspace?.name || '',
+          businessName: getWorkspaceDisplayName(statusPayload?.profile?.businessName, statusPayload?.workspace?.name),
         })
         if (startNewAccount) {
           window.sessionStorage.removeItem('dealblastpro:start-new-account')

@@ -1,3 +1,5 @@
+import { getWorkspaceDisplayName } from './workspaceName'
+
 type ExportFormat = 'pdf' | 'xlsx' | 'csv' | 'json' | 'zip'
 
 type ExportScope = 'selected' | 'all' | 'filtered' | 'single'
@@ -213,7 +215,7 @@ function exportPayload(options: InventoryExportOptions) {
   return {
     exportVersion: EXPORT_VERSION,
     generatedAt: new Date().toISOString(),
-    workspace: options.workspaceName || 'Deal Blast Pro Workspace',
+    workspace: getWorkspaceDisplayName(options.workspaceName),
     scope: options.scope,
     appliedFilters: options.filters || {},
     dealCount: deals.length,

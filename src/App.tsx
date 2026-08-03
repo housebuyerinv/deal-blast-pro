@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAppStore } from './store/useAppStore'
 import { supabase } from './lib/supabase'
 import { loadPaymentPendingAccountStatus, profileToUserNames } from './lib/accountProfile'
+import { getWorkspaceDisplayName } from './lib/workspaceName'
 import { DEFAULT_SETTINGS } from './lib/constants'
 import type { TrialState } from './lib/types'
 
@@ -127,7 +128,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
         const profileNames = profileToUserNames({
           full_name: payload?.profile?.fullName || session.user.user_metadata?.full_name || session.user.user_metadata?.name || '',
           display_name: payload?.profile?.displayName || '',
-          business_name: payload?.profile?.businessName || payload?.workspace?.name || '',
+          business_name: getWorkspaceDisplayName(payload?.profile?.businessName, payload?.workspace?.name),
         }, email)
         const fullName = profileNames.name
 
@@ -137,14 +138,14 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
             preserveWorkspace: true,
             fullName: profileNames.fullName,
             displayName: profileNames.displayName,
-            businessName: profileNames.businessName || payload?.workspace?.name || '',
+            businessName: getWorkspaceDisplayName(payload?.profile?.businessName, payload?.workspace?.name),
           })
         } else {
           updateUserProfile({
             fullName: profileNames.fullName,
             displayName: profileNames.displayName,
-            businessName: profileNames.businessName || payload?.workspace?.name || '',
-            company: profileNames.businessName || payload?.workspace?.name || '',
+            businessName: getWorkspaceDisplayName(payload?.profile?.businessName, payload?.workspace?.name),
+            company: getWorkspaceDisplayName(payload?.profile?.businessName, payload?.workspace?.name),
             name: profileNames.name,
           })
         }
