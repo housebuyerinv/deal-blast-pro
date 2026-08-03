@@ -470,7 +470,7 @@ async function reserveLookupCredit(
       resetDate: null,
     }
   }
-  const { data, error } = await account.adminClient.rpc('reserve_property_intelligence_credit', {
+  const { data, error } = await account.adminClient.rpc('reserve_property_intelligence_credit_v2', {
     p_workspace_id: workspaceId,
     p_user_id: account.user.id,
     p_operation_id: operationId,
@@ -501,7 +501,7 @@ async function finalizeLookupCredit(account: Awaited<ReturnType<typeof getAuthen
 
 async function releaseLookupCredit(account: Awaited<ReturnType<typeof getAuthenticatedAccount>>, operationUuid: string, failureCode: string) {
   if (!operationUuid) return
-  await account.adminClient.rpc('release_property_intelligence_credit', {
+  await account.adminClient.rpc('release_property_intelligence_credit_v2', {
     p_operation_uuid: operationUuid,
     p_failure_code: failureCode,
   })

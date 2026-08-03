@@ -174,12 +174,13 @@ export async function loadEmailNotificationLogs(workspaceId = 'default') {
   if (!supabase) throw new Error('Supabase is not configured.')
 
   const { data, error } = await supabase
-    .from('email_notification_logs')
-    .select('id,event_type,recipient,provider,provider_message_id,status,attempt_count,error_message,created_at,attempted_at,succeeded_at,failed_at')
+    .from('email_outbox')
+    .select('id,event_type,recipient,provider,provider_message_id,status,attempt_count,last_error_category,created_at,sent_at,delivered_at')
     .eq('workspace_id', workspaceId)
     .order('created_at', { ascending: false })
     .limit(8)
 
   if (error) throw error
-  return (data || []) as EmailNotificationLog[]
+  return (data || []).map((row: any) => ({ ...row, error_message: row.last_error_category,
+    attempted_at: row.created_at, succeeded_at: row.delivered_at || row.sent_at, failed_at: row.status === 'failed' ? row.created_at : null })) as EmailNotificationLog[]
 }

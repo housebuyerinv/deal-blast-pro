@@ -1640,9 +1640,9 @@ export default function Settings() {
       <div className="card p-4 border border-[#22C55E]/25 bg-[#0F111A]">
         <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4 mb-4">
           <div>
-            <div className="text-xs uppercase tracking-[2px] text-[#8B92A3] mb-1">Email Notifications</div>
-            <div className="text-lg font-semibold text-[#E6E8EE]">Production Alert Routing</div>
-            <div className="text-sm text-[#8B92A3] mt-1">Server-side Resend alerts use these recipients and write provider logs.</div>
+            <div className="text-xs uppercase tracking-[2px] text-[#8B92A3] mb-1">Admin Email Operations</div>
+            <div className="text-lg font-semibold text-[#E6E8EE]">Durable Notification Delivery</div>
+            <div className="text-sm text-[#8B92A3] mt-1">Messages are recorded in a durable outbox before Resend accepts them. Provider acceptance is not treated as confirmed delivery.</div>
           </div>
           <div className={`text-xs px-2 py-1 rounded border self-start ${emailSettings.enabled ? 'border-[#22C55E]/40 bg-[#22C55E]/10 text-[#22C55E]' : 'border-amber-500/30 bg-amber-500/10 text-amber-300'}`}>
             {emailSettings.enabled ? 'Enabled' : 'Paused'}
@@ -1719,7 +1719,7 @@ export default function Settings() {
               {emailSettingsSaving ? 'Saving...' : 'Save Email Settings'}
             </button>
             <button onClick={sendEmailNotificationsTest} disabled={emailTestSending || emailSettingsLoading} className="btn btn-green sm:w-auto disabled:opacity-60">
-              {emailTestSending ? 'Sending Test...' : 'Send Test Email'}
+              {emailTestSending ? 'Queueing Test...' : 'Send Safe Test Email'}
             </button>
             <button onClick={refreshEmailNotificationSettings} disabled={emailSettingsLoading} className="btn btn-ghost sm:w-auto disabled:opacity-60">
               {emailSettingsLoading ? 'Refreshing...' : 'Refresh'}
@@ -1727,7 +1727,8 @@ export default function Settings() {
           </div>
 
           <div className="rounded border border-[#252A38] bg-[#0A0C12] p-3">
-            <div className="text-sm font-semibold text-[#E6E8EE] mb-2">Recent Provider Logs</div>
+            <div className="text-sm font-semibold text-[#E6E8EE] mb-2">Recent Delivery Operations</div>
+            <div className="text-xs text-[#64748B] mb-2">Sent means accepted by Resend. Delivered, bounced, complained, suppressed, failed, and retrying are updated from the durable delivery lifecycle.</div>
             <div className="space-y-2">
               {emailLogs.length ? emailLogs.map(log => (
                 <div key={log.id} className="grid md:grid-cols-[1fr_1fr_auto] gap-2 rounded border border-[#252A38] bg-[#11151F] p-2 text-xs">

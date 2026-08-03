@@ -35,6 +35,7 @@ import Settings from './pages/app/Settings'
 import ManualIntake from './pages/app/ManualIntake'
 import FollowUps from './pages/app/FollowUps'
 import Analytics from './pages/app/Analytics'
+import HotZones from './pages/app/HotZones'
 import Pipeline from './pages/app/Pipeline'
 import Upgrade from './pages/app/Upgrade'
 
@@ -304,6 +305,7 @@ function App() {
                   <Route path="intake" element={<ManualIntake />} />
                   <Route path="followups" element={<FollowUps />} />
                   <Route path="analytics" element={<Analytics />} />
+                  <Route path="hot-zones" element={<HotZones />} />
                   <Route path="pipeline" element={<Pipeline />} />
                   <Route path="*" element={<Navigate to="dashboard" replace />} />
                 </Routes>

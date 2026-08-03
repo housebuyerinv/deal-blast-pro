@@ -6,6 +6,7 @@ import { DollarSign, AlertTriangle, TrendingUp, Clock, FileText, Target } from '
 import { listPendingDealSubmissions } from '../../lib/dealSubmissionStorage'
 import { downloadInventoryExport } from '../../lib/inventoryDownload'
 import { useEffect } from 'react'
+import { supabase } from '../../lib/supabase'
 
 const safeLower = (value: any) => String(value ?? '').toLowerCase();
 const CURRENT_INVENTORY_STATUSES = ['Approved', 'Active', 'Blasted', 'Offers Received', 'Under Contract', 'Closing']
@@ -59,6 +60,25 @@ export default function Inventory() {
   const [downloadScope, setDownloadScope] = useState<'all' | 'filtered'>('all')
   const [downloadPreparing, setDownloadPreparing] = useState(false)
   const [sortMode, setSortMode] = useState<'newest' | 'oldest' | 'last-updated' | 'price-high' | 'price-low' | 'fee-high' | 'fee-low' | 'grade-a-f' | 'grade-f-a' | 'matches-most' | 'matches-least' | 'potential-most' | 'potential-least' | 'days-newest' | 'days-oldest' | 'needs-first' | 'closing-first' | 'under-first' | 'active-first' | 'type-az' | 'city-az' | 'state-az' | 'address-az' | 'address-za'>('newest')
+
+  const verifyClosedDeal = async (deal: any, event: React.MouseEvent) => {
+    event.stopPropagation()
+    if (!deal?.closing?.closingDate || !deal?.property?.city || !deal?.property?.state || !deal?.property?.zip) {
+      window.alert('Add the closing date, city, state, and ZIP before verifying this closing.')
+      return
+    }
+    if (!window.confirm('Verify that this deal actually closed? This creates a durable closing record for Analytics and Hot Zones.')) return
+    const { data } = await supabase.auth.getSession()
+    const response = await fetch('/api/verified-closings', { method: 'POST', headers: {
+      Authorization: `Bearer ${data.session?.access_token || ''}`, 'Content-Type': 'application/json',
+    }, body: JSON.stringify({ inventoryDealId: deal.id, closedAt: deal.closing.closingDate,
+      city: deal.property.city, state: deal.property.state, postalCode: deal.property.zip, county: deal.property.county,
+      confirmVerified: true, verificationMethod: 'workspace_owner_confirmation' }) })
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok) return window.alert(payload?.error || 'Closing verification failed.')
+    useAppStore.getState().updateDeal(deal.id, { status: 'Sold' })
+    window.alert(payload?.duplicate ? 'This closing was already verified.' : 'Closing verified. Hot Zones will update from durable closing data.')
+  }
 
   const filtered = (filter === 'All' ? allInventory : allInventory.filter(d => {
     if (filter === 'Active') return ['Approved','Active','Blasted','Offers Received'].includes(d.status)
@@ -607,7 +627,10 @@ export default function Inventory() {
                 <div><span className="text-[#8B92A3]">Commission (Exp/Paid):</span> {deal.closing?.commissionExpected || '—'} / {deal.closing?.commissionPaid || '—'}</div>
                 <div><span className="text-[#8B92A3]">Checklist:</span> {deal.closing?.checklist ? Object.values(deal.closing.checklist).filter(Boolean).length + ' done' : 'Not Provided'}</div>
               </div>
-              <div className="text-[10px] text-[#8B92A3] mt-1">Open drawer for full closing edit + docs. Status updates via Move to Closing button.</div>
+              <div className="mt-3 flex items-center justify-between gap-3">
+                <div className="text-[10px] text-[#8B92A3]">A status or closing date alone does not count. Verify only after the transaction actually closes.</div>
+                <button onClick={(event) => void verifyClosedDeal(deal, event)} className="btn btn-green text-xs whitespace-nowrap">Verify & Mark Closed</button>
+              </div>
             </div>
           ))}
         </div>

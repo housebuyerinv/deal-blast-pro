@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import {
   LayoutDashboard, Building2, Users, Send, Settings, Briefcase,
-  FileText, Target, Calendar, Calculator
+  FileText, Target, Calendar, Calculator, MapPin
 } from 'lucide-react'
 import { useAppStore } from '../../store/useAppStore'
 import { countPendingDealSubmissions } from '../../lib/dealSubmissionStorage'
@@ -41,6 +41,7 @@ const navGroups = [
     label: 'ANALYTICS',
     items: [
       { to: '/app/analytics', label: 'Analytics', icon: Target },
+      { to: '/app/hot-zones', label: 'Hot Zones', icon: MapPin },
     ]
   },
   {

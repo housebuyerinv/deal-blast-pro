@@ -75,6 +75,14 @@ const eventSettingKey = (eventType: string) => {
   return map[eventType] || 'enabled'
 }
 
+const ESSENTIAL_EVENTS = new Set([
+  'security_alert','email_changed','password_changed','account_deactivated','account_deleted',
+  'payment_receipt','payment_failed','payment_action_required','subscription_changed','subscription_cancelled',
+  'legal_notice','credit_pack_receipt','credit_pack_refund','credit_pack_dispute',
+])
+
+const isEssentialEvent = (eventType: string) => ESSENTIAL_EVENTS.has(String(eventType || '').trim().toLowerCase())
+
 function getServiceClient() {
   const url = Deno.env.get('SUPABASE_URL')
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
@@ -87,6 +95,19 @@ function getAnonClient() {
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY') || Deno.env.get('NOTIFY_SUPABASE_ANON_KEY')
   if (!url || !anonKey) return null
   return createClient(url, anonKey)
+}
+
+async function safeAdminTestRecipients(req: Request) {
+  const token = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '').trim()
+  const client = getServiceClient()
+  if (!client || !token) return []
+  const { data } = await client.auth.getUser(token)
+  const verifiedEmail = String(data?.user?.email || '').trim().toLowerCase()
+  const ownerEmails = String(Deno.env.get('DEALBLAST_OWNER_ADMIN_EMAILS') || 'housebuyerinv@gmail.com')
+    .split(',').map(value => value.trim().toLowerCase()).filter(Boolean)
+  if (!verifiedEmail || !ownerEmails.includes(verifiedEmail)) return []
+  const allowlist = parseRecipients(Deno.env.get('EMAIL_TEST_RECIPIENT_ALLOWLIST') || '')
+  return Array.from(new Set([verifiedEmail, ...allowlist]))
 }
 
 async function getNotificationSettings(workspaceId: string) {
@@ -337,6 +358,27 @@ async function sendResendEmail(payload: {
       recipient,
     ].join('|').slice(0, 500)
 
+    const client = getServiceClient()
+    if (!client) return { ok: false, skipped: true, reason: 'Email outbox is not configured' }
+    const { data: queued, error: queueError } = await client.from('email_outbox').upsert({
+      workspace_id: payload.workspaceId, event_type: payload.eventType, recipient, subject: payload.subject,
+      html_body: payload.html, text_body: payload.text, essential: isEssentialEvent(payload.eventType),
+      related_record_id: payload.relatedRecordId || null, idempotency_key: idempotencyKey, status: 'queued',
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'idempotency_key', ignoreDuplicates: true }).select('id,status,provider_message_id,attempt_count').maybeSingle()
+    if (queueError) {
+      results.push({ recipient, ok: false, status: 503, errorCategory: 'outbox_unavailable' })
+      continue
+    }
+
+    const { data: existingOutbox } = queued ? { data: queued } : await client.from('email_outbox')
+      .select('id,status,provider_message_id,attempt_count').eq('idempotency_key', idempotencyKey).maybeSingle()
+    if (existingOutbox?.status === 'sent' || existingOutbox?.status === 'delivered') {
+      results.push({ recipient, ok: true, skipped: true, duplicate: true, providerMessageId: existingOutbox.provider_message_id })
+      continue
+    }
+    await client.from('email_outbox').update({ status: 'sending', updated_at: new Date().toISOString() }).eq('id', existingOutbox?.id)
+
     const existingLog = await getExistingNotificationLog(idempotencyKey)
     if (existingLog?.status === 'sent') {
       results.push({
@@ -371,6 +413,17 @@ async function sendResendEmail(payload: {
     let body: any = bodyText
     try { body = JSON.parse(bodyText) } catch {}
     const providerMessageId = body?.id || body?.data?.id || null
+
+    await client.from('email_outbox').update(res.ok ? {
+      status: 'sent', provider_message_id: providerMessageId, sent_at: new Date().toISOString(),
+      attempt_count: Number(existingOutbox?.attempt_count || 0) + 1, last_error_category: null, updated_at: new Date().toISOString(),
+    } : {
+      status: res.status === 429 || res.status >= 500 ? 'retrying' : 'failed',
+      attempt_count: Number(existingOutbox?.attempt_count || 0) + 1,
+      next_attempt_at: new Date(Date.now() + 5 * 60_000).toISOString(),
+      last_error_category: res.status === 429 ? 'rate_limit' : res.status >= 500 ? 'provider_unavailable' : 'provider_rejected',
+      updated_at: new Date().toISOString(),
+    }).eq('id', existingOutbox?.id)
 
     const logResult = await writeLog({
       workspaceId: payload.workspaceId,
@@ -857,11 +910,19 @@ Deno.serve(async (req) => {
       ? await getAccountNotificationSettings(workspaceId)
       : await getNotificationSettings(workspaceId)
     const settingKey = eventSettingKey(eventType)
-    const recipients = parseRecipients(input?.recipients).length
+    let recipients = parseRecipients(input?.recipients).length
       ? parseRecipients(input?.recipients)
       : parseRecipients(settings.recipients)
 
-    if (!settings.enabled || settings[settingKey] === false) {
+    if (type === 'test') {
+      const allowed = await safeAdminTestRecipients(req)
+      if (!allowed.length) return json({ ok: false, error: 'Owner Admin verification is required for email tests.' }, 403)
+      const requested = parseRecipients(input?.recipients)
+      recipients = requested.length ? requested.filter((email: string) => allowed.includes(email)) : [allowed[0]]
+      if (!recipients.length) return json({ ok: false, error: 'Test recipient is not authorized.' }, 403)
+    }
+
+    if (!isEssentialEvent(eventType) && (!settings.enabled || settings[settingKey] === false)) {
       for (const recipient of recipients) {
         await writeLog({
           workspaceId,
