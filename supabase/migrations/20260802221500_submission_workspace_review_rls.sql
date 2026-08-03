@@ -21,10 +21,16 @@ returns trigger language plpgsql security definer set search_path = public as $$
 declare
   v_workspace uuid;
 begin
-  if new.workspace_id is not null then return new; end if;
+  if auth.uid() is not null
+    and new.workspace_id is not null
+    and public.can_access_inventory_workspace(new.workspace_id) then
+    return new;
+  end if;
   if (select count(*) from public.workspaces) = 1 then
     select id into v_workspace from public.workspaces limit 1;
     new.workspace_id := v_workspace;
+  else
+    raise exception 'A submission workspace route is required';
   end if;
   return new;
 end
@@ -34,6 +40,15 @@ drop trigger if exists assign_submission_workspace_before_insert on public.deal_
 create trigger assign_submission_workspace_before_insert
 before insert on public.deal_submissions
 for each row execute function public.assign_submission_workspace();
+
+drop policy if exists "Public can create deal submissions" on public.deal_submissions;
+create policy "Public can create deal submissions"
+on public.deal_submissions for insert to anon, authenticated
+with check (
+  source = 'public_portal'
+  and status in ('pending', 'submitted')
+  and workspace_id is not null
+);
 
 drop policy if exists "Deal submissions readable by workspace member" on public.deal_submissions;
 create policy "Deal submissions readable by workspace member"
