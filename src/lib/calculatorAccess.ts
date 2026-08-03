@@ -26,7 +26,7 @@ export const CALCULATOR_ENTITLEMENTS: Record<CalculatorEntitlementId, {
   mao: { label: 'MAO / Offer Calculator', minimumPlan: 'Starter', availability: 'included' },
   rental: { label: 'Rental Deal Calculator', minimumPlan: 'Pro', availability: 'included' },
   creative: { label: 'Creative Finance Calculator', minimumPlan: 'Pro', availability: 'included' },
-  propertyIntelligence: { label: 'Property Intelligence', minimumPlan: 'Pro', availability: 'included' },
+  propertyIntelligence: { label: 'Property Intelligence', minimumPlan: 'Free', availability: 'included' },
 }
 
 export const CALCULATOR_ACCESS_BY_PLAN: Record<PlanName, CalculatorTabId[]> = {

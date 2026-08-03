@@ -55,14 +55,14 @@ for (const plan of ['Free', 'Starter', 'Pro', 'Agency', 'Enterprise'] as const) 
 
 const freeSettings = settingsFor('Free')
 assert.deepEqual(getAllowedCalculatorTabs(trial, owner, freeSettings), ['arv'])
-assert.equal(canAccessCalculatorEntitlement('propertyIntelligence', trial, owner, freeSettings), false)
+assert.equal(canAccessCalculatorEntitlement('propertyIntelligence', trial, owner, freeSettings), true) // visible for purchasable credits; server balance still gates provider use
 assert.equal(canAccessRoute('/app/blast', trial, owner, freeSettings), false)
 assert.equal(canAccessRoute('/app/calculator', trial, owner, freeSettings), true)
 assert.equal(getBuyerCapacity(getEffectivePlan(trial, owner, freeSettings), 25).isAtLimit, true)
 
 const starterSettings = settingsFor('Starter')
 assert.deepEqual(getAllowedCalculatorTabs(trial, owner, starterSettings), ['arv', 'rehab', 'mao'])
-assert.equal(canAccessCalculatorEntitlement('propertyIntelligence', trial, owner, starterSettings), false)
+assert.equal(canAccessCalculatorEntitlement('propertyIntelligence', trial, owner, starterSettings), true)
 assert.equal(canAccessRoute('/app/blast', trial, owner, starterSettings), true)
 assert.equal(canAccessRoute('/app/analytics', trial, owner, starterSettings), false)
 

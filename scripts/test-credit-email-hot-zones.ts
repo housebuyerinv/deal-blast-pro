@@ -28,6 +28,11 @@ assert.equal(stripe.includes('claimStripeEvent'),true)
 assert.equal(stripe.includes('stripe:credit-pack:'),true)
 assert.equal(stripe.includes("metadata.purchaseKind !== 'property_intelligence_credit_pack'"),true)
 
+const propertyRoute = await readFile(new URL('../api/property-intelligence/[action].ts',import.meta.url),'utf8')
+assert.equal(propertyRoute.includes("const purchasedAccess = Number(ledgerBalance?.purchasedRemaining || 0) > 0"),true)
+assert.equal(propertyRoute.includes("rpc('property_intelligence_credit_balance'"),true)
+assert.equal(propertyRoute.includes("PROPERTY_INTELLIGENCE_ENTERPRISE_INCLUDED_CREDITS"),true)
+
 const email = await readFile(new URL('../supabase/functions/notify-submission/index.ts',import.meta.url),'utf8')
 assert.equal(email.includes("from('email_outbox')"),true)
 assert.equal(email.includes('safeAdminTestRecipients'),true)

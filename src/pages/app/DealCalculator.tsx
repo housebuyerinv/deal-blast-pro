@@ -269,8 +269,8 @@ export default function DealCalculator() {
   // ARV-only state for Step 1 (safe defaults, no selected deal required)
   const [activeTab, setActiveTab] = useState<CalcTab>('arv')
   const { trial, user, settings, deals } = useAppStore()
-  const ownerAdminMode = hasOwnerAdminBypass(user)
   const ownerPreviewActive = isOwnerPreviewActive(user, settings)
+  const ownerAdminMode = hasOwnerAdminBypass(user) && !ownerPreviewActive
   const effectiveCalculatorPlan = getEffectiveCalculatorPlan(trial, user, settings)
   const calculatorAccessLabel = getCalculatorPlanSubtitle(effectiveCalculatorPlan)
   const canUseLivePropertyData = canAccessCalculatorEntitlement('propertyIntelligence', trial, user, settings)
@@ -396,6 +396,8 @@ export default function DealCalculator() {
   const [propertyLookupSummary, setPropertyLookupSummary] = useState<any | null>(null)
   const [propertyLookupStatus, setPropertyLookupStatus] = useState('')
   const [propertyCreditBalance, setPropertyCreditBalance] = useState<any | null>(null)
+  const [propertyCreditPacks, setPropertyCreditPacks] = useState<any[]>([])
+  const [creditCheckoutLoading, setCreditCheckoutLoading] = useState('')
   const [propertyConnection, setPropertyConnection] = useState<{ status: string; connected: boolean; checked: boolean }>({
     status: canUseLivePropertyData ? 'Testing Connection' : 'Pro Required',
     connected: false,
@@ -766,12 +768,14 @@ export default function DealCalculator() {
     const checkConnection = async () => {
       setPropertyConnection({ status: 'Testing Connection', connected: false, checked: false })
       try {
-        const [payload, balance] = await Promise.all([
+        const [payload, balance, packPayload] = await Promise.all([
           fetchPropertyIntelligence('status', {}),
           fetchPropertyIntelligence('balance', {}).catch(() => null),
+          fetchPropertyIntelligence('credit-packs', {}).catch(() => null),
         ])
         if (cancelled) return
         if (balance) setPropertyCreditBalance(balance)
+        if (Array.isArray(packPayload?.packs)) setPropertyCreditPacks(packPayload.packs)
         setPropertyConnection({
           status: payload?.propertyDataConnected ? 'Property Data Connected' : (payload?.status || 'Connection Error'),
           connected: Boolean(payload?.propertyDataConnected),
@@ -790,6 +794,21 @@ export default function DealCalculator() {
     void checkConnection()
     return () => { cancelled = true }
   }, [activeTab, canUseLivePropertyData])
+
+  const openCreditPackCheckout = async (packKey: string) => {
+    if (ownerPreviewActive) { toast.info('Preview simulation only. No credit purchase or billing change was started.'); return }
+    setCreditCheckoutLoading(packKey)
+    try {
+      const { data } = await supabase.auth.getSession()
+      const response = await fetch('/api/property-intelligence/credit-packs', { method: 'POST', headers: {
+        Authorization: `Bearer ${data.session?.access_token || ''}`, 'Content-Type': 'application/json',
+      }, body: JSON.stringify({ packKey }) })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok || !payload?.url) throw new Error(payload?.error || 'Credit checkout is unavailable.')
+      window.open(payload.url, '_blank', 'noopener,noreferrer')
+    } catch (error: any) { toast.error(error?.message || 'Credit checkout is unavailable.') }
+    finally { setCreditCheckoutLoading('') }
+  }
 
   const selectPropertyDeal = (id: string) => {
     setPropertyDealId(id)
@@ -2156,6 +2175,17 @@ Deal Blast Pro`
                   <div className="text-xs text-[#8B92A3]">Reset Date</div>
                   <div className="text-lg font-semibold text-[#E6E8EE]">{propertyCreditBalance.resetDate || 'Next billing month'}</div>
                 </div>
+              </div>
+            )}
+
+            {canUseLivePropertyData && !ownerAdminMode && propertyCreditPacks.length > 0 && (
+              <div className="mb-4 rounded border border-[#252A38] bg-[#0F111A] p-3">
+                <div className="text-sm font-semibold text-[#E6E8EE]">Buy Property Intelligence Credits</div>
+                <div className="mb-2 text-xs text-[#8B92A3]">Purchased credits do not expire. Credits are granted only after Stripe confirms payment.</div>
+                <div className="flex flex-wrap gap-2">{propertyCreditPacks.map(pack => <button key={pack.key} type="button"
+                  disabled={!pack.checkoutReady || Boolean(creditCheckoutLoading)} onClick={() => void openCreditPackCheckout(pack.key)} className="btn btn-ghost text-xs disabled:opacity-50">
+                  {creditCheckoutLoading===pack.key?'Opening…':`${pack.credits} credits • $${(pack.amountCents/100).toFixed(0)}`}{!pack.checkoutReady?' • Setup pending':''}
+                </button>)}</div>
               </div>
             )}
 

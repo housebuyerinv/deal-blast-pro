@@ -188,9 +188,9 @@ function getWorkspaceId(account: Awaited<ReturnType<typeof getAuthenticatedAccou
 }
 
 function planLookupLimit(planName: string, ownerAdmin: boolean) {
-  if (ownerAdmin) return 100
+  if (ownerAdmin) return 0
   const normalized = clean(planName).toLowerCase()
-  if (normalized === 'enterprise') return 1000
+  if (normalized === 'enterprise') return Math.max(0, Number(process.env.PROPERTY_INTELLIGENCE_ENTERPRISE_INCLUDED_CREDITS) || 0)
   if (normalized === 'agency') return 100
   if (normalized === 'pro') return 25
   return 0
@@ -713,11 +713,32 @@ export default async function handler(req: any, res: any) {
     }
   }
 
-  if (!canUsePropertyIntelligence(account)) {
-    return send(res, 403, {
-      error: PRO_REQUIRED_MESSAGE,
-      code: 'pro_required',
-      status: 'Pro Required',
+  const workspaceId = getWorkspaceId(account)
+  let ledgerBalance: any = account.isOwnerAdmin ? { includedRemaining: null, purchasedRemaining: null, totalRemaining: null } : null
+  if (workspaceId && !account.isOwnerAdmin) {
+    const { data } = await account.adminClient.rpc('property_intelligence_credit_balance', { p_workspace_id: workspaceId })
+    ledgerBalance = data || { includedRemaining: 0, purchasedRemaining: 0, totalRemaining: 0 }
+  }
+
+  if (action === 'balance') {
+    const limit = account.isOwnerAdmin ? null : planLookupLimit(account.planName, false)
+    return send(res, 200, {
+      planName: account.isOwnerAdmin ? 'Owner Admin' : account.planName,
+      includedLimit: limit,
+      includedRemaining: ledgerBalance?.includedRemaining ?? 0,
+      includedUsed: limit === null ? 0 : Math.max(0, limit - Number(ledgerBalance?.includedRemaining || 0)),
+      purchasedRemaining: ledgerBalance?.purchasedRemaining ?? 0,
+      totalRemaining: ledgerBalance?.totalRemaining ?? null,
+      resetDate: nextMonthlyResetDate(), addonCheckoutEnabled: true,
+    })
+  }
+
+  const purchasedAccess = Number(ledgerBalance?.purchasedRemaining || 0) > 0
+  if (!['status','autocomplete'].includes(action) && !canUsePropertyIntelligence(account) && !purchasedAccess) {
+    return send(res, 402, {
+      error: 'Property Intelligence credits are required. Buy a credit pack or upgrade to a plan with included credits.',
+      code: 'credits_exhausted',
+      status: 'Credits Required',
       propertyDataConnected: false,
       diagnostics: internal ? {
         planName: account.planName,
@@ -767,28 +788,6 @@ export default async function handler(req: any, res: any) {
 
   try {
     checkUsageLimit(account, action)
-
-    if (action === 'balance') {
-      const workspaceId = getWorkspaceId(account)
-      if (!workspaceId) throw Object.assign(new Error('Workspace could not be verified.'), { status: 403, category: 'workspace_required' })
-      const limit = planLookupLimit(account.isOwnerAdmin ? 'Owner Admin' : account.planName, account.isOwnerAdmin)
-      const { data } = await account.adminClient
-        .from('property_intelligence_balances')
-        .select('billing_period_start,included_limit,included_used,purchased_available,purchased_used,updated_at')
-        .eq('workspace_id', workspaceId)
-        .maybeSingle()
-      return send(res, 200, {
-        planName: account.isOwnerAdmin ? 'Owner Admin' : account.planName,
-        includedLimit: data?.included_limit ?? limit,
-        includedUsed: data?.included_used ?? 0,
-        includedRemaining: Math.max(0, (data?.included_limit ?? limit) - (data?.included_used ?? 0)),
-        purchasedAvailable: data?.purchased_available ?? 0,
-        purchasedUsed: data?.purchased_used ?? 0,
-        purchasedRemaining: Math.max(0, (data?.purchased_available ?? 0) - (data?.purchased_used ?? 0)),
-        resetDate: nextMonthlyResetDate(),
-        addonCheckoutEnabled: false,
-      })
-    }
 
     if (action === 'autocomplete') {
       const query = clean(req.query.query)
