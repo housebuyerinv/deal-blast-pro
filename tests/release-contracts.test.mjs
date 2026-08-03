@@ -45,3 +45,12 @@ test('submission review migration is additive and workspace scoped', async () =>
   assert.match(migration, /can_access_inventory_workspace\(workspace_id\)/)
   assert.doesNotMatch(migration, /drop table|truncate|delete from/i)
 })
+
+test('converted inventory corrective backfill is workspace scoped and duplicate safe', async () => {
+  const migration = await source('supabase/migrations/20260802233000_backfill_workspace_assigned_converted_inventory.sql')
+  assert.match(migration, /join public\.workspaces w on w\.id = ds\.workspace_id/)
+  assert.match(migration, /not exists[\s\S]*existing\.source_submission_id = ds\.id::text/)
+  assert.match(migration, /on conflict do nothing/)
+  assert.match(migration, /inventory_deal_from_submission\([\s\S]*ds,[\s\S]*ds\.inventory_deal_id/)
+  assert.doesNotMatch(migration, /drop table|truncate|delete from/i)
+})
