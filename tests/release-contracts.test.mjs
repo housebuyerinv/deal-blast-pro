@@ -54,3 +54,12 @@ test('converted inventory corrective backfill is workspace scoped and duplicate 
   assert.match(migration, /inventory_deal_from_submission\([\s\S]*ds,[\s\S]*ds\.inventory_deal_id/)
   assert.doesNotMatch(migration, /drop table|truncate|delete from/i)
 })
+
+test('legacy workspace repair uses the original authenticated reservation owner', async () => {
+  const migration = await source('supabase/migrations/20260802234500_assign_legacy_submission_workspace_and_backfill.sql')
+  assert.match(migration, /join public\.workspaces w on w\.owner_user_id = link\.user_id/)
+  assert.match(migration, /link\.source_submission_id = ds\.id::text/)
+  assert.match(migration, /where ds\.workspace_id is null/)
+  assert.match(migration, /not exists[\s\S]*existing\.source_submission_id = ds\.id::text/)
+  assert.doesNotMatch(migration, /drop table|truncate|delete from/i)
+})
