@@ -19,7 +19,7 @@ export default function HotZones() {
       setLoading(true)
       try {
         const { data } = await supabase.auth.getSession()
-        const response = await fetch(`/api/hot-zones?period=${period}&scope=${scope}`, { headers: { Authorization: `Bearer ${data.session?.access_token || ''}` } })
+        const response = await fetch(`/api/property-intelligence/hot-zones?period=${period}&scope=${scope}`, { headers: { Authorization: `Bearer ${data.session?.access_token || ''}` } })
         const payload = await response.json()
         if (!response.ok) throw new Error(payload?.error || 'Hot Zones unavailable.')
         if (!cancelled) { setZones(payload.zones || []); setTotal(payload.totalVerifiedClosings || 0); setMinimum(payload.minimumRequired || 3); setMessage(payload.message || '') }

@@ -6,6 +6,7 @@ import {
   parseGeoapifyAutocompletePayload,
   readGeoapifyConfig,
 } from '../_geoapify.js'
+import { handlePlatformAction } from '../../src/server/platformActions.js'
 
 const RENTCAST_BASE_URL = 'https://api.rentcast.io/v1'
 const CUSTOMER_SOURCE = 'Property Intelligence'
@@ -677,8 +678,8 @@ function customerError(error: any) {
 }
 
 export default async function handler(req: any, res: any) {
-  if (req.method !== 'GET') {
-    res.setHeader('Allow', 'GET')
+  if (!['GET','POST'].includes(req.method)) {
+    res.setHeader('Allow', 'GET, POST')
     return send(res, 405, { error: 'Method not allowed' })
   }
 
@@ -702,6 +703,14 @@ export default async function handler(req: any, res: any) {
       code: 'account_deactivated',
       status: 'Account Deactivated',
     })
+  }
+
+  if (['credit-packs','hot-zones','verified-closing','admin-credit-adjustment'].includes(action)) {
+    try {
+      if (await handlePlatformAction(action, req, res, account)) return
+    } catch (error: any) {
+      return send(res, Number(error?.status || 500), { ok: false, error: error?.status ? error.message : 'Platform operation failed.' })
+    }
   }
 
   if (!canUsePropertyIntelligence(account)) {

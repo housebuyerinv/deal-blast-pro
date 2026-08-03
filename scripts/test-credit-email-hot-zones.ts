@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
-import { readCreditPacks } from '../api/_creditPacks.ts'
-import { aggregateHotZones } from '../api/_hotZones.ts'
+import { readCreditPacks } from '../src/server/creditPacks.ts'
+import { aggregateHotZones } from '../src/server/hotZones.ts'
 
 const packs = readCreditPacks({})
 assert.deepEqual(packs.map(p => [p.credits,p.amountCents]), [[10,800],[25,1500],[100,4900],[250,9900]])

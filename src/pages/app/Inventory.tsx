@@ -69,7 +69,7 @@ export default function Inventory() {
     }
     if (!window.confirm('Verify that this deal actually closed? This creates a durable closing record for Analytics and Hot Zones.')) return
     const { data } = await supabase.auth.getSession()
-    const response = await fetch('/api/verified-closings', { method: 'POST', headers: {
+    const response = await fetch('/api/property-intelligence/verified-closing', { method: 'POST', headers: {
       Authorization: `Bearer ${data.session?.access_token || ''}`, 'Content-Type': 'application/json',
     }, body: JSON.stringify({ inventoryDealId: deal.id, closedAt: deal.closing.closingDate,
       city: deal.property.city, state: deal.property.state, postalCode: deal.property.zip, county: deal.property.county,
