@@ -63,6 +63,10 @@ const platformActions = await readFile(new URL('../src/server/platformActions.ts
 assert.equal(platformActions.includes("accountRank<PLAN_RANK.pro"),true)
 assert.equal(platformActions.includes("scope==='shared'&&accountRank<PLAN_RANK.agency"),true)
 
+const appShell = await readFile(new URL('../src/components/layout/AppShell.tsx',import.meta.url),'utf8')
+assert.equal(appShell.includes('This feature is included with {requiredPlan}.'),true)
+assert.equal(appShell.includes('Upgrade to {requiredPlan}'),true)
+
 const accountAuth = await readFile(new URL('../api/_accountAuth.ts',import.meta.url),'utf8')
 assert.equal(accountAuth.includes('planRank(account.planName) >= PLAN_RANK.starter'),true)
 
