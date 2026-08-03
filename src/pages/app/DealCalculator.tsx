@@ -790,8 +790,10 @@ export default function DealCalculator() {
       try {
         const previewPlan = getOwnerPreviewPlan(settings)
         const simulatedIncluded = previewPlan === 'Starter' ? 20 : previewPlan === 'Pro' ? 50 : previewPlan === 'Agency' ? 150 : previewPlan === 'Enterprise' ? 0 : 0
-        const [payload, balance, packPayload] = await Promise.all([
-          fetchPropertyIntelligence('status', {}),
+        const [statusResult, balance, packPayload] = await Promise.all([
+          fetchPropertyIntelligence('status', {})
+            .then(payload => ({ payload, error: null }))
+            .catch(error => ({ payload: null, error })),
           ownerPreviewActive
             ? Promise.resolve({ includedRemaining: simulatedIncluded, purchasedRemaining: 0, totalRemaining: simulatedIncluded, simulated: true, resetDate: 'Preview cycle' })
             : fetchPropertyIntelligence('balance', {}).catch(() => null),
@@ -800,11 +802,17 @@ export default function DealCalculator() {
         if (cancelled) return
         if (balance) setPropertyCreditBalance(balance)
         if (Array.isArray(packPayload?.packs)) setPropertyCreditPacks(packPayload.packs)
-        setPropertyConnection({
-          status: payload?.propertyDataConnected ? 'Property Data Connected' : (payload?.status || 'Connection Error'),
-          connected: Boolean(payload?.propertyDataConnected),
-          checked: true,
-        })
+        if (statusResult.error) {
+          setPropertyConnection({ status: propertyConnectionErrorStatus(statusResult.error), connected: false, checked: true })
+          if (statusResult.error?.message) setPropertyLookupError(statusResult.error.message)
+        } else {
+          const payload = statusResult.payload
+          setPropertyConnection({
+            status: payload?.propertyDataConnected ? 'Property Data Connected' : (payload?.status || 'Connection Error'),
+            connected: Boolean(payload?.propertyDataConnected),
+            checked: true,
+          })
+        }
       } catch (error: any) {
         if (cancelled) return
         setPropertyConnection({
@@ -2184,19 +2192,25 @@ Deal Blast Pro`
             )}
 
             {canUseLivePropertyData && !ownerAdminMode && propertyCreditBalance && (
-              <div className="mb-4 grid gap-2 md:grid-cols-3">
+              <div className="mb-4 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
                 <div className="panel p-3">
-                  <div className="text-xs text-[#8B92A3]">Property Intelligence Lookups</div>
+                  <div className="text-xs text-[#8B92A3]">Included Credits</div>
                   <div className="text-lg font-semibold text-[#E6E8EE]">
                     {propertyCreditBalance.includedRemaining ?? Math.max(0, Number(propertyCreditBalance.includedLimit || 0) - Number(propertyCreditBalance.includedUsed || 0))} remaining this month
                   </div>
                 </div>
                 <div className="panel p-3">
-                  <div className="text-xs text-[#8B92A3]">Additional Credits</div>
+                  <div className="text-xs text-[#8B92A3]">Purchased Credits</div>
                   <div className="text-lg font-semibold text-[#E6E8EE]">{propertyCreditBalance.purchasedRemaining ?? 0}</div>
                 </div>
                 <div className="panel p-3">
-                  <div className="text-xs text-[#8B92A3]">Reset Date</div>
+                  <div className="text-xs text-[#8B92A3]">Total Available</div>
+                  <div className="text-lg font-semibold text-[#E6E8EE]">
+                    {propertyCreditBalance.totalRemaining ?? (Number(propertyCreditBalance.includedRemaining || 0) + Number(propertyCreditBalance.purchasedRemaining || 0))}
+                  </div>
+                </div>
+                <div className="panel p-3">
+                  <div className="text-xs text-[#8B92A3]">Next Refill Date</div>
                   <div className="text-lg font-semibold text-[#E6E8EE]">{propertyCreditBalance.resetDate || 'Next billing month'}</div>
                 </div>
               </div>

@@ -471,6 +471,7 @@ function RecentActivity() {
 
     const load = async () => {
       const store = useAppStore.getState()
+      const canReadSubmissionActivity = isSuperAdmin(store.user) && !isOwnerPreviewActive(store.user, store.settings)
       const liveDealIds = new Set((store.deals || []).filter((deal: any) =>
         deal?.id && String(deal.status || '').toLowerCase() !== 'dead'
       ).map((deal: any) => deal.id))
@@ -485,7 +486,7 @@ function RecentActivity() {
         }))
       })
 
-      try {
+      if (canReadSubmissionActivity) try {
         const result = await listRecentDealSubmissionActivity(4)
         if (result.ok) {
           ;(result.data || []).forEach((submission: any) => {
@@ -512,7 +513,7 @@ function RecentActivity() {
         }
       } catch {}
 
-      try {
+      if (canReadSubmissionActivity) try {
         const submissions = await listRecentBuyerPortalSubmissionActivity(4)
         submissions.forEach((submission: any) => {
           const data = submission.buyer_data || {}

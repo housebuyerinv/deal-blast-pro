@@ -59,6 +59,12 @@ assert.equal(propertyRoute.includes('RENTCAST_CAPACITY_PAUSED'),true)
 assert.equal(propertyRoute.indexOf('const cached = await readDurableLookupCache') < propertyRoute.lastIndexOf("logDiagnostic('provider_capacity_paused', { requestAction: action"),true)
 assert.equal(propertyRoute.lastIndexOf("logDiagnostic('provider_capacity_paused', { requestAction: action") < propertyRoute.indexOf('reservation = await reserveLookupCredit'),true)
 
+const calculator = await readFile(new URL('../src/pages/app/DealCalculator.tsx',import.meta.url),'utf8')
+for (const required of ['Included Credits','Purchased Credits','Total Available','Next Refill Date',"fetchPropertyIntelligence('status', {})\n            .then(payload => ({ payload, error: null }))"]) assert.equal(calculator.includes(required),true,required)
+
+const dashboard = await readFile(new URL('../src/pages/app/Dashboard.tsx',import.meta.url),'utf8')
+assert.equal(dashboard.includes('const canReadSubmissionActivity = isSuperAdmin(store.user) && !isOwnerPreviewActive(store.user, store.settings)'),true)
+
 const platformActions = await readFile(new URL('../src/server/platformActions.ts',import.meta.url),'utf8')
 assert.equal(platformActions.includes("accountRank<PLAN_RANK.pro"),true)
 assert.equal(platformActions.includes("scope==='shared'&&accountRank<PLAN_RANK.agency"),true)
