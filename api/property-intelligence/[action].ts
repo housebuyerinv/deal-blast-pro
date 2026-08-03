@@ -12,9 +12,9 @@ const RENTCAST_BASE_URL = 'https://api.rentcast.io/v1'
 const CUSTOMER_SOURCE = 'Property Intelligence'
 const UNAVAILABLE_MESSAGE = 'Property Intelligence is temporarily unavailable. Manual property analysis remains available.'
 const COMPLETE_ADDRESS_MESSAGE = 'Select a complete address from the suggestions before loading Property Intelligence.'
-const PRO_REQUIRED_MESSAGE = 'Property Intelligence is available on the Pro plan. Manual property analysis remains available on every plan.'
 const PROVIDER_NOT_CONFIGURED_MESSAGE = 'Property Intelligence provider is not configured yet. Manual property analysis remains available.'
 const PROVIDER_UNAVAILABLE_MESSAGE = 'The property-data provider is temporarily unavailable.'
+const PROVIDER_CAPACITY_MESSAGE = 'Property Intelligence is temporarily unavailable while provider capacity resets. Cached results, address autocomplete, and manual calculators remain available.'
 const RATE_LIMIT_MESSAGE = 'Property Intelligence is receiving too many requests. Please wait a moment and try again.'
 const TIMEOUT_MESSAGE = 'Property Intelligence timed out. Please try again.'
 const HEALTH_CHECK_ADDRESS = '494 N McNeil St, Memphis, TN 38112'
@@ -52,6 +52,7 @@ function readRuntimeConfig() {
   const provider = clean(process.env.PROPERTY_INTELLIGENCE_PROVIDER).toLowerCase()
   const apiKey = clean(process.env.RENTCAST_API_KEY)
   const geoapify = readGeoapifyConfig()
+  const rentcastPaused = clean(process.env.RENTCAST_CAPACITY_PAUSED).toLowerCase() !== 'false'
   return {
     enabled: enabledRaw === 'true',
     provider,
@@ -60,6 +61,7 @@ function readRuntimeConfig() {
     apiKeyLength: apiKey.length,
     geoapifyApiKey: geoapify.apiKey,
     autocompleteConfigured: geoapify.configured,
+    rentcastPaused,
     configured: enabledRaw === 'true' && provider === 'rentcast' && apiKey.length > 0,
   }
 }
@@ -118,6 +120,7 @@ function providerHttpStatus(category: string, fallback = 500) {
   if (category === 'credits_exhausted') return 402
   if (category === 'provider_rate_limit' || category === 'usage_rate_limit') return 429
   if (category === 'provider_not_configured') return 503
+  if (category === 'provider_capacity_paused') return 503
   if (category === 'autocomplete_authentication_failed' || category === 'provider_network_failure') return 503
   if (category === 'provider_timeout') return 504
   if (category === 'invalid_api_key' || category === 'inactive_subscription' || category === 'provider_billing_issue') return 503
@@ -132,6 +135,7 @@ function customerCode(category: string) {
   if (category === 'credits_exhausted') return 'credits_exhausted'
   if (category === 'usage_tracking_unavailable') return 'usage_tracking_unavailable'
   if (category === 'provider_not_configured') return 'provider_not_configured'
+  if (category === 'provider_capacity_paused') return 'provider_capacity_paused'
   if (category === 'autocomplete_authentication_failed') return 'autocomplete_authentication_failed'
   if (category === 'provider_network_failure') return 'provider_network_failure'
   if (category === 'provider_timeout') return 'provider_timeout'
@@ -187,12 +191,13 @@ function getWorkspaceId(account: Awaited<ReturnType<typeof getAuthenticatedAccou
   return clean(account.workspace?.id || account.plan?.workspace_id)
 }
 
-function planLookupLimit(planName: string, ownerAdmin: boolean) {
+function planLookupLimit(planName: string, ownerAdmin: boolean, enterpriseLimit?: number | null) {
   if (ownerAdmin) return 0
   const normalized = clean(planName).toLowerCase()
-  if (normalized === 'enterprise') return Math.max(0, Number(process.env.PROPERTY_INTELLIGENCE_ENTERPRISE_INCLUDED_CREDITS) || 0)
-  if (normalized === 'agency') return 100
-  if (normalized === 'pro') return 25
+  if (normalized === 'enterprise') return Math.max(0, Number(enterpriseLimit) || 0)
+  if (normalized === 'agency') return 150
+  if (normalized === 'pro') return 50
+  if (normalized === 'starter') return 20
   return 0
 }
 
@@ -637,6 +642,13 @@ async function providerHealth(config: ReturnType<typeof readRuntimeConfig>, forc
       config: publicConfig(config),
     }
   }
+  if (config.rentcastPaused) {
+    return {
+      connected: false,
+      category: 'provider_capacity_paused',
+      config: publicConfig(config),
+    }
+  }
   try {
     const result = await getPropertyRecord(HEALTH_CHECK_ADDRESS, config)
     const health = {
@@ -670,6 +682,7 @@ function customerError(error: any) {
   if (error?.category === 'usage_tracking_unavailable') return 'Property Intelligence usage tracking is temporarily unavailable.'
   if (error?.category === 'no_property_found') return 'Property data is unavailable for this address.'
   if (error?.category === 'provider_not_configured') return PROVIDER_NOT_CONFIGURED_MESSAGE
+  if (error?.category === 'provider_capacity_paused') return PROVIDER_CAPACITY_MESSAGE
   if (error?.category === 'autocomplete_authentication_failed') return 'Address suggestions are not authorized. Enter a complete property address manually.'
   if (error?.category === 'provider_network_failure') return 'Address suggestions cannot reach the provider right now. Enter a complete property address manually.'
   if (error?.category === 'provider_timeout') return TIMEOUT_MESSAGE
@@ -721,7 +734,7 @@ export default async function handler(req: any, res: any) {
   }
 
   if (action === 'balance') {
-    const limit = account.isOwnerAdmin ? null : planLookupLimit(account.planName, false)
+    const limit = account.isOwnerAdmin ? null : planLookupLimit(account.planName, false, account.plan?.property_intelligence_included_credits)
     return send(res, 200, {
       planName: account.isOwnerAdmin ? 'Owner Admin' : account.planName,
       includedLimit: limit,
@@ -729,7 +742,7 @@ export default async function handler(req: any, res: any) {
       includedUsed: limit === null ? 0 : Math.max(0, limit - Number(ledgerBalance?.includedRemaining || 0)),
       purchasedRemaining: ledgerBalance?.purchasedRemaining ?? 0,
       totalRemaining: ledgerBalance?.totalRemaining ?? null,
-      resetDate: nextMonthlyResetDate(), addonCheckoutEnabled: true,
+      resetDate: clean(account.plan?.current_period_end) || nextMonthlyResetDate(), addonCheckoutEnabled: true,
     })
   }
 
@@ -826,6 +839,16 @@ export default async function handler(req: any, res: any) {
       })
     }
 
+    if (config.rentcastPaused && action !== 'lookup') {
+      logDiagnostic('provider_capacity_paused', { requestAction: action, provider: 'rentcast' })
+      return send(res, 503, {
+        error: PROVIDER_CAPACITY_MESSAGE,
+        code: 'provider_capacity_paused',
+        status: 'Provider Capacity Paused',
+        propertyDataConnected: false,
+      })
+    }
+
     if (action === 'search') {
       const lookup = normalizeLookupAddress(req.query)
       if (!lookup.completeEnough) {
@@ -855,6 +878,16 @@ export default async function handler(req: any, res: any) {
       if (!forceRefresh) {
         const cached = await readDurableLookupCache(account, normalizedAddress)
         if (cached) return send(res, 200, cached)
+      }
+
+      if (config.rentcastPaused) {
+        logDiagnostic('provider_capacity_paused', { requestAction: action, provider: 'rentcast' })
+        return send(res, 503, {
+          error: PROVIDER_CAPACITY_MESSAGE,
+          code: 'provider_capacity_paused',
+          status: 'Provider Capacity Paused',
+          propertyDataConnected: false,
+        })
       }
 
       const operationId = clean(req.query.operationId) || `${account.user.id}:${normalizedAddress}:${Date.now()}`

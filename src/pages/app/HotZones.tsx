@@ -1,10 +1,16 @@
 import { useEffect, useState } from 'react'
 import { MapPin } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { useAppStore } from '../../store/useAppStore'
+import { getEffectivePlan, hasEffectiveOwnerAdminBypass } from '../../lib/planAccess'
 
 type Zone = { rank: number; city: string; state: string; postalCode: string; count: number }
 
 export default function HotZones() {
+  const { trial, user, settings } = useAppStore()
+  const effectivePlan = getEffectivePlan(trial, user, settings)
+  const ownerAdmin = hasEffectiveOwnerAdminBypass(user, settings)
+  const sharedAvailable = ownerAdmin || effectivePlan === 'Agency' || effectivePlan === 'Enterprise'
   const [period, setPeriod] = useState<'weekly'|'monthly'|'yearly'>('monthly')
   const [scope, setScope] = useState<'workspace'|'shared'>('workspace')
   const [zones, setZones] = useState<Zone[]>([])
@@ -12,6 +18,10 @@ export default function HotZones() {
   const [minimum, setMinimum] = useState(3)
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
+
+  useEffect(() => {
+    if (!sharedAvailable && scope === 'shared') setScope('workspace')
+  }, [scope, sharedAvailable])
 
   useEffect(() => {
     let cancelled = false
@@ -38,7 +48,7 @@ export default function HotZones() {
     </div>
     <div className="card p-4 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
       <div className="flex gap-2">{(['weekly','monthly','yearly'] as const).map(value => <button key={value} onClick={() => setPeriod(value)} className={`btn text-xs ${period===value?'btn-green':'btn-ghost'}`}>{value[0].toUpperCase()+value.slice(1)}</button>)}</div>
-      <div className="flex gap-2"><button onClick={() => setScope('workspace')} className={`btn text-xs ${scope==='workspace'?'btn-primary':'btn-ghost'}`}>My Workspace</button><button onClick={() => setScope('shared')} className={`btn text-xs ${scope==='shared'?'btn-primary':'btn-ghost'}`}>Shared Anonymized</button></div>
+      <div className="flex gap-2"><button onClick={() => setScope('workspace')} className={`btn text-xs ${scope==='workspace'?'btn-primary':'btn-ghost'}`}>My Workspace</button>{sharedAvailable&&<button onClick={() => setScope('shared')} className={`btn text-xs ${scope==='shared'?'btn-primary':'btn-ghost'}`}>Shared / Team</button>}</div>
     </div>
     {loading ? <div className="card p-8 text-center text-[#8B92A3]">Loading verified closing aggregates…</div> : zones.length === 0 ?
       <div className="card p-10 text-center"><MapPin className="mx-auto mb-3 text-[#64748B]"/><div className="text-lg font-semibold text-white">No Hot Zones yet</div><p className="mx-auto mt-2 max-w-xl text-sm text-[#8B92A3]">{message || 'Hot Zones become more useful as verified closing records accumulate.'}</p><div className="mt-3 text-xs text-[#64748B]">{scope==='workspace' ? `${total} of ${minimum} verified closings available in this period.` : `Shared zones require at least ${minimum} verified closings and three contributing workspaces.`}</div></div> :

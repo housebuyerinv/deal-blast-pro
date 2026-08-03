@@ -469,6 +469,7 @@ export default function DealCalculator() {
     const code = error?.code || error?.payload?.code || ''
     if (code === 'pro_required') return 'Pro Required'
     if (code === 'provider_not_configured') return 'Provider Not Configured'
+    if (code === 'provider_capacity_paused') return 'Provider Capacity Paused'
     if (code === 'provider_timeout') return 'Provider Timeout'
     if (code === 'rate_limited') return 'Rate Limited'
     if (error?.status === 401) return 'Sign In Required'
@@ -615,7 +616,7 @@ export default function DealCalculator() {
   const searchPropertyIntelligence = async () => {
     if (!canUseLivePropertyData) {
       setPropertyLookupResults([])
-      setPropertyLookupError('Property Intelligence is available on the Pro plan. Manual property analysis remains available on every plan.')
+      setPropertyLookupError('Property Intelligence requires an available included or purchased credit. Manual property analysis remains available on every plan.')
       return
     }
     const query = propertySearch.trim()
@@ -652,7 +653,7 @@ export default function DealCalculator() {
 
   const loadPropertyIntelligenceForAddress = async (address: any, options: { refresh?: boolean } = {}) => {
     if (!canUseLivePropertyData) {
-      setPropertyLookupError('Property Intelligence is available on the Pro plan. Manual property analysis remains available on every plan.')
+      setPropertyLookupError('Property Intelligence requires an available included or purchased credit. Manual property analysis remains available on every plan.')
       return
     }
     const normalizedAddress = isCompletePropertyAddress(address) ? address : parseTypedPropertyAddress(propertySearch)
@@ -788,7 +789,7 @@ export default function DealCalculator() {
       setPropertyConnection({ status: 'Testing Connection', connected: false, checked: false })
       try {
         const previewPlan = getOwnerPreviewPlan(settings)
-        const simulatedIncluded = previewPlan === 'Pro' ? 25 : previewPlan === 'Agency' ? 100 : previewPlan === 'Enterprise' ? 0 : 0
+        const simulatedIncluded = previewPlan === 'Starter' ? 20 : previewPlan === 'Pro' ? 50 : previewPlan === 'Agency' ? 150 : previewPlan === 'Enterprise' ? 0 : 0
         const [payload, balance, packPayload] = await Promise.all([
           fetchPropertyIntelligence('status', {}),
           ownerPreviewActive
@@ -2135,7 +2136,7 @@ Deal Blast Pro`
         const parsedTypedAddress = parseTypedPropertyAddress(propertySearch)
         const hasLoadablePropertyAddress = isCompletePropertyAddress(selectedPropertyAddress) || isCompletePropertyAddress(parsedTypedAddress)
         const propertyLoadDisabledReason = !canUseLivePropertyData
-          ? 'Property Intelligence is available on the Pro plan.'
+          ? 'Property Intelligence requires an available included or purchased credit.'
           : propertyLookupLoading
             ? 'Loading Property Intelligence.'
             : propertySearch.trim().length < 3
@@ -2172,7 +2173,7 @@ Deal Blast Pro`
 
             {!canUseLivePropertyData && (
               <div className="mb-4 rounded border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200">
-                Property Intelligence is available on the Pro plan. Manual property analysis remains available on every plan.
+                Property Intelligence requires an available included or purchased credit. Manual property analysis remains available on every plan.
               </div>
             )}
 

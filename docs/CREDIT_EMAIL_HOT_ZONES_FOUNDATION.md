@@ -4,7 +4,9 @@
 
 The immutable ledger is the source of truth. Included grants expire at their billing-period end; purchased grants have no expiry. Reservations debit included credits before purchased credits. A failed provider request appends a release entry. No existing ledger row is edited or deleted.
 
-Included monthly policy: Free 0, Starter 0, Pro 25, Agency 100, Enterprise configurable. `PROPERTY_INTELLIGENCE_ENTERPRISE_DEFAULT_CREDITS` is only a configurable sales default and is not a guaranteed entitlement.
+Included monthly policy: Free 0, Starter 20, Pro 50, Agency 150, Enterprise configurable per contract in the server-side workspace plan assignment. Enterprise allowances are never accepted from the browser and have no global guaranteed default.
+
+Verified paid activation and renewal invoices grant each billing-cycle allowance exactly once. A paid mid-cycle upgrade grants only the positive difference between the new allowance and included grants already issued for that cycle. A downgrade does not claw back an already-issued allowance; the lower allowance begins with the next verified paid billing cycle. Cancellation never removes purchased credits.
 
 Default pack catalog:
 
@@ -13,7 +15,9 @@ Default pack catalog:
 - `credits_100`: 100 credits / $49
 - `credits_250`: 250 credits / $99
 
-Override the catalog with server-only `PROPERTY_INTELLIGENCE_CREDIT_PACKS_JSON`. Stripe Price IDs are server-only through `STRIPE_PRICE_CREDITS_10`, `STRIPE_PRICE_CREDITS_25`, `STRIPE_PRICE_CREDITS_100`, and `STRIPE_PRICE_CREDITS_250`, or the server JSON configuration. A checkout redirect never grants credits. Only a verified Stripe webhook can fulfill a purchase.
+Override the catalog with server-only `PROPERTY_INTELLIGENCE_CREDIT_PACKS_JSON`. Stripe Price IDs are server-only through `STRIPE_PRICE_CREDITS_10`, `STRIPE_PRICE_CREDITS_25`, `STRIPE_PRICE_CREDITS_100`, and `STRIPE_PRICE_CREDITS_250`, or the server JSON configuration. The webhook resolves exactly one paid Stripe line item back to this server-side catalog; browser quantities and credit amounts are ignored. A checkout redirect never grants credits. Only a verified Stripe webhook can fulfill a purchase, and replay is idempotent.
+
+RentCast provider capacity is fail-closed. `RENTCAST_CAPACITY_PAUSED` must be explicitly set to `false` before live provider requests are allowed. While paused, durable cached results and Geoapify autocomplete remain available, but no credit is reserved, consumed, or retried and Owner Admin cannot bypass the pause.
 
 ## Email operations
 
@@ -24,6 +28,8 @@ Required Edge Function secrets: `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `NOTI
 ## Verified closings and Hot Zones
 
 Only rows in `verified_closings` count. Sold status, closing dates, Property Intelligence requests, sample data, demos, failed deals, canceled deals, and duplicates do not create Hot Zone activity.
+
+Hot Zones requires Pro or higher. Pro receives workspace trends, Agency receives workspace plus shared/team aggregates, Enterprise receives advanced/custom access, and Owner Admin receives full access with safe Preview simulation. Free and Starter receive no aggregate data from the server.
 
 Threshold configuration:
 
@@ -42,4 +48,4 @@ Shared results expose only ranked city/state/ZIP aggregates and counts. They do 
 5. Verify the Resend sending domain and publish its SPF and DKIM DNS records.
 6. Register the signed Resend webhook and configure `RESEND_WEBHOOK_SECRET`.
 7. Schedule `email-outbox-worker` with its bearer secret.
-8. Configure Vercel server variables for pack definitions and Hot Zone thresholds. Never use `VITE_` for secrets.
+8. Configure Vercel server variables for pack definitions and Hot Zone thresholds. Keep `RENTCAST_CAPACITY_PAUSED` enabled until provider capacity resets. Never use `VITE_` for secrets.

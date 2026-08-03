@@ -1042,7 +1042,7 @@ export default function Settings() {
             )}
             {(scheduledBillingPlan === 'Starter' || scheduledBillingPlan === 'Free' || scheduledBillingPlan === 'Free Demo') && (
               <div className="mt-3 rounded border border-[#252A38] bg-[#0A0C12] p-3 text-[#C5CAD6]">
-                Your Property Intelligence credits are preserved but require an active Pro or higher plan.
+                Your purchased Property Intelligence credits are preserved. Starter includes 20 monthly credits, while Free workspaces may use purchased credits.
               </div>
             )}
             {canOpenBillingPortal && (
@@ -2720,7 +2720,7 @@ export default function Settings() {
     ['Deal Blast Builder', 'Not included', 'Basic', 'Included', 'Advanced', 'Custom'],
     ['Follow-Up Task Center', 'Not included', 'Basic', 'Included', 'Advanced', 'Custom'],
     ['Core Deal Calculators', 'ARV Calculator', 'ARV, Rehab, and MAO', 'All calculators', 'All calculators', 'All calculators'],
-    ['Property Intelligence', 'Not included', 'Not included', '25 lookups per month', '100 lookups per month', 'Custom'],
+    ['Property Intelligence', 'Not included', '20 lookups per month', '50 lookups per month', '150 lookups per month', 'Custom'],
     ['Custom Buyer and Deal Portals', 'Not included', 'Not included', 'Coming Soon', 'Coming Soon', 'Custom / Coming Soon'],
     ['Deal Submission Review Center', 'Not included', 'Not included', 'Coming Soon', 'Coming Soon', 'Custom'],
     ['Buyer Portal Review Center', 'Not included', 'Not included', 'Coming Soon', 'Coming Soon', 'Custom'],

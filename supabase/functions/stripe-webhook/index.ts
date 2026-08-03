@@ -56,19 +56,58 @@ const finishStripeEvent = async (supabaseUrl: string, serviceKey: string, eventI
   })
 }
 
+type CreditPackDefinition = { key: string; credits: number; amountCents: number; stripePriceId: string }
+
+const readCreditPackDefinitions = (): CreditPackDefinition[] => {
+  const defaults = [
+    { key: 'credits_10', credits: 10, amountCents: 800, envKey: 'STRIPE_PRICE_CREDITS_10' },
+    { key: 'credits_25', credits: 25, amountCents: 1500, envKey: 'STRIPE_PRICE_CREDITS_25' },
+    { key: 'credits_100', credits: 100, amountCents: 4900, envKey: 'STRIPE_PRICE_CREDITS_100' },
+    { key: 'credits_250', credits: 250, amountCents: 9900, envKey: 'STRIPE_PRICE_CREDITS_250' },
+  ]
+  let configured: any[] = []
+  try { configured = JSON.parse(Deno.env.get('PROPERTY_INTELLIGENCE_CREDIT_PACKS_JSON') || '[]') } catch { configured = [] }
+  return defaults.map(fallback => {
+    const override = configured.find(item => String(item?.key || '') === fallback.key) || {}
+    return {
+      key: fallback.key,
+      credits: Math.max(1, Number(override.credits) || fallback.credits),
+      amountCents: Math.max(1, Number(override.amountCents) || fallback.amountCents),
+      stripePriceId: String(override.stripePriceId || Deno.env.get(fallback.envKey) || '').trim(),
+    }
+  })
+}
+
+const resolvePaidCreditPack = async (object: any) => {
+  let lineItems = object?.line_items?.data
+  if ((!Array.isArray(lineItems) || !lineItems.length) && object?.id) {
+    const response = await stripeGet(`/v1/checkout/sessions/${encodeURIComponent(object.id)}/line_items?limit=2`)
+    lineItems = response?.data
+  }
+  if (!Array.isArray(lineItems) || lineItems.length !== 1 || Number(lineItems[0]?.quantity || 0) !== 1) {
+    throw new Error('credit_pack_line_items_invalid')
+  }
+  const priceId = String(lineItems[0]?.price?.id || '').trim()
+  const pack = readCreditPackDefinitions().find(item => item.stripePriceId && item.stripePriceId === priceId)
+  if (!pack) throw new Error('credit_pack_price_not_configured')
+  if (Number(object.amount_total || 0) !== pack.amountCents) throw new Error('credit_pack_amount_mismatch')
+  return { pack, priceId }
+}
+
 const fulfillCreditPack = async (supabaseUrl: string, serviceKey: string, event: any) => {
   const object = event?.data?.object || {}
   const metadata = object.metadata || {}
   if (metadata.purchaseKind !== 'property_intelligence_credit_pack') return false
-  if (!['paid', 'no_payment_required'].includes(String(object.payment_status || ''))) throw new Error('credit_pack_payment_not_verified')
+  if (String(object.payment_status || '') !== 'paid') throw new Error('credit_pack_payment_not_verified')
   const workspaceId = String(metadata.workspaceId || '').trim()
-  const credits = Number(metadata.credits || 0)
   const packKey = String(metadata.packKey || '').trim()
-  if (!workspaceId || !packKey || !Number.isInteger(credits) || credits <= 0) throw new Error('credit_pack_metadata_invalid')
+  if (!workspaceId || !packKey) throw new Error('credit_pack_metadata_invalid')
+  const { pack, priceId } = await resolvePaidCreditPack(object)
+  if (pack.key !== packKey) throw new Error('credit_pack_definition_mismatch')
   const purchaseResponse = await fetch(`${supabaseUrl}/rest/v1/property_intelligence_addon_purchases`, {
     method: 'POST', headers: serviceHeaders(serviceKey, 'resolution=ignore-duplicates,return=representation'),
     body: JSON.stringify({ workspace_id: workspaceId, stripe_event_id: event.id, stripe_session_id: object.id,
-      pack_key: packKey, stripe_price_id: object.line_items?.data?.[0]?.price?.id || null, credits_purchased: credits,
+      pack_key: pack.key, stripe_price_id: priceId, credits_purchased: pack.credits,
       amount_cents: Number(object.amount_total || 0), currency: String(object.currency || 'usd'), status: 'pending' }),
   })
   if (!purchaseResponse.ok) throw new Error('credit_pack_purchase_write_failed')
@@ -81,7 +120,7 @@ const fulfillCreditPack = async (supabaseUrl: string, serviceKey: string, event:
   if (!purchaseId) throw new Error('credit_pack_purchase_unresolved')
   const grant = await fetch(`${supabaseUrl}/rest/v1/rpc/grant_property_intelligence_purchase`, {
     method: 'POST', headers: serviceHeaders(serviceKey), body: JSON.stringify({ p_workspace_id: workspaceId, p_purchase_id: purchaseId,
-      p_credits: credits, p_stripe_event_id: event.id, p_idempotency_key: `stripe:credit-pack:${event.id}` }),
+      p_credits: pack.credits, p_stripe_event_id: event.id, p_idempotency_key: `stripe:credit-pack:${event.id}` }),
   })
   if (!grant.ok) throw new Error('credit_pack_grant_failed')
   return true
@@ -90,12 +129,19 @@ const fulfillCreditPack = async (supabaseUrl: string, serviceKey: string, event:
 const grantIncludedCredits = async (supabaseUrl: string, serviceKey: string, event: any, workspaceId: string,
   plan: string, periodStart: string, periodEnd: string) => {
   if (!['invoice.paid','invoice.payment_succeeded'].includes(String(event.type)) || !workspaceId || !periodStart || !periodEnd) return
-  const enterpriseDefault = Number(Deno.env.get('PROPERTY_INTELLIGENCE_ENTERPRISE_DEFAULT_CREDITS') || 0)
+  let enterpriseLimit: number | null = null
+  if (plan === 'Enterprise') {
+    const configResponse = await fetch(`${supabaseUrl}/rest/v1/workspace_plan_assignments?workspace_id=eq.${encodeURIComponent(workspaceId)}&select=property_intelligence_included_credits`, { headers: serviceHeaders(serviceKey) })
+    const rows = configResponse.ok ? await configResponse.json() : []
+    const configured = Number(rows?.[0]?.property_intelligence_included_credits)
+    if (!Number.isInteger(configured) || configured < 0) throw new Error('enterprise_credit_allowance_not_configured')
+    enterpriseLimit = configured
+  }
   const invoiceId = String(event?.data?.object?.id || event.id)
   const response = await fetch(`${supabaseUrl}/rest/v1/rpc/grant_property_intelligence_included_credits`, {
     method: 'POST', headers: serviceHeaders(serviceKey), body: JSON.stringify({ p_workspace_id: workspaceId, p_plan_name: plan,
       p_period_start: periodStart.slice(0,10), p_period_end: periodEnd.slice(0,10), p_idempotency_key: `stripe:included:${invoiceId}:${periodStart.slice(0,10)}`,
-      p_enterprise_limit: plan === 'Enterprise' ? enterpriseDefault : null, p_reason: 'verified_stripe_billing_cycle' }),
+      p_enterprise_limit: enterpriseLimit, p_reason: 'verified_stripe_billing_cycle' }),
   })
   if (!response.ok) throw new Error('included_credit_grant_failed')
 }
@@ -104,12 +150,13 @@ const adjustCreditPack = async (supabaseUrl: string, serviceKey: string, event: 
   if (!['charge.refunded','charge.dispute.created'].includes(String(event.type))) return false
   const metadata = event?.data?.object?.metadata || {}
   if (metadata.purchaseKind !== 'property_intelligence_credit_pack') return false
-  const workspaceId = String(metadata.workspaceId || '').trim(); const credits = Number(metadata.credits || 0)
-  if (!workspaceId || !Number.isInteger(credits) || credits <= 0) throw new Error('credit_adjustment_metadata_invalid')
+  const workspaceId = String(metadata.workspaceId || '').trim(); const packKey = String(metadata.packKey || '').trim()
+  const pack = readCreditPackDefinitions().find(item => item.key === packKey)
+  if (!workspaceId || !pack) throw new Error('credit_adjustment_metadata_invalid')
   const entryType = event.type === 'charge.refunded' ? 'refund' : 'dispute'
   const response = await fetch(`${supabaseUrl}/rest/v1/rpc/adjust_property_intelligence_purchased_credits`, {
     method: 'POST', headers: serviceHeaders(serviceKey), body: JSON.stringify({ p_workspace_id: workspaceId,
-      p_requested_debit: credits, p_entry_type: entryType, p_idempotency_key: `stripe:${entryType}:${event.id}`,
+      p_requested_debit: pack.credits, p_entry_type: entryType, p_idempotency_key: `stripe:${entryType}:${event.id}`,
       p_reason: `verified_stripe_${entryType}`, p_stripe_event_id: event.id, p_created_by_user_id: null }),
   })
   if (!response.ok) throw new Error('credit_adjustment_failed')
@@ -196,6 +243,10 @@ const getPricePlan = (priceId: string) => {
     [Deno.env.get('STRIPE_PRICE_STARTER_ANNUAL'), 'Starter', 'annual'],
     [Deno.env.get('STRIPE_PRICE_PRO_MONTHLY'), 'Pro', 'monthly'],
     [Deno.env.get('STRIPE_PRICE_PRO_ANNUAL'), 'Pro', 'annual'],
+    [Deno.env.get('STRIPE_PRICE_AGENCY_MONTHLY'), 'Agency', 'monthly'],
+    [Deno.env.get('STRIPE_PRICE_AGENCY_ANNUAL'), 'Agency', 'annual'],
+    [Deno.env.get('STRIPE_PRICE_ENTERPRISE_MONTHLY'), 'Enterprise', 'monthly'],
+    [Deno.env.get('STRIPE_PRICE_ENTERPRISE_ANNUAL'), 'Enterprise', 'annual'],
   ]
   const match = pairs.find(([id]) => String(id || '').trim() === normalized)
   return match ? { plan: match[1], billingFrequency: match[2] } : null
@@ -582,7 +633,7 @@ Deno.serve(async req => {
 
   const activation = await extractActivation(event)
   const freeCancellationEvent = event.type === 'customer.subscription.deleted' || activation.cancelAtPeriodEnd
-  if (activation.plan !== 'Starter' && activation.plan !== 'Pro' && !freeCancellationEvent) {
+  if (!['Starter','Pro','Agency','Enterprise'].includes(activation.plan) && !freeCancellationEvent) {
     await finishStripeEvent(supabaseUrl, serviceKey, event.id, 'needs_review', 'unsupported_plan')
     return json({ ok: true, needsReview: true, reason: 'Unsupported or missing plan' }, 202)
   }

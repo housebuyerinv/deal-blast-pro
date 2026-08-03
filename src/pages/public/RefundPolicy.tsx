@@ -33,7 +33,7 @@ export default function RefundPolicy() {
               Property Intelligence lookup-credit packs are one-time digital purchases and are nonrefundable except where required by law. Unused purchased credits remain associated with an active eligible account.
             </p>
             <p className="mt-3">
-              Canceling Pro prevents Property Intelligence usage after paid Pro access ends, even if unused purchased credits remain. Credits may become usable again if the same workspace later reactivates an eligible plan, subject to this policy and applicable retention limits.
+              Purchased Property Intelligence credits remain available after a subscription change or cancellation and do not expire. Included monthly credits expire at the end of their applicable billing cycle and do not roll over.
             </p>
           </div>
 

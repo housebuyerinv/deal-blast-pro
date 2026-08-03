@@ -13,9 +13,9 @@ import {
 
 const tierPoints: Record<string, string[]> = {
   Free: ['Public submission access', 'ARV calculator', 'Up to 25 buyers'],
-  Starter: ['Deal and buyer management', 'Core starter calculators', 'Up to 250 buyers'],
-  Pro: ['Advanced buyer matching', 'All calculators', '25 Property Intelligence lookups monthly', 'Up to 1,000 buyers'],
-  Agency: ['Higher monthly limits', '100 Property Intelligence lookups monthly', 'Up to 2,000 buyers', 'Team features coming soon'],
+  Starter: ['Deal and buyer management', 'Core starter calculators', '20 Property Intelligence lookups monthly', 'Up to 250 buyers'],
+  Pro: ['Advanced buyer matching', 'All calculators', '50 Property Intelligence lookups monthly', 'Up to 1,000 buyers'],
+  Agency: ['Higher monthly limits', '150 Property Intelligence lookups monthly', 'Up to 2,000 buyers', 'Team features coming soon'],
   Enterprise: ['Up to 5,000 buyers', 'Custom Property Intelligence limits', 'Custom workflows and support'],
 }
 
@@ -66,7 +66,7 @@ const featureRows = [
   },
   {
     feature: 'Property Intelligence',
-    statuses: ['Not included', 'Not included', '25 lookups per month', '100 lookups per month', 'Custom']
+    statuses: ['Not included', '20 lookups per month', '50 lookups per month', '150 lookups per month', 'Custom']
   },
   {
     feature: 'Custom Buyer and Deal Portals',
@@ -223,7 +223,7 @@ export default function Pricing() {
             </table>
           </div>
           <p className="mt-3 text-center text-xs text-[#8B92A3]">
-            Property Intelligence lookups start on Pro. Cached results may not use an additional lookup credit. Data availability varies by property and market.
+            Starter includes 20 monthly Property Intelligence credits, and every plan may buy additional credits. Cached results do not use an additional credit. Data availability varies by property and market.
           </p>
           <p className="mt-2 text-center text-xs text-[#8B92A3]">
             Additional buyer-capacity packs may be offered in the future.

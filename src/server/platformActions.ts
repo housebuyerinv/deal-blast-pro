@@ -2,6 +2,8 @@ import { readCreditPacks, publicCreditPacks } from './creditPacks.js'
 import { aggregateHotZones } from './hotZones.js'
 const clean=(value:any)=>String(value||'').trim()
 const WINDOWS:Record<string,number>={weekly:7,monthly:30,yearly:365}
+const PLAN_RANK:Record<string,number>={free:0,'free demo':0,starter:1,pro:2,agency:3,enterprise:4,'owner admin':5}
+const planRank=(value:any)=>PLAN_RANK[clean(value).toLowerCase()]??0
 
 export async function handlePlatformAction(action:string,req:any,res:any,account:any){
   const send=(status:number,payload:any)=>{res.status(status).json(payload);return true}
@@ -15,14 +17,15 @@ export async function handlePlatformAction(action:string,req:any,res:any,account
     const secret=clean(process.env.STRIPE_SECRET_KEY);if(!secret)return send(503,{ok:false,code:'stripe_not_configured',error:'Credit checkout is not configured.'})
     const origin=clean(req.headers?.origin).replace(/\/+$/,'');const safeOrigin=/^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin)||/^https:\/\/deal-blast-pro\.vercel\.app$/i.test(origin)?origin:'https://deal-blast-pro.vercel.app'
     const params=new URLSearchParams({mode:'payment','line_items[0][price]':pack.stripePriceId,'line_items[0][quantity]':'1',success_url:`${safeOrigin}/app/settings?creditCheckout=submitted`,cancel_url:`${safeOrigin}/app/settings?creditCheckout=cancelled`,client_reference_id:account.user.id,
-      'metadata[purchaseKind]':'property_intelligence_credit_pack','metadata[workspaceId]':workspaceId,'metadata[packKey]':pack.key,'metadata[credits]':String(pack.credits),
-      'payment_intent_data[metadata][purchaseKind]':'property_intelligence_credit_pack','payment_intent_data[metadata][workspaceId]':workspaceId,'payment_intent_data[metadata][packKey]':pack.key,'payment_intent_data[metadata][credits]':String(pack.credits)})
+      'metadata[purchaseKind]':'property_intelligence_credit_pack','metadata[workspaceId]':workspaceId,'metadata[packKey]':pack.key,
+      'payment_intent_data[metadata][purchaseKind]':'property_intelligence_credit_pack','payment_intent_data[metadata][workspaceId]':workspaceId,'payment_intent_data[metadata][packKey]':pack.key})
     const response=await fetch('https://api.stripe.com/v1/checkout/sessions',{method:'POST',headers:{Authorization:`Bearer ${secret}`,'Content-Type':'application/x-www-form-urlencoded'},body:params});const payload=await response.json().catch(()=>null)
     return !response.ok||!payload?.url?send(502,{ok:false,code:'stripe_checkout_failed',error:'Credit checkout could not be created.'}):send(200,{ok:true,url:payload.url})
   }
   if(action==='hot-zones'){
     if(req.method!=='GET')return send(405,{ok:false,error:'Method not allowed'});if(!workspaceId)return send(409,{ok:false,error:'Workspace unavailable.'})
-    const period=WINDOWS[clean(req.query?.period)]?clean(req.query.period):'monthly';const scope=clean(req.query?.scope)==='shared'?'shared':'workspace';const since=new Date(Date.now()-WINDOWS[period]*86400000).toISOString()
+    const accountRank=account.isOwnerAdmin?PLAN_RANK['owner admin']:planRank(account.planName);if(accountRank<PLAN_RANK.pro)return send(403,{ok:false,code:'pro_required',error:'Hot Zones requires Pro or higher.'})
+    const period=WINDOWS[clean(req.query?.period)]?clean(req.query.period):'monthly';const scope=clean(req.query?.scope)==='shared'?'shared':'workspace';if(scope==='shared'&&accountRank<PLAN_RANK.agency)return send(403,{ok:false,code:'agency_required',error:'Shared and team Hot Zones require Agency or higher.'});const since=new Date(Date.now()-WINDOWS[period]*86400000).toISOString()
     let query=account.adminClient.from('verified_closings').select('workspace_id,city,state,postal_code,closed_at').eq('outcome','closed').eq('is_demo',false).eq('is_sample',false).eq('is_duplicate',false).gte('closed_at',since);if(scope==='workspace')query=query.eq('workspace_id',workspaceId)
     const {data,error}=await query;if(error)throw error;const workspaceMinimum=Math.max(1,Number(process.env.HOT_ZONES_WORKSPACE_MIN_CLOSINGS)||3);const sharedMinimum=Math.max(1,Number(process.env.HOT_ZONES_SHARED_MIN_CLOSINGS)||5);const sharedWorkspaces=Math.max(2,Number(process.env.HOT_ZONES_SHARED_MIN_WORKSPACES)||3)
     const zones=aggregateHotZones(data||[],scope,{workspaceMinimum,sharedMinimum,sharedWorkspaceMinimum:sharedWorkspaces});res.setHeader('Cache-Control','private, max-age=60');return send(200,{ok:true,scope,period,totalVerifiedClosings:(data||[]).length,zones,minimumRequired:scope==='workspace'?workspaceMinimum:sharedMinimum,message:!zones.length?'Hot Zones become more useful as verified closing records accumulate.':''})
