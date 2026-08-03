@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from 'react-router-dom'
+import { NavLink } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import {
   LayoutDashboard, Building2, Users, Send, Settings, Briefcase,
@@ -53,7 +53,6 @@ const navGroups = [
 ]
 
 export default function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; onClose?: () => void }) {
-  const navigate = useNavigate()
   const { sidebarOpen, getPendingFollowUps, trial, user, settings } = useAppStore()
   const [submissions, setSubmissions] = useState(0)
   const [buyerPortalQueueCount, setBuyerPortalQueueCount] = useState(0)
@@ -159,11 +158,7 @@ export default function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean;
                 <NavLink
                   key={item.to}
                   to={destination}
-                  onClick={(event) => {
-                    event.preventDefault()
-                    navigate(destination)
-                    onClose?.()
-                  }}
+                  onClick={() => onClose?.()}
                   className={({ isActive }) =>
                     `flex items-center gap-3 px-4 py-[9px] text-sm mx-1.5 rounded-lg transition-colors ${
                       isActive ? 'bg-[#171B26] text-white' : 'text-[#C5CAD6] hover:bg-[#171B26]/60'
