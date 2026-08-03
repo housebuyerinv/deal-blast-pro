@@ -36,10 +36,40 @@ export async function handlePlatformAction(action:string,req:any,res:any,account
     if(error?.code==='23505')return send(200,{ok:true,duplicate:true,message:'This deal already has a verified closing.'});if(error)throw error;return send(201,{ok:true,closing:data})
   }
   if(action==='admin-credit-adjustment'){
-    if(req.method!=='POST')return send(405,{ok:false,error:'Method not allowed'});if(!account.isOwnerAdmin)return send(403,{ok:false,error:'Owner Admin access is required.'})
-    const target=clean(req.body?.workspaceId),amount=Number(req.body?.amount),reason=clean(req.body?.reason),correctionId=clean(req.body?.correctionId);if(!target||!Number.isInteger(amount)||amount===0||!reason||!correctionId)return send(400,{ok:false,error:'Workspace, amount, reason, and correction ID are required.'})
-    if(amount<0){const {data,error}=await account.adminClient.rpc('adjust_property_intelligence_purchased_credits',{p_workspace_id:target,p_requested_debit:Math.abs(amount),p_entry_type:'admin_correction',p_idempotency_key:`admin:credit:${correctionId}`,p_reason:reason,p_stripe_event_id:null,p_created_by_user_id:account.user.id});if(error)throw error;return send(200,{ok:true,result:data})}
-    const {data,error}=await account.adminClient.from('property_intelligence_credit_ledger').insert({workspace_id:target,entry_type:'admin_correction',credit_bucket:'purchased',amount,idempotency_key:`admin:credit:${correctionId}`,audit_reason:reason,created_by_user_id:account.user.id}).select('id').single();if(error?.code==='23505')return send(200,{ok:true,duplicate:true});if(error)throw error;return send(201,{ok:true,ledgerEntryId:data.id})
+    if(!account.isOwnerAdmin)return send(403,{ok:false,error:'Owner Admin access is required.'})
+    if(req.method==='GET'){
+      const q=clean(req.query?.q).slice(0,120),target=clean(req.query?.workspaceId)
+      let workspaceQuery=account.adminClient.from('workspaces').select('id,name,owner_email,owner_user_id,created_at').order('name').limit(20)
+      if(q){
+        const escaped=q.replace(/[%_,()]/g,' ')
+        workspaceQuery=/^[0-9a-f-]{36}$/i.test(q)
+          ? workspaceQuery.or(`id.eq.${q},name.ilike.%${escaped}%,owner_email.ilike.%${escaped}%`)
+          : workspaceQuery.or(`name.ilike.%${escaped}%,owner_email.ilike.%${escaped}%`)
+      }
+      const {data:workspaces,error:workspaceError}=await workspaceQuery;if(workspaceError)throw workspaceError
+      if(!target)return send(200,{ok:true,workspaces:workspaces||[]})
+      const selected=(workspaces||[]).find((item:any)=>item.id===target) || (await account.adminClient.from('workspaces').select('id,name,owner_email,owner_user_id,created_at').eq('id',target).maybeSingle()).data
+      if(!selected)return send(404,{ok:false,error:'Workspace not found.'})
+      const [balanceResult,ledgerResult,purchasesResult,operationsResult,planResult]=await Promise.all([
+        account.adminClient.rpc('property_intelligence_credit_balance',{p_workspace_id:target}),
+        account.adminClient.from('property_intelligence_credit_ledger').select('id,entry_type,credit_bucket,amount,operation_id,stripe_event_id,purchase_id,idempotency_key,audit_reason,metadata,created_by_user_id,created_at,billing_period_start,billing_period_end,expires_at').eq('workspace_id',target).order('created_at',{ascending:false}).limit(50),
+        account.adminClient.from('property_intelligence_addon_purchases').select('id,credits_purchased,amount_cents,status,pack_key,currency,created_at,fulfilled_at').eq('workspace_id',target).order('created_at',{ascending:false}).limit(20),
+        account.adminClient.from('property_intelligence_lookup_operations').select('id,operation_id,status,credit_source,credit_charged,created_at,completed_at,failure_code').eq('workspace_id',target).order('created_at',{ascending:false}).limit(20),
+        account.adminClient.from('workspace_plan_assignments').select('plan_name,billing_status,billing_interval,current_period_end,created_at').eq('workspace_id',target).maybeSingle(),
+      ])
+      for(const result of [balanceResult,ledgerResult,purchasesResult,operationsResult,planResult])if(result.error)throw result.error
+      const operations=operationsResult.data||[],reserved=operations.filter((item:any)=>item.status==='reserved').length
+      const ledger=ledgerResult.data||[],lastGrant=ledger.find((item:any)=>item.entry_type==='included_grant')||null
+      return send(200,{ok:true,workspaces:workspaces||[],workspace:selected,balance:{...(balanceResult.data||{}),reservedCredits:reserved},plan:planResult.data||null,lastIncludedGrant:lastGrant,ledger,purchases:purchasesResult.data||[],operations})
+    }
+    if(req.method!=='POST')return send(405,{ok:false,error:'Method not allowed'})
+    const target=clean(req.body?.workspaceId),amount=Number(req.body?.amount),reason=clean(req.body?.reason),correctionId=clean(req.body?.correctionId),bucket=clean(req.body?.bucket),entryType=clean(req.body?.entryType)
+    if(!target||!Number.isInteger(amount)||amount===0||!reason||!correctionId)return send(400,{ok:false,error:'Workspace, amount, reason, and correction ID are required.'})
+    if(!['included','purchased'].includes(bucket)||!['promotion','admin_correction','refund'].includes(entryType))return send(400,{ok:false,error:'Choose a valid credit bucket and adjustment type.'})
+    const {data,error}=await account.adminClient.rpc('admin_adjust_property_intelligence_credits',{p_workspace_id:target,p_amount:amount,p_credit_bucket:bucket,p_entry_type:entryType,p_idempotency_key:`admin:credit:${correctionId}`,p_reason:reason,p_created_by_user_id:account.user.id})
+    if(error)throw error
+    if(data?.code==='negative_balance_prevented')return send(409,{ok:false,code:data.code,error:'This adjustment would create a negative balance.',result:data})
+    return send(data?.duplicate?200:201,{ok:true,result:data})
   }
   return false
 }

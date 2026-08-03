@@ -47,6 +47,7 @@ import {
   requestVerifiedEmailChange,
   saveAccountProfile,
 } from '../../lib/accountProfile'
+import AdminCreditOperations from '../../components/admin/AdminCreditOperations'
 
 export default function Settings() {
   const { 
@@ -2828,6 +2829,8 @@ export default function Settings() {
 
         {renderOwnerPreviewControl()}
 
+        {ownerPreviewActive && <AdminCreditOperations simulated />}
+
         <div className="flex flex-wrap gap-1 border-b border-[#252A38] pb-1">
           {['Plan & Billing', 'Account', 'Support'].map(tab => (
             <button
@@ -3639,6 +3642,7 @@ export default function Settings() {
             </div>
           </div>
 
+          {hasSuperAdminAccess && <AdminCreditOperations />}
           {hasSuperAdminAccess && renderEmailNotifications()}
 
           {renderBillingCenter()}

@@ -13,7 +13,7 @@ import {
   type CalculatorTabId,
 } from '../../lib/calculatorAccess'
 import { hasOwnerAdminBypass } from '../../lib/accessControl'
-import { isOwnerPreviewActive } from '../../lib/planAccess'
+import { getOwnerPreviewPlan, isOwnerPreviewActive } from '../../lib/planAccess'
 import { MOCK_PROPERTY_INTELLIGENCE_SAMPLE } from '../../lib/propertyIntelligence/mockProvider'
 import { canShowSamplePropertyIntelligence } from '../../lib/customerExperiencePolicies'
 import { supabase } from '../../lib/supabase'
@@ -392,6 +392,7 @@ export default function DealCalculator() {
   const [propertyAutocompleteLoading, setPropertyAutocompleteLoading] = useState(false)
   const [propertyAutocompleteMessage, setPropertyAutocompleteMessage] = useState('')
   const [propertyLookupError, setPropertyLookupError] = useState('')
+  const [propertyCreditBlock, setPropertyCreditBlock] = useState<'' | 'zero_balance' | 'temporarily_unavailable'>('')
   const [propertyLookupResults, setPropertyLookupResults] = useState<any[]>([])
   const [propertyLookupSummary, setPropertyLookupSummary] = useState<any | null>(null)
   const [propertyLookupStatus, setPropertyLookupStatus] = useState('')
@@ -665,7 +666,18 @@ export default function DealCalculator() {
       return
     }
 
+    const availableCredits = Number(propertyCreditBalance?.totalRemaining ?? (
+      Number(propertyCreditBalance?.includedRemaining || 0) + Number(propertyCreditBalance?.purchasedRemaining || 0)
+    ))
+    if (!ownerAdminMode && propertyCreditBalance && availableCredits <= 0) {
+      setPropertyCreditBlock('zero_balance')
+      setPropertyLookupError('')
+      setPropertyLookupStatus('')
+      return
+    }
+
     setPropertyLookupLoading(true)
+    setPropertyCreditBlock('')
     setPropertyLookupError('')
     setPropertyLookupStatus('Loading property facts...')
 
@@ -706,7 +718,13 @@ export default function DealCalculator() {
         setPropertyLookupStatus('Property data loaded successfully.')
       }
     } catch (error: any) {
-      setPropertyLookupError(error?.message || 'Property Intelligence lookup failed')
+      if (['credits_required', 'credits_exhausted'].includes(String(error?.code || ''))) {
+        setPropertyCreditBlock('zero_balance')
+        setPropertyLookupError('')
+      } else {
+        setPropertyCreditBlock(error?.code === 'credit_service_unavailable' ? 'temporarily_unavailable' : '')
+        setPropertyLookupError(error?.message || 'Property Intelligence lookup failed')
+      }
       setPropertyLookupStatus('')
     } finally {
       setPropertyLookupLoading(false)
@@ -714,6 +732,7 @@ export default function DealCalculator() {
   }
 
   const selectPropertyIntelligenceResult = (result: any) => {
+    setPropertyCreditBlock('')
     setPropertyLookupResults([])
     setPropertyAutocompleteLoading(false)
     const address = result?.address || {}
@@ -768,9 +787,13 @@ export default function DealCalculator() {
     const checkConnection = async () => {
       setPropertyConnection({ status: 'Testing Connection', connected: false, checked: false })
       try {
+        const previewPlan = getOwnerPreviewPlan(settings)
+        const simulatedIncluded = previewPlan === 'Pro' ? 25 : previewPlan === 'Agency' ? 100 : previewPlan === 'Enterprise' ? 0 : 0
         const [payload, balance, packPayload] = await Promise.all([
           fetchPropertyIntelligence('status', {}),
-          fetchPropertyIntelligence('balance', {}).catch(() => null),
+          ownerPreviewActive
+            ? Promise.resolve({ includedRemaining: simulatedIncluded, purchasedRemaining: 0, totalRemaining: simulatedIncluded, simulated: true, resetDate: 'Preview cycle' })
+            : fetchPropertyIntelligence('balance', {}).catch(() => null),
           fetchPropertyIntelligence('credit-packs', {}).catch(() => null),
         ])
         if (cancelled) return
@@ -793,7 +816,7 @@ export default function DealCalculator() {
     }
     void checkConnection()
     return () => { cancelled = true }
-  }, [activeTab, canUseLivePropertyData])
+  }, [activeTab, canUseLivePropertyData, ownerPreviewActive, settings.ownerPreviewPlan])
 
   const openCreditPackCheckout = async (packKey: string) => {
     if (ownerPreviewActive) { toast.info('Preview simulation only. No credit purchase or billing change was started.'); return }
@@ -2179,7 +2202,7 @@ Deal Blast Pro`
             )}
 
             {canUseLivePropertyData && !ownerAdminMode && propertyCreditPacks.length > 0 && (
-              <div className="mb-4 rounded border border-[#252A38] bg-[#0F111A] p-3">
+              <div id="pi-credit-packs" className="mb-4 rounded border border-[#252A38] bg-[#0F111A] p-3">
                 <div className="text-sm font-semibold text-[#E6E8EE]">Buy Property Intelligence Credits</div>
                 <div className="mb-2 text-xs text-[#8B92A3]">Purchased credits do not expire. Credits are granted only after Stripe confirms payment.</div>
                 <div className="flex flex-wrap gap-2">{propertyCreditPacks.map(pack => <button key={pack.key} type="button"
@@ -2210,6 +2233,7 @@ Deal Blast Pro`
                   value={propertySearch}
                   onChange={e => {
                     setPropertySearch(e.target.value)
+                    setPropertyCreditBlock('')
                     setSelectedPropertyAddress(null)
                     setActiveSuggestionIndex(-1)
                   }}
@@ -2284,6 +2308,24 @@ Deal Blast Pro`
                 </div>
               </div>
             </div>
+
+            {propertyCreditBlock && !ownerAdminMode && (
+              <div className="mb-4 rounded border border-amber-400/50 bg-amber-500/10 p-4 text-amber-100" role="alert" aria-live="assertive">
+                <div className="font-semibold">
+                  {propertyCreditBlock === 'zero_balance'
+                    ? 'You need Property Intelligence credits to run this lookup.'
+                    : 'Property Intelligence credits are temporarily unavailable.'}
+                </div>
+                <div className="mt-1 text-sm text-amber-100/80">
+                  Geoapify address search and all available manual calculators remain usable. No provider request or credit reservation was created.
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button type="button" className="btn btn-primary" onClick={() => document.getElementById('pi-credit-packs')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>Buy Credits</button>
+                  <Link to="/app/settings" className="btn btn-ghost">View Plans</Link>
+                  <button type="button" className="btn btn-ghost" onClick={() => setPropertyCreditBlock('')}>Dismiss</button>
+                </div>
+              </div>
+            )}
 
             {activePropertyDeal && dbpValues && (
               <div className="mb-4 panel p-3">
