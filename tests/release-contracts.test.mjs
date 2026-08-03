@@ -63,3 +63,12 @@ test('legacy workspace repair uses the original authenticated reservation owner'
   assert.match(migration, /not exists[\s\S]*existing\.source_submission_id = ds\.id::text/)
   assert.doesNotMatch(migration, /drop table|truncate|delete from/i)
 })
+
+test('durable-evidence workspace repair skips ambiguous converter mappings', async () => {
+  const migration = await source('supabase/migrations/20260802235500_resolve_legacy_workspace_from_durable_evidence.sql')
+  assert.match(migration, /having count\(distinct workspace_id\) = 1/)
+  assert.match(migration, /resolved\.user_id = link\.user_id/)
+  assert.match(migration, /where ds\.workspace_id is null/)
+  assert.match(migration, /not exists[\s\S]*existing\.source_submission_id = ds\.id::text/)
+  assert.doesNotMatch(migration, /drop table|truncate|delete from/i)
+})
