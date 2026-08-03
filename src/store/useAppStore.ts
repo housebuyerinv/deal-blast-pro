@@ -16,6 +16,8 @@ import { getOwnerPreviewPlan, hasEffectiveOwnerAdminBypass, isOwnerPreviewActive
 import { getBuyerCapacity, getPlanEntitlement } from '../lib/planEntitlements'
 import { getPastDuePolicyMessage, getPastDueStage } from '../lib/accountLifecycle'
 import { listInventoryDeals } from '../lib/inventoryStorage'
+import { APP_STORAGE_VERSION, buildProductionPersistedState, migratePersistedAppState, persistedPayloadIsSafe } from '../lib/appPersistence'
+import { clearOwnerPreviewSession, readOwnerPreviewSession, writeOwnerPreviewSession } from '../lib/ownerPreviewSession'
 
 // Module-level guard so initialize is truly one-shot even if called multiple times from effects or StrictMode
 const safeLower = (value: any) => String(value ?? '').toLowerCase();
@@ -38,6 +40,10 @@ const safeLocalStorage = {
   },
   setItem: (name: string, value: string) => {
     try {
+      if (name === 'dealblastpro-v1' && !persistedPayloadIsSafe(value)) {
+        console.warn('[Deal Blast] Persisted UI preferences exceeded the safe size limit; the write was skipped.')
+        return
+      }
       nativeLocalStorage?.setItem(name, value);
     } catch (error: any) {
       if (
@@ -726,17 +732,22 @@ export const useAppStore = create<AppStore>()(
         if (!shouldPreserveWorkspace || currentUser?.id !== nextUser.id) {
           void import('../lib/buyerSupabaseSync').then(m => m.invalidateBuyerHydrationCache())
         }
+        const previewPlan = readOwnerPreviewSession()
         set({
           ...(shouldPreserveWorkspace ? {} : cleanWorkspaceState()),
           workspaceInstanceId,
           ...getWorkspaceOwnerPatch(nextUser),
           workspaceDataScopeKey: makeWorkspaceDataScopeKey(nextUser),
-          settings: shouldPreserveWorkspace ? get().settings : resetLifecycleSettings(DEFAULT_SETTINGS, workspaceInstanceId),
+          settings: {
+            ...(shouldPreserveWorkspace ? get().settings : resetLifecycleSettings(DEFAULT_SETTINGS, workspaceInstanceId)),
+            ownerPreviewPlan: previewPlan,
+          },
           user: nextUser
         })
         void get().hydrateInventory()
       },
       logout: () => {
+        clearOwnerPreviewSession()
         void import('../lib/buyerSupabaseSync').then(m => m.invalidateBuyerHydrationCache())
         set({
           ...cleanWorkspaceState(),
@@ -2005,6 +2016,9 @@ export const useAppStore = create<AppStore>()(
 
       // Settings
       updateSettings: (updates) => {
+        if (Object.prototype.hasOwnProperty.call(updates, 'ownerPreviewPlan')) {
+          writeOwnerPreviewSession((updates.ownerPreviewPlan || 'Owner Admin') as any)
+        }
         set(s => ({ settings: { ...s.settings, ...updates } }))
       },
 
@@ -2143,7 +2157,10 @@ export const useAppStore = create<AppStore>()(
     {
       name: STORAGE_KEY,
       storage: createJSONStorage(() => safeLocalStorage),
+      version: APP_STORAGE_VERSION,
+      migrate: persisted => migratePersistedAppState({ state: persisted }).state as any,
       partialize: (state) => {
+        if (IS_PRODUCTION) return buildProductionPersistedState(state) as any
         const canPersistPrivateState = privateWorkspaceScopeMatchesUser(state, state.user)
 
         return {
@@ -2158,7 +2175,7 @@ export const useAppStore = create<AppStore>()(
           offers: canPersistPrivateState ? state.offers : {},
           activities: canPersistPrivateState ? state.activities : {},
           documents: canPersistPrivateState ? state.documents : {},
-          settings: state.settings,
+          settings: stripPreviewSettings({ settings: state.settings }).settings,
           viewedDealIds: canPersistPrivateState ? state.viewedDealIds : [],
           viewedBuyerIds: canPersistPrivateState && shouldPersistBuyersLocally ? state.viewedBuyerIds : [],
           suppressionList: canPersistPrivateState ? state.suppressionList : [],
@@ -2221,7 +2238,10 @@ function syncStoreFromPersistedStorage() {
       offers: canUsePersistedPrivateState ? (persistedState.offers ?? currentState.offers) : currentState.offers,
       activities: canUsePersistedPrivateState ? (persistedState.activities ?? currentState.activities) : currentState.activities,
       documents: canUsePersistedPrivateState ? (persistedState.documents ?? currentState.documents) : currentState.documents,
-      settings: stripPreviewSettings({ settings: persistedState.settings ?? currentState.settings }).settings,
+      settings: {
+        ...stripPreviewSettings({ settings: persistedState.settings ?? currentState.settings }).settings,
+        ownerPreviewPlan: readOwnerPreviewSession(),
+      },
       viewedDealIds: canUsePersistedPrivateState && Array.isArray(persistedState.viewedDealIds) ? persistedState.viewedDealIds : currentState.viewedDealIds,
       viewedBuyerIds: canUsePersistedBuyers && Array.isArray(persistedState.viewedBuyerIds) ? persistedState.viewedBuyerIds : [],
       suppressionList: canUsePersistedPrivateState && Array.isArray(persistedState.suppressionList) ? persistedState.suppressionList : currentState.suppressionList,
