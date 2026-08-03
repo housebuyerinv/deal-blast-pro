@@ -72,3 +72,13 @@ test('durable-evidence workspace repair skips ambiguous converter mappings', asy
   assert.match(migration, /not exists[\s\S]*existing\.source_submission_id = ds\.id::text/)
   assert.doesNotMatch(migration, /drop table|truncate|delete from/i)
 })
+
+test('legacy conversion variants require durable conversion metadata', async () => {
+  const migration = await source('supabase/migrations/20260803000500_backfill_legacy_conversion_metadata_variants.sql')
+  assert.match(migration, /ds\.converted_at is not null/)
+  assert.match(migration, /nullif\(ds\.inventory_deal_id, ''\) is not null/)
+  assert.match(migration, /deal_data->>'submissionStatus'/)
+  assert.match(migration, /having count\(distinct workspace_id\) = 1/)
+  assert.match(migration, /not exists[\s\S]*existing\.source_submission_id = ds\.id::text/)
+  assert.doesNotMatch(migration, /drop table|truncate|delete from/i)
+})
