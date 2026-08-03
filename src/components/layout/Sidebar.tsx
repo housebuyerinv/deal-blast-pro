@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import {
   LayoutDashboard, Building2, Users, Send, Settings, Briefcase,
@@ -53,6 +53,7 @@ const navGroups = [
 ]
 
 export default function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; onClose?: () => void }) {
+  const navigate = useNavigate()
   const { sidebarOpen, getPendingFollowUps, trial, user, settings } = useAppStore()
   const [submissions, setSubmissions] = useState(0)
   const [buyerPortalQueueCount, setBuyerPortalQueueCount] = useState(0)
@@ -139,6 +140,9 @@ export default function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean;
             <div className="px-4 text-[10px] font-semibold tracking-[1px] text-[#8B92A3] mb-1.5">{group.label}</div>
             {visibleItems.map(item => {
               const Icon = item.icon
+              const destination = item.badgeKey === 'buyerPortal' && buyerPortalReviewAllowed && buyerPortalQueueCount > 0
+                ? '/app/buyers?review=pending'
+                : item.to
               let showBadge = false
               let badgeCount = 0
               if (item.badgeKey === 'submissions') {
@@ -154,8 +158,12 @@ export default function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean;
               return (
                 <NavLink
                   key={item.to}
-                  to={item.badgeKey === 'buyerPortal' && buyerPortalReviewAllowed && buyerPortalQueueCount > 0 ? '/app/buyers?review=pending' : item.to}
-                  onClick={onClose}
+                  to={destination}
+                  onClick={(event) => {
+                    event.preventDefault()
+                    navigate(destination)
+                    onClose?.()
+                  }}
                   className={({ isActive }) =>
                     `flex items-center gap-3 px-4 py-[9px] text-sm mx-1.5 rounded-lg transition-colors ${
                       isActive ? 'bg-[#171B26] text-white' : 'text-[#C5CAD6] hover:bg-[#171B26]/60'

@@ -39,4 +39,9 @@ assert.equal(store.includes('readOwnerPreviewSession()'), true)
 assert.equal(store.includes('writeOwnerPreviewSession'), true)
 assert.equal(store.includes('buildProductionPersistedState'), true)
 
+const sidebar = await readFile(new URL('../src/components/layout/Sidebar.tsx', import.meta.url), 'utf8')
+assert.equal(sidebar.includes('event.preventDefault()'), true)
+assert.equal(sidebar.includes('navigate(destination)'), true)
+assert.equal(sidebar.includes('onClose?.()'), true)
+
 console.log('Preview repair, zero-credit UX, Admin Credit Operations, and browser-storage contract tests passed.')
