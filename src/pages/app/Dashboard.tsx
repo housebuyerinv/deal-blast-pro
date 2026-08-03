@@ -627,8 +627,17 @@ function LiveOperationalStream() {
       } catch {}
     }
     load()
-    const id = setInterval(load, 15000) // light poll
-    return () => clearInterval(id)
+    const refresh = () => load()
+    window.addEventListener('focus', refresh)
+    window.addEventListener('dealblastpro:storage-sync', refresh)
+    window.addEventListener('dealblastpro:deal-submission-queue-changed', refresh)
+    window.addEventListener('dealblastpro:buyer-portal-queue-changed', refresh)
+    return () => {
+      window.removeEventListener('focus', refresh)
+      window.removeEventListener('dealblastpro:storage-sync', refresh)
+      window.removeEventListener('dealblastpro:deal-submission-queue-changed', refresh)
+      window.removeEventListener('dealblastpro:buyer-portal-queue-changed', refresh)
+    }
   }, [])
 
   const getIcon = (_type?: string) => {

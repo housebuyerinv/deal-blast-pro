@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build --config vite.config.mjs --configLoader native",
     "preview": "vite preview",
     "lint": "eslint .",
+    "test": "node --test tests/*.test.mjs",
     "seed": "echo 'Seed data is baked into the app on first load'"
   },
   "dependencies": {

@@ -85,7 +85,9 @@ export function getAllowedRoutes(
   user?: Pick<User, 'email'> | null,
   settings?: Pick<AppSettings, 'ownerPreviewPlan'> | null,
 ): AppRoute[] {
-  if (hasOwnerAdminBypass(user)) return ALL_APP_ROUTES
+  // Owner Admin keeps unrestricted access unless they explicitly enter Preview.
+  // Preview must exercise the same navigation contract as the selected plan.
+  if (hasOwnerAdminBypass(user) && !isOwnerPreviewActive(user, settings)) return ALL_APP_ROUTES
   const plan = getEffectivePlan(trial, user, settings)
   if (plan === 'Owner Admin') return ALL_APP_ROUTES
   return Array.from(new Set([...(PLAN_ROUTE_ACCESS[plan] || PLAN_ROUTE_ACCESS.Free), '/app/settings' as AppRoute]))
@@ -97,7 +99,7 @@ export function canAccessRoute(
   user?: Pick<User, 'email'> | null,
   settings?: Pick<AppSettings, 'ownerPreviewPlan'> | null,
 ) {
-  if (hasOwnerAdminBypass(user)) return true
+  if (hasOwnerAdminBypass(user) && !isOwnerPreviewActive(user, settings)) return true
   return getAllowedRoutes(trial, user, settings).includes(route as AppRoute)
 }
 
