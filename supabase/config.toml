@@ -25,3 +25,15 @@ otp_expiry = 3600
 [auth.mfa.totp]
 enroll_enabled = true
 verify_enabled = true
+
+[functions.notify-submission]
+verify_jwt = true
+
+[functions.stripe-webhook]
+verify_jwt = false
+
+[functions.resend-webhook]
+verify_jwt = false
+
+[functions.email-outbox-worker]
+verify_jwt = false

@@ -81,4 +81,11 @@ assert.equal(email.includes("from('email_outbox')"),true)
 assert.equal(email.includes('safeAdminTestRecipients'),true)
 assert.equal(email.includes('isEssentialEvent'),true)
 
+const emailWorker = await readFile(new URL('../supabase/functions/email-outbox-worker/index.ts',import.meta.url),'utf8')
+for (const required of ['claim_email_outbox_batch','p_worker_token','provider_accepted','retry_scheduled','failed_permanently',".eq('lease_token', workerToken)"]) assert.equal(emailWorker.includes(required),true,required)
+const resendWebhook = await readFile(new URL('../supabase/functions/resend-webhook/index.ts',import.meta.url),'utf8')
+for (const required of ["req.headers.get('svix-id') || event?.data?.id","'email.sent': 'provider_accepted'",'duplicate: true','delivery_event_write_failed']) assert.equal(resendWebhook.includes(required),true,required)
+const emailHardeningMigration = await readFile(new URL('../supabase/migrations/20260803190000_harden_email_outbox_delivery.sql',import.meta.url),'utf8')
+for (const required of ['for update skip locked','claim_email_outbox_batch','lease_expires_at','failed_permanently']) assert.equal(emailHardeningMigration.includes(required),true,required)
+
 console.log('Credit, email outbox, Stripe idempotency, and Hot Zones contract tests passed.')

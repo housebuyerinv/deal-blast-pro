@@ -28,21 +28,26 @@ Deno.serve(async req => {
   if (!secret || !url || !key) return json({ ok: false, error: 'not_configured' }, 503)
   if (!await verify(body, req, secret)) return json({ ok: false, error: 'invalid_signature' }, 401)
   const event = JSON.parse(body)
-  const providerEventId = String(event?.data?.id || req.headers.get('svix-id') || '')
+  const providerEventId = String(req.headers.get('svix-id') || event?.data?.id || '')
   const providerMessageId = String(event?.data?.email_id || event?.data?.email?.id || '')
   const eventType = String(event?.type || '').toLowerCase()
   const statusMap: Record<string, string> = {
-    'email.sent': 'sent', 'email.delivered': 'delivered', 'email.delivery_delayed': 'retrying',
-    'email.bounced': 'bounced', 'email.complained': 'complained', 'email.failed': 'failed', 'email.suppressed': 'suppressed',
+    'email.sent': 'provider_accepted', 'email.delivered': 'delivered', 'email.delivery_delayed': 'retry_scheduled',
+    'email.bounced': 'bounced', 'email.complained': 'complained', 'email.failed': 'permanent_failure', 'email.suppressed': 'suppressed',
   }
-  const status = statusMap[eventType] || 'sent'
+  const status = statusMap[eventType]
+  if (!status || !providerEventId) return json({ ok: true, ignored: true })
   const client = createClient(url, key, { auth: { persistSession: false } })
   const { data: outbox } = await client.from('email_outbox').select('id,recipient').eq('provider_message_id', providerMessageId).maybeSingle()
-  await client.from('email_delivery_events').insert({ outbox_id: outbox?.id || null, provider_event_id: providerEventId,
+  const { error: eventError } = await client.from('email_delivery_events').insert({ outbox_id: outbox?.id || null, provider_event_id: providerEventId,
     provider_message_id: providerMessageId || null, event_type: eventType, status,
     safe_metadata: { provider: 'resend' }, occurred_at: event?.created_at || new Date().toISOString() })
+  if (eventError?.code === '23505') return json({ ok: true, duplicate: true })
+  if (eventError) return json({ ok: false, error: 'delivery_event_write_failed' }, 500)
   if (outbox?.id) await client.from('email_outbox').update({ status,
-    delivered_at: status === 'delivered' ? new Date().toISOString() : undefined, updated_at: new Date().toISOString() }).eq('id', outbox.id)
+    delivered_at: status === 'delivered' ? new Date().toISOString() : undefined,
+    completed_at: ['delivered','bounced','complained','suppressed','permanent_failure'].includes(status) ? new Date().toISOString() : undefined,
+    updated_at: new Date().toISOString() }).eq('id', outbox.id)
   if (outbox?.recipient && ['bounced','complained','suppressed'].includes(status)) {
     await client.from('email_suppressions').upsert({ recipient_hash: await sha256(String(outbox.recipient).trim().toLowerCase()),
       reason: status === 'complained' ? 'complaint' : 'bounce', provider_event_id: providerEventId }, { onConflict: 'recipient_hash' })
