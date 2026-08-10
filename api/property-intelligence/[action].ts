@@ -7,6 +7,7 @@ import {
   readGeoapifyConfig,
 } from '../_geoapify.js'
 import { handlePlatformAction } from '../../src/server/platformActions.js'
+import { getIncludedPropertyIntelligenceCredits } from '../../src/lib/propertyIntelligencePolicy.js'
 
 const RENTCAST_BASE_URL = 'https://api.rentcast.io/v1'
 const CUSTOMER_SOURCE = 'Property Intelligence'
@@ -193,12 +194,7 @@ function getWorkspaceId(account: Awaited<ReturnType<typeof getAuthenticatedAccou
 
 function planLookupLimit(planName: string, ownerAdmin: boolean, enterpriseLimit?: number | null) {
   if (ownerAdmin) return 0
-  const normalized = clean(planName).toLowerCase()
-  if (normalized === 'enterprise') return Math.max(0, Number(enterpriseLimit) || 0)
-  if (normalized === 'agency') return 150
-  if (normalized === 'pro') return 50
-  if (normalized === 'starter') return 20
-  return 0
+  return getIncludedPropertyIntelligenceCredits(planName, enterpriseLimit)
 }
 
 function nextMonthlyResetDate() {

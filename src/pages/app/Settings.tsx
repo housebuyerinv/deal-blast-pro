@@ -30,6 +30,7 @@ import { getWorkspaceDisplayName } from '../../lib/workspaceName'
 import { getBillingControlPolicy } from '../../lib/customerExperiencePolicies'
 import { PAST_DUE_READ_ONLY_DAYS, PAST_DUE_RESTRICTED_DAYS } from '../../lib/accountLifecycle'
 import { PLAN_PRICING, PRICING_PLAN_ORDER, getPriceDisplay, type PricingPlanName } from '../../lib/planPricing'
+import { PROPERTY_INTELLIGENCE_PLAN_COMPARISON_LABELS } from '../../lib/propertyIntelligencePolicy'
 import {
   parseBuyerRecoveryImportFile,
   prepareRecoveredBuyers,
@@ -2720,7 +2721,7 @@ export default function Settings() {
     ['Deal Blast Builder', 'Not included', 'Basic', 'Included', 'Advanced', 'Custom'],
     ['Follow-Up Task Center', 'Not included', 'Basic', 'Included', 'Advanced', 'Custom'],
     ['Core Deal Calculators', 'ARV Calculator', 'ARV, Rehab, and MAO', 'All calculators', 'All calculators', 'All calculators'],
-    ['Property Intelligence', 'Not included', '20 lookups per month', '50 lookups per month', '150 lookups per month', 'Custom'],
+    ['Property Intelligence', ...PROPERTY_INTELLIGENCE_PLAN_COMPARISON_LABELS],
     ['Custom Buyer and Deal Portals', 'Not included', 'Not included', 'Coming Soon', 'Coming Soon', 'Custom / Coming Soon'],
     ['Deal Submission Review Center', 'Not included', 'Not included', 'Coming Soon', 'Coming Soon', 'Custom'],
     ['Buyer Portal Review Center', 'Not included', 'Not included', 'Coming Soon', 'Coming Soon', 'Custom'],

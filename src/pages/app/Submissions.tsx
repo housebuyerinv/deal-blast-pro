@@ -7,9 +7,10 @@ import { findInventoryDealBySubmission } from '../../lib/submissionInventoryIden
 import {
 
   dismissDealSubmission,
+  countPendingDealSubmissionDocsFromRows,
   getDealSubmissionConversionMeta,
   getDealSubmissionQueueBucket,
-  hasMissingDealSubmissionDocs,
+  isPendingDealSubmissionDocs,
   isActionableDealSubmission,
   isConvertedDealSubmission,
   listDealSubmissionsForReview,
@@ -671,7 +672,7 @@ export default function Submissions() {
 
   const visibleSubs = useMemo(() => {
     if (queueTab === 'actionable') return subs.filter(isActionableDealSubmission)
-    if (queueTab === 'pendingDocs') return subs.filter((sub: any) => isActionableDealSubmission(sub) && hasMissingDealSubmissionDocs(sub))
+    if (queueTab === 'pendingDocs') return subs.filter(isPendingDealSubmissionDocs)
     return subs.filter((sub: any) => getDealSubmissionQueueBucket(sub) === queueTab)
   }, [subs, queueTab])
 
@@ -679,7 +680,7 @@ export default function Submissions() {
     actionable: subs.filter(isActionableDealSubmission).length,
     new: subs.filter((sub: any) => getDealSubmissionQueueBucket(sub) === 'new').length,
     needsInfo: subs.filter((sub: any) => getDealSubmissionQueueBucket(sub) === 'needsInfo').length,
-    pendingDocs: subs.filter((sub: any) => isActionableDealSubmission(sub) && hasMissingDealSubmissionDocs(sub)).length,
+    pendingDocs: countPendingDealSubmissionDocsFromRows(subs),
     converted: subs.filter((sub: any) => getDealSubmissionQueueBucket(sub) === 'converted').length,
     archived: subs.filter((sub: any) => getDealSubmissionQueueBucket(sub) === 'archived').length,
   }), [subs])

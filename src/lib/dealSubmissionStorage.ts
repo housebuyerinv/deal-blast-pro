@@ -157,6 +157,14 @@ export function hasMissingDealSubmissionDocs(submission: any) {
   return getMissingDealSubmissionDocKeys(submission).length > 0
 }
 
+export function isPendingDealSubmissionDocs(submission: any) {
+  return isActionableDealSubmission(submission) && hasMissingDealSubmissionDocs(submission)
+}
+
+export function countPendingDealSubmissionDocsFromRows(submissions: any[]) {
+  return (submissions || []).filter(isPendingDealSubmissionDocs).length
+}
+
 function withTimeout<T>(promise: PromiseLike<T>, message: string, timeoutMs = DEAL_SUBMISSION_LOAD_TIMEOUT_MS): Promise<T> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(message)), timeoutMs)
@@ -405,6 +413,12 @@ export async function countPendingDealSubmissions() {
   } catch (error) {
     return { ok: false, error, count: 0 }
   }
+}
+
+export async function countPendingDealSubmissionDocs() {
+  const result = await listDealSubmissionsForReview()
+  if (!result.ok) return { ...result, count: 0 }
+  return { ok: true as const, count: countPendingDealSubmissionDocsFromRows(result.data || []) }
 }
 
 export async function listRecentDealSubmissionActivity(limit = 4) {

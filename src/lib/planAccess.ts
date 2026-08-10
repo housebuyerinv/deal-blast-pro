@@ -70,6 +70,13 @@ export function hasEffectiveOwnerAdminBypass(
   return hasOwnerAdminBypass(user) && !isOwnerPreviewActive(user, settings)
 }
 
+export function canShowOwnerPropertyIntelligenceBypass(
+  user?: Pick<User, 'email'> | null,
+  settings?: Pick<AppSettings, 'ownerPreviewPlan'> | null,
+) {
+  return hasEffectiveOwnerAdminBypass(user, settings)
+}
+
 export function getOwnerPreviewContext(
   user?: Pick<User, 'email'> | null,
   settings?: Pick<AppSettings, 'ownerPreviewPlan'> | null,

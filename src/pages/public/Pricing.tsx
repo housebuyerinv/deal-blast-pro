@@ -10,13 +10,14 @@ import {
   PLAN_PRICING,
   getPriceDisplay,
 } from '../../lib/planPricing'
+import { getPropertyIntelligenceTierPoint, PROPERTY_INTELLIGENCE_PLAN_COMPARISON_LABELS } from '../../lib/propertyIntelligencePolicy'
 
 const tierPoints: Record<string, string[]> = {
-  Free: ['Public submission access', 'ARV calculator', 'Up to 25 buyers'],
-  Starter: ['Deal and buyer management', 'Core starter calculators', '20 Property Intelligence lookups monthly', 'Up to 250 buyers'],
-  Pro: ['Advanced buyer matching', 'All calculators', '50 Property Intelligence lookups monthly', 'Up to 1,000 buyers'],
-  Agency: ['Higher monthly limits', '150 Property Intelligence lookups monthly', 'Up to 2,000 buyers', 'Team features coming soon'],
-  Enterprise: ['Up to 5,000 buyers', 'Custom Property Intelligence limits', 'Custom workflows and support'],
+  Free: ['Public submission access', 'ARV calculator', getPropertyIntelligenceTierPoint('Free'), 'Up to 25 buyers'],
+  Starter: ['Deal and buyer management', 'Core starter calculators', getPropertyIntelligenceTierPoint('Starter'), 'Up to 250 buyers'],
+  Pro: ['Advanced buyer matching', 'All calculators', getPropertyIntelligenceTierPoint('Pro'), 'Up to 1,000 buyers'],
+  Agency: ['Higher monthly limits', getPropertyIntelligenceTierPoint('Agency'), 'Up to 2,000 buyers', 'Team features coming soon'],
+  Enterprise: ['Up to 5,000 buyers', getPropertyIntelligenceTierPoint('Enterprise'), 'Custom workflows and support'],
 }
 
 const tiers = PRICING_PLAN_ORDER.map(name => ({
@@ -66,7 +67,7 @@ const featureRows = [
   },
   {
     feature: 'Property Intelligence',
-    statuses: ['Not included', '20 lookups per month', '50 lookups per month', '150 lookups per month', 'Custom']
+    statuses: [...PROPERTY_INTELLIGENCE_PLAN_COMPARISON_LABELS]
   },
   {
     feature: 'Custom Buyer and Deal Portals',

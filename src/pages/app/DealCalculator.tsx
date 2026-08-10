@@ -12,8 +12,8 @@ import {
   type CalculatorEntitlementId,
   type CalculatorTabId,
 } from '../../lib/calculatorAccess'
-import { hasOwnerAdminBypass } from '../../lib/accessControl'
-import { getOwnerPreviewPlan, isOwnerPreviewActive } from '../../lib/planAccess'
+import { canShowOwnerPropertyIntelligenceBypass, getOwnerPreviewPlan, isOwnerPreviewActive } from '../../lib/planAccess'
+import { getIncludedPropertyIntelligenceCredits } from '../../lib/propertyIntelligencePolicy'
 import { MOCK_PROPERTY_INTELLIGENCE_SAMPLE } from '../../lib/propertyIntelligence/mockProvider'
 import { canShowSamplePropertyIntelligence } from '../../lib/customerExperiencePolicies'
 import { supabase } from '../../lib/supabase'
@@ -270,7 +270,7 @@ export default function DealCalculator() {
   const [activeTab, setActiveTab] = useState<CalcTab>('arv')
   const { trial, user, settings, deals } = useAppStore()
   const ownerPreviewActive = isOwnerPreviewActive(user, settings)
-  const ownerAdminMode = hasOwnerAdminBypass(user) && !ownerPreviewActive
+  const ownerAdminMode = canShowOwnerPropertyIntelligenceBypass(user, settings)
   const effectiveCalculatorPlan = getEffectiveCalculatorPlan(trial, user, settings)
   const calculatorAccessLabel = getCalculatorPlanSubtitle(effectiveCalculatorPlan)
   const canUseLivePropertyData = canAccessCalculatorEntitlement('propertyIntelligence', trial, user, settings)
@@ -789,7 +789,7 @@ export default function DealCalculator() {
       setPropertyConnection({ status: 'Testing Connection', connected: false, checked: false })
       try {
         const previewPlan = getOwnerPreviewPlan(settings)
-        const simulatedIncluded = previewPlan === 'Starter' ? 20 : previewPlan === 'Pro' ? 50 : previewPlan === 'Agency' ? 150 : previewPlan === 'Enterprise' ? 0 : 0
+        const simulatedIncluded = getIncludedPropertyIntelligenceCredits(previewPlan)
         const [statusResult, balance, packPayload] = await Promise.all([
           fetchPropertyIntelligence('status', {})
             .then(payload => ({ payload, error: null }))
