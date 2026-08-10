@@ -181,12 +181,10 @@ export async function sendEmailNotificationTest(settings: EmailNotificationSetti
 export async function loadEmailNotificationLogs(workspaceId = 'default') {
   if (!supabase) throw new Error('Supabase is not configured.')
 
-  const { data, error } = await supabase
-    .from('email_outbox')
-    .select('id,event_type,recipient,provider,provider_message_id,status,attempt_count,last_error_category,created_at,sent_at,delivered_at')
-    .eq('workspace_id', workspaceId)
-    .order('created_at', { ascending: false })
-    .limit(8)
+  const { data, error } = await supabase.rpc('list_email_outbox_operations', {
+    p_workspace_id: workspaceId,
+    p_limit: 8,
+  })
 
   if (error) throw error
   return (data || []).map((row: any) => ({ ...row, error_message: row.last_error_category,
