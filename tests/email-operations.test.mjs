@@ -26,6 +26,8 @@ test('Owner Admin history is server-authorized and spans only owned settings wor
   assert.match(endpoint, /\.in\('workspace_id', workspaceIds\)/)
   assert.match(endpoint, /\.eq\('recipient', account\.email\.toLowerCase\(\)\)/)
   assert.match(endpoint, /never broaden this to arbitrary recipients/)
+  assert.match(endpoint, /from\('email_notification_logs'\)/)
+  assert.match(endpoint, /do not manufacture a delivery state/)
   assert.match(endpoint, /from\('email_delivery_events'\)/)
   assert.doesNotMatch(endpoint, /req\.query.*workspace|req\.body.*workspace/)
 })

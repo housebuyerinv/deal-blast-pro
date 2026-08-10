@@ -52,6 +52,32 @@ export default async function handler(req: any, res: any) {
     if (ownerRecipientError) throw ownerRecipientError
     outboxRows.push(...(ownerRecipientRows || []))
 
+    // The currently deployed notification function predates the outbox worker
+    // and durably recorded some accepted test sends in email_notification_logs.
+    // Read those real rows and correlate their provider IDs to immutable webhook
+    // events; do not manufacture a delivery state.
+    const { data: legacyRows, error: legacyError } = await account.adminClient
+      .from('email_notification_logs')
+      .select('id,workspace_id,event_type,recipient,provider,provider_message_id,status,attempt_count,error_message,created_at,attempted_at,succeeded_at')
+      .eq('recipient', account.email.toLowerCase())
+      .order('created_at', { ascending: false })
+      .limit(50)
+    if (legacyError) throw legacyError
+    outboxRows.push(...(legacyRows || []).map(row => ({
+      id: row.id,
+      workspace_id: row.workspace_id,
+      event_type: row.event_type,
+      recipient: row.recipient,
+      provider: row.provider,
+      provider_message_id: row.provider_message_id,
+      status: row.status,
+      attempt_count: row.attempt_count,
+      last_error_category: row.error_message,
+      created_at: row.created_at,
+      sent_at: row.succeeded_at || row.attempted_at,
+      delivered_at: null,
+    })))
+
     const uniqueOutboxRows = outboxRows
       .filter((row, index, all) => all.findIndex(candidate => candidate.id === row.id) === index)
       .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
