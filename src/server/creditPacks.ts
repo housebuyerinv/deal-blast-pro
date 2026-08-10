@@ -1,4 +1,4 @@
-import { PROPERTY_INTELLIGENCE_CREDIT_PACKS } from '../lib/propertyIntelligencePolicy'
+import { PROPERTY_INTELLIGENCE_CREDIT_PACKS } from '../lib/propertyIntelligencePolicy.js'
 
 export type CreditPack = { key: string; credits: number; amountCents: number; stripePriceId: string }
 const DEFAULTS = PROPERTY_INTELLIGENCE_CREDIT_PACKS
