@@ -180,13 +180,15 @@ export async function sendEmailNotificationTest(settings: EmailNotificationSetti
 
 export async function loadEmailNotificationLogs(workspaceId = 'default') {
   if (!supabase) throw new Error('Supabase is not configured.')
+  void workspaceId
+  const { data: sessionData } = await supabase.auth.getSession()
+  const token = sessionData.session?.access_token
+  if (!token) throw new Error('Sign in before viewing email operations.')
 
-  const { data, error } = await supabase.rpc('list_email_outbox_operations', {
-    p_workspace_id: workspaceId,
-    p_limit: 8,
+  const response = await fetch('/api/email-operations', {
+    headers: { Authorization: `Bearer ${token}` },
   })
-
-  if (error) throw error
-  return (data || []).map((row: any) => ({ ...row, error_message: row.last_error_category,
-    attempted_at: row.created_at, succeeded_at: row.delivered_at || row.sent_at, failed_at: row.status === 'failed' ? row.created_at : null })) as EmailNotificationLog[]
+  const payload = await response.json().catch(() => ({}))
+  if (!response.ok || payload?.ok === false) throw new Error(payload?.error || 'Email operations are unavailable.')
+  return (Array.isArray(payload?.operations) ? payload.operations : []) as EmailNotificationLog[]
 }
