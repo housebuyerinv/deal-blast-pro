@@ -152,6 +152,14 @@ export async function sendEmailNotificationTest(settings: EmailNotificationSetti
   const checked = validateNotificationRecipients(settings.recipients)
   if (!checked.ok) throw new Error(checked.error)
 
+  // The outbox RLS policy grants visibility through the authenticated owner's
+  // notification-settings row. Persist it before sending so a first-ever test
+  // is immediately visible in Admin Email Operations.
+  await saveEmailNotificationSettings({
+    ...settings,
+    recipients: checked.recipients,
+  })
+
   const { data, error } = await supabase.functions.invoke('notify-submission', {
     body: {
       type: 'test',
