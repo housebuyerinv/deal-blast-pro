@@ -40,7 +40,7 @@ const recentBuyerHelper = section(
 const recentDealHelper = section(
   dealStorage,
   'export async function listRecentDealSubmissionActivity',
-  'export async function listDealSubmissionsForReview'
+  'async function loadDealSubmissionsForReview'
 )
 const buyerCountEffect = section(
   buyers,
