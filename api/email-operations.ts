@@ -26,18 +26,38 @@ export default async function handler(req: any, res: any) {
     if (settingsError) throw settingsError
 
     const workspaceIds = Array.from(new Set((settings || []).map(row => String(row.workspace_id || '')).filter(Boolean)))
-    if (!workspaceIds.length) return send(res, 200, { ok: true, operations: [] })
+    const outboxRows: any[] = []
+    const columns = 'id,workspace_id,event_type,recipient,provider,provider_message_id,status,attempt_count,last_error_category,created_at,sent_at,delivered_at'
 
-    const { data: outboxRows, error: outboxError } = await account.adminClient
+    if (workspaceIds.length) {
+      const { data, error } = await account.adminClient
+        .from('email_outbox')
+        .select(columns)
+        .in('workspace_id', workspaceIds)
+        .order('created_at', { ascending: false })
+        .limit(50)
+      if (error) throw error
+      outboxRows.push(...(data || []))
+    }
+
+    // Legacy Preview tests may have a local workspace ID whose settings row was
+    // never retained. Recover only messages addressed to this authenticated,
+    // verified Owner Admin email; never broaden this to arbitrary recipients.
+    const { data: ownerRecipientRows, error: ownerRecipientError } = await account.adminClient
       .from('email_outbox')
-      .select('id,workspace_id,event_type,recipient,provider,provider_message_id,status,attempt_count,last_error_category,created_at,sent_at,delivered_at')
-      .in('workspace_id', workspaceIds)
+      .select(columns)
+      .eq('recipient', account.email.toLowerCase())
       .order('created_at', { ascending: false })
       .limit(50)
-    if (outboxError) throw outboxError
+    if (ownerRecipientError) throw ownerRecipientError
+    outboxRows.push(...(ownerRecipientRows || []))
 
-    const outboxIds = (outboxRows || []).map(row => row.id)
-    const messageIds = (outboxRows || []).map(row => row.provider_message_id).filter(Boolean)
+    const uniqueOutboxRows = outboxRows
+      .filter((row, index, all) => all.findIndex(candidate => candidate.id === row.id) === index)
+      .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
+
+    const outboxIds = uniqueOutboxRows.map(row => row.id)
+    const messageIds = uniqueOutboxRows.map(row => row.provider_message_id).filter(Boolean)
     const events: any[] = []
 
     if (outboxIds.length) {
@@ -59,7 +79,7 @@ export default async function handler(req: any, res: any) {
     }
 
     const uniqueEvents = events.filter((event, index, all) => all.findIndex(candidate => candidate.provider_event_id === event.provider_event_id) === index)
-    return send(res, 200, { ok: true, operations: correlateEmailOperations(outboxRows || [], uniqueEvents).slice(0, 8) })
+    return send(res, 200, { ok: true, operations: correlateEmailOperations(uniqueOutboxRows, uniqueEvents).slice(0, 8) })
   } catch (error: any) {
     return send(res, Number(error?.status || 500), {
       ok: false,
