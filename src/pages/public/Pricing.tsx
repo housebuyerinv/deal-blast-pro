@@ -224,7 +224,7 @@ export default function Pricing() {
             </table>
           </div>
           <p className="mt-3 text-center text-xs text-[#8B92A3]">
-            Starter includes 20 monthly Property Intelligence credits, and every plan may buy additional credits. Cached results do not use an additional credit. Data availability varies by property and market.
+            Starter includes 20 monthly Property Intelligence credits, and every plan may buy additional credits. Purchased credits are tracked separately and do not expire. Cached results do not use an additional credit. Data availability varies by property and market.
           </p>
           <p className="mt-2 text-center text-xs text-[#8B92A3]">
             Additional buyer-capacity packs may be offered in the future.
