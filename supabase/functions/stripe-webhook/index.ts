@@ -42,6 +42,25 @@ export const parseRpcDiagnostic = async (response: Response) => {
   return { status: response.status, code: safe(body.code), message: safe(body.message), details: safe(body.details), hint: safe(body.hint) }
 }
 
+export const parseStripeAuthDiagnostic = async (response: Response) => {
+  let body: Record<string, unknown> = {}
+  try {
+    const parsed = await response.clone().json()
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) body = parsed as Record<string, unknown>
+  } catch {
+    // Keep diagnostics safe when Stripe returns a non-JSON body.
+  }
+  const safe = (value: unknown) => typeof value === 'string' ? value.slice(0, 500) : undefined
+  const error = body.error && typeof body.error === 'object' ? body.error as Record<string, unknown> : body
+  return {
+    status: response.status,
+    type: safe(error.type),
+    code: safe(error.code),
+    message: safe(error.message),
+    requestId: safe(response.headers.get('request-id')),
+  }
+}
+
 const claimStripeEvent = async (supabaseUrl: string, serviceKey: string, event: any, payloadHash: string) => {
   const response = await fetch(`${supabaseUrl}/rest/v1/stripe_event_receipts`, {
     method: 'POST', headers: serviceHeaders(serviceKey, 'resolution=ignore-duplicates,return=representation'),
@@ -644,8 +663,9 @@ Deno.serve(async req => {
     }
   } catch (error) {
     const rpcDiagnostic = (error as { rpcDiagnostic?: Record<string, unknown> })?.rpcDiagnostic
+    const stripeAuthDiagnostic = (error as { stripeAuthDiagnostic?: Record<string, unknown> })?.stripeAuthDiagnostic
     await finishStripeEvent(supabaseUrl, serviceKey, event.id, 'failed', String((error as { message?: string })?.message || 'credit_pack_failed'),
-      rpcDiagnostic ? { credit_pack_grant_rpc: rpcDiagnostic } : undefined)
+      rpcDiagnostic ? { credit_pack_grant_rpc: rpcDiagnostic } : stripeAuthDiagnostic ? { credit_pack_provider_auth: stripeAuthDiagnostic } : undefined)
     return json({ ok: false, error: 'Credit pack fulfillment failed' }, 500)
   }
 
