@@ -1,8 +1,8 @@
 # Deal Blast Pro - Backend Handoff Guide
 
-## Current Architecture (Client-Side Only)
+## Current Architecture
 
-Deal Blast Pro is currently a fully functional, production-feeling **client-side only** SaaS demo built with:
+Deal Blast Pro retains a local-first client experience, with authenticated Supabase-backed account, profile, workspace, buyer, billing, email, and Property Intelligence operations where implemented. This document describes the current state and remaining boundaries; it is no longer accurate to describe the application as authentication-free.
 
 - **Vite + React 18 + TypeScript**
 - **Zustand** for global state management (with `persist` middleware)
@@ -30,11 +30,11 @@ Key persisted slices:
 
 All data is automatically serialized to localStorage under the key `dealblastpro-v1`.
 
-### Current Limitations (Intentional for Demo)
-- No real authentication (mock login/register)
-- No multi-user or team collaboration
-- No real file persistence (uploads use object URLs that disappear on refresh)
-- Data is per-browser only
+### Current Boundaries
+- Supabase Auth is required for protected application routes.
+- Workspace and operational data paths must remain server-authorized and workspace-scoped.
+- Some legacy calculator/demo state remains local-first by design.
+- File persistence depends on the configured storage path; browser-only uploads are not durable.
 
 ---
 
