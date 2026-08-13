@@ -30,6 +30,18 @@ const serviceHeaders = (serviceKey: string, prefer = '') => ({
   apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, 'Content-Type': 'application/json', ...(prefer ? { Prefer: prefer } : {}),
 })
 
+export const parseRpcDiagnostic = async (response: Response) => {
+  let body: Record<string, unknown> = {}
+  try {
+    const parsed = await response.clone().json()
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) body = parsed as Record<string, unknown>
+  } catch {
+    // Keep diagnostics safe when the provider returns a non-JSON body.
+  }
+  const safe = (value: unknown) => typeof value === 'string' ? value.slice(0, 500) : undefined
+  return { status: response.status, code: safe(body.code), message: safe(body.message), details: safe(body.details), hint: safe(body.hint) }
+}
+
 const claimStripeEvent = async (supabaseUrl: string, serviceKey: string, event: any, payloadHash: string) => {
   const response = await fetch(`${supabaseUrl}/rest/v1/stripe_event_receipts`, {
     method: 'POST', headers: serviceHeaders(serviceKey, 'resolution=ignore-duplicates,return=representation'),
@@ -122,7 +134,11 @@ const fulfillCreditPack = async (supabaseUrl: string, serviceKey: string, event:
     method: 'POST', headers: serviceHeaders(serviceKey), body: JSON.stringify({ p_workspace_id: workspaceId, p_purchase_id: purchaseId,
       p_credits: pack.credits, p_stripe_event_id: event.id, p_idempotency_key: `stripe:credit-pack:${event.id}` }),
   })
-  if (!grant.ok) throw new Error('credit_pack_grant_failed')
+  if (!grant.ok) {
+    const diagnostic = await parseRpcDiagnostic(grant)
+    console.error('credit_pack_grant_rpc_failed', diagnostic)
+    throw new Error('credit_pack_grant_failed')
+  }
   return true
 }
 
