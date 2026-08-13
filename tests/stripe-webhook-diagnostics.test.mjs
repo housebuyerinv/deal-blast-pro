@@ -13,6 +13,8 @@ test('credit-pack RPC failure keeps a safe diagnostic and stable external error'
   assert.match(source, /hint: safe\(body\.hint\)/)
   assert.match(source, /throw new Error\('credit_pack_grant_failed'\)/)
   assert.match(source, /console\.error\('credit_pack_grant_rpc_failed', diagnostic\)/)
+  assert.match(source, /credit_pack_grant_rpc/)
+  assert.match(source, /rpcDiagnostic \? \{ credit_pack_grant_rpc: rpcDiagnostic \}/)
   assert.doesNotMatch(source, /console\.error\([^\n]*(Authorization|STRIPE_SECRET|STRIPE_WEBHOOK|SUPABASE_SERVICE_ROLE)/)
   assert.match(source, /property_intelligence_addon_purchases/)
 })
