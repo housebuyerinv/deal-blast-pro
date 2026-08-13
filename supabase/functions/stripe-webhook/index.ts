@@ -112,8 +112,29 @@ const readCreditPackDefinitions = (): CreditPackDefinition[] => {
 const resolvePaidCreditPack = async (object: any) => {
   let lineItems = object?.line_items?.data
   if ((!Array.isArray(lineItems) || !lineItems.length) && object?.id) {
-    const response = await stripeGet(`/v1/checkout/sessions/${encodeURIComponent(object.id)}/line_items?limit=2`)
-    lineItems = response?.data
+    const secretKey = String(Deno.env.get('STRIPE_SECRET_KEY') || '').trim()
+    if (!secretKey) throw new Error('credit_pack_provider_not_configured')
+    let response: Response
+    try {
+      response = await fetch(`https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(object.id)}/line_items?limit=2`, {
+        headers: {
+          Authorization: `Bearer ${secretKey}`,
+          // The Stripe account predates Checkout Session line-items. Pin this
+          // lookup so it does not inherit the account's legacy API version.
+          'Stripe-Version': Deno.env.get('STRIPE_API_VERSION') || '2025-06-30.basil',
+        },
+      })
+    } catch {
+      throw new Error('credit_pack_provider_network_failed')
+    }
+    if (response.status === 401 || response.status === 403) {
+      const diagnostic = await parseStripeAuthDiagnostic(response)
+      throw Object.assign(new Error('credit_pack_provider_authentication_failed'), { stripeAuthDiagnostic: diagnostic })
+    }
+    if (response.status === 429) throw new Error('credit_pack_provider_rate_limited')
+    if (!response.ok) throw new Error('credit_pack_provider_lookup_failed')
+    const responseBody = await response.json()
+    lineItems = responseBody?.data
   }
   if (!Array.isArray(lineItems) || lineItems.length !== 1 || Number(lineItems[0]?.quantity || 0) !== 1) {
     throw new Error('credit_pack_line_items_invalid')
