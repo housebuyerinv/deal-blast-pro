@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
+/* global URL */
 import test from 'node:test'
 
 const source = async path => readFile(new URL(`../${path}`, import.meta.url), 'utf8')
