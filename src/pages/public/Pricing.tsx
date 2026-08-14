@@ -70,6 +70,10 @@ const featureRows = [
     statuses: [...PROPERTY_INTELLIGENCE_PLAN_COMPARISON_LABELS]
   },
   {
+    feature: 'Verified-closing Hot Zones',
+    statuses: ['Not included', 'Not included', 'Included now', 'Included now', 'Custom']
+  },
+  {
     feature: 'Custom Buyer and Deal Portals',
     statuses: ['Not included', 'Not included', 'Coming Soon', 'Coming Soon', 'Custom / Coming Soon']
   },
@@ -98,7 +102,7 @@ const featureRows = [
 ]
 
 const statusClass = (status: string) => {
-  if (status === 'Included') return 'text-[#22C55E]'
+  if (status === 'Included' || status === 'Included now') return 'text-[#22C55E]'
   if (status === 'Planned' || status === 'Coming Soon' || status.includes('Coming Soon')) return 'text-[#FBBF24]'
   if (status === 'Custom') return 'text-[#60A5FA]'
   if (status === 'Advanced') return 'text-[#A78BFA]'
@@ -119,6 +123,7 @@ export default function Pricing() {
           <p className="mt-3 text-[#8B92A3]">Start small, then upgrade when your deal flow and buyer outreach need more room.</p>
           <p className="mt-2 text-sm text-[#C5CAD6]">Start with Free, Starter, or Pro. Agency and Enterprise options are available by request.</p>
           <p className="mt-2 text-xs text-[#8B92A3]">Features labeled Coming Soon are not yet available for customer use. Plan limits and feature availability are enforced by account and workspace.</p>
+          <p className="mt-2 text-xs text-[#8B92A3]">Included now reflects the current release. Coming Soon and Custom features require a later release or contract setup. Hot Zones use verified closing records only and require Pro or higher.</p>
           <div className="mt-4 grid gap-2 md:hidden">
             <Link to="/waitlist" className="btn btn-green w-full justify-center py-3 text-sm">
               Join Waitlist
