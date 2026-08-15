@@ -38,6 +38,7 @@ import Analytics from './pages/app/Analytics'
 import HotZones from './pages/app/HotZones'
 import Pipeline from './pages/app/Pipeline'
 import Upgrade from './pages/app/Upgrade'
+import WhatsNew from './pages/app/WhatsNew'
 
 import { ErrorBoundary } from './components/ui/ErrorBoundary'
 import { useCloudAutoSave } from './lib/cloudAutoSave'
@@ -307,6 +308,7 @@ function App() {
                   <Route path="analytics" element={<Analytics />} />
                   <Route path="hot-zones" element={<HotZones />} />
                   <Route path="pipeline" element={<Pipeline />} />
+                  <Route path="whats-new" element={<WhatsNew />} />
                   <Route path="*" element={<Navigate to="dashboard" replace />} />
                 </Routes>
               </AppShell>
