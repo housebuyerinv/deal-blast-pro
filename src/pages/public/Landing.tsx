@@ -50,8 +50,8 @@ export default function Landing() {
                 Deal Blast Pro helps real estate operators collect deal submissions, organize buyers, track inventory, and manage disposition follow-up from one simple workspace.
               </p>
               <div className="flex flex-col sm:flex-row flex-wrap gap-3">
-                  <Link to="/register" className="btn btn-green text-base px-7 py-3">
-                   Start Free
+                <Link to="/register" className="btn btn-green text-base px-7 py-3">
+                  Sign Up Now
                   <ArrowRight size={18} />
                 </Link>
                 <Link to="/pricing" className="btn btn-ghost text-base px-7 py-3">View Pricing</Link>
@@ -150,20 +150,20 @@ export default function Landing() {
             <p className="text-[#C5CAD6] mb-4">
               Review inbound opportunities before marketing anything, then move qualified deals into inventory, buyer matching, exports, and follow-up.
             </p>
-               <Link to="/pricing" className="btn btn-ghost">
-               View Pricing
+            <Link to="/pricing" className="btn btn-ghost">
+              View Pricing
               <ArrowRight size={17} />
             </Link>
           </div>
         </section>
 
         <section className="max-w-4xl mx-auto px-6 pt-4 pb-14 text-center">
-          <h2 className="text-3xl font-semibold mb-4">Start building your dispo workspace.</h2>
+          <h2 className="text-3xl font-semibold mb-4">Ready to simplify your real estate operation?</h2>
           <p className="text-[#8B92A3] mb-7">
-            Join the waitlist for Deal Blast Pro early access and product launch updates.
+            Create your Deal Blast Pro account now and start organizing deals, buyers, property analysis, and disposition follow-up in one workspace.
           </p>
           <div className="flex flex-col sm:flex-row flex-wrap gap-3 justify-center">
-             <Link to="/register" className="btn btn-green px-8 py-3 text-base">Start Free</Link>
+            <Link to="/register" className="btn btn-green px-8 py-3 text-base">Sign Up Now</Link>
             <Link to="/pricing" className="btn btn-ghost px-8 py-3 text-base">View Pricing</Link>
             <Link to="/admin-login" className="btn btn-ghost px-8 py-3 text-base">Sign In</Link>
           </div>
