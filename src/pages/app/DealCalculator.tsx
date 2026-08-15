@@ -398,6 +398,8 @@ export default function DealCalculator() {
   const [propertyLookupStatus, setPropertyLookupStatus] = useState('')
   const [propertyCreditBalance, setPropertyCreditBalance] = useState<any | null>(null)
   const [propertyCreditPacks, setPropertyCreditPacks] = useState<any[]>([])
+  const [propertySearchHistory, setPropertySearchHistory] = useState<any[]>([])
+  const [propertySearchHistoryLoading, setPropertySearchHistoryLoading] = useState(false)
   const [creditCheckoutLoading, setCreditCheckoutLoading] = useState('')
   const [propertyConnection, setPropertyConnection] = useState<{ status: string; connected: boolean; checked: boolean }>({
     status: canUseLivePropertyData ? 'Testing Connection' : 'Pro Required',
@@ -613,6 +615,42 @@ export default function DealCalculator() {
     return request
   }
 
+  const postPropertyIntelligence = async (action: string, body: Record<string, any>) => {
+    const { data } = await supabase.auth.getSession()
+    const response = await fetch(`/api/property-intelligence/${action}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${data.session?.access_token || ''}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok) throw new Error(payload?.error || 'Property Intelligence request failed.')
+    return payload
+  }
+
+  const loadPropertySearchHistory = async () => {
+    setPropertySearchHistoryLoading(true)
+    try {
+      const payload = await fetchPropertyIntelligence('recent-searches', {})
+      setPropertySearchHistory(Array.isArray(payload?.searches) ? payload.searches : [])
+    } catch {
+      setPropertySearchHistory([])
+    } finally {
+      setPropertySearchHistoryLoading(false)
+    }
+  }
+
+  const setSavedPropertySearch = async (item: any, saved: boolean) => {
+    try {
+      const normalizedAddress = String(item?.normalized_address || item?.normalizedAddress || '').trim().toLowerCase()
+      const displayAddress = String(item?.display_address || item?.displayAddress || formatAddressLabel(item?.address) || propertySearch).trim()
+      await postPropertyIntelligence('saved-searches', { normalizedAddress, displayAddress, saved })
+      await loadPropertySearchHistory()
+      toast.success(saved ? 'Property search saved.' : 'Property search removed from saved searches.')
+    } catch (error: any) {
+      toast.error(error?.message || 'Saved search could not be updated.')
+    }
+  }
+
   const searchPropertyIntelligence = async () => {
     if (!canUseLivePropertyData) {
       setPropertyLookupResults([])
@@ -651,8 +689,8 @@ export default function DealCalculator() {
     }
   }
 
-  const loadPropertyIntelligenceForAddress = async (address: any, options: { refresh?: boolean } = {}) => {
-    if (!canUseLivePropertyData) {
+  const loadPropertyIntelligenceForAddress = async (address: any, options: { refresh?: boolean; history?: boolean } = {}) => {
+    if (!canUseLivePropertyData && !options.history) {
       setPropertyLookupError('Property Intelligence requires an available included or purchased credit. Manual property analysis remains available on every plan.')
       return
     }
@@ -670,7 +708,7 @@ export default function DealCalculator() {
     const availableCredits = Number(propertyCreditBalance?.totalRemaining ?? (
       Number(propertyCreditBalance?.includedRemaining || 0) + Number(propertyCreditBalance?.purchasedRemaining || 0)
     ))
-    if (!ownerAdminMode && propertyCreditBalance && availableCredits <= 0) {
+    if (!options.history && !ownerAdminMode && propertyCreditBalance && availableCredits <= 0) {
       setPropertyCreditBlock('zero_balance')
       setPropertyLookupError('')
       setPropertyLookupStatus('')
@@ -704,6 +742,7 @@ export default function DealCalculator() {
         market: payload.market,
         cache: payload.cache,
         usage: payload.usage,
+        audit: payload.audit,
         retrievedAt: new Date().toISOString(),
       }
       if (payload.usage) setPropertyCreditBalance(payload.usage)
@@ -718,6 +757,7 @@ export default function DealCalculator() {
       } else if (payload.usage?.creditUsed) {
         setPropertyLookupStatus('Property data loaded successfully.')
       }
+      void loadPropertySearchHistory()
     } catch (error: any) {
       if (['credits_required', 'credits_exhausted'].includes(String(error?.code || ''))) {
         setPropertyCreditBlock('zero_balance')
@@ -826,6 +866,10 @@ export default function DealCalculator() {
     void checkConnection()
     return () => { cancelled = true }
   }, [activeTab, canUseLivePropertyData, ownerPreviewActive, settings.ownerPreviewPlan])
+
+  useEffect(() => {
+    if (activeTab === 'propertyIntelligence') void loadPropertySearchHistory()
+  }, [activeTab])
 
   const openCreditPackCheckout = async (packKey: string) => {
     if (ownerPreviewActive) { toast.info('Preview simulation only. No credit purchase or billing change was started.'); return }
@@ -2324,6 +2368,41 @@ Deal Blast Pro`
               </div>
             </div>
 
+            <div className="mb-4 grid gap-3 lg:grid-cols-2">
+              <section className="panel p-3" aria-labelledby="pi-recent-searches-title">
+                <div className="mb-2 flex items-center justify-between">
+                  <div id="pi-recent-searches-title" className="text-sm font-semibold text-[#E6E8EE]">Recent Searches</div>
+                  {propertySearchHistoryLoading && <span className="text-xs text-[#8B92A3]">Loading…</span>}
+                </div>
+                <div className="space-y-2">
+                  {propertySearchHistory.slice(0, 8).map(item => {
+                    const address = item.result_metadata?.address || parseTypedPropertyAddress(item.display_address)
+                    return <div key={item.id} className="flex flex-col gap-2 rounded border border-[#252A38] bg-[#0A0C12] p-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0"><div className="truncate text-sm text-[#E6E8EE]">{item.display_address}</div><div className="text-[11px] text-[#8B92A3]">{new Date(item.last_searched_at).toLocaleString()} · {item.result_metadata?.cacheStatus || 'lookup'}</div></div>
+                      <div className="flex shrink-0 gap-1.5">
+                        <button type="button" className="btn btn-ghost text-xs" onClick={() => { setPropertySearch(item.display_address); setSelectedPropertyAddress(address); void loadPropertyIntelligenceForAddress(address, { history: true }) }}>Run Again</button>
+                        <button type="button" className="btn btn-ghost text-xs" onClick={() => void setSavedPropertySearch(item, !item.is_saved)}>{item.is_saved ? 'Unsave' : 'Save'}</button>
+                      </div>
+                    </div>
+                  })}
+                  {!propertySearchHistoryLoading && propertySearchHistory.length === 0 && <div className="text-xs text-[#8B92A3]">Successful searches will appear here and persist across sessions.</div>}
+                </div>
+              </section>
+              <section className="panel p-3" aria-labelledby="pi-saved-searches-title">
+                <div id="pi-saved-searches-title" className="mb-2 text-sm font-semibold text-[#E6E8EE]">Saved Searches</div>
+                <div className="space-y-2">
+                  {propertySearchHistory.filter(item => item.is_saved).map(item => {
+                    const address = item.result_metadata?.address || parseTypedPropertyAddress(item.display_address)
+                    return <div key={item.id} className="flex flex-col gap-2 rounded border border-[#252A38] bg-[#0A0C12] p-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0"><div className="truncate text-sm text-[#E6E8EE]">{item.display_address}</div><div className="text-[11px] text-[#8B92A3]">Saved {item.saved_at ? new Date(item.saved_at).toLocaleString() : ''}</div></div>
+                      <div className="flex shrink-0 gap-1.5"><button type="button" className="btn btn-ghost text-xs" onClick={() => { setPropertySearch(item.display_address); setSelectedPropertyAddress(address); void loadPropertyIntelligenceForAddress(address, { history: true }) }}>Run Again</button><button type="button" className="btn btn-ghost text-xs" onClick={() => void setSavedPropertySearch(item, false)}>Remove</button></div>
+                    </div>
+                  })}
+                  {!propertySearchHistory.some(item => item.is_saved) && <div className="text-xs text-[#8B92A3]">Save a recent or loaded search for quick access later.</div>}
+                </div>
+              </section>
+            </div>
+
             {propertyCreditBlock && !ownerAdminMode && (
               <div className="mb-4 rounded border border-amber-400/50 bg-amber-500/10 p-4 text-amber-100" role="alert" aria-live="assertive">
                 <div className="font-semibold">
@@ -2419,6 +2498,7 @@ Deal Blast Pro`
                     <div className="mt-3 flex flex-wrap gap-2">
                       <button type="button" onClick={applySuggestedArv} className="btn btn-primary text-sm">Apply Suggested ARV</button>
                       <button type="button" onClick={savePropertyIntelligenceToDeal} disabled={!activePropertyDeal} className="btn btn-ghost text-sm disabled:opacity-50">Save Property Intelligence to Deal</button>
+                      <button type="button" onClick={() => void setSavedPropertySearch({ normalizedAddress: propertyLookupSummary.audit?.normalizedAddress, displayAddress: formatAddressLabel(propertyLookupSummary.address), address: propertyLookupSummary.address }, true)} className="btn btn-ghost text-sm">Save Search</button>
                       <button
                         type="button"
                         onClick={() => {

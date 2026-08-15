@@ -8,6 +8,28 @@ const planRank=(value:any)=>PLAN_RANK[clean(value).toLowerCase()]??0
 export async function handlePlatformAction(action:string,req:any,res:any,account:any){
   const send=(status:number,payload:any)=>{res.status(status).json(payload);return true}
   const workspaceId=clean(account.workspace?.id||account.plan?.workspace_id)
+  if(action==='recent-searches'){
+    if(req.method!=='GET')return send(405,{ok:false,error:'Method not allowed'})
+    if(!workspaceId)return send(409,{ok:false,error:'Workspace unavailable.'})
+    const {data,error}=await account.adminClient.from('property_intelligence_searches')
+      .select('id,normalized_address,display_address,last_lookup_operation_id,last_audit_id,result_reference,result_metadata,is_saved,saved_at,last_searched_at')
+      .eq('workspace_id',workspaceId).eq('user_id',account.user.id).order('last_searched_at',{ascending:false}).limit(30)
+    if(error)throw error
+    return send(200,{ok:true,searches:data||[]})
+  }
+  if(action==='saved-searches'){
+    if(req.method!=='POST')return send(405,{ok:false,error:'Method not allowed'})
+    if(!workspaceId)return send(409,{ok:false,error:'Workspace unavailable.'})
+    const normalizedAddress=clean(req.body?.normalizedAddress).toLowerCase(),displayAddress=clean(req.body?.displayAddress)
+    const saved=req.body?.saved===true
+    if(!normalizedAddress||!displayAddress)return send(400,{ok:false,error:'A complete saved-search address is required.'})
+    const {data,error}=await account.adminClient.from('property_intelligence_searches').upsert({
+      workspace_id:workspaceId,user_id:account.user.id,normalized_address:normalizedAddress,display_address:displayAddress,
+      is_saved:saved,saved_at:saved?new Date().toISOString():null,updated_at:new Date().toISOString(),
+    },{onConflict:'workspace_id,user_id,normalized_address'}).select('id,normalized_address,display_address,is_saved,saved_at,last_searched_at,result_metadata,last_audit_id').single()
+    if(error)throw error
+    return send(200,{ok:true,search:data})
+  }
   if(action==='credit-packs'){
     if(req.method==='GET')return send(200,{ok:true,packs:publicCreditPacks()})
     if(req.method!=='POST')return send(405,{ok:false,error:'Method not allowed'})
@@ -63,17 +85,18 @@ export async function handlePlatformAction(action:string,req:any,res:any,account
       if(!target)return send(200,{ok:true,workspaces:workspaces||[]})
       const selected=(workspaces||[]).find((item:any)=>item.id===target) || (await account.adminClient.from('workspaces').select(workspaceSelect).eq('id',target).maybeSingle()).data
       if(!selected)return send(404,{ok:false,error:'Workspace not found.'})
-      const [balanceResult,ledgerResult,purchasesResult,operationsResult,planResult]=await Promise.all([
+      const [balanceResult,ledgerResult,purchasesResult,operationsResult,planResult,auditResult]=await Promise.all([
         account.adminClient.rpc('property_intelligence_credit_balance',{p_workspace_id:target}),
         account.adminClient.from('property_intelligence_credit_ledger').select('id,entry_type,credit_bucket,amount,operation_id,stripe_event_id,purchase_id,idempotency_key,audit_reason,metadata,created_by_user_id,created_at,billing_period_start,billing_period_end,expires_at').eq('workspace_id',target).order('created_at',{ascending:false}).limit(50),
         account.adminClient.from('property_intelligence_addon_purchases').select('id,credits_purchased,amount_cents,status,pack_key,currency,created_at,fulfilled_at').eq('workspace_id',target).order('created_at',{ascending:false}).limit(20),
         account.adminClient.from('property_intelligence_lookup_operations').select('id,operation_id,status,credit_source,credit_charged,created_at,completed_at,failure_code').eq('workspace_id',target).order('created_at',{ascending:false}).limit(20),
         account.adminClient.from('workspace_plan_assignments').select('plan_name,billing_status,billing_interval,current_period_end,created_at').eq('workspace_id',target).maybeSingle(),
+        account.adminClient.from('property_intelligence_operation_audit').select('id,lookup_id,user_id,display_address,normalized_address,action_type,cache_hit,provider_called,provider_name,provider_succeeded,credit_operation_id,credit_reservation_reference,credit_finalization_reference,credit_release_reference,credits_consumed,cache_reference,result_status,error_code,error_message,request_correlation_id,provider_request_count,created_at,completed_at').eq('workspace_id',target).order('created_at',{ascending:false}).limit(50),
       ])
-      for(const result of [balanceResult,ledgerResult,purchasesResult,operationsResult,planResult])if(result.error)throw result.error
+      for(const result of [balanceResult,ledgerResult,purchasesResult,operationsResult,planResult,auditResult])if(result.error)throw result.error
       const operations=operationsResult.data||[],reserved=operations.filter((item:any)=>item.status==='reserved').length
       const ledger=ledgerResult.data||[],lastGrant=ledger.find((item:any)=>item.entry_type==='included_grant')||null
-      return send(200,{ok:true,workspaces:workspaces||[],workspace:selected,balance:{...(balanceResult.data||{}),reservedCredits:reserved},plan:planResult.data||null,lastIncludedGrant:lastGrant,ledger,purchases:purchasesResult.data||[],operations})
+      return send(200,{ok:true,workspaces:workspaces||[],workspace:selected,balance:{...(balanceResult.data||{}),reservedCredits:reserved},plan:planResult.data||null,lastIncludedGrant:lastGrant,ledger,purchases:purchasesResult.data||[],operations,propertyIntelligenceAudit:auditResult.data||[]})
     }
     if(req.method!=='POST')return send(405,{ok:false,error:'Method not allowed'})
     const target=clean(req.body?.workspaceId),amount=Number(req.body?.amount),reason=clean(req.body?.reason),correctionId=clean(req.body?.correctionId),bucket=clean(req.body?.bucket),entryType=clean(req.body?.entryType)
