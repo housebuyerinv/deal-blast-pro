@@ -272,7 +272,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </p>
           <div className="flex flex-col sm:flex-row gap-2 justify-center">
             <button onClick={() => navigate('/app/dashboard')} className="btn btn-green">Return to Command Center</button>
-            <button onClick={() => navigate('/pricing')} className="btn btn-ghost">View Pricing</button>
+            <button onClick={() => navigate('/app/upgrade')} className="btn btn-ghost">View Pricing</button>
           </div>
         </div>
       </div>

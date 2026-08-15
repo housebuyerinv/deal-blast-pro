@@ -50,8 +50,8 @@ export default function Landing() {
                 Deal Blast Pro helps real estate operators collect deal submissions, organize buyers, track inventory, and manage disposition follow-up from one simple workspace.
               </p>
               <div className="flex flex-col sm:flex-row flex-wrap gap-3">
-                <Link to="/waitlist" className="btn btn-green text-base px-7 py-3">
-                  Join the Waitlist
+                  <Link to="/register" className="btn btn-green text-base px-7 py-3">
+                   Start Free
                   <ArrowRight size={18} />
                 </Link>
                 <Link to="/pricing" className="btn btn-ghost text-base px-7 py-3">View Pricing</Link>
@@ -150,8 +150,8 @@ export default function Landing() {
             <p className="text-[#C5CAD6] mb-4">
               Review inbound opportunities before marketing anything, then move qualified deals into inventory, buyer matching, exports, and follow-up.
             </p>
-              <Link to="/waitlist" className="btn btn-ghost">
-              Join Waitlist
+               <Link to="/pricing" className="btn btn-ghost">
+               View Pricing
               <ArrowRight size={17} />
             </Link>
           </div>
@@ -163,7 +163,7 @@ export default function Landing() {
             Join the waitlist for Deal Blast Pro early access and product launch updates.
           </p>
           <div className="flex flex-col sm:flex-row flex-wrap gap-3 justify-center">
-            <Link to="/waitlist" className="btn btn-green px-8 py-3 text-base">Join the Waitlist</Link>
+             <Link to="/register" className="btn btn-green px-8 py-3 text-base">Start Free</Link>
             <Link to="/pricing" className="btn btn-ghost px-8 py-3 text-base">View Pricing</Link>
             <Link to="/admin-login" className="btn btn-ghost px-8 py-3 text-base">Sign In</Link>
           </div>

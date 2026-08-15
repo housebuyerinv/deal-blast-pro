@@ -66,7 +66,7 @@ export default function Pipeline() {
   
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-  const [viewMode, setViewMode] = useState<'kanban' | 'timeline'>('kanban')
+    const [viewMode, setViewMode] = useState<'compact' | 'kanban' | 'timeline'>('compact')
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const [search, setSearch] = useState('')
   const [openMenuFor, setOpenMenuFor] = useState<string | null>(null)
@@ -263,8 +263,9 @@ export default function Pipeline() {
           </button>
 
           {/* Explicit Kanban / Timeline toggle (preserves search/filter state) */}
-          <div className="inline-flex rounded overflow-hidden border border-[#252A38] text-sm">
-            <button onClick={() => setViewMode('kanban')} className={`px-2 py-0.5 ${viewMode === 'kanban' ? 'bg-[#22c55e] text-black' : 'hover:bg-[#171B26]'}`}>Kanban</button>
+            <div className="inline-flex rounded overflow-hidden border border-[#252A38] text-sm">
+              <button onClick={() => setViewMode('compact')} className={`px-2 py-0.5 ${viewMode === 'compact' ? 'bg-[#22c55e] text-black' : 'hover:bg-[#171B26]'}`}>Compact</button>
+              <button onClick={() => setViewMode('kanban')} className={`px-2 py-0.5 ${viewMode === 'kanban' ? 'bg-[#22c55e] text-black' : 'hover:bg-[#171B26]'}`}>Kanban</button>
             <button onClick={() => setViewMode('timeline')} className={`px-2 py-0.5 ${viewMode === 'timeline' ? 'bg-[#22c55e] text-black' : 'hover:bg-[#171B26]'}`}>Timeline</button>
           </div>
           {/* Clean search - no ghost icon (per polish) */}
@@ -368,8 +369,8 @@ export default function Pipeline() {
       </div>
 
       {/* Board - conditional Kanban (columns+drag) vs completely different Timeline (rows + progress line) per spec; filters/search preserved on switch */}
-      {viewMode === 'kanban' ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+       {viewMode !== 'timeline' ? (
+         <div className={viewMode === 'compact' ? 'space-y-3' : 'grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-4'}>
           {STATUSES.map(status => {
             const color = STAGE_COLORS[status]
             const stageDeals = filteredByStatus[status] || []

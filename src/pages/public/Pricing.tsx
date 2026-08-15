@@ -10,13 +10,13 @@ import {
   PLAN_PRICING,
   getPriceDisplay,
 } from '../../lib/planPricing'
-import { getPropertyIntelligenceTierPoint, PROPERTY_INTELLIGENCE_PLAN_COMPARISON_LABELS } from '../../lib/propertyIntelligencePolicy'
+import { getPropertyIntelligenceTierPoint, PROPERTY_INTELLIGENCE_PLAN_COMPARISON_LABELS, PROPERTY_INTELLIGENCE_CREDIT_PACKS } from '../../lib/propertyIntelligencePolicy'
 
 const tierPoints: Record<string, string[]> = {
   Free: ['Public submission access', 'ARV calculator', getPropertyIntelligenceTierPoint('Free'), 'Up to 25 buyers'],
   Starter: ['Deal and buyer management', 'Core starter calculators', getPropertyIntelligenceTierPoint('Starter'), 'Up to 250 buyers'],
-  Pro: ['Advanced buyer matching', 'All calculators', getPropertyIntelligenceTierPoint('Pro'), 'Up to 1,000 buyers'],
-  Agency: ['Higher monthly limits', getPropertyIntelligenceTierPoint('Agency'), 'Up to 2,000 buyers', 'Team features coming soon'],
+  Pro: ['Advanced buyer matching', 'All calculators', getPropertyIntelligenceTierPoint('Pro'), 'Up to 1,000 buyers', 'Hot Zones / Deal Heatmap'],
+  Agency: ['Higher monthly limits', getPropertyIntelligenceTierPoint('Agency'), 'Up to 2,000 buyers', 'Hot Zones / Deal Heatmap', 'Team features coming soon'],
   Enterprise: ['Up to 5,000 buyers', getPropertyIntelligenceTierPoint('Enterprise'), 'Custom workflows and support'],
 }
 
@@ -70,8 +70,20 @@ const featureRows = [
     statuses: [...PROPERTY_INTELLIGENCE_PLAN_COMPARISON_LABELS]
   },
   {
-    feature: 'Verified-closing Hot Zones',
+    feature: 'Hot Zones / Deal Heatmap',
     statuses: ['Not included', 'Not included', 'Included now', 'Included now', 'Custom']
+  },
+  {
+    feature: 'Additional purchased credits',
+    statuses: ['Available', 'Available', 'Available', 'Available', 'Contract-specific']
+  },
+  {
+    feature: 'Purchased credits expiration',
+    statuses: ['Never expires', 'Never expires', 'Never expires', 'Never expires', 'Contract-specific']
+  },
+  {
+    feature: 'Cached Property Intelligence results',
+    statuses: ['No additional credit', 'No additional credit', 'No additional credit', 'No additional credit', 'Contract-specific']
   },
   {
     feature: 'Custom Buyer and Deal Portals',
@@ -125,8 +137,8 @@ export default function Pricing() {
           <p className="mt-2 text-xs text-[#8B92A3]">Features labeled Coming Soon are not yet available for customer use. Plan limits and feature availability are enforced by account and workspace.</p>
           <p className="mt-2 text-xs text-[#8B92A3]">Included now reflects the current release. Coming Soon and Custom features require a later release or contract setup. Hot Zones use verified closing records only and require Pro or higher.</p>
           <div className="mt-4 grid gap-2 md:hidden">
-            <Link to="/waitlist" className="btn btn-green w-full justify-center py-3 text-sm">
-              Join Waitlist
+            <Link to="/register" className="btn btn-green w-full justify-center py-3 text-sm">
+              Start Free
             </Link>
           </div>
         </div>
@@ -231,6 +243,12 @@ export default function Pricing() {
           <p className="mt-3 text-center text-xs text-[#8B92A3]">
             Starter includes 20 monthly Property Intelligence credits, and every plan may buy additional credits. Purchased credits are tracked separately and do not expire. Cached results do not use an additional credit. Data availability varies by property and market.
           </p>
+          <div className="mt-5 rounded border border-[#252A38] p-4 text-center">
+            <div className="font-semibold mb-2">Property Intelligence credit packs</div>
+            <div className="flex flex-wrap justify-center gap-x-5 gap-y-1 text-xs text-[#C5CAD6]">
+              {PROPERTY_INTELLIGENCE_CREDIT_PACKS.map(pack => <span key={pack.credits}>{pack.credits} credits = ${pack.amountCents / 100}</span>)}
+            </div>
+          </div>
           <p className="mt-2 text-center text-xs text-[#8B92A3]">
             Additional buyer-capacity packs may be offered in the future.
           </p>

@@ -284,7 +284,7 @@ function App() {
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/login" element={<Navigate to="/admin-login" replace />} />
-        <Route path="/register" element={<Navigate to={import.meta.env.PROD ? '/waitlist' : '/admin-register'} replace />} />
+          <Route path="/register" element={<Register />} />
         <Route path="/upgrade" element={<Navigate to="/pricing" replace />} />
 
         <Route

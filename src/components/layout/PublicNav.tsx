@@ -29,11 +29,11 @@ export default function PublicNav() {
           <Link to="/buyer-portal" className="hover:text-white">Buyer Portal</Link>
           <Link to="/contact" className="hover:text-white">Contact</Link>
           <Link to="/admin-login" className="px-3 py-1.5 hover:text-white">Sign In</Link>
-          <Link to="/waitlist" className="btn btn-primary px-5 py-1.5 text-sm">Join Waitlist</Link>
+          <Link to="/register" className="btn btn-primary px-5 py-1.5 text-sm">Start Free</Link>
         </div>
 
         <div className="md:hidden flex items-center gap-2 shrink-0">
-          <Link to="/waitlist" onClick={close} className="btn btn-green px-3 py-1.5 text-xs whitespace-nowrap">Waitlist</Link>
+          <Link to="/register" onClick={close} className="btn btn-green px-3 py-1.5 text-xs whitespace-nowrap">Start Free</Link>
           <button
             type="button"
             onClick={() => setOpen(v => !v)}
@@ -49,7 +49,7 @@ export default function PublicNav() {
       {open && (
         <div className="md:hidden border-t border-[#252A38] bg-[#0A0C12] shadow-xl">
           <div className="px-4 py-3 grid gap-2">
-            <Link to="/waitlist" onClick={close} className="btn btn-green w-full py-2.5 text-sm">Join the Waitlist</Link>
+            <Link to="/register" onClick={close} className="btn btn-green w-full py-2.5 text-sm">Start Free</Link>
             <div className="grid gap-1 pt-2">
               {menuItems.map(item => (
                 <Link

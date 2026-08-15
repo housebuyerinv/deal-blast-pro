@@ -110,7 +110,7 @@ export default function Login() {
           <div className="mt-4 text-center text-sm">
             <Link to="/forgot-password" className="text-[#3B82F6]">Forgot password?</Link>
             <span className="mx-2 text-[#8B92A3]">-</span>
-            <Link to="/waitlist" className="text-[#3B82F6]">Join Waitlist</Link>
+              <Link to="/register" className="text-[#3B82F6]">Create an account</Link>
             <span className="mx-2 text-[#8B92A3]">-</span>
             <Link to="/pricing" className="text-[#3B82F6]">Pricing</Link>
           </div>
