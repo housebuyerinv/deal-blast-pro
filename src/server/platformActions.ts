@@ -42,16 +42,26 @@ export async function handlePlatformAction(action:string,req:any,res:any,account
     if(!account.isOwnerAdmin)return send(403,{ok:false,error:'Owner Admin access is required.'})
     if(req.method==='GET'){
       const q=clean(req.query?.q).slice(0,120),target=clean(req.query?.workspaceId)
-      let workspaceQuery=account.adminClient.from('workspaces').select('id,name,owner_email,owner_user_id,created_at').order('name').limit(20)
+      const workspaceSelect='id,name,owner_email,owner_user_id,created_at'
+      let workspaces:any[]=[]
       if(q){
         const escaped=q.replace(/[%_,()]/g,' ')
-        workspaceQuery=/^[0-9a-f-]{36}$/i.test(q)
-          ? workspaceQuery.or(`id.eq.${q},name.ilike.%${escaped}%,owner_email.ilike.%${escaped}%`)
-          : workspaceQuery.or(`name.ilike.%${escaped}%,owner_email.ilike.%${escaped}%`)
+        const queries=/^[0-9a-f-]{36}$/i.test(q)
+          ? [account.adminClient.from('workspaces').select(workspaceSelect).eq('id',q).limit(20),account.adminClient.from('workspaces').select(workspaceSelect).eq('owner_user_id',q).limit(20)]
+          : [account.adminClient.from('workspaces').select(workspaceSelect).ilike('name',`%${escaped}%`).limit(20),account.adminClient.from('workspaces').select(workspaceSelect).ilike('owner_email',`%${escaped}%`).limit(20)]
+        const results=await Promise.all(queries)
+        const queryError=results.find(result=>result.error)?.error
+        if(queryError)throw queryError
+        workspaces=results.flatMap(result=>result.data||[])
+          .filter((item:any,index:number,list:any[])=>list.findIndex(candidate=>candidate.id===item.id)===index)
+          .sort((a:any,b:any)=>String(a.name||'').localeCompare(String(b.name||''))).slice(0,20)
+      } else {
+        const result=await account.adminClient.from('workspaces').select(workspaceSelect).order('name').limit(20)
+        if(result.error)throw result.error
+        workspaces=result.data||[]
       }
-      const {data:workspaces,error:workspaceError}=await workspaceQuery;if(workspaceError)throw workspaceError
       if(!target)return send(200,{ok:true,workspaces:workspaces||[]})
-      const selected=(workspaces||[]).find((item:any)=>item.id===target) || (await account.adminClient.from('workspaces').select('id,name,owner_email,owner_user_id,created_at').eq('id',target).maybeSingle()).data
+      const selected=(workspaces||[]).find((item:any)=>item.id===target) || (await account.adminClient.from('workspaces').select(workspaceSelect).eq('id',target).maybeSingle()).data
       if(!selected)return send(404,{ok:false,error:'Workspace not found.'})
       const [balanceResult,ledgerResult,purchasesResult,operationsResult,planResult]=await Promise.all([
         account.adminClient.rpc('property_intelligence_credit_balance',{p_workspace_id:target}),
