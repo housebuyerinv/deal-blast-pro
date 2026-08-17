@@ -280,7 +280,7 @@ function App() {
         <Route path="/buyer-portal" element={<BuyerPortal />} />
         <Route path="/admin-login" element={<Login />} />
         <Route path="/refunds" element={<Navigate to="/refund-policy" replace />} />
-        <Route path="/admin-register" element={import.meta.env.PROD ? <Navigate to="/waitlist" replace /> : <Register />} />
+        <Route path="/admin-register" element={<Navigate to="/register" replace />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/login" element={<Navigate to="/admin-login" replace />} />

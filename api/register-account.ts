@@ -42,8 +42,9 @@ function isInternalTestRequest(req: any, body: any) {
 }
 
 function isPublicRegistrationEnabled() {
-  if (process.env.DEALBLAST_PUBLIC_REGISTRATION_ENABLED === 'true') return true
-  return process.env.VERCEL_ENV !== 'production' && process.env.NODE_ENV !== 'production'
+  // Public signup is enabled for the launched product. Registration still
+  // flows through Supabase Auth and the normal workspace provisioning path.
+  return true
 }
 
 function publicDiagnostics(input: RegistrationDiagnostics, includeDetails: boolean) {
