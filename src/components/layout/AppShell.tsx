@@ -287,7 +287,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <div className="text-xs uppercase tracking-[2px] text-[#8B92A3] mb-2">Free Plan Limit</div>
           <h1 className="text-2xl font-semibold mb-3">This feature is included with {requiredPlan}.</h1>
           <p className="text-sm text-[#C5CAD6] mb-5">
-            Free includes limited command center, inventory, buyer records, ARV calculator access, billing, and upgrade options.
+            Free includes basic deal intake with limited command center, inventory, buyer records, ARV calculator access, billing, and upgrade options.
           </p>
           <div className="flex flex-col sm:flex-row gap-2 justify-center">
             <button onClick={() => navigate('/app/upgrade')} className="btn btn-green">Upgrade to {requiredPlan}</button>
