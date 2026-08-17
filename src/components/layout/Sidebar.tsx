@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import {
   LayoutDashboard, Building2, Users, Send, Settings, Briefcase,
-  FileText, Target, Calendar, Calculator, MapPin
+  FileText, Target, Calendar, Calculator, MapPin, Sparkles
 } from 'lucide-react'
 import { useAppStore } from '../../store/useAppStore'
 import { countPendingDealSubmissions } from '../../lib/dealSubmissionStorage'
@@ -11,6 +11,7 @@ import { isInternalAdmin } from '../../lib/accessControl'
 import { canAccessRoute, getEffectivePlan, hasEffectiveOwnerAdminBypass, isOwnerPreviewActive } from '../../lib/planAccess'
 import { canUseBuyerPortalReview } from '../../lib/planEntitlements'
 import { canUseLaunchedFeature } from '../../lib/featureLaunch'
+import { latestReleaseId, RELEASE_NOTES_VIEWED_KEY } from '../../content/releaseNotes'
 
 const navGroups = [
   {
@@ -47,6 +48,7 @@ const navGroups = [
   {
     label: 'ADMIN',
     items: [
+      { to: '/app/whats-new', label: "What's New", icon: Sparkles, badgeKey: 'whatsNew' },
       { to: '/app/settings', label: 'Settings & Trial', icon: Settings },
     ]
   }
@@ -56,6 +58,10 @@ export default function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean;
   const { sidebarOpen, getPendingFollowUps, trial, user, settings } = useAppStore()
   const [submissions, setSubmissions] = useState(0)
   const [buyerPortalQueueCount, setBuyerPortalQueueCount] = useState(0)
+  const [hasUnseenRelease, setHasUnseenRelease] = useState(() => {
+    try { return Boolean(latestReleaseId) && window.localStorage.getItem(RELEASE_NOTES_VIEWED_KEY) !== latestReleaseId }
+    catch { return false }
+  })
   const pendingFollowups = getPendingFollowUps().length
   const previewActive = isOwnerPreviewActive(user, settings)
   const hasInternalAdminAccess = isInternalAdmin(user) && !previewActive
@@ -65,6 +71,12 @@ export default function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean;
   const dealSubmissionReviewAllowed = canUseLaunchedFeature('dealSubmissionReviewCenter', effectivePlan, hasInternalAdminAccess)
 
   const isOpen = mobileOpen !== undefined ? mobileOpen : sidebarOpen
+
+  useEffect(() => {
+    const markViewed = () => setHasUnseenRelease(false)
+    window.addEventListener('dealblastpro:release-notes-viewed', markViewed)
+    return () => window.removeEventListener('dealblastpro:release-notes-viewed', markViewed)
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -153,6 +165,8 @@ export default function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean;
               } else if (item.badgeKey === 'followups') {
                 showBadge = pendingFollowups > 0
                 badgeCount = pendingFollowups
+              } else if (item.badgeKey === 'whatsNew') {
+                showBadge = hasUnseenRelease
               }
               return (
                 <NavLink
@@ -168,7 +182,7 @@ export default function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean;
                   <Icon size={17} />
                   <span>{item.label}</span>
                   {showBadge && (
-                    <span className="ml-auto bg-[#3B82F6] text-white text-[10px] font-bold px-1.5 rounded">{formatBadgeCount(badgeCount)}</span>
+                    <span className="ml-auto bg-[#3B82F6] text-white text-[10px] font-bold px-1.5 rounded">{item.badgeKey === 'whatsNew' ? 'New' : formatBadgeCount(badgeCount)}</span>
                   )}
                 </NavLink>
               )

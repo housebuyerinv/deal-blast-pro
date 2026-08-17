@@ -112,6 +112,22 @@ export default function AdminCreditOperations({ simulated = false }: { simulated
           </table>
         </div>
 
+        <div>
+          <div className="mb-2 font-semibold text-[#E6E8EE]">Property Intelligence Diagnostics</div>
+          <div className="mb-2 text-xs text-[#8B92A3]">Read-only operational evidence. Credit amounts remain authoritative in the immutable ledger above.</div>
+          <div className="overflow-x-auto rounded border border-[#252A38]">
+            <table className="min-w-[1350px] w-full text-left text-xs">
+              <thead className="bg-[#171B26] text-[#8B92A3]"><tr>{['Timestamp','Address','Mode','Provider','Outcome','Credits','Reservation','Finalization','Release','Cache reference','Status','Correlation'].map(label => <th key={label} className="p-2">{label}</th>)}</tr></thead>
+              <tbody>{(detail.propertyIntelligenceAudit || []).map((entry: any) => <tr key={entry.id} className="border-t border-[#252A38] text-[#C5CAD6]">
+                <td className="p-2">{new Date(entry.created_at).toLocaleString()}</td><td className="p-2">{entry.display_address || entry.normalized_address}</td><td className="p-2">{entry.cache_hit ? 'Cache' : 'Live'}</td>
+                <td className="p-2">{entry.provider_called ? `${entry.provider_name} · called` : 'Not called'}</td><td className="p-2">{entry.provider_succeeded === null ? 'N/A' : entry.provider_succeeded ? 'Success' : entry.error_code || 'Failed'}</td>
+                <td className="p-2">{entry.credits_consumed}</td><td className="p-2">{entry.credit_reservation_reference || '—'}</td><td className="p-2">{entry.credit_finalization_reference || '—'}</td><td className="p-2">{entry.credit_release_reference || '—'}</td>
+                <td className="p-2 break-all">{entry.cache_reference || '—'}</td><td className="p-2">{entry.result_status}</td><td className="p-2">{entry.request_correlation_id || entry.lookup_id}</td>
+              </tr>)}</tbody>
+            </table>
+          </div>
+        </div>
+
         <div className="rounded border border-[#252A38] bg-[#0A0C12] p-3">
           <div className="mb-3 font-semibold text-[#E6E8EE]">Append Credit Adjustment</div>
           <div className="grid gap-2 md:grid-cols-3">

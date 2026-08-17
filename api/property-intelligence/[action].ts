@@ -449,6 +449,79 @@ async function writeDurableLookupCache(
     }, { onConflict: 'workspace_id,normalized_address' })
 }
 
+function safeAuditMessage(value: any) {
+  return clean(value).replace(/https?:\/\/\S+/gi, '[redacted-url]').slice(0, 240)
+}
+
+function requestCorrelationId(req: any) {
+  return clean(req.headers?.['x-vercel-id'] || req.headers?.['x-request-id'] || req.headers?.['x-correlation-id']).slice(0, 160) || null
+}
+
+async function createLookupAudit(
+  account: Awaited<ReturnType<typeof getAuthenticatedAccount>>,
+  req: any,
+  lookupId: string,
+  normalizedAddress: string,
+  displayAddress: string
+) {
+  const workspaceId = getWorkspaceId(account)
+  if (!workspaceId) throw Object.assign(new Error('Workspace could not be verified.'), { status: 403, category: 'workspace_required' })
+  const { data, error } = await account.adminClient.from('property_intelligence_operation_audit').insert({
+    lookup_id: lookupId,
+    workspace_id: workspaceId,
+    user_id: account.user.id,
+    normalized_address: normalizedAddress,
+    display_address: displayAddress,
+    action_type: 'lookup',
+    provider_name: 'rentcast',
+    request_correlation_id: requestCorrelationId(req),
+  }).select('id').single()
+  if (error || !data?.id) {
+    throw Object.assign(new Error('Property Intelligence audit tracking is temporarily unavailable.'), {
+      status: 503, category: 'audit_tracking_unavailable', payload: error,
+    })
+  }
+  return data.id as string
+}
+
+async function updateLookupAudit(account: Awaited<ReturnType<typeof getAuthenticatedAccount>>, auditId: string, values: Record<string, any>) {
+  const { error } = await account.adminClient.from('property_intelligence_operation_audit')
+    .update({ ...values, updated_at: new Date().toISOString() }).eq('id', auditId)
+  if (error) logDiagnostic('audit_update_failed', { auditId, code: clean(error.code) })
+}
+
+async function recordSuccessfulSearch(
+  account: Awaited<ReturnType<typeof getAuthenticatedAccount>>,
+  normalizedAddress: string,
+  displayAddress: string,
+  auditId: string,
+  creditOperationId: string | null,
+  payload: any
+) {
+  const workspaceId = getWorkspaceId(account)
+  if (!workspaceId) return
+  const now = new Date().toISOString()
+  const { error } = await account.adminClient.from('property_intelligence_searches').upsert({
+    workspace_id: workspaceId,
+    user_id: account.user.id,
+    normalized_address: normalizedAddress,
+    display_address: displayAddress,
+    last_lookup_operation_id: creditOperationId || null,
+    last_audit_id: auditId,
+    result_reference: `property-intelligence-audit:${auditId}`,
+    result_metadata: {
+      address: payload?.property?.address || payload?.address || null,
+      cacheStatus: payload?.cache?.status || 'unknown',
+      hasProperty: Boolean(payload?.property),
+      hasValuation: Boolean(payload?.valuation),
+      hasRent: Boolean(payload?.rent),
+    },
+    last_searched_at: now,
+    updated_at: now,
+  }, { onConflict: 'workspace_id,user_id,normalized_address' })
+  if (error) logDiagnostic('recent_search_write_failed', { auditId, code: clean(error.code) })
+}
+
 async function reserveLookupCredit(
   account: Awaited<ReturnType<typeof getAuthenticatedAccount>>,
   operationId: string,
@@ -676,6 +749,7 @@ function customerError(error: any) {
   if (error?.category === 'address_incomplete') return COMPLETE_ADDRESS_MESSAGE
   if (error?.category === 'credits_exhausted') return 'You have used all Property Intelligence lookups for this billing period.'
   if (error?.category === 'usage_tracking_unavailable') return 'Property Intelligence usage tracking is temporarily unavailable.'
+  if (error?.category === 'audit_tracking_unavailable') return 'Property Intelligence audit tracking is temporarily unavailable.'
   if (error?.category === 'no_property_found') return 'Property data is unavailable for this address.'
   if (error?.category === 'provider_not_configured') return PROVIDER_NOT_CONFIGURED_MESSAGE
   if (error?.category === 'provider_capacity_paused') return PROVIDER_CAPACITY_MESSAGE
@@ -714,7 +788,7 @@ export default async function handler(req: any, res: any) {
     })
   }
 
-  if (['credit-packs','hot-zones','verified-closing','admin-credit-adjustment'].includes(action)) {
+  if (['credit-packs','hot-zones','verified-closing','admin-credit-adjustment','recent-searches','saved-searches'].includes(action)) {
     try {
       if (await handlePlatformAction(action, req, res, account)) return
     } catch (error: any) {
@@ -743,7 +817,9 @@ export default async function handler(req: any, res: any) {
   }
 
   const purchasedAccess = Number(ledgerBalance?.purchasedRemaining || 0) > 0
-  if (!['status','autocomplete'].includes(action) && !canUsePropertyIntelligence(account) && !purchasedAccess) {
+  // Lookup itself must reach the durable-cache check even at zero balance. An
+  // uncached lookup still fails closed inside reserveLookupCredit before any provider call.
+  if (!['status','autocomplete','lookup'].includes(action) && !canUsePropertyIntelligence(account) && !purchasedAccess) {
     return send(res, 402, {
       error: 'Property Intelligence credits are required. Buy a credit pack or upgrade to a plan with included credits.',
       code: 'credits_exhausted',
@@ -870,14 +946,41 @@ export default async function handler(req: any, res: any) {
       if (!lookup.completeEnough) throw Object.assign(new Error(COMPLETE_ADDRESS_MESSAGE), { status: 400, category: 'address_incomplete' })
 
       const normalizedAddress = normalizeCacheAddress(lookup.fullAddress)
+      const displayAddress = lookup.fullAddress
+      const operationId = clean(req.query.operationId) || `${account.user.id}:${normalizedAddress}:${Date.now()}`
+      const auditId = await createLookupAudit(account, req, operationId, normalizedAddress, displayAddress)
+      const cacheReference = `property-intelligence-cache:${getWorkspaceId(account)}:${normalizedAddress}`
       const forceRefresh = req.query.refresh === 'true'
       if (!forceRefresh) {
         const cached = await readDurableLookupCache(account, normalizedAddress)
-        if (cached) return send(res, 200, cached)
+        if (cached) {
+          await updateLookupAudit(account, auditId, {
+            cache_hit: true,
+            provider_called: false,
+            provider_succeeded: null,
+            credits_consumed: 0,
+            cache_reference: cacheReference,
+            result_status: 'completed',
+            provider_request_count: 0,
+            completed_at: new Date().toISOString(),
+          })
+          await recordSuccessfulSearch(account, normalizedAddress, displayAddress, auditId, null, cached)
+          return send(res, 200, { ...cached, audit: { id: auditId, lookupId: operationId, normalizedAddress } })
+        }
       }
 
       if (config.rentcastPaused) {
         logDiagnostic('provider_capacity_paused', { requestAction: action, provider: 'rentcast' })
+        await updateLookupAudit(account, auditId, {
+          provider_called: false,
+          provider_succeeded: false,
+          credits_consumed: 0,
+          cache_reference: cacheReference,
+          result_status: 'failed',
+          error_code: 'provider_capacity_paused',
+          error_message: PROVIDER_CAPACITY_MESSAGE,
+          completed_at: new Date().toISOString(),
+        })
         return send(res, 503, {
           error: PROVIDER_CAPACITY_MESSAGE,
           code: 'provider_capacity_paused',
@@ -886,12 +989,17 @@ export default async function handler(req: any, res: any) {
         })
       }
 
-      const operationId = clean(req.query.operationId) || `${account.user.id}:${normalizedAddress}:${Date.now()}`
       let reservation: any = null
       let providerRequestCount = 0
 
       try {
         reservation = await reserveLookupCredit(account, operationId, normalizedAddress)
+        await updateLookupAudit(account, auditId, {
+          credit_operation_id: clean(reservation.operationId) || null,
+          credit_reservation_reference: reservation.ownerBypass ? null : `pi:reserve:${operationId}`,
+          provider_called: true,
+          result_status: 'provider_pending',
+        })
 
         const propertyResult = await getPropertyRecord(lookup.fullAddress, config)
         providerRequestCount += propertyResult.cacheHit ? 0 : 1
@@ -1013,9 +1121,36 @@ export default async function handler(req: any, res: any) {
           hasRent: Boolean(summary.rent),
           hasMarket: Boolean(summary.market),
         }, providerRequestCount)
-        return send(res, 200, summary)
+        await updateLookupAudit(account, auditId, {
+          cache_hit: false,
+          provider_called: providerRequestCount > 0,
+          provider_succeeded: true,
+          credit_operation_id: clean(reservation.operationId) || null,
+          credit_finalization_reference: reservation.ownerBypass ? null : `pi:finalize:${operationId}`,
+          credits_consumed: account.isOwnerAdmin ? 0 : 1,
+          cache_reference: cacheReference,
+          result_status: 'completed',
+          provider_request_count: providerRequestCount,
+          completed_at: new Date().toISOString(),
+        })
+        await recordSuccessfulSearch(account, normalizedAddress, displayAddress, auditId, clean(reservation.operationId) || null, summary)
+        return send(res, 200, { ...summary, audit: { id: auditId, lookupId: operationId, normalizedAddress } })
       } catch (error: any) {
         await releaseLookupCredit(account, clean(reservation?.operationId), error?.category || 'provider_unavailable')
+        await updateLookupAudit(account, auditId, {
+          cache_hit: false,
+          provider_called: Boolean(reservation),
+          provider_succeeded: false,
+          credit_operation_id: clean(reservation?.operationId) || null,
+          credit_release_reference: reservation?.ownerBypass || !reservation ? null : `pi:release:${operationId}`,
+          credits_consumed: 0,
+          cache_reference: cacheReference,
+          result_status: reservation ? 'released' : 'failed',
+          error_code: clean(error?.category || error?.code || 'provider_unavailable').slice(0, 80),
+          error_message: safeAuditMessage(customerError(error)),
+          provider_request_count: providerRequestCount,
+          completed_at: new Date().toISOString(),
+        })
         throw error
       }
     }

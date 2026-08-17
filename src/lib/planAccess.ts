@@ -18,6 +18,7 @@ export type AppRoute =
   | '/app/analytics'
   | '/app/hot-zones'
   | '/app/pipeline'
+  | '/app/whats-new'
 
 export const ALL_APP_ROUTES: AppRoute[] = [
   '/app/dashboard',
@@ -34,13 +35,14 @@ export const ALL_APP_ROUTES: AppRoute[] = [
   '/app/analytics',
   '/app/hot-zones',
   '/app/pipeline',
+  '/app/whats-new',
 ]
 
 export const PLAN_ROUTE_ACCESS: Record<Exclude<PlanName, 'Owner Admin'>, AppRoute[]> = {
-  Free: ['/app/dashboard', '/app/inventory', '/app/buyers', '/app/calculator', '/app/settings', '/app/upgrade'],
-  'Free Demo': ['/app/dashboard', '/app/inventory', '/app/buyers', '/app/calculator', '/app/settings', '/app/upgrade'],
-  Starter: ['/app/dashboard', '/app/submissions', '/app/inventory', '/app/buyers', '/app/blast', '/app/calculator', '/app/settings', '/app/upgrade', '/app/followups', '/app/pipeline'],
-  Pro: ['/app/dashboard', '/app/submissions', '/app/inventory', '/app/buyers', '/app/resources', '/app/blast', '/app/calculator', '/app/settings', '/app/upgrade', '/app/followups', '/app/analytics', '/app/hot-zones', '/app/pipeline'],
+  Free: ['/app/dashboard', '/app/inventory', '/app/buyers', '/app/calculator', '/app/settings', '/app/upgrade', '/app/whats-new'],
+  'Free Demo': ['/app/dashboard', '/app/inventory', '/app/buyers', '/app/calculator', '/app/settings', '/app/upgrade', '/app/whats-new'],
+  Starter: ['/app/dashboard', '/app/submissions', '/app/inventory', '/app/buyers', '/app/blast', '/app/calculator', '/app/settings', '/app/upgrade', '/app/followups', '/app/pipeline', '/app/whats-new'],
+  Pro: ['/app/dashboard', '/app/submissions', '/app/inventory', '/app/buyers', '/app/resources', '/app/blast', '/app/calculator', '/app/settings', '/app/upgrade', '/app/followups', '/app/analytics', '/app/hot-zones', '/app/pipeline', '/app/whats-new'],
   Agency: ALL_APP_ROUTES,
   Enterprise: ALL_APP_ROUTES,
 }
