@@ -2873,7 +2873,7 @@ export default function Settings() {
 
         <div className="card p-4 border border-[#252A38] bg-[#0F111A]">
           <div className="text-sm font-semibold text-[#E6E8EE] mb-3">
-            {effectiveIsFreeForDisplay ? 'Free Usage Caps' : `${effectivePlanForDisplay} Feature Summary`}
+            {`${effectivePlanForDisplay} Plan Limits`}
           </div>
           <div className="grid md:grid-cols-4 gap-3">
             {effectiveCapsForDisplay.map(([label, value]) => (
@@ -2894,7 +2894,7 @@ export default function Settings() {
 
         {!ownerPreviewActive && isFreeAccount && (
           <div className="card p-4 border border-amber-500/25 bg-amber-500/5">
-            <div className="text-sm font-semibold text-[#E6E8EE] mb-3">Free Usage Caps</div>
+            <div className="text-sm font-semibold text-[#E6E8EE] mb-3">Current Usage</div>
             <div className="grid md:grid-cols-4 gap-3">
               {[
                 ['Active Deals', `${usage.dealsSubmitted || 0} / 3`],
