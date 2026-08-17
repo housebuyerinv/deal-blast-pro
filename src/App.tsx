@@ -20,6 +20,7 @@ import AcceptableUse from './pages/public/AcceptableUse'
 import Waitlist from './pages/public/Waitlist'
 import Login from './pages/public/Login'
 import Register from './pages/public/Register'
+import VerifyEmail from './pages/public/VerifyEmail'
 import ForgotPassword from './pages/public/ForgotPassword'
 import AuthCallback from './pages/public/AuthCallback'
 import AppShell from './components/layout/AppShell'
@@ -285,7 +286,8 @@ function App() {
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/login" element={<Navigate to="/admin-login" replace />} />
-          <Route path="/register" element={<Register />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/upgrade" element={<Navigate to="/pricing" replace />} />
 
         <Route

@@ -72,8 +72,9 @@ export default function Register() {
         toast.success('Account created and signed in')
         navigate('/app/dashboard')
       } else {
+        window.sessionStorage.setItem('dealblastpro:pending-verification-email', form.email.trim().toLowerCase())
         toast.success('Account created. Check your email to confirm before signing in.')
-        navigate('/admin-login')
+        navigate('/verify-email')
       }
     } catch (err: any) {
       window.sessionStorage.removeItem('dealblastpro:start-new-account')
