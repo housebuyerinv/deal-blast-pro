@@ -229,6 +229,34 @@ export default function Dashboard() {
         })}
       </div>
 
+      {!ownerAdminToolsVisible && (
+        <div className="card p-4 mb-6 border border-[#252A38] bg-[#0F111A] flex flex-col justify-between">
+          <div>
+            <div className="text-xs uppercase tracking-[1.5px] text-[#8B92A3]">Workspace Snapshot</div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
+              {[
+                ['Active Deals', inventory.length],
+                ['Buyers', buyers.length],
+                ['Buyer Matches', buyers.length],
+                ['Offers Received', pendingLiveOffers.length],
+              ].map(([label, value]) => (
+                <div key={String(label)}>
+                  <div className="text-2xl font-semibold tabular-nums">{value}</div>
+                  <div className="text-[11px] text-[#8B92A3]">{label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+            <span className="text-xs text-[#8B92A3]">Next step: Add a deal or import buyers to start matching.</span>
+            <div className="flex gap-2">
+              <Link to="/app/intake" className="btn btn-ghost text-xs">Add Deal</Link>
+              <Link to="/app/buyers" className="btn btn-ghost text-xs">Import Buyers</Link>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Quick Navigation Links (kept as useful top navigation, not part of the main widget rows) */}
       <div className="mb-6">
         <div className="text-sm font-medium mb-2 text-[#8B92A3]">Quick Links</div>
