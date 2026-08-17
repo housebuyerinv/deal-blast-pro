@@ -2463,6 +2463,10 @@ const cleanBuyerName = (value: any, emailValue = '') => {
   }
 
   useEffect(() => {
+    if (!buyerPortalReviewAllowed) {
+      setBuyerPortalQueueCount(0)
+      return
+    }
     void refreshBuyerPortalQueueCount()
     const refresh = () => { void refreshBuyerPortalQueueCount() }
     window.addEventListener('focus', refresh)
@@ -2474,7 +2478,7 @@ const cleanBuyerName = (value: any, emailValue = '') => {
       window.removeEventListener('dealblastpro:buyer-portal-queue-changed', refresh)
       window.clearInterval(id)
     }
-  }, [])
+  }, [buyerPortalReviewAllowed])
 
   const importBuyerPortalQueue = async () => {
     if (!buyerPortalReviewAllowed) {

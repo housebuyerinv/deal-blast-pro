@@ -24,6 +24,7 @@ test('submission review route requires the effective owner admin authorization',
 test('customer buyer pages do not render the internal portal review center', async () => {
   const buyers = await source('src/pages/app/Buyers.tsx')
   assert.match(buyers, /\{buyerPortalReviewAllowed && \(/)
+  assert.match(buyers, /if \(!buyerPortalReviewAllowed\) \{[\s\S]*setBuyerPortalQueueCount\(0\)/)
   assert.doesNotMatch(buyers, /Buyer Portal Review Center - Coming Soon/)
 })
 
