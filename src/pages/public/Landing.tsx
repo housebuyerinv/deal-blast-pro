@@ -50,13 +50,8 @@ export default function Landing() {
                 Deal Blast Pro helps real estate operators collect deal submissions, organize buyers, track inventory, and manage disposition follow-up from one simple workspace.
               </p>
               <div className="flex flex-col sm:flex-row flex-wrap gap-3">
-<<<<<<< HEAD
                   <Link to="/register" className="btn btn-green text-base px-7 py-3">
                    Create Free Account
-=======
-                <Link to="/register" className="btn btn-green text-base px-7 py-3">
-                  Sign Up Now
->>>>>>> 50b344e2f4ea36cb25346e38278ac145bcf3a405
                   <ArrowRight size={18} />
                 </Link>
                 <Link to="/pricing" className="btn btn-ghost text-base px-7 py-3">View Pricing</Link>
@@ -165,17 +160,10 @@ export default function Landing() {
         <section className="max-w-4xl mx-auto px-6 pt-4 pb-14 text-center">
           <h2 className="text-3xl font-semibold mb-4">Ready to simplify your real estate operation?</h2>
           <p className="text-[#8B92A3] mb-7">
-<<<<<<< HEAD
             Create your workspace and start organizing deals and buyers today.
           </p>
           <div className="flex flex-col sm:flex-row flex-wrap gap-3 justify-center">
              <Link to="/register" className="btn btn-green px-8 py-3 text-base">Create Free Account</Link>
-=======
-            Create your Deal Blast Pro account now and start organizing deals, buyers, property analysis, and disposition follow-up in one workspace.
-          </p>
-          <div className="flex flex-col sm:flex-row flex-wrap gap-3 justify-center">
-            <Link to="/register" className="btn btn-green px-8 py-3 text-base">Sign Up Now</Link>
->>>>>>> 50b344e2f4ea36cb25346e38278ac145bcf3a405
             <Link to="/pricing" className="btn btn-ghost px-8 py-3 text-base">View Pricing</Link>
             <Link to="/admin-login" className="btn btn-ghost px-8 py-3 text-base">Sign In</Link>
           </div>
