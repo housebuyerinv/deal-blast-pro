@@ -208,7 +208,6 @@ export default function Settings() {
       : 'Preview Active'
     : currentBillingStatus
   const effectiveBillingFrequencyForDisplay = ownerPreviewActive ? 'monthly' as BillingFrequency : (trial.billingFrequency || 'monthly') as BillingFrequency
-  const effectiveIsFreeForDisplay = effectivePlanForDisplay === 'Free'
   const effectiveCapsForDisplay = effectivePlanForDisplay === 'Free'
     ? [
       ['Active Deals', '3 active deals'],
