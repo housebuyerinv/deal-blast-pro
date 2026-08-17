@@ -259,7 +259,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   if (
     user &&
     restrictedFeature &&
-    !canUseLaunchedFeature(restrictedFeature, effectivePlan, effectiveOwnerAdminAccess)
+    (!effectiveOwnerAdminAccess || !canUseLaunchedFeature(restrictedFeature, effectivePlan, effectiveOwnerAdminAccess))
   ) {
     const message = getFeatureLockedMessage(restrictedFeature, effectivePlan)
     return (
@@ -268,7 +268,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <div className="text-xs uppercase tracking-[2px] text-[#8B92A3] mb-2">Coming Soon</div>
           <h1 className="text-2xl font-semibold mb-3">{message}</h1>
           <p className="text-sm text-[#C5CAD6] mb-5">
-            The public Deal Submission Form remains available. The private Deal Submission Review Center is not launched for customer workspaces yet.
+            The public Deal Submission Form remains available. The private Deal Submission Review Center is reserved for the House Buyer Investments owner/admin workspace.
           </p>
           <div className="flex flex-col sm:flex-row gap-2 justify-center">
             <button onClick={() => navigate('/app/dashboard')} className="btn btn-green">Return to Command Center</button>

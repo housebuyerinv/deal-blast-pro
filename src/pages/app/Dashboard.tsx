@@ -5,7 +5,7 @@ import { Plus, Users, Upload, Send, Building2, Clock, FileText, DollarSign, Aler
 import { countPendingBuyerPortalSubmissions, listRecentBuyerPortalSubmissionActivity } from '../../lib/buyerPortalSubmissionStorage'
 import { countPendingDealSubmissionDocs, countPendingDealSubmissions, getDealSubmissionConversionMeta, listRecentDealSubmissionActivity } from '../../lib/dealSubmissionStorage'
 import { isSuperAdmin } from '../../lib/accessControl'
-import { getBillingNotice, isOwnerPreviewActive } from '../../lib/planAccess'
+import { getBillingNotice, hasEffectiveOwnerAdminBypass, isOwnerPreviewActive } from '../../lib/planAccess'
 
 
 export default function Dashboard() {
@@ -14,6 +14,8 @@ export default function Dashboard() {
   const [pendingBuyerPortalCount, setPendingBuyerPortalCount] = useState(0)
   const [pendingDealSubmissionCount, setPendingDealSubmissionCount] = useState(0)
   const [pendingDocsCount, setPendingDocsCount] = useState(0)
+  const { getInventoryDeals, getSubmissionsQueue, deals, buyers, trial, settings, user } = useAppStore()
+  const ownerAdminToolsVisible = hasEffectiveOwnerAdminBypass(user, settings)
 
   const refreshPendingBuyerPortalCount = async () => {
     try {
@@ -40,6 +42,7 @@ export default function Dashboard() {
   }
 
   useEffect(() => {
+    if (!ownerAdminToolsVisible) return
     refreshPendingBuyerPortalCount()
     refreshPendingDealSubmissionCount()
 
@@ -60,9 +63,8 @@ export default function Dashboard() {
       window.removeEventListener('dealblastpro:deal-submission-queue-changed', refresh)
       window.clearInterval(interval)
     }
-  }, [])
+  }, [ownerAdminToolsVisible])
 
-  const { getInventoryDeals, getSubmissionsQueue, deals, buyers, trial, settings, user } = useAppStore()
   const navigate = useNavigate()
   const billingNotice = getBillingNotice(trial, settings.deletionRequest)
   const ownerPreviewActive = isOwnerPreviewActive(user, settings)
@@ -105,10 +107,10 @@ export default function Dashboard() {
 
   const kpis = [
     { label: 'Total / Active Deals', value: inventory.length, link: '/app/inventory', color: 'text-[#22C55E]' },
-    { label: 'Submissions', value: totalDealSubmissionNotifications, link: '/app/submissions', color: 'text-[#3B82F6]' },
+    ...(ownerAdminToolsVisible ? [{ label: 'Submissions', value: totalDealSubmissionNotifications, link: '/app/submissions', color: 'text-[#3B82F6]' }] : []),
     { label: 'Buyer Matches', value: buyers.length, link: '/app/buyers', color: 'text-[#22C55E]' },
     { label: 'Offers Received', value: pendingLiveOffers.length, link: '/app/pipeline', color: 'text-amber-400' },
-    { label: 'Pending Docs', value: pendingDocsCount, link: '/app/submissions?filter=pending-docs', color: 'text-[#F59E0B]' },
+    ...(ownerAdminToolsVisible ? [{ label: 'Pending Docs', value: pendingDocsCount, link: '/app/submissions?filter=pending-docs', color: 'text-[#F59E0B]' }] : []),
   ]
 
   const totalBuyerReviewNotifications = pendingBuyerPortalCount
@@ -232,10 +234,12 @@ export default function Dashboard() {
         <div className="text-sm font-medium mb-2 text-[#8B92A3]">Quick Links</div>
         <div className="flex flex-wrap gap-2">
           <Link to="/app/intake" className="btn btn-ghost text-sm">Internal Intake Center</Link>
-          <Link to="/portal" className="btn btn-ghost text-sm">Public Submission Portal</Link>
-          <Link to="/buyer-portal" target="_blank" className="btn btn-ghost text-sm">Verified Buyer Portal</Link>
+          {ownerAdminToolsVisible && <>
+            <Link to="/portal" className="btn btn-ghost text-sm">Public Submission Portal</Link>
+            <Link to="/buyer-portal" target="_blank" className="btn btn-ghost text-sm">Verified Buyer Portal</Link>
+          </>}
           <Link to="/app/inventory" className="btn btn-ghost text-sm">Inventory Hub</Link>
-          <Link to="/app/submissions" className="btn btn-ghost text-sm">Deal Submissions Queue</Link>
+          {ownerAdminToolsVisible && <Link to="/app/submissions" className="btn btn-ghost text-sm">Deal Submissions Queue</Link>}
           <Link to="/app/blast" className="btn btn-ghost text-sm">Blast Builder</Link>
         </div>
       </div>
@@ -246,7 +250,7 @@ export default function Dashboard() {
         {/* Top Row: KPI cards only (already rendered above, kept for balance) */}
         {/* (The KPI grid at lines ~44 is the Top Row) */}
 
-        {totalBuyerReviewNotifications > 0 && (
+        {ownerAdminToolsVisible && totalBuyerReviewNotifications > 0 && (
           <div
             data-testid="command-center-buyer-review-alert"
             className="card p-4 mb-4 border border-amber-500/40 bg-amber-500/10 flex flex-wrap items-center justify-between gap-3 cursor-pointer hover:border-amber-400/70"
@@ -284,7 +288,7 @@ export default function Dashboard() {
           {/* Live Operational Stream - wider and readable */}
           <div className="card p-4 lg:col-span-6">
             <div className="font-medium text-sm mb-2">Live Operational Stream</div>
-            <LiveOperationalStream />
+          <LiveOperationalStream ownerAdminToolsVisible={ownerAdminToolsVisible} />
           </div>
 
           {/* Needs Attention */}
@@ -582,7 +586,7 @@ function RecentActivity() {
 }
 
 /* Live Operational Stream Widget - pulls from store activities + key events */
-function LiveOperationalStream() {
+function LiveOperationalStream({ ownerAdminToolsVisible = false }: { ownerAdminToolsVisible?: boolean }) {
   const [activities, setActivities] = useState<any[]>([])
 
   // Collect recent global activity (surgical: read from store on mount + poll lightly)
@@ -604,6 +608,7 @@ function LiveOperationalStream() {
         })
         // Also synthesize buyer portal queue items waiting for review
         try {
+          if (!ownerAdminToolsVisible) throw new Error('admin-only activity')
           const queueRaw = localStorage.getItem('dealblastpro-buyer-portal-queue')
           const buyerQueue = queueRaw ? JSON.parse(queueRaw) : []
           if (Array.isArray(buyerQueue)) {
@@ -645,7 +650,7 @@ function LiveOperationalStream() {
       window.removeEventListener('dealblastpro:deal-submission-queue-changed', refresh)
       window.removeEventListener('dealblastpro:buyer-portal-queue-changed', refresh)
     }
-  }, [])
+  }, [ownerAdminToolsVisible])
 
   const getIcon = (_type?: string) => {
     return ''

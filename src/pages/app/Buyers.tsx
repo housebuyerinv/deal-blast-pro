@@ -4384,12 +4384,14 @@ const cleanBuyerName = (value: any, emailValue = '') => {
           <button onClick={() => setShowAddBuyer(true)} className="btn btn-primary flex items-center gap-2">
             Add Buyer
           </button>
-          <button
-            onClick={importBuyerPortalQueue}
-            className={'btn btn-ghost flex items-center gap-2 ' + (buyerPortalReviewAllowed ? 'text-[#22C55E]' : 'text-[#8B92A3]')}
-          >
-            {buyerPortalReviewAllowed && buyerPortalQueueCount > 0 ? 'Import Buyer Portal Queue (' + buyerPortalQueueCount + ')' : buyerPortalReviewAllowed ? 'Import Buyer Portal Queue' : 'Buyer Portal Review Coming Soon'}
-          </button>
+          {buyerPortalReviewAllowed && (
+            <button
+              onClick={importBuyerPortalQueue}
+              className="btn btn-ghost flex items-center gap-2 text-[#22C55E]"
+            >
+              {buyerPortalQueueCount > 0 ? 'Import Buyer Portal Queue (' + buyerPortalQueueCount + ')' : 'Import Buyer Portal Queue'}
+            </button>
+          )}
           <button onClick={() => setShowImport(true)} className="btn btn-ghost flex items-center gap-2">
             <Upload size={16} /> Import Buyers (CSV / TXT)
           </button>
@@ -4420,20 +4422,16 @@ const cleanBuyerName = (value: any, emailValue = '') => {
         </div>
       </div>
 
-      {true && (
+      {buyerPortalReviewAllowed && (
         <div data-testid="buyer-submission-review-alert" className="mb-3 card p-3 border border-amber-500/40 bg-amber-500/10 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <div className="font-semibold text-amber-300">{buyerPortalReviewAllowed ? 'Buyer Portal Review Center' : 'Buyer Portal Review Center - Coming Soon'}</div>
+            <div className="font-semibold text-amber-300">Buyer Portal Review Center</div>
             <div className="text-xs text-[#8B92A3]">
-              {buyerPortalReviewAllowed
-                ? (buyerPortalQueueCount > 0 ? buyerPortalQueueCount + ' verified buyer portal submission' + (buyerPortalQueueCount === 1 ? '' : 's') + ' waiting in the review queue.' : 'No buyer portal submissions waiting right now.')
-                : 'Public buyer submissions are accepted, but customer self-service review is not active on this plan yet.'}
-              {buyerPortalReviewAllowed && buyerPortalQueueCount === 0 ? ' Send buyers to the public Buyer Portal, then refresh this review center.' : ''}
+              {buyerPortalQueueCount > 0 ? buyerPortalQueueCount + ' verified buyer portal submission' + (buyerPortalQueueCount === 1 ? '' : 's') + ' waiting in the review queue.' : 'No buyer portal submissions waiting right now.'}
+              {buyerPortalQueueCount === 0 ? ' Send buyers to the public Buyer Portal, then refresh this review center.' : ''}
             </div>
           </div>
-          <button onClick={importBuyerPortalQueue} className={buyerPortalReviewAllowed && buyerPortalQueueCount > 0 ? 'btn btn-primary text-xs' : 'btn btn-ghost text-xs'}>
-            {buyerPortalReviewAllowed ? 'Open Buyer Review' : 'Coming Soon'}
-          </button>
+          <button onClick={importBuyerPortalQueue} className={buyerPortalQueueCount > 0 ? 'btn btn-primary text-xs' : 'btn btn-ghost text-xs'}>Open Buyer Review</button>
         </div>
       )}
 
