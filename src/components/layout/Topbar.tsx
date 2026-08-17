@@ -4,7 +4,7 @@ import { Menu, LogOut } from 'lucide-react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { isSuperAdmin } from '../../lib/accessControl'
-import { getOwnerPreviewPlan, isOwnerPreviewActive } from '../../lib/planAccess'
+import { getOwnerPreviewPlan, hasEffectiveOwnerAdminBypass, isOwnerPreviewActive } from '../../lib/planAccess'
 import { PlanStatusBadge } from '../billing/PlanStatusBadge'
 import { supabase } from '../../lib/supabase'
 
@@ -14,6 +14,7 @@ export default function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
 
   const superAdmin = isSuperAdmin(user)
   const previewActive = isOwnerPreviewActive(user, settings)
+  const ownerAdminPortalVisible = hasEffectiveOwnerAdminBypass(user, settings)
   const previewPlan = getOwnerPreviewPlan(settings)
   const displayedTrial = previewActive && previewPlan !== 'Owner Admin'
     ? {
@@ -57,7 +58,7 @@ export default function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
         <div className="hidden md:block text-xs text-[#8B92A3] tabular-nums ml-3 pl-3 border-l border-[#252A38]">
           {dateTimeStr}
         </div>
-        <Link to="/portal" className="text-xs text-[#3B82F6] hover:underline ml-2 hidden md:inline">Public Portal</Link>
+        {ownerAdminPortalVisible && <Link to="/portal" className="text-xs text-[#3B82F6] hover:underline ml-2 hidden md:inline">Public Portal</Link>}
       </div>
 
       <div className="flex items-center gap-3 text-sm">

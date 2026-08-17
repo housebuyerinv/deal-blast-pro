@@ -227,33 +227,6 @@ export default function Dashboard() {
             </Link>
           );
         })}
-        {!ownerAdminToolsVisible && (
-          <div className="card p-4 lg:col-span-3 border border-[#252A38] bg-[#0F111A] flex flex-col justify-between">
-            <div>
-              <div className="text-xs uppercase tracking-[1.5px] text-[#8B92A3]">Workspace Snapshot</div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
-                {[
-                  ['Active Deals', inventory.length],
-                  ['Buyers', buyers.length],
-                  ['Buyer Matches', buyers.length],
-                  ['Offers Received', pendingLiveOffers.length],
-                ].map(([label, value]) => (
-                  <div key={String(label)}>
-                    <div className="text-2xl font-semibold tabular-nums">{value}</div>
-                    <div className="text-[11px] text-[#8B92A3]">{label}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-              <span className="text-xs text-[#8B92A3]">Next step: Add a deal or import buyers to start matching.</span>
-              <div className="flex gap-2">
-                <Link to="/app/intake" className="btn btn-ghost text-xs">Add Deal</Link>
-                <Link to="/app/buyers" className="btn btn-ghost text-xs">Import Buyers</Link>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Quick Navigation Links (kept as useful top navigation, not part of the main widget rows) */}
@@ -308,7 +281,7 @@ export default function Dashboard() {
             <div className="mt-2 pt-2 border-t border-[#252A38] text-[10px] text-[#8B92A3] space-y-0.5">
               <div>Workspace: <span className="text-[#22C55E]">Authenticated</span></div>
               <div>LocalStorage: <span className="text-[#22C55E]">Healthy</span></div>
-              <div>Public Portal: <Link to="/portal" className="text-[#3B82F6] hover:underline">Active</Link></div>
+              {ownerAdminToolsVisible && <div>Public Portal: <Link to="/portal" className="text-[#3B82F6] hover:underline">Active</Link></div>}
             </div>
           </div>
 
@@ -423,12 +396,12 @@ export default function Dashboard() {
           <div className="lg:col-span-4 card p-5">
             <div className="font-medium mb-3">Quick Actions</div>
             <div className="grid grid-cols-2 gap-2 text-sm">
-              <Link to="/portal" className="btn btn-ghost justify-start"><Plus size={15} /> Add New Deal</Link>
+              <Link to={ownerAdminToolsVisible ? '/portal' : '/app/intake'} className="btn btn-ghost justify-start"><Plus size={15} /> Add New Deal</Link>
               <Link to="/app/buyers" className="btn btn-ghost justify-start"><Upload size={15} /> Import Buyers CSV</Link>
               <Link to="/app/blast" className="btn btn-ghost justify-start"><Send size={15} /> Send Deal Blast</Link>
               <Link to="/app/inventory" className="btn btn-ghost justify-start"><Building2 size={15} /> Open Inventory Hub</Link>
             </div>
-            <div className="text-[11px] text-[#8B92A3] mt-4">Pro tip: Use the Public Portal link in Inventory Hub to let external submitters self-serve.</div>
+            {ownerAdminToolsVisible && <div className="text-[11px] text-[#8B92A3] mt-4">Pro tip: Use the Public Portal link in Inventory Hub to let external submitters self-serve.</div>}
           </div>
 
           {/* Recent Activity (only one) */}
