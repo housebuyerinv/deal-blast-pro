@@ -3073,18 +3073,18 @@ export default function Settings() {
           <div className="text-lg font-semibold text-[#E6E8EE]">Need help?</div>
           <div className="text-sm text-[#8B92A3] mt-1">Contact support for billing, account, or workspace questions.</div>
           <div className="mt-3 grid md:grid-cols-3 gap-3 text-sm">
-            <div className="panel p-3">
+            <button type="button" onClick={() => { window.location.href = '/contact?topic=billing&context=checkout%2C%20receipts%2C%20or%20payment%20status' }} className="panel p-3 text-left cursor-pointer hover:border-[#3B82F6] focus:outline-none focus:ring-2 focus:ring-[#3B82F6]">
               <div className="font-semibold text-[#E6E8EE]">Billing help</div>
               <div className="text-[#8B92A3] mt-1">Get help with checkout, receipts, or payment status.</div>
-            </div>
-            <div className="panel p-3">
+            </button>
+            <button type="button" onClick={() => { window.location.href = '/pricing' }} className="panel p-3 text-left cursor-pointer hover:border-[#3B82F6] focus:outline-none focus:ring-2 focus:ring-[#3B82F6]">
               <div className="font-semibold text-[#E6E8EE]">Plan guidance</div>
               <div className="text-[#8B92A3] mt-1">Confirm whether Free, Starter, or Pro fits your workflow.</div>
-            </div>
-            <div className="panel p-3">
+            </button>
+            <button type="button" onClick={() => { window.location.href = '/contact?topic=workspace&context=workspace%20access%2C%20account%20status%2C%20or%20deletion%20requests' }} className="panel p-3 text-left cursor-pointer hover:border-[#3B82F6] focus:outline-none focus:ring-2 focus:ring-[#3B82F6]">
               <div className="font-semibold text-[#E6E8EE]">Workspace support</div>
               <div className="text-[#8B92A3] mt-1">Ask about access, account status, or deletion requests.</div>
-            </div>
+            </button>
           </div>
           <button onClick={() => window.location.href = '/contact'} className="btn btn-ghost mt-3">Contact Support</button>
         </div>

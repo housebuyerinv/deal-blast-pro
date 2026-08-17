@@ -12,14 +12,19 @@ export default function Contact() {
   const [submitted, setSubmitted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [resultMessage, setResultMessage] = useState('Thanks, your message has been received. We will follow up with the next step.')
-  const [form, setForm] = useState({
+  const [form, setForm] = useState(() => {
+    const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
+    const topic = params.get('topic') || ''
+    const context = params.get('context') || ''
+    return {
     name: '',
     email: '',
     phone: '',
     company: '',
     role: '',
-    interest: 'Demo',
-    message: ''
+    interest: topic ? 'Support' : 'Demo',
+    message: context ? `Support request: ${context}` : ''
+    }
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
