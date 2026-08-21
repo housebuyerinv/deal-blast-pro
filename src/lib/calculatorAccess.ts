@@ -40,7 +40,7 @@ export const CALCULATOR_ACCESS_BY_PLAN: Record<PlanName, CalculatorTabId[]> = {
 
 export function getEffectiveCalculatorPlan(
   trial: TrialState,
-  user?: Pick<User, 'email'> | null,
+  user?: Pick<User, 'isOwnerAdmin'> | null,
   settings?: Pick<AppSettings, 'ownerPreviewPlan'> | null,
 ): CalculatorMinimumPlan | 'Owner Admin' {
   if (hasEffectiveOwnerAdminBypass(user, settings)) return 'Owner Admin'
@@ -50,7 +50,7 @@ export function getEffectiveCalculatorPlan(
 
 export function getAllowedCalculatorTabs(
   trial: TrialState,
-  user?: Pick<User, 'email'> | null,
+  user?: Pick<User, 'isOwnerAdmin'> | null,
   settings?: Pick<AppSettings, 'ownerPreviewPlan'> | null,
 ): CalculatorTabId[] {
   const plan = getEffectiveCalculatorPlan(trial, user, settings)
@@ -61,7 +61,7 @@ export function getAllowedCalculatorTabs(
 export function canAccessCalculatorTab(
   tab: CalculatorTabId,
   trial: TrialState,
-  user?: Pick<User, 'email'> | null,
+  user?: Pick<User, 'isOwnerAdmin'> | null,
   settings?: Pick<AppSettings, 'ownerPreviewPlan'> | null,
 ) {
   return getAllowedCalculatorTabs(trial, user, settings).includes(tab)
@@ -70,7 +70,7 @@ export function canAccessCalculatorTab(
 export function canAccessCalculatorEntitlement(
   entitlement: CalculatorEntitlementId,
   trial: TrialState,
-  user?: Pick<User, 'email'> | null,
+  user?: Pick<User, 'isOwnerAdmin'> | null,
   settings?: Pick<AppSettings, 'ownerPreviewPlan'> | null,
 ) {
   if (hasEffectiveOwnerAdminBypass(user, settings)) return true
@@ -83,7 +83,7 @@ export function canAccessCalculatorEntitlement(
 export function getCalculatorLockMessage(
   entitlement: CalculatorEntitlementId,
   trial: TrialState,
-  user?: Pick<User, 'email'> | null,
+  user?: Pick<User, 'isOwnerAdmin'> | null,
   settings?: Pick<AppSettings, 'ownerPreviewPlan'> | null,
 ) {
   const config = CALCULATOR_ENTITLEMENTS[entitlement]

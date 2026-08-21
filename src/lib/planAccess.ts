@@ -61,26 +61,26 @@ export function getOwnerPreviewPlan(settings?: Pick<AppSettings, 'ownerPreviewPl
   return previewPlan || 'Owner Admin'
 }
 
-export function isOwnerPreviewActive(user?: Pick<User, 'email'> | null, settings?: Pick<AppSettings, 'ownerPreviewPlan'> | null) {
+export function isOwnerPreviewActive(user?: Pick<User, 'isOwnerAdmin'> | null, settings?: Pick<AppSettings, 'ownerPreviewPlan'> | null) {
   return isSuperAdmin(user) && getOwnerPreviewPlan(settings) !== 'Owner Admin'
 }
 
 export function hasEffectiveOwnerAdminBypass(
-  user?: Pick<User, 'email'> | null,
+  user?: Pick<User, 'isOwnerAdmin'> | null,
   settings?: Pick<AppSettings, 'ownerPreviewPlan'> | null,
 ) {
   return hasOwnerAdminBypass(user) && !isOwnerPreviewActive(user, settings)
 }
 
 export function canShowOwnerPropertyIntelligenceBypass(
-  user?: Pick<User, 'email'> | null,
+  user?: Pick<User, 'isOwnerAdmin'> | null,
   settings?: Pick<AppSettings, 'ownerPreviewPlan'> | null,
 ) {
   return hasEffectiveOwnerAdminBypass(user, settings)
 }
 
 export function getOwnerPreviewContext(
-  user?: Pick<User, 'email'> | null,
+  user?: Pick<User, 'isOwnerAdmin'> | null,
   settings?: Pick<AppSettings, 'ownerPreviewPlan'> | null,
 ) {
   const plan = getOwnerPreviewPlan(settings)
@@ -96,7 +96,7 @@ export function getOwnerPreviewContext(
 
 export function getEffectivePlan(
   trial: TrialState,
-  user?: Pick<User, 'email'> | null,
+  user?: Pick<User, 'isOwnerAdmin'> | null,
   settings?: Pick<AppSettings, 'ownerPreviewPlan'> | null,
 ): PlanName {
   if (isSuperAdmin(user)) return getOwnerPreviewPlan(settings)
@@ -115,7 +115,7 @@ export function getEffectivePlan(
 
 export function getAllowedRoutes(
   trial: TrialState,
-  user?: Pick<User, 'email'> | null,
+  user?: Pick<User, 'isOwnerAdmin'> | null,
   settings?: Pick<AppSettings, 'ownerPreviewPlan'> | null,
 ): AppRoute[] {
   if (hasEffectiveOwnerAdminBypass(user, settings)) return ALL_APP_ROUTES
@@ -127,7 +127,7 @@ export function getAllowedRoutes(
 export function canAccessRoute(
   route: string,
   trial: TrialState,
-  user?: Pick<User, 'email'> | null,
+  user?: Pick<User, 'isOwnerAdmin'> | null,
   settings?: Pick<AppSettings, 'ownerPreviewPlan'> | null,
 ) {
   if (hasEffectiveOwnerAdminBypass(user, settings)) return true

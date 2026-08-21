@@ -302,6 +302,8 @@ export interface User {
   id: string
   name: string
   email: string
+  /** Server-resolved authority; never derive this from browser-visible email configuration. */
+  isOwnerAdmin?: boolean
   fullName?: string
   displayName?: string
   businessName?: string

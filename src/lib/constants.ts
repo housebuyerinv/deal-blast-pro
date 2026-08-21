@@ -1,7 +1,5 @@
 ﻿import { PropertyType, DealStatus, BuyerType, AppSettings } from './types'
 
-export const SUPER_ADMIN_EMAILS = ['housebuyerinv@gmail.com'] as const
-
 export const PROPERTY_TYPES: PropertyType[] = [
   'SFH', 'Multifamily', 'MHP', 'Hotel', 'Retail', 'Storage', 'Land', 'Mixed-Use', 'Other'
 ]

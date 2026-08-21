@@ -142,6 +142,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
             fullName: profileNames.fullName,
             displayName: profileNames.displayName,
             businessName: getWorkspaceDisplayName(payload?.profile?.businessName, payload?.workspace?.name),
+            isOwnerAdmin: payload?.isOwnerAdmin === true,
           })
         } else {
           updateUserProfile({
@@ -150,6 +151,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
             businessName: getWorkspaceDisplayName(payload?.profile?.businessName, payload?.workspace?.name),
             company: getWorkspaceDisplayName(payload?.profile?.businessName, payload?.workspace?.name),
             name: profileNames.name,
+            isOwnerAdmin: payload?.isOwnerAdmin === true,
           })
         }
 

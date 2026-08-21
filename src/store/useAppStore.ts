@@ -93,9 +93,10 @@ issueKeys: string[] }>
     displayName?: string
     businessName?: string
     company?: string
+    isOwnerAdmin?: boolean
   }) => void
   logout: () => void
-  updateUserProfile: (updates: Partial<Pick<User, 'name' | 'fullName' | 'displayName' | 'businessName' | 'company' | 'email'>>) => void
+  updateUserProfile: (updates: Partial<Pick<User, 'name' | 'fullName' | 'displayName' | 'businessName' | 'company' | 'email' | 'isOwnerAdmin'>>) => void
   setRole: (role: User['role']) => void
   setUserRole: (role: AppRole) => void
   getCurrentRole: () => AppRole
@@ -720,6 +721,7 @@ export const useAppStore = create<AppStore>()(
           name: displayName || fullName || name || email.split('@')[0],
           email: normalizedEmail,
           role: 'Owner' as User['role'],
+          isOwnerAdmin: options?.isOwnerAdmin === true,
           fullName,
           displayName,
           businessName,

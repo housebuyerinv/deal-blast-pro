@@ -17,6 +17,7 @@ export default async function handler(req: any, res: any) {
       accountStatus: account.accountStatus,
       deactivated: account.deactivated,
       workspaceId: account.workspace?.id || null,
+      isOwnerAdmin: account.isOwnerAdmin,
       planName: account.planName,
       billingStatus: account.billingStatus,
       paymentStatus: account.plan?.payment_status || null,
