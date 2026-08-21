@@ -107,9 +107,15 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
             billingStatus,
             billingFrequency: payload?.billingInterval || 'monthly',
             paymentProvider: 'Stripe',
-            billingPeriodStart: state.trial.billingPeriodStart || '',
-            billingPeriodEnd: payload?.currentPeriodEnd || state.trial.billingPeriodEnd || '',
+            billingPeriodStart: payload?.trialStartedAt || state.trial.billingPeriodStart || '',
+            billingPeriodEnd: billingStatus === 'Trial Active'
+              ? payload?.trialEndsAt || ''
+              : payload?.currentPeriodEnd || state.trial.billingPeriodEnd || '',
             billingAdminNote: 'Synced from authenticated account status.',
+            currentPlan: payload?.currentPlan || serverPlan,
+            effectiveAccessPlan: payload?.effectiveAccessPlan || serverPlan,
+            trialStartedAt: payload?.trialStartedAt || '',
+            trialEndsAt: payload?.trialEndsAt || '',
           })
           const onboarding = {
             ...DEFAULT_SETTINGS.onboarding!,

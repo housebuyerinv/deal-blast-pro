@@ -33,7 +33,7 @@ insert into public.workspace_plan_assignments
 values
   ('10000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000001','Free','Free','Free','Free Active','Not Trial','No payment required',null,null,0,null,null,null,null,null,null,'QA Fixture'),
   ('10000000-0000-4000-8000-000000000002','00000000-0000-4000-8000-000000000002','Starter','Starter','Starter','Paid Active','Not Trial','Paid','active','monthly',20,null,null,null,null,now(),null,'QA Fixture'),
-  ('10000000-0000-4000-8000-000000000003','00000000-0000-4000-8000-000000000003','Pro','Pro','Pro','Trial Active','Trial Active','No payment required','trialing','monthly',0,now()-interval '1 day',now()+interval '13 days',null,now()-interval '1 day',null,'LAUNCH20','QA Fixture'),
+  ('10000000-0000-4000-8000-000000000003','00000000-0000-4000-8000-000000000003','Pro','Pro','Pro','Trial Active','Trial Active','Trialing','trialing','monthly',0,now(),now()+interval '14 days',null,now(),null,'LAUNCH20','QA Fixture'),
   ('10000000-0000-4000-8000-000000000004','00000000-0000-4000-8000-000000000004','Pro','Pro','Pro','Paid Active','Converted','Paid','active','monthly',50,now()-interval '30 days',now()-interval '16 days',now()-interval '16 days',now()-interval '30 days',now()-interval '16 days','LAUNCH20','QA Fixture'),
   ('10000000-0000-4000-8000-000000000005','00000000-0000-4000-8000-000000000005','Agency','Agency','Agency','Paid Active','Not Trial','Paid','active','monthly',150,null,null,null,null,now(),null,'QA Fixture'),
   ('10000000-0000-4000-8000-000000000006','00000000-0000-4000-8000-000000000006','Owner Admin','Owner Admin','Owner Admin','Internal Active','Not Trial','Internal',null,null,0,null,null,null,null,null,null,'QA Fixture')

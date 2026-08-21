@@ -125,6 +125,10 @@ issueKeys: string[] }>
     billingPeriodStart?: string
     billingPeriodEnd?: string
     billingAdminNote?: string
+    currentPlan?: TrialState['plan']
+    effectiveAccessPlan?: TrialState['plan']
+    trialStartedAt?: string
+    trialEndsAt?: string
   }) => void
   resetTrial: () => void
   
@@ -929,6 +933,11 @@ export const useAppStore = create<AppStore>()(
         const isActiveBilling = updates.billingStatus === 'Paid Active' || updates.billingStatus === 'Comped'
         const isTrial = updates.billingStatus === 'Trial Active'
         const isFree = normalizedPlan === 'Free'
+        const trialEnd = updates.trialEndsAt || (isTrial ? updates.billingPeriodEnd : '') || ''
+        const trialEndMs = trialEnd ? new Date(trialEnd).getTime() : Number.NaN
+        const trialDaysLeft = Number.isFinite(trialEndMs)
+          ? Math.max(0, Math.ceil((trialEndMs - Date.now()) / 86400000))
+          : 0
 
         set(s => ({
           trial: {
@@ -936,8 +945,8 @@ export const useAppStore = create<AppStore>()(
             plan: normalizedPlan,
             isPaid: isPaidPlan && isActiveBilling,
             isActive: isActiveBilling || isTrial || isFree,
-            daysLeft: isPaidPlan && isActiveBilling ? 999 : isFree ? 999 : isTrial ? Math.max(s.trial.daysLeft || 0, 7) : 0,
-            endDate: isFree ? '' : s.trial.endDate,
+            daysLeft: isPaidPlan && isActiveBilling ? 999 : isFree ? 999 : isTrial ? trialDaysLeft : 0,
+            endDate: isFree ? '' : isTrial ? trialEnd : s.trial.endDate,
             billingStatus: isFree ? 'Free Active' : updates.billingStatus,
             billingFrequency: updates.billingFrequency || s.trial.billingFrequency || 'monthly',
             paymentProvider: updates.paymentProvider || s.trial.paymentProvider || 'Stripe',
@@ -945,6 +954,8 @@ export const useAppStore = create<AppStore>()(
             billingPeriodEnd: updates.billingPeriodEnd || '',
             billingAdminNote: updates.billingAdminNote || '',
             billingUpdatedAt: new Date().toISOString(),
+            currentPlan: updates.currentPlan || normalizedPlan,
+            effectiveAccessPlan: updates.effectiveAccessPlan || normalizedPlan,
           }
         }))
       },

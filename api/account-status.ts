@@ -28,6 +28,13 @@ export default async function handler(req: any, res: any) {
       latestInvoiceStatus: account.plan?.latest_invoice_status || null,
       currentPlan: account.plan?.current_plan || account.planName,
       effectiveAccessPlan: account.plan?.effective_access_plan || account.planName,
+      trialStartedAt: account.plan?.trial_started_at || null,
+      trialEndsAt: account.plan?.trial_ends_at || null,
+      includedPropertyIntelligenceCredits: Number(account.plan?.property_intelligence_included_credits || 0),
+      paidPropertyIntelligenceEntitlement:
+        String(account.billingStatus || '').toLowerCase() === 'paid active' &&
+        String(account.plan?.payment_status || '').toLowerCase() === 'paid' &&
+        String(account.plan?.subscription_status || '').toLowerCase() === 'active',
       scheduledPlan: account.plan?.scheduled_plan || null,
       scheduledPlanChangeAt: account.plan?.scheduled_plan_change_at || null,
       billingInterval: account.plan?.billing_interval || null,
