@@ -183,8 +183,17 @@ const fulfillCreditPack = async (supabaseUrl: string, serviceKey: string, event:
 }
 
 const grantIncludedCredits = async (supabaseUrl: string, serviceKey: string, event: any, workspaceId: string,
-  plan: string, periodStart: string, periodEnd: string) => {
-  if (!['invoice.paid','invoice.payment_succeeded'].includes(String(event.type)) || !workspaceId || !periodStart || !periodEnd) return
+  plan: string, periodStart: string, periodEnd: string, subscriptionStatus: string) => {
+  const invoice = event?.data?.object || {}
+  const amountPaid = Number(invoice.amount_paid || 0)
+  const billingReason = String(invoice.billing_reason || '').trim()
+  const paymentStatus = String(invoice.status || '').trim()
+  const qualifyingBillingReasons = new Set(['subscription_create', 'subscription_cycle', 'subscription_update'])
+  if (!['invoice.paid','invoice.payment_succeeded'].includes(String(event.type)) ||
+      !workspaceId || !periodStart || !periodEnd ||
+      String(subscriptionStatus).toLowerCase() !== 'active' ||
+      paymentStatus.toLowerCase() !== 'paid' || amountPaid <= 0 ||
+      !qualifyingBillingReasons.has(billingReason)) return
   let enterpriseLimit: number | null = null
   if (plan === 'Enterprise') {
     const configResponse = await fetch(`${supabaseUrl}/rest/v1/workspace_plan_assignments?workspace_id=eq.${encodeURIComponent(workspaceId)}&select=property_intelligence_included_credits`, { headers: serviceHeaders(serviceKey) })
@@ -197,9 +206,13 @@ const grantIncludedCredits = async (supabaseUrl: string, serviceKey: string, eve
   const response = await fetch(`${supabaseUrl}/rest/v1/rpc/grant_property_intelligence_included_credits`, {
     method: 'POST', headers: serviceHeaders(serviceKey), body: JSON.stringify({ p_workspace_id: workspaceId, p_plan_name: plan,
       p_period_start: periodStart.slice(0,10), p_period_end: periodEnd.slice(0,10), p_idempotency_key: `stripe:included:${invoiceId}:${periodStart.slice(0,10)}`,
-      p_enterprise_limit: enterpriseLimit, p_reason: 'verified_stripe_billing_cycle' }),
+      p_enterprise_limit: enterpriseLimit, p_reason: 'verified_stripe_billing_cycle',
+      p_subscription_status: subscriptionStatus, p_invoice_amount_paid: amountPaid,
+      p_billing_reason: billingReason, p_payment_status: paymentStatus }),
   })
   if (!response.ok) throw new Error('included_credit_grant_failed')
+  const result = await response.json().catch(() => null)
+  if (result?.ok === false) throw new Error(`included_credit_grant_rejected:${String(result?.reason || 'unknown')}`)
 }
 
 const adjustCreditPack = async (supabaseUrl: string, serviceKey: string, event: any) => {
@@ -381,7 +394,11 @@ const extractActivation = async (event: any) => {
     email,
     periodStart,
     periodEnd: periodEnd || addPeriodEndFallback(periodStart, billingFrequency),
+    trialStartedAt: toIso(subscription?.trial_start),
+    trialEndsAt: toIso(subscription?.trial_end),
     amount,
+    amountPaid: Number(latestInvoice?.amount_paid ?? object.amount_paid ?? 0),
+    billingReason: String(latestInvoice?.billing_reason || object.billing_reason || '').trim(),
     currency,
     stripeCustomerId: customerId,
     stripeSubscriptionId: getId(subscription || object.subscription),
@@ -393,6 +410,7 @@ const extractActivation = async (event: any) => {
     latestInvoicePdf: String(latestInvoice?.invoice_pdf || object.invoice_pdf || '').trim(),
     stripePriceId,
     stripeProductId,
+    promotionCode: String(metadata.promotionCode || subscriptionMetadata.promotionCode || '').trim(),
     outstandingBalance: String(event?.type || '').startsWith('invoice.paid') || String(event?.type || '') === 'invoice.payment_succeeded'
       ? 0
       : Number.isFinite(amountRemaining)
@@ -435,32 +453,41 @@ const getSnapshotByEmail = async (supabaseUrl: string, serviceKey: string, email
   }) || null
 }
 
-const getBillingOutcome = (event: any) => {
+const getBillingOutcome = (event: any, activation: Awaited<ReturnType<typeof extractActivation>>) => {
   const type = String(event?.type || '')
   const object = event?.data?.object || {}
   const subscriptionStatus = String(object.status || '').toLowerCase()
+  const resolvedSubscriptionStatus = String(activation.subscriptionStatus || subscriptionStatus).toLowerCase()
 
   if (type === 'invoice.payment_failed') {
-    return { billingStatus: 'Past Due', paymentCollectionStatus: 'Past Due', paymentStatus: 'Failed', note: 'Stripe payment failed', isPaid: false }
+    return { billingStatus: 'Past Due', paymentCollectionStatus: 'Past Due', paymentStatus: 'Failed', note: 'Stripe payment failed', isPaid: false, hasSoftwareAccess: false }
   }
 
   if (type === 'invoice.payment_action_required') {
-    return { billingStatus: 'Past Due', paymentCollectionStatus: 'Payment Action Required', paymentStatus: 'Failed', note: 'Stripe payment action is required', isPaid: false }
+    return { billingStatus: 'Past Due', paymentCollectionStatus: 'Payment Action Required', paymentStatus: 'Failed', note: 'Stripe payment action is required', isPaid: false, hasSoftwareAccess: false }
   }
 
   if (type === 'customer.subscription.deleted' || subscriptionStatus === 'canceled') {
-    return { billingStatus: 'Cancelled', paymentCollectionStatus: 'Cancelled', paymentStatus: 'Cancelled', note: 'Stripe subscription cancelled', isPaid: false }
+    return { billingStatus: 'Cancelled', paymentCollectionStatus: 'Cancelled', paymentStatus: 'Cancelled', note: 'Stripe subscription cancelled', isPaid: false, hasSoftwareAccess: false }
+  }
+
+  if (resolvedSubscriptionStatus === 'trialing') {
+    return { billingStatus: 'Trial Active', paymentCollectionStatus: 'Trialing', paymentStatus: 'Trialing', note: 'Stripe Pro trial active', isPaid: false, hasSoftwareAccess: true }
   }
 
   if (object.cancel_at_period_end) {
-    return { billingStatus: 'Paid Active', paymentCollectionStatus: 'Cancellation Scheduled', paymentStatus: 'Paid', note: 'Stripe subscription cancellation scheduled at period end', isPaid: true }
+    return { billingStatus: 'Paid Active', paymentCollectionStatus: 'Cancellation Scheduled', paymentStatus: 'Paid', note: 'Stripe subscription cancellation scheduled at period end', isPaid: true, hasSoftwareAccess: true }
   }
 
   if (subscriptionStatus === 'past_due' || subscriptionStatus === 'unpaid') {
-    return { billingStatus: 'Past Due', paymentCollectionStatus: 'Past Due', paymentStatus: 'Failed', note: 'Stripe subscription is past due', isPaid: false }
+    return { billingStatus: 'Past Due', paymentCollectionStatus: 'Past Due', paymentStatus: 'Failed', note: 'Stripe subscription is past due', isPaid: false, hasSoftwareAccess: false }
   }
 
-  return { billingStatus: 'Paid Active', paymentCollectionStatus: 'Active / Paid', paymentStatus: 'Paid', note: 'Activated automatically from Stripe webhook', isPaid: true }
+  if (resolvedSubscriptionStatus !== 'active') {
+    return { billingStatus: 'Payment Pending', paymentCollectionStatus: 'Pending', paymentStatus: 'Pending', note: `Stripe subscription ${resolvedSubscriptionStatus || 'pending'}`, isPaid: false, hasSoftwareAccess: false }
+  }
+
+  return { billingStatus: 'Paid Active', paymentCollectionStatus: 'Active / Paid', paymentStatus: 'Paid', note: 'Activated automatically from Stripe webhook', isPaid: true, hasSoftwareAccess: true }
 }
 
 const saveBillingEvent = async (
@@ -477,7 +504,7 @@ const saveBillingEvent = async (
   const existingBillingCenter = existingSettings.billingCenter || {}
   const existingHistory = Array.isArray(existingBillingCenter.paymentHistory) ? existingBillingCenter.paymentHistory : []
   const now = new Date().toISOString()
-  const outcome = getBillingOutcome(event)
+  const outcome = getBillingOutcome(event, activation)
   const eventId = String(event?.id || `stripe_${Date.now()}`)
   const nextPlan = outcome.billingStatus === 'Cancelled' ? 'Free' : activation.plan || existingTrial.plan || 'Free Demo'
   const nextFrequency = activation.billingFrequency || existingTrial.billingFrequency || 'monthly'
@@ -514,14 +541,14 @@ const saveBillingEvent = async (
       ...state,
       trial: {
         ...existingTrial,
-        plan: outcome.isPaid ? trialPlan : existingTrial.plan || nextPlan,
-        currentPlan: outcome.isPaid ? nextPlan : existingTrial.currentPlan || existingTrial.plan || nextPlan,
-        effectiveAccessPlan: outcome.isPaid ? effectiveAccessPlan : existingTrial.effectiveAccessPlan || existingTrial.plan || nextPlan,
+        plan: outcome.hasSoftwareAccess ? trialPlan : existingTrial.plan || nextPlan,
+        currentPlan: outcome.hasSoftwareAccess ? nextPlan : existingTrial.currentPlan || existingTrial.plan || nextPlan,
+        effectiveAccessPlan: outcome.hasSoftwareAccess ? effectiveAccessPlan : existingTrial.effectiveAccessPlan || existingTrial.plan || nextPlan,
         scheduledPlan,
         scheduledPlanChangeAt: scheduledPlan ? nextPeriodEnd : '',
         scheduledPlanChangeReason: scheduledPlan ? 'period_end_downgrade' : '',
         isPaid: outcome.isPaid,
-        isActive: outcome.isPaid,
+        isActive: outcome.hasSoftwareAccess,
         daysLeft: outcome.isPaid ? 999 : existingTrial.daysLeft,
         billingStatus: outcome.billingStatus,
         billingFrequency: nextFrequency,
@@ -530,6 +557,8 @@ const saveBillingEvent = async (
         paymentProvider: 'Stripe',
         billingPeriodStart: nextPeriodStart,
         billingPeriodEnd: nextPeriodEnd,
+        startDate: activation.trialStartedAt || existingTrial.startDate || '',
+        endDate: activation.trialEndsAt || (outcome.billingStatus === 'Trial Active' ? nextPeriodEnd : existingTrial.endDate || ''),
         billingAdminNote: outcome.note,
         billingUpdatedAt: now,
         stripeLastEventId: eventId,
@@ -553,8 +582,8 @@ const saveBillingEvent = async (
           latestInvoiceId: activation.latestInvoiceId || existingBillingCenter.latestInvoiceId || '',
           latestInvoiceHostedUrl: activation.latestInvoiceHostedUrl || existingBillingCenter.latestInvoiceHostedUrl || '',
           latestInvoicePdf: activation.latestInvoicePdf || existingBillingCenter.latestInvoicePdf || '',
-          currentPlan: outcome.isPaid ? nextPlan : existingBillingCenter.currentPlan || existingTrial.currentPlan || existingTrial.plan || nextPlan,
-          effectiveAccessPlan: outcome.isPaid ? effectiveAccessPlan : existingBillingCenter.effectiveAccessPlan || existingTrial.effectiveAccessPlan || existingTrial.plan || nextPlan,
+          currentPlan: outcome.hasSoftwareAccess ? nextPlan : existingBillingCenter.currentPlan || existingTrial.currentPlan || existingTrial.plan || nextPlan,
+          effectiveAccessPlan: outcome.hasSoftwareAccess ? effectiveAccessPlan : existingBillingCenter.effectiveAccessPlan || existingTrial.effectiveAccessPlan || existingTrial.plan || nextPlan,
           scheduledPlan,
           scheduledPlanChangeAt: scheduledPlan ? nextPeriodEnd : '',
           scheduledPlanChangeReason: scheduledPlan ? 'period_end_downgrade' : '',
@@ -599,9 +628,9 @@ const saveBillingEvent = async (
         Prefer: 'return=minimal',
       },
       body: JSON.stringify({
-        plan_name: outcome.isPaid ? trialPlan : existingTrial.plan || nextPlan,
-        current_plan: outcome.isPaid ? nextPlan : existingTrial.currentPlan || existingTrial.plan || nextPlan,
-        effective_access_plan: outcome.isPaid ? effectiveAccessPlan : existingTrial.effectiveAccessPlan || existingTrial.plan || nextPlan,
+        plan_name: outcome.hasSoftwareAccess ? trialPlan : existingTrial.plan || nextPlan,
+        current_plan: outcome.hasSoftwareAccess ? nextPlan : existingTrial.currentPlan || existingTrial.plan || nextPlan,
+        effective_access_plan: outcome.hasSoftwareAccess ? effectiveAccessPlan : existingTrial.effectiveAccessPlan || existingTrial.plan || nextPlan,
         scheduled_plan: scheduledPlan || null,
         scheduled_plan_change_at: scheduledPlan ? nextPeriodEnd : null,
         scheduled_plan_change_reason: scheduledPlan ? 'period_end_downgrade' : null,
@@ -612,6 +641,7 @@ const saveBillingEvent = async (
         last_plan_sync_at: now,
         plan_change_source: 'stripe_webhook',
         billing_status: outcome.billingStatus,
+        trial_status: outcome.billingStatus === 'Trial Active' ? 'Trial Active' : outcome.isPaid ? 'Converted' : outcome.billingStatus,
         payment_status: outcome.paymentStatus,
         past_due_since: isPastDue ? existingTrial.billingUpdatedAt || now : null,
         payment_recovered_at: isRecovered ? now : null,
@@ -620,6 +650,11 @@ const saveBillingEvent = async (
         stripe_customer_id: activation.stripeCustomerId || null,
         stripe_subscription_id: activation.stripeSubscriptionId || null,
         subscription_status: activation.subscriptionStatus || null,
+        ...(activation.trialStartedAt ? { trial_started_at: activation.trialStartedAt } : {}),
+        ...(activation.trialEndsAt ? { trial_ends_at: activation.trialEndsAt } : {}),
+        ...(activation.trialStartedAt ? { trial_consumed_at: activation.trialStartedAt, trial_checkout_session_id: null } : {}),
+        ...(activation.promotionCode ? { promotion_code: activation.promotionCode } : {}),
+        ...(outcome.isPaid && existingTrial.billingStatus === 'Trial Active' ? { trial_converted_at: now, first_paid_at: now } : {}),
         current_period_end: nextPeriodEnd || null,
         cancel_at_period_end: activation.cancelAtPeriodEnd,
         outstanding_balance: activation.outstandingBalance,
@@ -718,7 +753,7 @@ Deno.serve(async req => {
 
   const savedWorkspaceId = String(row?.snapshot?.state?.workspaceInstanceId || row?.snapshot?.state?.settings?.workspaceInstanceId || '').trim()
   try {
-    await grantIncludedCredits(supabaseUrl, serviceKey, event, savedWorkspaceId, activation.plan, activation.periodStart, activation.periodEnd)
+    await grantIncludedCredits(supabaseUrl, serviceKey, event, savedWorkspaceId, activation.plan, activation.periodStart, activation.periodEnd, activation.subscriptionStatus)
   } catch {
     await finishStripeEvent(supabaseUrl, serviceKey, event.id, 'failed', 'included_credit_grant_failed')
     return json({ ok: false, error: 'Included credit grant failed' }, 500)

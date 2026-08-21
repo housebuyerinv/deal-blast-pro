@@ -582,6 +582,27 @@ async function releaseLookupCredit(account: Awaited<ReturnType<typeof getAuthent
   })
 }
 
+async function withReservedProviderCredit<T>(
+  account: Awaited<ReturnType<typeof getAuthenticatedAccount>>,
+  operationId: string,
+  normalizedAddress: string,
+  providerCall: () => Promise<T>
+) {
+  const reservation = await reserveLookupCredit(account, operationId, normalizedAddress)
+  try {
+    const result = await providerCall()
+    await finalizeLookupCredit(account, clean(reservation.operationId), {
+      normalizedAddress,
+      providerRequestCount: 1,
+      legacyAction: true,
+    }, 1)
+    return result
+  } catch (error: any) {
+    await releaseLookupCredit(account, clean(reservation.operationId), error?.category || 'provider_unavailable')
+    throw error
+  }
+}
+
 async function rentcast(endpoint: string, params: Record<string, any>, config: ReturnType<typeof readRuntimeConfig>) {
   const url = new URL(`${RENTCAST_BASE_URL}${endpoint}`)
   Object.entries(params).forEach(([key, value]) => {
@@ -788,7 +809,7 @@ export default async function handler(req: any, res: any) {
     })
   }
 
-  if (['credit-packs','hot-zones','verified-closing','admin-credit-adjustment','recent-searches','saved-searches'].includes(action)) {
+  if (['credit-packs','pro-trial-checkout','pro-trial-promotion','hot-zones','verified-closing','admin-credit-adjustment','admin-customer-lifecycle','admin-announcement-campaign','recent-searches','saved-searches'].includes(action)) {
     try {
       if (await handlePlatformAction(action, req, res, account)) return
     } catch (error: any) {
@@ -834,7 +855,12 @@ export default async function handler(req: any, res: any) {
   }
 
   if (action === 'status') {
-    const health = await providerHealth(config, req.query.force === 'true')
+    const mayProbeProvider = account.isOwnerAdmin && internal && req.query.force === 'true'
+    const health = mayProbeProvider
+      ? await providerHealth(config, true)
+      : config.configured && !config.rentcastPaused
+        ? { connected: true, category: 'configured', config: publicConfig(config), probeSkipped: true }
+        : { connected: false, category: config.rentcastPaused ? 'provider_capacity_paused' : 'provider_not_configured', config: publicConfig(config), probeSkipped: true }
     const statusCode = health.connected ? 200 : providerHttpStatus(health.category, 503)
     const error = health.connected
       ? undefined
@@ -926,7 +952,15 @@ export default async function handler(req: any, res: any) {
       if (!lookup.completeEnough) {
         throw Object.assign(new Error(COMPLETE_ADDRESS_MESSAGE), { status: 400, category: 'address_incomplete' })
       }
-      const result = await getPropertyRecord(lookup.fullAddress, config)
+      const normalizedAddress = normalizeCacheAddress(lookup.fullAddress)
+      const propertyCacheKey = `property:${normalizedAddress}`
+      const cachedProperty = readCache<any>(propertyCacheKey)
+      const result = cachedProperty || await withReservedProviderCredit(
+        account,
+        clean(req.query.operationId) || `${account.user.id}:search:${normalizedAddress}:${Date.now()}`,
+        normalizedAddress,
+        () => getPropertyRecord(lookup.fullAddress, config)
+      )
       const address = normalizeAddress(result.row)
       return send(res, 200, {
         results: [{
@@ -1166,7 +1200,15 @@ export default async function handler(req: any, res: any) {
           requestAddress: lookup.fullAddress,
         })
       }
-      const result = await getPropertyRecord(lookup.fullAddress, config)
+      const normalizedAddress = normalizeCacheAddress(lookup.fullAddress)
+      const propertyCacheKey = `property:${normalizedAddress}`
+      const cachedProperty = readCache<any>(propertyCacheKey)
+      const result = cachedProperty || await withReservedProviderCredit(
+        account,
+        clean(req.query.operationId) || `${account.user.id}:${action}:${normalizedAddress}:${Date.now()}`,
+        normalizedAddress,
+        () => getPropertyRecord(lookup.fullAddress, config)
+      )
       if (action === 'owner') return send(res, 200, { owner: normalizeOwner(result.row, canAccessOwnerDetails(account.isOwnerAdmin ? 'Owner Admin' : account.planName)), normalizedAddressSent: lookup.fullAddress })
       if (action === 'history') return send(res, 200, { history: normalizeHistory(result.row), normalizedAddressSent: lookup.fullAddress })
       return send(res, 200, { property: normalizeProperty(result.row), normalizedAddressSent: lookup.fullAddress })
@@ -1178,7 +1220,10 @@ export default async function handler(req: any, res: any) {
       const cacheKey = `value:${normalizeCacheAddress(lookup.fullAddress)}`
       const cached = readCache<any>(cacheKey)
       if (cached) return send(res, 200, cached)
-      const result = await rentcast('/avm/value', { address: lookup.fullAddress }, config)
+      const normalizedAddress = normalizeCacheAddress(lookup.fullAddress)
+      const result = await withReservedProviderCredit(account,
+        clean(req.query.operationId) || `${account.user.id}:value:${normalizedAddress}:${Date.now()}`,
+        normalizedAddress, () => rentcast('/avm/value', { address: lookup.fullAddress }, config))
       const value = result.payload
       const payload = {
         valuation: {
@@ -1203,7 +1248,10 @@ export default async function handler(req: any, res: any) {
       const cacheKey = `rent:${normalizeCacheAddress(lookup.fullAddress)}`
       const cached = readCache<any>(cacheKey)
       if (cached) return send(res, 200, cached)
-      const result = await rentcast('/avm/rent/long-term', { address: lookup.fullAddress }, config)
+      const normalizedAddress = normalizeCacheAddress(lookup.fullAddress)
+      const result = await withReservedProviderCredit(account,
+        clean(req.query.operationId) || `${account.user.id}:rent:${normalizedAddress}:${Date.now()}`,
+        normalizedAddress, () => rentcast('/avm/rent/long-term', { address: lookup.fullAddress }, config))
       const rent = result.payload
       const payload = {
         rent: {
@@ -1228,7 +1276,10 @@ export default async function handler(req: any, res: any) {
       const cacheKey = `comps:${normalizeCacheAddress(lookup.fullAddress)}`
       const cached = readCache<any>(cacheKey)
       if (cached) return send(res, 200, cached)
-      const result = await rentcast('/avm/value', { address: lookup.fullAddress }, config)
+      const normalizedAddress = normalizeCacheAddress(lookup.fullAddress)
+      const result = await withReservedProviderCredit(account,
+        clean(req.query.operationId) || `${account.user.id}:comps:${normalizedAddress}:${Date.now()}`,
+        normalizedAddress, () => rentcast('/avm/value', { address: lookup.fullAddress }, config))
       const payload = { comps: (result.payload.comparables || []).map(normalizeComp), normalizedAddressSent: lookup.fullAddress }
       writeCache(cacheKey, payload)
       return send(res, 200, payload)
@@ -1236,13 +1287,16 @@ export default async function handler(req: any, res: any) {
 
     if (action === 'listings') {
       const endpoint = req.query.listingType === 'Rental' ? '/listings/rental/long-term' : '/listings/sale'
-      const result = await rentcast(endpoint, {
+      const listingScope = clean(`${req.query.city || ''}:${req.query.state || ''}:${req.query.postalCode || req.query.zipCode || ''}:${req.query.listingType || 'Sale'}`).toLowerCase()
+      const result = await withReservedProviderCredit(account,
+        clean(req.query.operationId) || `${account.user.id}:listings:${listingScope}:${Date.now()}`,
+        `listings:${listingScope}`, () => rentcast(endpoint, {
         city: req.query.city,
         state: req.query.state,
         zipCode: req.query.postalCode || req.query.zipCode,
         propertyType: req.query.propertyType,
         limit: req.query.limit || 25,
-      }, config)
+      }, config))
       const rows = Array.isArray(result.payload) ? result.payload : result.payload?.data || []
       return send(res, 200, { listings: rows.map((row: any) => normalizeListing(row, endpoint.includes('rental') ? 'Rental' : 'Sale')) })
     }
@@ -1250,7 +1304,9 @@ export default async function handler(req: any, res: any) {
     if (action === 'market') {
       const zipCode = clean(req.query.postalCode || req.query.zipCode)
       if (!zipCode) throw Object.assign(new Error('Market lookup requires ZIP code.'), { status: 400, category: 'address_incomplete' })
-      const result = await rentcast('/markets', { zipCode }, config)
+      const result = await withReservedProviderCredit(account,
+        clean(req.query.operationId) || `${account.user.id}:market:${zipCode}:${Date.now()}`,
+        `market:${zipCode}`, () => rentcast('/markets', { zipCode }, config))
       const market = result.payload
       return send(res, 200, {
         market: {

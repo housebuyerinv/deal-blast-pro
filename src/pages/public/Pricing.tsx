@@ -11,6 +11,7 @@ import {
   getPriceDisplay,
 } from '../../lib/planPricing'
 import { getPropertyIntelligenceTierPoint, PROPERTY_INTELLIGENCE_PLAN_COMPARISON_LABELS, PROPERTY_INTELLIGENCE_CREDIT_PACKS } from '../../lib/propertyIntelligencePolicy'
+import { PRO_TRIAL_INCLUDED_CREDIT_DISCLOSURE, PRO_TRIAL_PROMOTION } from '../../lib/promotionConfig'
 
 const tierPoints: Record<string, string[]> = {
   Free: ['Public submission access', 'ARV calculator', getPropertyIntelligenceTierPoint('Free'), 'Up to 25 buyers'],
@@ -181,6 +182,12 @@ export default function Pricing() {
 
                 <div className="mb-5">
                   <div className="font-semibold text-xl">{tier.name}</div>
+                  {tier.name === 'Pro' && billing === 'monthly' && PRO_TRIAL_PROMOTION.pricingPromotionEnabled && (
+                    <div className="mt-2 rounded border border-emerald-500/30 bg-emerald-500/10 p-2 text-xs not-italic text-emerald-300">
+                      <div className="font-semibold">14-Day Free Trial</div>
+                      <div className="mt-1">20% off your first paid month with LAUNCH20</div>
+                    </div>
+                  )}
                   {tier.releaseStatus && <div className="mt-1 text-xs text-amber-300">{tier.releaseStatus}</div>}
                   <div className="mt-2 min-h-[78px] text-xs leading-5 text-[#8B92A3] italic break-words">{tier.positioning}</div>
                   <div className="mt-5">
@@ -243,6 +250,7 @@ export default function Pricing() {
           <p className="mt-3 text-center text-xs text-[#8B92A3]">
             Starter includes 20 monthly Property Intelligence credits, and every plan may buy additional credits. Purchased credits are tracked separately and do not expire. Cached results do not use an additional credit. Data availability varies by property and market.
           </p>
+          <p className="mt-2 text-center text-xs font-medium text-amber-200">{PRO_TRIAL_INCLUDED_CREDIT_DISCLOSURE}</p>
           <div className="mt-5 rounded border border-[#252A38] p-4 text-center">
             <div className="font-semibold mb-2">Property Intelligence credit packs</div>
             <div className="flex flex-wrap justify-center gap-x-5 gap-y-1 text-xs text-[#C5CAD6]">

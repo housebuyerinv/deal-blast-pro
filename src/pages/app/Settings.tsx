@@ -49,6 +49,8 @@ import {
   saveAccountProfile,
 } from '../../lib/accountProfile'
 import AdminCreditOperations from '../../components/admin/AdminCreditOperations'
+import AdminCustomerLifecycle from '../../components/admin/AdminCustomerLifecycle'
+import ProductUpdatesPreference from '../../components/billing/ProductUpdatesPreference'
 
 export default function Settings() {
   const { 
@@ -3643,7 +3645,10 @@ export default function Settings() {
           </div>
 
           {hasSuperAdminAccess && <AdminCreditOperations />}
+          {hasSuperAdminAccess && <AdminCustomerLifecycle />}
           {hasSuperAdminAccess && renderEmailNotifications()}
+
+          <ProductUpdatesPreference />
 
           {renderBillingCenter()}
           {renderBillingNotificationPreferences()}

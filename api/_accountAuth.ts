@@ -10,12 +10,20 @@ const PLAN_RANK: Record<string, number> = {
   'owner admin': 5,
 }
 
-const ACTIVE_BILLING_STATUSES = new Set([
+const SOFTWARE_ACCESS_BILLING_STATUSES = new Set([
   'free active',
   'trial active',
   'paid active',
   'comped',
   'preview active',
+])
+
+const PAID_EXTERNAL_RESOURCE_BILLING_STATUSES = new Set([
+  'paid active',
+])
+
+const PAID_EXTERNAL_RESOURCE_SUBSCRIPTION_STATUSES = new Set([
+  'active',
 ])
 
 export function cleanString(value: any) {
@@ -55,9 +63,19 @@ export function planRank(plan: string) {
   return PLAN_RANK[cleanString(plan).toLowerCase()] ?? 0
 }
 
-export function isActiveBillingStatus(status: string) {
+export function hasSoftwareAccessBillingStatus(status: string) {
   const normalized = cleanString(status).toLowerCase()
-  return !normalized || ACTIVE_BILLING_STATUSES.has(normalized)
+  return !normalized || SOFTWARE_ACCESS_BILLING_STATUSES.has(normalized)
+}
+
+export function hasPaidExternalResourceEntitlement(input: {
+  billingStatus?: string | null
+  paymentStatus?: string | null
+  subscriptionStatus?: string | null
+}) {
+  return PAID_EXTERNAL_RESOURCE_BILLING_STATUSES.has(cleanString(input.billingStatus).toLowerCase()) &&
+    cleanString(input.paymentStatus).toLowerCase() === 'paid' &&
+    PAID_EXTERNAL_RESOURCE_SUBSCRIPTION_STATUSES.has(cleanString(input.subscriptionStatus).toLowerCase())
 }
 
 export async function getAuthenticatedAccount(req: any) {
@@ -80,7 +98,7 @@ export async function getAuthenticatedAccount(req: any) {
 
   let { data: profile } = await adminClient
     .from('account_profiles')
-    .select('user_id,email,full_name,display_name,business_name,company,role,account_status,deactivated_at')
+    .select('user_id,email,full_name,display_name,business_name,company,role,account_status,deactivated_at,dismissed_promotion_key,dismissed_promotion_at,product_updates_opt_in,product_updates_preference_updated_at')
     .eq('user_id', user.id)
     .maybeSingle()
 
@@ -94,7 +112,7 @@ export async function getAuthenticatedAccount(req: any) {
         company: cleanString(user.user_metadata?.company || user.user_metadata?.business_name),
         role: 'Admin',
       }, { onConflict: 'user_id' })
-      .select('user_id,email,full_name,display_name,business_name,company,role,account_status,deactivated_at')
+      .select('user_id,email,full_name,display_name,business_name,company,role,account_status,deactivated_at,dismissed_promotion_key,dismissed_promotion_at,product_updates_opt_in,product_updates_preference_updated_at')
       .maybeSingle()
     profile = repairedProfile || null
   }
@@ -120,14 +138,14 @@ export async function getAuthenticatedAccount(req: any) {
 
   let { data: plan } = await adminClient
     .from('workspace_plan_assignments')
-    .select('workspace_id,user_id,plan_name,billing_status,trial_status,payment_status,access_status,access_deactivated_at,stripe_customer_id,stripe_subscription_id,subscription_status,current_period_end,cancel_at_period_end,outstanding_balance,latest_invoice_status,latest_invoice_hosted_url,latest_invoice_pdf,current_plan,effective_access_plan,scheduled_plan,scheduled_plan_change_at,billing_interval,stripe_price_id,purchased_buyer_capacity,buyer_capacity_mode,buyer_capacity_limit,property_intelligence_included_credits')
+    .select('workspace_id,user_id,plan_name,billing_status,trial_status,payment_status,access_status,access_deactivated_at,stripe_customer_id,stripe_subscription_id,subscription_status,current_period_end,cancel_at_period_end,outstanding_balance,latest_invoice_status,latest_invoice_hosted_url,latest_invoice_pdf,current_plan,effective_access_plan,scheduled_plan,scheduled_plan_change_at,billing_interval,stripe_price_id,purchased_buyer_capacity,buyer_capacity_mode,buyer_capacity_limit,property_intelligence_included_credits,trial_started_at,trial_ends_at,trial_converted_at,trial_consumed_at,first_paid_at,trial_checkout_session_id,trial_checkout_created_at,promotion_code,stripe_promotion_code_id')
     .eq('user_id', user.id)
     .maybeSingle()
 
   if (!plan && workspace?.id) {
     const { data: planByWorkspace } = await adminClient
       .from('workspace_plan_assignments')
-      .select('workspace_id,user_id,plan_name,billing_status,trial_status,payment_status,access_status,access_deactivated_at,stripe_customer_id,stripe_subscription_id,subscription_status,current_period_end,cancel_at_period_end,outstanding_balance,latest_invoice_status,latest_invoice_hosted_url,latest_invoice_pdf,current_plan,effective_access_plan,scheduled_plan,scheduled_plan_change_at,billing_interval,stripe_price_id,purchased_buyer_capacity,buyer_capacity_mode,buyer_capacity_limit,property_intelligence_included_credits')
+      .select('workspace_id,user_id,plan_name,billing_status,trial_status,payment_status,access_status,access_deactivated_at,stripe_customer_id,stripe_subscription_id,subscription_status,current_period_end,cancel_at_period_end,outstanding_balance,latest_invoice_status,latest_invoice_hosted_url,latest_invoice_pdf,current_plan,effective_access_plan,scheduled_plan,scheduled_plan_change_at,billing_interval,stripe_price_id,purchased_buyer_capacity,buyer_capacity_mode,buyer_capacity_limit,property_intelligence_included_credits,trial_started_at,trial_ends_at,trial_converted_at,trial_consumed_at,first_paid_at,trial_checkout_session_id,trial_checkout_created_at,promotion_code,stripe_promotion_code_id')
       .eq('workspace_id', workspace.id)
       .maybeSingle()
     plan = planByWorkspace || null
@@ -198,5 +216,9 @@ export async function getAuthenticatedAccount(req: any) {
 export function canUsePropertyIntelligence(account: Awaited<ReturnType<typeof getAuthenticatedAccount>>) {
   if (account.isOwnerAdmin) return true
   if (account.deactivated) return false
-  return planRank(account.planName) >= PLAN_RANK.starter && isActiveBillingStatus(account.billingStatus)
+  return planRank(account.planName) >= PLAN_RANK.starter && hasPaidExternalResourceEntitlement({
+    billingStatus: account.billingStatus,
+    paymentStatus: account.plan?.payment_status,
+    subscriptionStatus: account.plan?.subscription_status,
+  })
 }

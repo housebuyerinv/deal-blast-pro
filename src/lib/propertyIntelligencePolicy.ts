@@ -18,7 +18,7 @@ export const PROPERTY_INTELLIGENCE_CREDIT_PACKS = [
 export const PROPERTY_INTELLIGENCE_PLAN_COMPARISON_LABELS = [
   '0 included credits',
   '20 lookups per month',
-  '50 lookups per month',
+  '50 lookups/month with paid Pro',
   '150 lookups per month',
   'Contract-specific',
 ] as const
@@ -42,5 +42,6 @@ export function getPropertyIntelligenceTierPoint(plan: unknown) {
   const normalized = normalizePropertyIntelligencePlan(plan)
   if (normalized === 'Free') return 'No included Property Intelligence credits'
   if (normalized === 'Enterprise') return 'Contract-specific Property Intelligence credits'
+  if (normalized === 'Pro') return '50 Property Intelligence lookups/month with paid Pro'
   return `${getIncludedPropertyIntelligenceCredits(normalized)} Property Intelligence lookups monthly`
 }

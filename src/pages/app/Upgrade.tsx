@@ -4,6 +4,8 @@ import { DEFAULT_SETTINGS } from '../../lib/constants'
 import { useAppStore } from '../../store/useAppStore'
 import { DEFAULT_BILLING_INTERVAL, buildStripeCheckoutUrl, getBillingSetupWithLaunchDefaults, getPlanPaymentLink, isValidPaymentUrl, type BillingFrequency } from '../../lib/billingLinks'
 import LaunchPromoCode from '../../components/LaunchPromoCode'
+import { supabase } from '../../lib/supabaseClient'
+import { PRO_TRIAL_INCLUDED_CREDIT_DISCLOSURE, PRO_TRIAL_PROMOTION } from '../../lib/promotionConfig'
 import {
   PAID_PRICING_PLAN_ORDER,
   PLAN_PRICING,
@@ -20,6 +22,8 @@ export default function Upgrade() {
   const [billing, setBilling] = useState<BillingFrequency>(DEFAULT_BILLING_INTERVAL)
   const [selected, setSelected] = useState<Plan>('Pro')
   const [step, setStep] = useState<'select' | 'payment' | 'contact' | 'setup'>('select')
+  const [trialLoading, setTrialLoading] = useState(false)
+  const [trialError, setTrialError] = useState('')
 
   const current = trial.plan === 'Free Demo' ? 'Free' : trial.plan || (trial.isPaid ? 'Pro' : 'Free')
   const isPaid = current !== 'Free'
@@ -68,6 +72,18 @@ export default function Upgrade() {
 
   const cancel = () => setStep('select')
 
+  const startProTrial = async () => {
+    setTrialLoading(true); setTrialError('')
+    try {
+      const { data } = await supabase.auth.getSession()
+      const response = await fetch('/api/property-intelligence/pro-trial-checkout', { method: 'POST', headers: { Authorization: `Bearer ${data.session?.access_token || ''}`, 'Content-Type': 'application/json' }, body: '{}' })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok || !payload?.url) throw new Error(payload?.error || 'Pro trial checkout is unavailable.')
+      window.location.assign(payload.url)
+    } catch (error: any) { setTrialError(error?.message || 'Pro trial checkout is unavailable.') }
+    finally { setTrialLoading(false) }
+  }
+
   return (
     <div className="max-w-4xl mx-auto p-6">
       <div className="mb-6">
@@ -109,16 +125,20 @@ export default function Upgrade() {
           </div>
 
           <div className="flex gap-3">
-            <button onClick={goPayment} className="btn btn-green px-6">
+            {selected === 'Pro' && billing === 'monthly' && PRO_TRIAL_PROMOTION.enabled ? <button onClick={() => void startProTrial()} disabled={trialLoading} className="btn btn-green px-6">
+              {trialLoading ? 'Opening Secure Checkout…' : 'Start 14-Day Trial'}
+            </button> : <button onClick={goPayment} className="btn btn-green px-6">
               {(selected === 'Agency' || selected === 'Enterprise') && !agencyEnterpriseEnabled
                 ? 'Contact Support'
                 : paymentSetupReady
                   ? 'Continue to Payment'
                   : 'Payment Setup Required'}
-            </button>
+            </button>}
             <button onClick={() => navigate(-1)} className="btn btn-ghost">Cancel</button>
             <button onClick={() => navigate('/app/settings')} className="text-sm text-[#8B92A3] underline ml-auto">Back to Settings</button>
           </div>
+          {selected === 'Pro' && billing === 'monthly' && <div className="mt-3 rounded border border-emerald-500/25 bg-emerald-500/10 p-3 text-sm text-emerald-200"><div className="font-medium">Try Pro free for 14 days</div><div className="mt-1">Then get 20% off your first paid month with {PRO_TRIAL_PROMOTION.code}.</div><div className="mt-2 text-xs text-[#C5CAD6]">{PRO_TRIAL_INCLUDED_CREDIT_DISCLOSURE} Purchased credits remain usable.</div></div>}
+          {trialError && <div className="mt-3 rounded border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200" role="alert">{trialError}</div>}
           <div className="mt-3 text-xs text-[#64748B]">Stripe checkout opens securely in a new tab. Existing records remain safe.</div>
         </>
       )}

@@ -15,6 +15,7 @@ import { canAccessRoute, getEffectivePlan, getOwnerPreviewPlan, getRequiredPlanF
 import { getPastDuePolicyMessage, getPastDueStage } from '../../lib/accountLifecycle'
 import { canUseLaunchedFeature, getFeatureLockedMessage } from '../../lib/featureLaunch'
 import { supabase } from '../../lib/supabase'
+import ProTrialPromotionModal from '../billing/ProTrialPromotionModal'
 
 const safeLower = (value: any) => String(value ?? '').toLowerCase();
 
@@ -350,6 +351,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </div>
 
       <OnboardingTour />
+      <ProTrialPromotionModal />
 
       {/* Global Deal Terminal Drawer */}
       {currentDealId && (
