@@ -22,6 +22,7 @@ import Login from './pages/public/Login'
 import Register from './pages/public/Register'
 import VerifyEmail from './pages/public/VerifyEmail'
 import ForgotPassword from './pages/public/ForgotPassword'
+import ResetPassword from './pages/public/ResetPassword'
 import AuthCallback from './pages/public/AuthCallback'
 import AppShell from './components/layout/AppShell'
 
@@ -293,6 +294,7 @@ function App() {
         <Route path="/admin-register" element={<Navigate to="/register" replace />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/login" element={<Navigate to="/admin-login" replace />} />
         <Route path="/register" element={<Register />} />
         <Route path="/verify-email" element={<VerifyEmail />} />

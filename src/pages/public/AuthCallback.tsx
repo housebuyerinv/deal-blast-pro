@@ -34,8 +34,10 @@ export default function AuthCallback() {
       try {
         const params = new URLSearchParams(window.location.search)
         const code = params.get('code')
-        const callbackType = params.get('type')
+        const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+        const callbackType = params.get('type') || hashParams.get('type')
         const isEmailChangeCallback = callbackType === 'email_change'
+        const isPasswordRecoveryCallback = callbackType === 'recovery'
         const callbackError = readCallbackError()
         if (callbackError) throw callbackError
 
@@ -52,6 +54,12 @@ export default function AuthCallback() {
         const { data, error } = await supabase.auth.getUser()
         if (error || !data.user?.email) {
           throw error || new Error('Email verified. Please sign in to continue.')
+        }
+
+        if (isPasswordRecoveryCallback) {
+          window.sessionStorage.setItem('dealblastpro:password-recovery', 'true')
+          navigate('/reset-password', { replace: true })
+          return
         }
 
         const userEmail = data.user.email
