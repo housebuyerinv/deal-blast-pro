@@ -114,24 +114,29 @@ export async function handlePlatformAction(action:string,req:any,res:any,account
   if(action==='admin-customer-lifecycle'){
     if(!account.isOwnerAdmin)return send(403,{ok:false,error:'Owner Admin access is required.'})
     if(req.method!=='GET')return send(405,{ok:false,error:'Method not allowed'})
-    const lifecycleQuery=async(operation:string,query:PromiseLike<any>)=>{
+    const lifecycleQuery=async(operation:string,query:PromiseLike<any>,optional=false)=>{
       const result=await query
       if(result?.error){
-        console.error('[DBP lifecycle query failed]',{
+        const diagnostic={
           operation,
           code:clean(result.error.code).slice(0,40),
           message:clean(result.error.message).slice(0,300),
           hint:clean(result.error.hint).slice(0,200),
-        })
+        }
+        if(optional){
+          console.warn('[DBP optional lifecycle metric unavailable]',diagnostic)
+          return {data:[],error:null}
+        }
+        console.error('[DBP lifecycle query failed]',diagnostic)
       }
       return result
     }
     const [workspacesResult,profilesResult,plansResult,buyersResult,dealsResult]=await Promise.all([
-      lifecycleQuery('workspaces',account.adminClient.from('workspaces').select('id,name,owner_user_id,owner_email,created_at,account_status').order('created_at',{ascending:false}).limit(2000)),
-      lifecycleQuery('account_profiles',account.adminClient.from('account_profiles').select('user_id,email,full_name,display_name,account_status,created_at,dismissed_promotion_key,product_updates_opt_in').limit(2000)),
-      lifecycleQuery('workspace_plan_assignments',account.adminClient.from('workspace_plan_assignments').select('workspace_id,user_id,plan_name,current_plan,effective_access_plan,billing_status,payment_status,subscription_status,trial_status,trial_started_at,trial_ends_at,trial_converted_at,trial_consumed_at,first_paid_at,stripe_customer_id,stripe_subscription_id,property_intelligence_included_credits,created_at').limit(2000)),
-      lifecycleQuery('workspace_buyers',account.adminClient.from('workspace_buyers').select('workspace_id').limit(10000)),
-      lifecycleQuery('inventory_deals',account.adminClient.from('inventory_deals').select('workspace_id').limit(10000)),
+      lifecycleQuery('workspaces',account.adminClient.from('workspaces').select('*').order('created_at',{ascending:false}).limit(2000)),
+      lifecycleQuery('account_profiles',account.adminClient.from('account_profiles').select('*').limit(2000)),
+      lifecycleQuery('workspace_plan_assignments',account.adminClient.from('workspace_plan_assignments').select('*').limit(2000)),
+      lifecycleQuery('buyers',account.adminClient.from('buyers').select('workspace_id').limit(10000),true),
+      lifecycleQuery('inventory_deals',account.adminClient.from('inventory_deals').select('workspace_id').limit(10000),true),
     ])
     for(const result of [workspacesResult,profilesResult,plansResult,buyersResult,dealsResult])if(result.error)throw result.error
     const profiles=new Map((profilesResult.data||[]).map((item:any)=>[item.user_id,item])),plans=new Map((plansResult.data||[]).map((item:any)=>[item.workspace_id,item]));const buyerCounts=new Map<string,number>(),dealCounts=new Map<string,number>()

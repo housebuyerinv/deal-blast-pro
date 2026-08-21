@@ -33,3 +33,15 @@ test('Owner Admin APIs remain protected by server-derived account authority', as
   assert.match(platformActions, /action==='admin-customer-lifecycle'[\s\S]*if\(!account\.isOwnerAdmin\)return send\(403/)
   assert.match(platformActions, /action==='admin-announcement-campaign'[\s\S]*if\(!account\.isOwnerAdmin\)return send\(403/)
 })
+
+test('lifecycle core rows survive optional metric failures and use the durable buyer table', async () => {
+  const platformActions = await source('src/server/platformActions.ts')
+
+  assert.match(platformActions, /from\('buyers'\)\.select\('workspace_id'\)/)
+  assert.doesNotMatch(platformActions, /from\('workspace_buyers'\)/)
+  assert.match(platformActions, /optional lifecycle metric unavailable/)
+  assert.match(platformActions, /return \{data:\[\],error:null\}/)
+  assert.match(platformActions, /from\('workspaces'\)\.select\('\*'\)/)
+  assert.match(platformActions, /from\('account_profiles'\)\.select\('\*'\)/)
+  assert.match(platformActions, /from\('workspace_plan_assignments'\)\.select\('\*'\)/)
+})
