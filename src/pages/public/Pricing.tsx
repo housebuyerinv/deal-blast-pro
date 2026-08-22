@@ -133,9 +133,9 @@ export default function Pricing() {
     let active = true
 
     supabase.auth.getSession()
-      .then(({ data }) => {
+      .then((result: any) => {
         if (!active) return
-        if (data.session) {
+        if (result?.data?.session) {
           window.location.replace('/app/upgrade')
           return
         }
