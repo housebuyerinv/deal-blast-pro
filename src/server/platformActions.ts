@@ -104,7 +104,6 @@ export async function handlePlatformAction(action:string,req:any,res:any,account
         couponApplicableProductIds,
         couponAppliesOnlyToProduct:couponAppliesOnlyToProduct(coupon,configuredPriceProductId),
       }
-      console.info('[DBP LAUNCH20 predicate diagnostics]',diagnostics)
       if(diagnostics.codeMatch&&diagnostics.active&&diagnostics.promotionMaxRedemptions&&diagnostics.firstTimeRestriction&&diagnostics.minimumAmount&&diagnostics.percentOff&&diagnostics.duration&&diagnostics.couponValid&&diagnostics.couponMaxRedemptions&&diagnostics.promotionExpiryDate&&diagnostics.couponRedeemByDate&&diagnostics.couponAppliesOnlyToProduct)matches.push(candidate)
     }
     const promotion=matches.length===1?matches[0]:null
