@@ -12,6 +12,7 @@ import {
 } from '../../lib/planPricing'
 import { getPropertyIntelligenceTierPoint, PROPERTY_INTELLIGENCE_PLAN_COMPARISON_LABELS, PROPERTY_INTELLIGENCE_CREDIT_PACKS } from '../../lib/propertyIntelligencePolicy'
 import { PRO_TRIAL_INCLUDED_CREDIT_DISCLOSURE, PRO_TRIAL_PROMOTION } from '../../lib/promotionConfig'
+import { supabase } from '../../lib/supabaseClient'
 
 const tierPoints: Record<string, string[]> = {
   Free: ['Public submission access', 'ARV calculator', getPropertyIntelligenceTierPoint('Free'), 'Up to 25 buyers'],
@@ -126,6 +127,30 @@ const statusClass = (status: string) => {
 
 export default function Pricing() {
   const [billing, setBilling] = React.useState<'monthly' | 'annual'>(DEFAULT_BILLING_INTERVAL)
+  const [authResolved, setAuthResolved] = React.useState(false)
+
+  React.useEffect(() => {
+    let active = true
+
+    supabase.auth.getSession()
+      .then(({ data }) => {
+        if (!active) return
+        if (data.session) {
+          window.location.replace('/app/upgrade')
+          return
+        }
+        setAuthResolved(true)
+      })
+      .catch(() => {
+        if (active) setAuthResolved(true)
+      })
+
+    return () => { active = false }
+  }, [])
+
+  if (!authResolved) {
+    return <div className="min-h-screen bg-[#0A0C12]" aria-label="Loading pricing" />
+  }
 
   return (
     <div className="min-h-screen bg-[#0A0C12] text-[#E6E8EE]">
@@ -271,4 +296,3 @@ export default function Pricing() {
     </div>
   )
 }
-
