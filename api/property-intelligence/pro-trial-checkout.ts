@@ -60,7 +60,7 @@ export default async function handler(req: any, res: any) {
     })
   }
 
-  const assignment = account.plan || {}
+  const assignment: any = account.plan || {}
   const billingStatus = clean(assignment.billing_status).toLowerCase()
   const subscriptionStatus = clean(assignment.subscription_status).toLowerCase()
   const currentPlan = clean(assignment.current_plan || assignment.plan_name).toLowerCase()
