@@ -76,10 +76,6 @@ export async function handlePlatformAction(action:string,req:any,res:any,account
     if(customerId){
       const subscriptions=await stripe(`subscriptions?customer=${encodeURIComponent(customerId)}&status=all&limit=100`)
       if((subscriptions?.data||[]).some((item:any)=>['trialing','active','past_due','unpaid','incomplete'].includes(clean(item.status).toLowerCase())))return send(409,{ok:false,code:'stripe_subscription_exists',error:'Stripe already has an active or pending subscription for this workspace.'})
-    }else{
-      const customerParams=new URLSearchParams({email:clean(account.user.email),'name':clean(account.profile?.full_name||account.user.user_metadata?.full_name||''),'metadata[workspaceId]':workspaceId,'metadata[userId]':account.user.id})
-      const customer=await stripe('customers',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:customerParams})
-      customerId=clean(customer.id)
     }
     const price=await stripe(`prices/${encodeURIComponent(priceId)}`)
     const promotions=await stripe(`promotion_codes?code=${encodeURIComponent(PRO_TRIAL_PROMOTION.code)}&active=true&limit=10`)
@@ -87,12 +83,37 @@ export async function handlePlatformAction(action:string,req:any,res:any,account
     const matches:any[]=[]
     for(const candidate of promotions?.data||[]){
       const couponRef=candidate?.promotion?.coupon??candidate?.coupon
-      const coupon=typeof couponRef==='string'?await stripe(stripeCouponRetrievalPath(couponRef)):couponRef
+      const couponId=typeof couponRef==='string'?couponRef:clean(couponRef?.id)
+      const coupon=couponId?await stripe(stripeCouponRetrievalPath(couponId)):couponRef
       const restrictions=candidate?.restrictions||{}
-      if(candidate?.active!==false&&clean(candidate?.code)===PRO_TRIAL_PROMOTION.code&&candidate?.max_redemptions===PRO_TRIAL_PROMOTION.maximumRedemptions&&restrictions?.first_time_transaction===PRO_TRIAL_PROMOTION.firstTimeTransactionOnly&&restrictions?.minimum_amount===PRO_TRIAL_PROMOTION.minimumAmount&&coupon?.percent_off===PRO_TRIAL_PROMOTION.percentOff&&coupon?.duration===PRO_TRIAL_PROMOTION.duration&&coupon?.valid!==false&&coupon?.max_redemptions==null&&dateInNewYork(candidate?.expires_at)===PRO_TRIAL_PROMOTION.expiresOn&&dateInNewYork(coupon?.redeem_by)===PRO_TRIAL_PROMOTION.expiresOn&&couponAppliesOnlyToProduct(coupon,clean(price?.product)))matches.push(candidate)
+      const couponApplicableProductIds=Array.isArray(coupon?.applies_to?.products)?coupon.applies_to.products.map((value:any)=>clean(value)).filter(Boolean):[]
+      const configuredPriceProductId=clean(price?.product)
+      const diagnostics={
+        codeMatch:clean(candidate?.code)===PRO_TRIAL_PROMOTION.code,
+        active:candidate?.active!==false,
+        promotionMaxRedemptions:candidate?.max_redemptions===PRO_TRIAL_PROMOTION.maximumRedemptions,
+        firstTimeRestriction:restrictions?.first_time_transaction===PRO_TRIAL_PROMOTION.firstTimeTransactionOnly,
+        minimumAmount:restrictions?.minimum_amount===PRO_TRIAL_PROMOTION.minimumAmount,
+        percentOff:coupon?.percent_off===PRO_TRIAL_PROMOTION.percentOff,
+        duration:coupon?.duration===PRO_TRIAL_PROMOTION.duration,
+        couponValid:coupon?.valid!==false,
+        couponMaxRedemptions:coupon?.max_redemptions==null,
+        promotionExpiryDate:dateInNewYork(candidate?.expires_at)===PRO_TRIAL_PROMOTION.expiresOn,
+        couponRedeemByDate:dateInNewYork(coupon?.redeem_by)===PRO_TRIAL_PROMOTION.expiresOn,
+        configuredPriceProductId,
+        couponApplicableProductIds,
+        couponAppliesOnlyToProduct:couponAppliesOnlyToProduct(coupon,configuredPriceProductId),
+      }
+      console.info('[DBP LAUNCH20 predicate diagnostics]',diagnostics)
+      if(diagnostics.codeMatch&&diagnostics.active&&diagnostics.promotionMaxRedemptions&&diagnostics.firstTimeRestriction&&diagnostics.minimumAmount&&diagnostics.percentOff&&diagnostics.duration&&diagnostics.couponValid&&diagnostics.couponMaxRedemptions&&diagnostics.promotionExpiryDate&&diagnostics.couponRedeemByDate&&diagnostics.couponAppliesOnlyToProduct)matches.push(candidate)
     }
     const promotion=matches.length===1?matches[0]:null
     if(!promotion?.id)return send(503,{ok:false,code:'launch20_not_verified',error:'LAUNCH20 is unavailable or does not match the verified Pro trial promotion rules in the current Stripe mode. Trial checkout has not been created.'})
+    if(!customerId){
+      const customerParams=new URLSearchParams({email:clean(account.user.email),'name':clean(account.profile?.full_name||account.user.user_metadata?.full_name||''),'metadata[workspaceId]':workspaceId,'metadata[userId]':account.user.id})
+      const customer=await stripe('customers',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:customerParams})
+      customerId=clean(customer.id)
+    }
     const origin=clean(req.headers?.origin).replace(/\/+$/,'');const safeOrigin=/^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin)||/^https:\/\/deal-blast-pro\.vercel\.app$/i.test(origin)?origin:'https://deal-blast-pro.vercel.app'
     const params=new URLSearchParams({mode:'subscription',customer:customerId,'line_items[0][price]':priceId,'line_items[0][quantity]':'1',payment_method_collection:'always',success_url:`${safeOrigin}/app/upgrade?trialCheckout=success`,cancel_url:`${safeOrigin}/app/upgrade?trialCheckout=cancelled`,client_reference_id:account.user.id,
       'subscription_data[trial_period_days]':String(PRO_TRIAL_PROMOTION.trialDays),'subscription_data[trial_settings][end_behavior][missing_payment_method]':'cancel','discounts[0][promotion_code]':promotion.id,

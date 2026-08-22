@@ -50,7 +50,7 @@ test('LAUNCH10 annual and LAUNCH20 monthly promotions remain separately scoped',
   assert.match(promotion, /expiresOn: '2026-12-31'/)
   assert.match(actions, /candidate\?\.max_redemptions===PRO_TRIAL_PROMOTION\.maximumRedemptions/)
   assert.match(actions, /restrictions\?\.first_time_transaction===PRO_TRIAL_PROMOTION\.firstTimeTransactionOnly/)
-  assert.match(actions, /couponAppliesOnlyToProduct\(coupon,clean\(price\?\.product\)\)/)
+  assert.match(actions, /couponAppliesOnlyToProduct\(coupon,configuredPriceProductId\)/)
   assert.match(promotion, /billingInterval: 'monthly'/)
   assert.match(promotion, /trialDays: 14/)
 })
@@ -61,6 +61,19 @@ test('LAUNCH20 coupon retrieval expands and strictly verifies product applicabil
   assert.equal(couponAppliesOnlyToProduct({ applies_to: { products: ['prod_pro', 'prod_other'] } }, 'prod_pro'), false)
   assert.equal(couponAppliesOnlyToProduct({ applies_to: { products: ['prod_other'] } }, 'prod_pro'), false)
   assert.equal(couponAppliesOnlyToProduct({}, 'prod_pro'), false)
+})
+
+test('LAUNCH20 validation logs safe predicates and precedes customer creation', async () => {
+  const actions = await read('src/server/platformActions.ts')
+  for (const field of [
+    'codeMatch', 'active', 'promotionMaxRedemptions', 'firstTimeRestriction', 'minimumAmount',
+    'percentOff', 'duration', 'couponValid', 'couponMaxRedemptions', 'promotionExpiryDate',
+    'couponRedeemByDate', 'configuredPriceProductId', 'couponApplicableProductIds',
+    'couponAppliesOnlyToProduct',
+  ]) assert.match(actions, new RegExp(`${field}:?`))
+  assert.match(actions, /couponId\?await stripe\(stripeCouponRetrievalPath\(couponId\)\)/)
+  assert.ok(actions.indexOf("if(!promotion?.id)return send(503") < actions.indexOf("const customer=await stripe('customers'"))
+  assert.doesNotMatch(actions, /console\.info\([^\n]*(secret|token|password)/i)
 })
 
 test('pricing clearly excludes trial included Property Intelligence credits', async () => {
