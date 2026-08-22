@@ -1,6 +1,7 @@
 import { getAuthenticatedAccount } from '../_accountAuth.js'
 import { handlePlatformAction } from '../../src/server/platformActions.js'
 import { PRO_TRIAL_PROMOTION } from '../../src/lib/promotionConfig.js'
+import { canCreateProTrialCheckout } from '../../src/server/proTrialCheckoutAuthorization.js'
 
 const clean = (value: any) => String(value || '').trim()
 
@@ -32,9 +33,58 @@ export default async function handler(req: any, res: any) {
       code: 'account_deactivated',
     })
   }
+  if (account.isOwnerAdmin) {
+    return send(res, 403, {
+      ok: false,
+      code: 'owner_admin_ineligible',
+      error: 'Owner Admin accounts do not use customer trials.',
+    })
+  }
 
   const workspaceId = clean(account.workspace?.id || account.plan?.workspace_id)
   if (!workspaceId) return send(res, 409, { ok: false, error: 'Workspace unavailable.' })
+
+  const trialFlowVerified = PRO_TRIAL_PROMOTION.enabled && clean(process.env.PRO_TRIAL_LAUNCH20_VERIFIED).toLowerCase() === 'true'
+  const trialCheckoutAuthorized = PRO_TRIAL_PROMOTION.enabled && canCreateProTrialCheckout({
+    publicGateEnabled: trialFlowVerified,
+    qaBypassEnabled: clean(process.env.PRO_TRIAL_QA_CHECKOUT_ENABLED).toLowerCase() === 'true',
+    vercelEnvironment: clean(process.env.VERCEL_ENV),
+    authenticatedEmail: clean(account.user.email),
+    authenticatedWorkspaceId: workspaceId,
+  })
+  if (!trialCheckoutAuthorized) {
+    return send(res, 409, {
+      ok: false,
+      code: 'promotion_unverified',
+      error: 'The Pro trial is awaiting final Stripe lifecycle verification.',
+    })
+  }
+
+  const assignment = account.plan || {}
+  const billingStatus = clean(assignment.billing_status).toLowerCase()
+  const subscriptionStatus = clean(assignment.subscription_status).toLowerCase()
+  const currentPlan = clean(assignment.current_plan || assignment.plan_name).toLowerCase()
+  if (assignment.trial_consumed_at) {
+    return send(res, 409, {
+      ok: false,
+      code: 'trial_already_consumed',
+      error: 'This workspace has already used its Pro trial.',
+    })
+  }
+  if (billingStatus === 'trial active' || subscriptionStatus === 'trialing') {
+    return send(res, 409, {
+      ok: false,
+      code: 'trial_already_active',
+      error: 'A Pro trial is already active for this workspace.',
+    })
+  }
+  if (billingStatus === 'paid active' || ['active','past_due','unpaid','incomplete'].includes(subscriptionStatus) || ['pro','agency','enterprise'].includes(currentPlan)) {
+    return send(res, 409, {
+      ok: false,
+      code: 'subscription_exists',
+      error: 'This workspace already has a paid or pending subscription.',
+    })
+  }
 
   const secret = clean(process.env.STRIPE_SECRET_KEY)
   if (secret) {
