@@ -1,8 +1,23 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
+import { canCreateProTrialCheckout } from '../src/server/proTrialCheckoutAuthorization.ts'
 
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8')
+
+const qaAccount = {
+  authenticatedEmail: 'housebuyerinv+dbp-trialcheckoutqa@gmail.com',
+  authenticatedWorkspaceId: '09a8234e-3eaa-46e9-8aed-eb6f6b62ce94',
+}
+
+test('Pro trial Checkout QA bypass is restricted to the dedicated Preview account', () => {
+  assert.equal(canCreateProTrialCheckout({ publicGateEnabled: false, qaBypassEnabled: true, vercelEnvironment: 'production', ...qaAccount }), false)
+  assert.equal(canCreateProTrialCheckout({ publicGateEnabled: false, qaBypassEnabled: false, vercelEnvironment: 'preview', ...qaAccount }), false)
+  assert.equal(canCreateProTrialCheckout({ publicGateEnabled: false, qaBypassEnabled: true, vercelEnvironment: 'preview', ...qaAccount, authenticatedEmail: 'other@example.com' }), false)
+  assert.equal(canCreateProTrialCheckout({ publicGateEnabled: false, qaBypassEnabled: true, vercelEnvironment: 'preview', ...qaAccount, authenticatedWorkspaceId: 'wrong-workspace' }), false)
+  assert.equal(canCreateProTrialCheckout({ publicGateEnabled: false, qaBypassEnabled: true, vercelEnvironment: 'preview', ...qaAccount }), true)
+  assert.equal(canCreateProTrialCheckout({ publicGateEnabled: true, qaBypassEnabled: false, vercelEnvironment: 'production', authenticatedEmail: '', authenticatedWorkspaceId: '' }), true)
+})
 
 test('Pro trial Checkout is authenticated, monthly, durable, idempotent, and promotion-controlled', async () => {
   const actions = await read('src/server/platformActions.ts')

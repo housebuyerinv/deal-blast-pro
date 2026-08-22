@@ -1,6 +1,7 @@
 import { readCreditPacks, publicCreditPacks } from './creditPacks.js'
 import { aggregateHotZones } from './hotZones.js'
 import { PRO_TRIAL_PROMOTION } from '../lib/promotionConfig.js'
+import { canCreateProTrialCheckout } from './proTrialCheckoutAuthorization.js'
 const clean=(value:any)=>String(value||'').trim()
 const WINDOWS:Record<string,number>={weekly:7,monthly:30,yearly:365}
 const PLAN_RANK:Record<string,number>={free:0,'free demo':0,starter:1,pro:2,agency:3,enterprise:4,'owner admin':5}
@@ -50,7 +51,14 @@ export async function handlePlatformAction(action:string,req:any,res:any,account
     if(req.method!=='POST')return send(405,{ok:false,error:'Method not allowed'})
     if(account.isOwnerAdmin)return send(403,{ok:false,code:'owner_admin_ineligible',error:'Owner Admin accounts do not use customer trials.'})
     const trialFlowVerified=PRO_TRIAL_PROMOTION.enabled&&clean(process.env.PRO_TRIAL_LAUNCH20_VERIFIED).toLowerCase()==='true'
-    if(!trialFlowVerified)return send(409,{ok:false,code:'promotion_unverified',error:'The Pro trial is awaiting final Stripe lifecycle verification.'})
+    const trialCheckoutAuthorized=PRO_TRIAL_PROMOTION.enabled&&canCreateProTrialCheckout({
+      publicGateEnabled:trialFlowVerified,
+      qaBypassEnabled:clean(process.env.PRO_TRIAL_QA_CHECKOUT_ENABLED).toLowerCase()==='true',
+      vercelEnvironment:clean(process.env.VERCEL_ENV),
+      authenticatedEmail:clean(account.user.email),
+      authenticatedWorkspaceId:workspaceId,
+    })
+    if(!trialCheckoutAuthorized)return send(409,{ok:false,code:'promotion_unverified',error:'The Pro trial is awaiting final Stripe lifecycle verification.'})
     if(!workspaceId)return send(409,{ok:false,error:'Workspace unavailable.'})
     const assignment=account.plan||{}
     const billingStatus=clean(assignment.billing_status).toLowerCase(),subscriptionStatus=clean(assignment.subscription_status).toLowerCase()
