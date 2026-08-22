@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 import { canCreateProTrialCheckout } from '../src/server/proTrialCheckoutAuthorization.ts'
+import { couponAppliesOnlyToProduct, stripeCouponRetrievalPath } from '../src/server/stripePromotionVerification.ts'
 
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8')
 
@@ -49,9 +50,17 @@ test('LAUNCH10 annual and LAUNCH20 monthly promotions remain separately scoped',
   assert.match(promotion, /expiresOn: '2026-12-31'/)
   assert.match(actions, /candidate\?\.max_redemptions===PRO_TRIAL_PROMOTION\.maximumRedemptions/)
   assert.match(actions, /restrictions\?\.first_time_transaction===PRO_TRIAL_PROMOTION\.firstTimeTransactionOnly/)
-  assert.match(actions, /applicableProducts\.includes\(clean\(price\?\.product\)\)/)
+  assert.match(actions, /couponAppliesOnlyToProduct\(coupon,clean\(price\?\.product\)\)/)
   assert.match(promotion, /billingInterval: 'monthly'/)
   assert.match(promotion, /trialDays: 14/)
+})
+
+test('LAUNCH20 coupon retrieval expands and strictly verifies product applicability', () => {
+  assert.equal(stripeCouponRetrievalPath('coupon/example'), 'coupons/coupon%2Fexample?expand[]=applies_to')
+  assert.equal(couponAppliesOnlyToProduct({ applies_to: { products: ['prod_pro'] } }, 'prod_pro'), true)
+  assert.equal(couponAppliesOnlyToProduct({ applies_to: { products: ['prod_pro', 'prod_other'] } }, 'prod_pro'), false)
+  assert.equal(couponAppliesOnlyToProduct({ applies_to: { products: ['prod_other'] } }, 'prod_pro'), false)
+  assert.equal(couponAppliesOnlyToProduct({}, 'prod_pro'), false)
 })
 
 test('pricing clearly excludes trial included Property Intelligence credits', async () => {

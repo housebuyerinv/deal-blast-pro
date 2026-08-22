@@ -2,6 +2,7 @@ import { readCreditPacks, publicCreditPacks } from './creditPacks.js'
 import { aggregateHotZones } from './hotZones.js'
 import { PRO_TRIAL_PROMOTION } from '../lib/promotionConfig.js'
 import { canCreateProTrialCheckout } from './proTrialCheckoutAuthorization.js'
+import { couponAppliesOnlyToProduct, stripeCouponRetrievalPath } from './stripePromotionVerification.js'
 const clean=(value:any)=>String(value||'').trim()
 const WINDOWS:Record<string,number>={weekly:7,monthly:30,yearly:365}
 const PLAN_RANK:Record<string,number>={free:0,'free demo':0,starter:1,pro:2,agency:3,enterprise:4,'owner admin':5}
@@ -86,10 +87,9 @@ export async function handlePlatformAction(action:string,req:any,res:any,account
     const matches:any[]=[]
     for(const candidate of promotions?.data||[]){
       const couponRef=candidate?.promotion?.coupon??candidate?.coupon
-      const coupon=typeof couponRef==='string'?await stripe(`coupons/${encodeURIComponent(couponRef)}`):couponRef
-      const applicableProducts=Array.isArray(coupon?.applies_to?.products)?coupon.applies_to.products:[]
+      const coupon=typeof couponRef==='string'?await stripe(stripeCouponRetrievalPath(couponRef)):couponRef
       const restrictions=candidate?.restrictions||{}
-      if(candidate?.active!==false&&clean(candidate?.code)===PRO_TRIAL_PROMOTION.code&&candidate?.max_redemptions===PRO_TRIAL_PROMOTION.maximumRedemptions&&restrictions?.first_time_transaction===PRO_TRIAL_PROMOTION.firstTimeTransactionOnly&&restrictions?.minimum_amount===PRO_TRIAL_PROMOTION.minimumAmount&&coupon?.percent_off===PRO_TRIAL_PROMOTION.percentOff&&coupon?.duration===PRO_TRIAL_PROMOTION.duration&&coupon?.valid!==false&&coupon?.max_redemptions==null&&dateInNewYork(candidate?.expires_at)===PRO_TRIAL_PROMOTION.expiresOn&&dateInNewYork(coupon?.redeem_by)===PRO_TRIAL_PROMOTION.expiresOn&&applicableProducts.includes(clean(price?.product)))matches.push(candidate)
+      if(candidate?.active!==false&&clean(candidate?.code)===PRO_TRIAL_PROMOTION.code&&candidate?.max_redemptions===PRO_TRIAL_PROMOTION.maximumRedemptions&&restrictions?.first_time_transaction===PRO_TRIAL_PROMOTION.firstTimeTransactionOnly&&restrictions?.minimum_amount===PRO_TRIAL_PROMOTION.minimumAmount&&coupon?.percent_off===PRO_TRIAL_PROMOTION.percentOff&&coupon?.duration===PRO_TRIAL_PROMOTION.duration&&coupon?.valid!==false&&coupon?.max_redemptions==null&&dateInNewYork(candidate?.expires_at)===PRO_TRIAL_PROMOTION.expiresOn&&dateInNewYork(coupon?.redeem_by)===PRO_TRIAL_PROMOTION.expiresOn&&couponAppliesOnlyToProduct(coupon,clean(price?.product)))matches.push(candidate)
     }
     const promotion=matches.length===1?matches[0]:null
     if(!promotion?.id)return send(503,{ok:false,code:'launch20_not_verified',error:'LAUNCH20 is unavailable or does not match the verified Pro trial promotion rules in the current Stripe mode. Trial checkout has not been created.'})
