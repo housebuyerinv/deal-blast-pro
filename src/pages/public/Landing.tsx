@@ -54,6 +54,7 @@ export default function Landing() {
                    Create Free Account
                   <ArrowRight size={18} />
                 </Link>
+                <Link to="/features" className="btn btn-ghost text-base px-7 py-3">Explore Features</Link>
                 <Link to="/pricing" className="btn btn-ghost text-base px-7 py-3">View Pricing</Link>
                 <Link to="/admin-login" className="btn btn-ghost text-base px-7 py-3">Sign In</Link>
               </div>
@@ -164,6 +165,7 @@ export default function Landing() {
           </p>
           <div className="flex flex-col sm:flex-row flex-wrap gap-3 justify-center">
              <Link to="/register" className="btn btn-green px-8 py-3 text-base">Create Free Account</Link>
+            <Link to="/features" className="btn btn-ghost px-8 py-3 text-base">Explore Features</Link>
             <Link to="/pricing" className="btn btn-ghost px-8 py-3 text-base">View Pricing</Link>
             <Link to="/admin-login" className="btn btn-ghost px-8 py-3 text-base">Sign In</Link>
           </div>

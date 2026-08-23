@@ -11,6 +11,13 @@ test('public Features route and navigation are present', async () => {
   assert.match(footer, /to: '\/features', label: 'Features'/)
 })
 
+test('homepage CTA groups promote Features in the requested order', async () => {
+  const landing = await read('src/pages/public/Landing.tsx')
+  const expectedOrder = /to="\/register"[\s\S]*?Create Free Account[\s\S]*?to="\/features"[\s\S]*?Explore Features[\s\S]*?to="\/pricing"[\s\S]*?View Pricing[\s\S]*?to="\/admin-login"[\s\S]*?Sign In/
+  assert.equal(landing.match(new RegExp(expectedOrder.source, 'g'))?.length, 2)
+  assert.equal((landing.match(/to="\/features" className="btn btn-ghost[^>]*>Explore Features<\/Link>/g) || []).length, 2)
+})
+
 test('Property Intelligence marketing matches the enforced ledger rules', async () => {
   const page = await read('src/pages/public/Features.tsx')
   assert.match(page, /One successful new property lookup = one credit/)
