@@ -11,6 +11,7 @@ import Portal from './pages/public/Portal'
 import BuyerPortal from './pages/public/BuyerPortal'
 import Landing from './pages/public/Landing'
 import Pricing from './pages/public/Pricing'
+import Features from './pages/public/Features'
 import Contact from './pages/public/Contact'
 import Privacy from './pages/public/Privacy'
 import Terms from './pages/public/Terms'
@@ -280,6 +281,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/pricing" element={<Pricing />} />
+        <Route path="/features" element={<Features />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms" element={<Terms />} />

@@ -134,8 +134,8 @@ export default function Landing() {
             <p className="text-[#C5CAD6] mb-4">
               Keep buyer criteria, markets, budget, funding notes, and fit signals organized so your outreach starts with better targeting.
             </p>
-            <Link to="/pricing" className="btn btn-ghost">
-              Compare Plans
+            <Link to="/features#buyer-database" className="btn btn-ghost">
+              Explore Buyer Tools
               <ArrowRight size={17} />
             </Link>
           </div>
@@ -150,8 +150,8 @@ export default function Landing() {
             <p className="text-[#C5CAD6] mb-4">
               Review inbound opportunities before marketing anything, then move qualified deals into inventory, buyer matching, exports, and follow-up.
             </p>
-            <Link to="/pricing" className="btn btn-ghost">
-              View Pricing
+            <Link to="/features#deal-details" className="btn btn-ghost">
+              See the Workflow
               <ArrowRight size={17} />
             </Link>
           </div>

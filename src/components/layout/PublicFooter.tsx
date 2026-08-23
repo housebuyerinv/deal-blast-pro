@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 
 const footerLinks = [
   { to: '/pricing', label: 'Pricing' },
+  { to: '/features', label: 'Features' },
   { to: '/portal', label: 'Submit Deal' },
   { to: '/buyer-portal', label: 'Buyer Portal' },
   { to: '/contact', label: 'Contact' },

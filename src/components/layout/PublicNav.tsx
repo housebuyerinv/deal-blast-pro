@@ -8,6 +8,7 @@ export default function PublicNav() {
 
   const menuItems = [
     { to: '/pricing', label: 'Pricing' },
+    { to: '/features', label: 'Features' },
     { to: '/register', label: 'Sign Up Now' },
     { to: '/admin-login', label: 'Login' },
     { to: '/contact', label: 'Contact' },
@@ -25,6 +26,7 @@ export default function PublicNav() {
 
         <div className="hidden md:flex items-center gap-4 text-sm">
           <Link to="/pricing" className="hover:text-white">Pricing</Link>
+          <Link to="/features" className="hover:text-white">Features</Link>
           <Link to="/portal" className="hover:text-white">Submit Deal</Link>
           <Link to="/buyer-portal" className="hover:text-white">Buyer Portal</Link>
           <Link to="/contact" className="hover:text-white">Contact</Link>
