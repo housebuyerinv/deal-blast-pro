@@ -19,6 +19,11 @@ test("What's New is authenticated, routable, and available to every plan", () =>
 })
 
 test('release content is static, customer-friendly, and sorted newest-first', () => {
+  assert.match(data, /date: '2026-08-23'/)
+  assert.match(data, /New Deal Blast Pro Features Showcase/)
+  assert.match(data, /full public Features page showing the Deal Blast Pro workflow from deal submission through closing/)
+  assert.match(data, /dedicated Property Intelligence section explaining what Intelligence Credits are and how they work/)
+  assert.match(data, /Pricing and Intelligence Credit information now use shared product configuration/)
   assert.match(data, /date: '2026-08-15'/)
   assert.match(data, /Recent property searches now persist across sessions/)
   assert.match(data, /Property searches can be saved and reopened later/)

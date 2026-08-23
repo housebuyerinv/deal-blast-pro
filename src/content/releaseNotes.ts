@@ -14,6 +14,32 @@ export type ReleaseNote = {
 
 export const releaseNotes: ReleaseNote[] = [
   {
+    id: '2026-08-23-features-showcase',
+    version: 'August 2026',
+    date: '2026-08-23',
+    title: 'New Deal Blast Pro Features Showcase',
+    summary: 'A better way to see everything DBP can do before you upgrade.',
+    sections: [
+      {
+        label: 'New',
+        items: [
+          'Added a full public Features page showing the Deal Blast Pro workflow from deal submission through closing.',
+          'Added visual product tours for deal review, buyer management, buyer matching, targeted blasts, calculators, resources, pipeline, and follow-up.',
+          'Added a dedicated Property Intelligence section explaining what Intelligence Credits are and how they work.',
+          'Added clear explanations for cached lookups, included credits, purchased credits, and trial credit behavior.',
+        ],
+      },
+      {
+        label: 'Improved',
+        items: [
+          'Added Features links throughout the public navigation and homepage.',
+          'Improved product screenshots and mobile presentation so visitors can better understand the platform before signing up.',
+          'Pricing and Intelligence Credit information now use shared product configuration to help keep public information aligned with the application.',
+        ],
+      },
+    ],
+  },
+  {
     id: '2026-08-15-property-intelligence',
     version: 'August 2026',
     date: '2026-08-15',
