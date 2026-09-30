@@ -1,3 +1,4 @@
+import { handleBuyerMatchBilling } from '../_shared/buyermatchBilling.ts'
 const STORAGE_KEY = 'dealblastpro-v1'
 
 const json = (body: Record<string, unknown>, status = 200) =>
@@ -453,6 +454,8 @@ Deno.serve(async req => {
   if (!verified) return json({ ok: false, error: 'Invalid signature' }, 400)
 
   const event = JSON.parse(payload)
+  const productBilling = await handleBuyerMatchBilling(event, stripeGet, supabaseUrl, serviceKey, {name:Deno.env.get("BM_ENVIRONMENT"),projectRef:Deno.env.get("BM_STAGING_PROJECT_REF"),stripeKey:Deno.env.get("STRIPE_SECRET_KEY")})
+  if (productBilling) return json(productBilling.body, productBilling.status)
   const supportedEvents = new Set([
     'checkout.session.completed',
     'checkout.session.async_payment_succeeded',

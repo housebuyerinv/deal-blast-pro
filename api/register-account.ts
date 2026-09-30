@@ -1,4 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
+import { createHash } from 'node:crypto'
+import { getSupabaseAdminClient } from './_accountAuth.js'
 
 type StepStatus = 'pending' | 'ok' | 'skipped' | 'failed'
 
@@ -201,6 +203,15 @@ async function upsertRegistrationRows(input: {
 }
 
 export default async function handler(req: any, res: any) {
+  if(req.method==='GET') {
+    res.setHeader('Cache-Control','no-store')
+    if(process.env.DBP_REQUIRE_VERSIONED_PLATFORM_AGREEMENTS!=='true') return send(res,200,{required:false,documents:[]})
+    try {
+      const {data,error}=await getSupabaseAdminClient().from('bm_documents').select('id,kind,version,document_hash,content').in('kind',['platform_terms','privacy']).eq('current',true).eq('approved',true)
+      if(error || data?.length!==2) return send(res,503,{error:'Approved platform agreements are not configured.'})
+      return send(res,200,{required:true,documents:data})
+    } catch {return send(res,503,{error:'Platform agreement configuration unavailable.'})}
+  }
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST')
     return send(res, 405, { ok: false, error: 'Method not allowed' })
@@ -279,6 +290,14 @@ export default async function handler(req: any, res: any) {
         })
       : null
 
+    let platformDocuments:any[]=[]
+    if(process.env.DBP_REQUIRE_VERSIONED_PLATFORM_AGREEMENTS==='true') {
+      if(!adminClient) return send(res,503,{error:'Agreement storage unavailable.'})
+      const {data,error}=await adminClient.from('bm_documents').select('*').in('kind',['platform_terms','privacy']).eq('current',true).eq('approved',true)
+      if(error || data?.length!==2) return send(res,503,{error:'Approved platform agreements unavailable.'})
+      platformDocuments=data
+      if(body.agreementsAccepted!==true || !name || !platformDocuments.every(doc=>body.platformAgreements?.some((a:any)=>a.id===doc.id&&a.hash===doc.document_hash)&&createHash('sha256').update(doc.content).digest('hex')===doc.document_hash)) return send(res,400,{error:'Review and accept the current platform agreements.'})
+    }
     let authUser: any = adminClient ? await findUserByEmail(adminClient, email) : null
     let session: any = null
     let authCreated = false
@@ -363,6 +382,10 @@ export default async function handler(req: any, res: any) {
       throw new Error('Registration Auth succeeded but durable registration storage is not configured. Add SUPABASE_SERVICE_ROLE_KEY and retry reconciliation.')
     }
 
+    for(const document of platformDocuments) {
+      const {error}=await adminClient.rpc('bm_accept_document',{p_owner:authUser.id,p_deal:null,p_document:document.id,p_hash:document.document_hash,p_signature:name})
+      if(error) throw new Error('Agreement acceptance could not be recorded. Please retry registration.')
+    }
     const billingStatus = plan === 'Free' ? 'Free Active' : 'Pending Payment'
     const paymentStatus = plan === 'Free' ? 'No payment required' : 'Pending Stripe checkout'
     const { workspaceId, workspaceName, idempotencyKey } = await upsertRegistrationRows({

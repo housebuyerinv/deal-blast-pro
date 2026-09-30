@@ -23,6 +23,8 @@ import ForgotPassword from './pages/public/ForgotPassword'
 import AuthCallback from './pages/public/AuthCallback'
 import AppShell from './components/layout/AppShell'
 
+import BuyerMatch from './pages/app/BuyerMatch'
+import BuyerMatchResponse from './pages/public/BuyerMatchResponse'
 import Dashboard from './pages/app/Dashboard'
 import Submissions from './pages/app/Submissions'
 import Inventory from './pages/app/Inventory'
@@ -266,6 +268,8 @@ function App() {
     <ErrorBoundary>
       <Routes>
         <Route path="/" element={<Landing />} />
+        <Route path="/buyermatch/*" element={<Navigate to={location.pathname.replace(/^\/buyermatch/, '/app/buyermatch')} replace />} />
+        <Route path="/buyer-response" element={<BuyerMatchResponse />} />
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/privacy" element={<Privacy />} />
@@ -291,6 +295,10 @@ function App() {
             <ProtectedRoute>
               <AppShell>
                 <Routes>
+                  <Route path="buyermatch" element={<BuyerMatch />} />
+                  <Route path="buyermatch/plans" element={<BuyerMatch />} />
+                  <Route path="buyermatch/admin" element={<BuyerMatch />} />
+                  <Route path="buyermatch/deals/:id" element={<BuyerMatch />} />
                   <Route path="dashboard" element={<Dashboard />} />
                   <Route path="submissions" element={<Submissions />} />
                   <Route path="inventory" element={<Inventory />} />
@@ -318,6 +326,4 @@ function App() {
 }
 
 export default App
-
-
 

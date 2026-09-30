@@ -25,6 +25,7 @@ const navGroups = [
   {
     label: 'DEAL FLOW',
     items: [
+      { to: '/app/buyermatch', label: 'BuyerMatch', icon: Target },
       { to: '/app/buyers', label: 'Buyer Database', icon: Users, badgeKey: 'buyerPortal' },
       { to: '/app/resources', label: 'Resource Hub', icon: Briefcase },
       { to: '/app/blast', label: 'Deal Blast Builder', icon: Send },
