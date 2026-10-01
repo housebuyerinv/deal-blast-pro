@@ -1,6 +1,6 @@
 # BuyerMatch staging handoff
 
-Branch: `codex/buyermatch-network`. Staging installation and synthetic seed are complete. **No production migrations, live charges, real buyer sends, or success fees have been enabled.** Authenticated Preview verification is in progress.
+Branch: `codex/buyermatch-network`. Staging installation and synthetic seed are complete. **No production migrations, live charges, real buyer sends, or success fees have been enabled.** Authenticated staging HTTP verification passed on 2026-10-01.
 
 ## Implemented
 
@@ -89,7 +89,7 @@ The worker is explicitly invoked through the admin screen or `POST /api/buyermat
 
 ## Current verification and blockers
 
-60 local tests passed after the authorization/privacy/checkout review. Production build passed. Full repository lint has no errors (103 existing warnings); targeted BuyerMatch lint is clean. Local browser checks passed for missing-token handling, offer-field rendering and editing, token removal from the URL, and unavailable-service handling. These are local UI checks, not authenticated hosted verification.
+61 local tests passed after the authorization/privacy/checkout review. Production build passed. Full repository lint has no errors (103 existing warnings); targeted BuyerMatch lint is clean. Local browser checks passed for missing-token handling, offer-field rendering and editing, token removal from the URL, and unavailable-service handling. These are local UI checks, not authenticated hosted verification.
 
 Local coverage includes the full fresh migration chain, actual seed twice, authenticated API ownership/admin guards with fixture Auth, private table privileges, matching/privacy/unknown criteria, quotas/concurrency, agreements, outbox leases/retries, signed Stripe/Svix handlers, buyer response idempotency/opt-outs, duplicate audit/merge, EOC recalculation and closing state separation. These tests use local PostgreSQL (PGlite), fixture Auth/Storage and mocked provider transport; they do **not** prove hosted Auth, Storage or provider connectivity.
 
@@ -97,6 +97,16 @@ Staging installation and synthetic seed completed on 2026-10-01. The ignored loc
 
 Vercel overrides are scoped only to Preview branch `codex/buyermatch-network`. `SUPABASE_ANON_KEY` is also overridden. Mock delivery and disabled checkout are configured. Generic Stripe/Resend credentials and `BM_STRIPE_TEST_SECRET_KEY` use an invalid disabled sentinel to prevent inheriting active credentials. Public VITE variables use Config; server variables use Secret. No test passwords or database URL are uploaded to Vercel.
 
-Staging Auth Site URL is `https://deal-blast-pro-git-codex-buyermatch-network-housebuyerinv.vercel.app`; its `/auth/callback` URL is allowlisted. Redeployment and authenticated verification are in progress. Do not treat the prior deployment as configured staging. Stripe/Resend provider verification remain intentionally disabled.
+Staging Auth Site URL is `https://deal-blast-pro-git-codex-buyermatch-network-housebuyerinv.vercel.app`; its `/auth/callback` URL is allowlisted. Verified Preview deployment: [deal-blast-e22e5jpck-housebuyerinv.vercel.app](https://deal-blast-e22e5jpck-housebuyerinv.vercel.app), deployment `dpl_VedDcMQ6PgdD9xoMdUABiTHWvnoo`, application commit `f3ce472`. Stable branch URL: [BuyerMatch Preview](https://deal-blast-pro-git-codex-buyermatch-network-housebuyerinv.vercel.app). Vercel confirmed Preview target, never production.
+
+All **95 authenticated staging HTTP assertions passed** at 2026-10-01T21:31:16Z: three real Auth logins; regular-user admin denial; cross-owner deal and upload denial; private-table denial; anonymous matching/privacy; allowance and operation-key replay; PSA and settlement signed uploads with cross-owner/public download denials; synthetic agreements and contract review; distribution reservation retry; mock transport receipts; buyer offer capability replay creating one offer; EOC extension/review; selection, closing signature, title acknowledgement, report and verified settlement. Checkout and success fees remained disabled, and payment stayed unrecorded. Deployment bundle checks confirmed the staging URL/public key, no production Supabase reference, and no identity, response, worker or service-role secrets. Successful server access to seeded staging identities and encrypted fixtures confirms the runtime uses staging credentials. No production database was accessed.
+
+Browser smoke checks confirmed regular-user login and BuyerMatch listing, denial of the admin route for a regular user, and synthetic admin login with network controls. Full browser acceptance beyond those smoke checks remains separate from the HTTP runner.
+
+The runner now reanalyzes after contract/title review, preserving the fresh-analysis guard. Hosted PostgREST returns the unique outbox relation as an object; the admin API normalizes it to the documented array shape, with a regression test.
+
+Protected Preview testing can use a temporary connector-generated link saved only in ignored `.env.buyermatch-preview-access` as `BM_PREVIEW_SHARE_URL`. Run `node --env-file=.env.buyermatch-staging --env-file=.env.buyermatch-preview-access scripts/verify-buyermatch-staging.mjs`. The runner acquires a scoped cookie in memory; never print or commit either file. Refresh the temporary access link after redeployment or expiry. Both environment files are ignored and untracked. The non-secret detailed report lives in ignored `test-artifacts/buyermatch-staging-report.json`.
+
+No blocker remains for the verified mock-delivery HTTP workflow. Stripe hosted checkout, Resend delivery callbacks and the complete browser acceptance checklist remain unverified and are intentionally not activated. Their optional isolated test-resource setup is documented above.
 
 Before production: real legal/jurisdiction review, any lawful real-send design, identity-key rotation, larger-network capacity, and payment/tax launch review remain separate. This branch intentionally contains no live sender switch or success-fee enablement path. The baseline is a fresh staging contract, not a certification that all unrelated legacy CRM features have been regression-tested.
