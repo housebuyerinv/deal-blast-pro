@@ -86,6 +86,7 @@ export default function BuyerMatch() {
   const [plans, setPlans] = useState<RecordData>({});
   const checkoutKeys = useRef<Record<string, string>>({});
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const [property, setProperty] = useState<RecordData>({
     assetType: "sfh",
@@ -133,6 +134,9 @@ export default function BuyerMatch() {
   useEffect(() => {
     setData({});
     setError("");
+    setNotice("");
+    setSettlementKey("");
+    setSignature("");
     setBusy(true);
     reload()
       .catch((e) => setError(e.message))
@@ -141,6 +145,7 @@ export default function BuyerMatch() {
   async function run(fn: () => Promise<void>) {
     setBusy(true);
     setError("");
+    setNotice("");
     try {
       await fn();
     } catch (e: any) {
@@ -217,6 +222,11 @@ export default function BuyerMatch() {
         </p>
       )}
       {busy && <p role="status">Working…</p>}
+      {notice && (
+        <p role="status" className="rounded border border-emerald-800 p-4">
+          {notice}
+        </p>
+      )}
       {isPlans ? (
         <section className="space-y-5">
           <p>
@@ -831,7 +841,7 @@ export default function BuyerMatch() {
             </section>
           </>
         )
-      ) : (
+      ) : id && data.deal?.id !== id ? null : (
         <>
           {!id && (
             <section className="space-y-3">
@@ -1016,6 +1026,9 @@ export default function BuyerMatch() {
                 {button("Save title / EOC extension", async () => {
                   await request("title", { id, title });
                   await reload();
+                  setNotice(
+                    "Title information and end of contract saved. Contract review is required again.",
+                  );
                 })}
                 <h3>Agreements & certification</h3>
                 {documents.length === 0 ? (
@@ -1045,6 +1058,9 @@ export default function BuyerMatch() {
                             signature,
                           });
                           setSignature("");
+                          setNotice(
+                            `${doc.kind} version ${doc.version} accepted.`,
+                          );
                         })}
                       </details>
                     ))}
@@ -1056,6 +1072,10 @@ export default function BuyerMatch() {
                 </p>
                 {button("Request distribution", async () => {
                   await request("distribution", { id, operationKey });
+                  await reload();
+                  setNotice(
+                    "Distribution request recorded. Delivery status appears in Deal progress.",
+                  );
                 })}
               </section>
               <section className="border border-slate-700 rounded-xl p-5 space-y-3">
@@ -1109,6 +1129,9 @@ export default function BuyerMatch() {
                           if (result.error)
                             throw new Error("Evidence upload failed");
                           setSettlementKey(upload.path);
+                          setNotice(
+                            "Settlement PDF uploaded. Submit a closing report to attach it for verification.",
+                          );
                         });
                     }}
                   />

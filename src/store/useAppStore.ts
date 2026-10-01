@@ -15,6 +15,7 @@ import { findInventoryDealBySubmission } from '../lib/submissionInventoryIdentit
 import { getOwnerPreviewPlan, isOwnerPreviewActive } from '../lib/planAccess'
 import { getBuyerCapacity, getPlanEntitlement } from '../lib/planEntitlements'
 import { getPastDuePolicyMessage, getPastDueStage } from '../lib/accountLifecycle'
+import { shouldApplyWorkspaceSync } from '../lib/persistedWorkspaceSync'
 
 // Module-level guard so initialize is truly one-shot even if called multiple times from effects or StrictMode
 const safeLower = (value: any) => String(value ?? '').toLowerCase();
@@ -2213,10 +2214,12 @@ function syncStoreFromPersistedStorage() {
       teamMembers: canUsePersistedPrivateState && Array.isArray(persistedState.teamMembers) ? persistedState.teamMembers : currentState.teamMembers,
     }
 
-    useAppStore.setState({
+    const synchronizedState = {
       ...nextState,
       ...cleanupOrphanedDealState(nextState),
-    })
+    }
+    if (!shouldApplyWorkspaceSync(currentState, synchronizedState, canUsePersistedPrivateState)) return
+    useAppStore.setState(synchronizedState)
   } catch (error) {
     console.warn('[Deal Blast Pro] Failed to sync persisted store', error)
   }
