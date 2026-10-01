@@ -2,7 +2,10 @@
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
-import { stagingOrigin } from "../server/buyermatch/staging.js";
+import {
+  stagingOrigin,
+  PRODUCTION_SUPABASE_REF,
+} from "../server/buyermatch/staging.js";
 const env = process.env;
 const origin = stagingOrigin(env);
 const checks = [];
@@ -39,7 +42,9 @@ async function api(account, action, data = {}, expected = 200) {
     },
     body: JSON.stringify({ action, ...data }),
   });
-  ensure(r.status === expected, `${action}: HTTP ${expected}`);
+  if (r.status !== expected)
+    throw new Error(`${action}: HTTP ${r.status}, expected ${expected}`);
+  ensure(true, `${action}: HTTP ${expected}`);
   return r.json();
 }
 function syntheticPdf() {
@@ -69,6 +74,54 @@ function syntheticPdf() {
 }
 let failure = null;
 try {
+  if (env.BM_PREVIEW_SHARE_URL) {
+    const share = new URL(env.BM_PREVIEW_SHARE_URL);
+    ensure(
+      share.origin === origin,
+      "Temporary Preview access is scoped to the staging origin",
+    );
+    const access = await fetch(share, { redirect: "manual" });
+    const cookie = access.headers
+      .getSetCookie()
+      .find((value) => value.startsWith("_vercel_jwt="));
+    ensure(Boolean(cookie), "Temporary Preview access established");
+    headers.Cookie = cookie.split(";")[0];
+  }
+  const page = await fetch(origin, { headers });
+  ensure(
+    page.ok && new URL(page.url).origin === origin,
+    "Preview is accessible without an authentication redirect",
+  );
+  const html = await page.text();
+  const scripts = [...html.matchAll(/<script[^>]+src="([^"]+)"/g)]
+    .map((match) => new URL(match[1], origin))
+    .filter((url) => url.origin === origin);
+  ensure(scripts.length > 0, "Preview application bundle exists");
+  let bundles = "";
+  for (const url of scripts) {
+    const response = await fetch(url, { headers });
+    ensure(response.ok, "Preview application bundle loads");
+    bundles += await response.text();
+  }
+  ensure(
+    bundles.includes(env.SUPABASE_URL) &&
+      bundles.includes(env.VITE_SUPABASE_ANON_KEY),
+    "Deployed frontend uses staging URL and public key",
+  );
+  ensure(
+    !bundles.includes(PRODUCTION_SUPABASE_REF),
+    "No production Supabase reference in deployed frontend",
+  );
+  for (const key of [
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "BUYERMATCH_IDENTITY_KEY",
+    "BM_RESPONSE_SECRET",
+    "BM_WORKER_SECRET",
+  ])
+    ensure(
+      Boolean(env[key]) && !bundles.includes(env[key]),
+      `Server secret absent from frontend: ${key}`,
+    );
   const user = await account("USER"),
     other = await account("OTHER"),
     admin = await account("ADMIN");
@@ -136,6 +189,10 @@ try {
     ensure(Boolean(result.error), `Browser table access denied: ${table}`);
   }
   const before = await api(user, "plans");
+  ensure(
+    !before.checkoutEnabled && !before.successFeesEnabled,
+    "Checkout and success fees remain disabled",
+  );
   const operationKey = randomUUID();
   const first = await api(user, "analyze", { id, operationKey });
   const retry = await api(user, "analyze", { id, operationKey });
@@ -195,6 +252,9 @@ try {
       signature: "Synthetic QA Owner",
     });
   await api(admin, "admin-review", { id });
+  // Title/contract preparation updates the deal after the initial analysis.
+  // Distribution intentionally requires a fresh analysis of that reviewed deal.
+  privateSafe(await api(user, "analyze", { id, operationKey: randomUUID() }));
   const key = randomUUID();
   const queued = await api(user, "distribution", { id, operationKey: key });
   ensure(
@@ -209,6 +269,12 @@ try {
   ensure(detail.exposures.length > 0, "Immutable exposures exist");
   const exposure = detail.exposures[0];
   ensure(exposure.bm_outbox[0].accepted_at, "Provider acceptance persisted");
+  ensure(
+    detail.exposures.every((item) =>
+      item.bm_outbox[0]?.provider_message_id?.startsWith("mock-"),
+    ),
+    "All delivery receipts came from mock transport",
+  );
   const link = await api(admin, "admin-test-response-link", {
     exposureId: exposure.id,
   });

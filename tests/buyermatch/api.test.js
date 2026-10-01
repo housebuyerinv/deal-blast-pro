@@ -76,7 +76,7 @@ class Query {
     const rows = (records[this.table] || [])
       .filter((r) => this.filters.every((f) => f(r)))
       .map((row) =>
-        this.fields === "*"
+        this.fields === "*" || this.fields === "*,bm_outbox(*)"
           ? row
           : Object.fromEntries(
               this.fields.split(",").map((key) => [key, row[key]]),
@@ -153,6 +153,29 @@ async function invoke(action, body = {}, token = "valid", method = "POST") {
 test("API denies missing and invalid bearer tokens", async () => {
   assert.equal((await invoke("list", {}, "")).statusCode, 401);
   assert.equal((await invoke("list", {}, "invalid")).statusCode, 401);
+});
+test("admin detail normalizes PostgREST one-to-one delivery receipts", async () => {
+  email = "housebuyerinv@gmail.com";
+  records.bm_exposures = [
+    {
+      deal_id: dealId,
+      bm_outbox: { state: "accepted", accepted_at: "2026-10-01" },
+    },
+  ];
+  try {
+    const response = await invoke("admin-detail", { id: dealId });
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.exposures[0].bm_outbox[0].state, "accepted");
+    records.bm_exposures[0].bm_outbox = null;
+    assert.deepEqual(
+      (await invoke("admin-detail", { id: dealId })).body.exposures[0]
+        .bm_outbox,
+      [],
+    );
+  } finally {
+    email = "regular@example.invalid";
+    delete records.bm_exposures;
+  }
 });
 test("API denies admin actions even if user submits forged admin flags", async () => {
   calls.length = 0;

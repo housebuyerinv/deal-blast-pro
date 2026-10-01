@@ -486,7 +486,21 @@ export default async function handler(req: any, res: any) {
             .eq("deal_id", body.id)
             .order("created_at"),
         );
-        return emit({ deal, analyses, exposures, events });
+        return emit({
+          deal,
+          analyses,
+          exposures: exposures.map((exposure: any) => ({
+            ...exposure,
+            // PostgREST embeds the UNIQUE exposure_id relationship as an object.
+            // Keep the admin API's existing array contract for its consumers.
+            bm_outbox: Array.isArray(exposure.bm_outbox)
+              ? exposure.bm_outbox
+              : exposure.bm_outbox
+                ? [exposure.bm_outbox]
+                : [],
+          })),
+          events,
+        });
       }
       if (action === "admin-document") {
         const deal = checked(

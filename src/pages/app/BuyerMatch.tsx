@@ -1050,6 +1050,10 @@ export default function BuyerMatch() {
                     ))}
                   </>
                 )}
+                <p className="text-sm text-slate-400">
+                  After contract or title changes and admin review, run Analyze
+                  saved deal again before requesting distribution.
+                </p>
                 {button("Request distribution", async () => {
                   await request("distribution", { id, operationKey });
                 })}
