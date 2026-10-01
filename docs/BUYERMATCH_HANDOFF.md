@@ -1,6 +1,6 @@
 # BuyerMatch staging handoff
 
-Branch: `codex/buyermatch-network`. Engineering is in the working tree. **No production migrations, live charges, real buyer sends, or success fees have been enabled. No hosted preview exists for this implementation yet.**
+Branch: `codex/buyermatch-network`. Staging installation and synthetic seed are complete. **No production migrations, live charges, real buyer sends, or success fees have been enabled.** Authenticated Preview verification is in progress.
 
 ## Implemented
 
@@ -16,9 +16,9 @@ Branch: `codex/buyermatch-network`. Engineering is in the working tree. **No pro
 
 ## Exact setup steps
 
-Use an isolated **new empty** Supabase project; do not clone buyer data or use the production project `aigvnbxiydbzzqbetlhl`. Values below belong in a protected local environment/secret manager and the specified dashboards. **Do not paste secrets into chat, Git, screenshots or browser code.**
+Use the existing isolated **dbp-buyermatch-staging** project; do not clone buyer data or use the production project `aigvnbxiydbzzqbetlhl`. Values below belong in a protected local environment/secret manager and the specified dashboards. **Do not paste secrets into chat, Git, screenshots or browser code.**
 
-1. Create a project at [Supabase New Project](https://supabase.com/dashboard/new), named `dbp-buyermatch-staging`. Save its project reference as `BM_STAGING_PROJECT_REF`. In the project dashboard, **Connect** gives the PostgreSQL connection string; save it as `BM_STAGING_DATABASE_URL`. Use `db.<STAGING_REF>.supabase.co` or the session pooler host with username `postgres.<STAGING_REF>`. Keep TLS verification enabled; if required, download the database CA certificate and set `BM_DATABASE_CA_FILE` to its local path. The script rejects production, a mismatched host/ref, and any existing non-staging app schema.
+1. Reuse [dbp-buyermatch-staging](https://supabase.com/dashboard/project/qxhhlprentrufobpcgna), reference `qxhhlprentrufobpcgna`, region `us-east-1`. Do not recreate it or reapply its 40 sources. The marker and all 40 ledger checksums were verified on 2026-10-01. Checksums canonicalize CRLF to LF and otherwise require exact content, matching the committed Git sources applied by the connector. No remote ledger values were changed. `BM_STAGING_DATABASE_URL` is needed only for intentionally bootstrapping a different empty staging project; existing-installation verification uses the server credential over REST.
 
 2. Open [Supabase Dashboard](https://supabase.com/dashboard) → staging project → **Settings → API Keys** (`https://supabase.com/dashboard/project/<STAGING_REF>/settings/api`). Set `SUPABASE_URL=https://<STAGING_REF>.supabase.co`, `VITE_SUPABASE_URL` to the same value, `VITE_SUPABASE_ANON_KEY` to the public anon key, and `SUPABASE_SERVICE_ROLE_KEY` to the **server-only** service-role key. Create an ignored `.env.buyermatch-staging` file using `.env.buyermatch-staging.example` as the names reference. Do not copy the existing production `.env.local`. Set `BM_ENVIRONMENT=staging` and `BM_STAGING_CONFIRM=I_HAVE_VERIFIED_THIS_IS_NOT_PRODUCTION`.
 
@@ -33,11 +33,11 @@ Use an isolated **new empty** Supabase project; do not clone buyer data or use t
 
    ```powershell
    npm ci
-   node --env-file=.env.buyermatch-staging scripts/setup-buyermatch-staging.mjs
+   node --env-file=.env.buyermatch-staging scripts/setup-buyermatch-staging.mjs --verify-only
    node --env-file=.env.buyermatch-staging scripts/seed-buyermatch-staging.mjs
    ```
 
-   The setup applies `supabase/staging/000_baseline_prerequisites.sql`, **all** historical DBP migrations in filename order (including nine BuyerMatch migrations), then `999_staging_access.sql`. The prelude reconstructs two missing legacy table contracts from repository usage; this is a fresh QA baseline, not a production schema export. Supabase supplies Auth/Storage itself. A project marker, per-file checksums and transaction ledger make retries reproducible; changed applied migrations fail closed. Do not combine this runner with `supabase db push` or production migration commands. An incompatible/partially modified existing schema requires a new empty staging project.
+   The existing-installation `--verify-only` command performs SELECT requests only and requires the exact marker and every checksum, rejecting missing, extra, duplicate or changed entries. Without that flag, the bootstrap setup applies `supabase/staging/000_baseline_prerequisites.sql`, **all** historical DBP migrations in filename order (including nine BuyerMatch migrations), then `999_staging_access.sql`. The prelude reconstructs two missing legacy table contracts from repository usage; this is a fresh QA baseline, not a production schema export. Supabase supplies Auth/Storage itself. A project marker, per-file checksums and transaction ledger make retries reproducible; changed applied migrations fail closed. Do not combine this runner with `supabase db push` or production migration commands. An incompatible/partially modified existing schema requires a new empty staging project.
 
    The seed creates three confirmed Auth users without sending email, their DBP profiles/workspaces, separate allowances, one synthetic deal per user, six synthetic unverified buyers, and clearly labeled **QA-only** documents. All three own workspaces with the existing `Admin` workspace role; only the server allowlisted account administers the private network. QA documents are not counsel approval or fee authorization. Fixture consent/config enables only guarded test delivery; fees stay false. Rerunning preserves usage, reviewed buyer state and existing fixture passwords. To change a password, use **Authentication → Users** in staging. Non-fixture accounts are never reused.
 
@@ -89,10 +89,14 @@ The worker is explicitly invoked through the admin screen or `POST /api/buyermat
 
 ## Current verification and blockers
 
-58 local tests passed after the authorization/privacy/checkout review. Production build passed. Full repository lint has no errors (103 existing warnings); targeted BuyerMatch lint is clean. Local browser checks passed for missing-token handling, offer-field rendering and editing, token removal from the URL, and unavailable-service handling. These are local UI checks, not authenticated hosted verification.
+60 local tests passed after the authorization/privacy/checkout review. Production build passed. Full repository lint has no errors (103 existing warnings); targeted BuyerMatch lint is clean. Local browser checks passed for missing-token handling, offer-field rendering and editing, token removal from the URL, and unavailable-service handling. These are local UI checks, not authenticated hosted verification.
 
 Local coverage includes the full fresh migration chain, actual seed twice, authenticated API ownership/admin guards with fixture Auth, private table privileges, matching/privacy/unknown criteria, quotas/concurrency, agreements, outbox leases/retries, signed Stripe/Svix handlers, buyer response idempotency/opt-outs, duplicate audit/merge, EOC recalculation and closing state separation. These tests use local PostgreSQL (PGlite), fixture Auth/Storage and mocked provider transport; they do **not** prove hosted Auth, Storage or provider connectivity.
 
-Pending external resources: staging project/secure keys, three seeded test accounts, Vercel authenticated deployment access and branch environment, Stripe sandbox prices/signing configuration, and (for delivery callbacks) Resend test integration. Until those exist, **Preview URL: unavailable** and authenticated browser/hosted integration verification is blocked. The runner and checklist above are ready to execute once connected.
+Staging installation and synthetic seed completed on 2026-10-01. The ignored local `.env.buyermatch-staging` contains generated identity/response/worker secrets, test passwords and staging API keys. No secrets were committed or printed. Existing names `VITE_SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` hold publishable and server-secret keys respectively.
+
+Vercel overrides are scoped only to Preview branch `codex/buyermatch-network`. `SUPABASE_ANON_KEY` is also overridden. Mock delivery and disabled checkout are configured. Generic Stripe/Resend credentials and `BM_STRIPE_TEST_SECRET_KEY` use an invalid disabled sentinel to prevent inheriting active credentials. Public VITE variables use Config; server variables use Secret. No test passwords or database URL are uploaded to Vercel.
+
+Staging Auth Site URL is `https://deal-blast-pro-git-codex-buyermatch-network-housebuyerinv.vercel.app`; its `/auth/callback` URL is allowlisted. Redeployment and authenticated verification are in progress. Do not treat the prior deployment as configured staging. Stripe/Resend provider verification remain intentionally disabled.
 
 Before production: real legal/jurisdiction review, any lawful real-send design, identity-key rotation, larger-network capacity, and payment/tax launch review remain separate. This branch intentionally contains no live sender switch or success-fee enablement path. The baseline is a fresh staging contract, not a certification that all unrelated legacy CRM features have been regression-tested.

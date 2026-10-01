@@ -1,5 +1,7 @@
 import { Client } from "pg";
 import { readFileSync } from "node:fs";
+import { createClient } from "@supabase/supabase-js";
+import { verifyStagingLedger } from "./buyermatch-staging-ledger.mjs";
 import {
   assertStaging,
   PRODUCTION_SUPABASE_REF,
@@ -12,6 +14,36 @@ const env = process.env;
 assertStaging(env);
 if (env.BM_STAGING_CONFIRM !== "I_HAVE_VERIFIED_THIS_IS_NOT_PRODUCTION")
   throw new Error("Explicit staging confirmation required");
+// Existing connector installations can be verified without a database password.
+// This path performs only SELECT requests and never bootstraps or applies SQL.
+if (process.argv.includes("--verify-only")) {
+  if (!env.SUPABASE_SERVICE_ROLE_KEY)
+    throw new Error(
+      "Staging service-role credential required for verification",
+    );
+  const client = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const marker = await client
+    .from("dbp_staging_installation")
+    .select("project_ref");
+  if (
+    marker.error ||
+    marker.data.length !== 1 ||
+    marker.data[0].project_ref !== env.BM_STAGING_PROJECT_REF
+  )
+    throw new Error("Staging installation marker could not be verified");
+  const ledger = await client
+    .from("dbp_staging_migrations")
+    .select("path,hash");
+  if (ledger.error)
+    throw new Error("Staging migration ledger could not be read");
+  const count = verifyStagingLedger(stagingSources(), ledger.data);
+  console.log(
+    `Verified ${count} staging migration checksums; no writes performed.`,
+  );
+  process.exit(0);
+}
 const connection = new URL(env.BM_STAGING_DATABASE_URL || "");
 const ref = env.BM_STAGING_PROJECT_REF;
 if (
