@@ -156,3 +156,48 @@ test("legacy accepted responses replay without mutations but expired capabilitie
   capabilityValid = true;
   legacyResponse = false;
 });
+
+test("caller identity and scope overrides never reach the response transaction", async () => {
+  const result = await invoke({
+    ...input,
+    operationKey: randomUUID(),
+    dealId: randomUUID(),
+    buyerId: randomUUID(),
+    workspaceId: randomUUID(),
+    accountId: randomUUID(),
+    environment: "production",
+  });
+  assert.equal(result.status, 200);
+  assert.deepEqual(Object.keys(calls.at(-1).body).sort(), [
+    "p_amount",
+    "p_hash",
+    "p_key",
+    "p_kind",
+    "p_terms",
+  ]);
+  const before = calls.length;
+  assert.equal(
+    (await invoke({ ...input, operationKey: randomUUID(), kind: "admin" }))
+      .status,
+    400,
+  );
+  assert.equal(calls.length, before);
+});
+
+test("public response handler refuses Production before any response transaction", async () => {
+  const previous = process.env.VERCEL_ENV;
+  const before = calls.length;
+  try {
+    process.env.VERCEL_ENV = "production";
+    assert.deepEqual(
+      (await invoke({ ...input, operationKey: randomUUID() })).body,
+      {
+        error: "Response link unavailable.",
+      },
+    );
+    assert.equal(calls.length, before);
+  } finally {
+    if (previous === undefined) delete process.env.VERCEL_ENV;
+    else process.env.VERCEL_ENV = previous;
+  }
+});
