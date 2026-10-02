@@ -292,13 +292,121 @@ try {
       body: JSON.stringify(responseBody),
     });
     ensure(response.ok, "Buyer offer capability and replay accepted");
+    ensure(
+      JSON.stringify(await response.json()) === '{"recorded":true}',
+      "Capability response exposes only acknowledgement",
+    );
   }
+  const concurrentResponses = await Promise.all(
+    Array.from({ length: 3 }, () =>
+      fetch(origin + "/api/buyermatch-response", {
+        method: "POST",
+        headers: {
+          ...headers,
+          Authorization: `Bearer ${other.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ ...responseBody, operationKey: randomUUID() }),
+      }),
+    ),
+  );
+  ensure(
+    concurrentResponses.every((r) => r.ok),
+    "Separate-tab operation keys replay safely with an unrelated account session",
+  );
   let publicDetail = await api(user, "detail", { id });
   privateSafe(publicDetail);
   ensure(
     publicDetail.offers.length === 1,
     "Buyer offer replay creates one offer",
   );
+  ensure(
+    publicDetail.events.filter((e) => e.kind === "offer_received").length === 1,
+    "Concurrent response replay creates one public state-change event",
+  );
+  const replayDetail = await api(admin, "admin-detail", { id });
+  ensure(
+    replayDetail.exposures.length === detail.exposures.length &&
+      replayDetail.exposures.every(
+        (x) => x.bm_outbox.length === 1 && x.bm_outbox[0].attempts === 1,
+      ),
+    "Response replay creates no additional dispatches or delivery attempts",
+  );
+  const invalidResponse = await fetch(origin + "/api/buyermatch-response", {
+    method: "POST",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify({ ...responseBody, token: "x".repeat(43) }),
+  });
+  ensure(invalidResponse.status === 400, "Unknown capability denied");
+  const invalidBody = await invalidResponse.json();
+  ensure(
+    Object.keys(invalidBody).join() === "error",
+    "Invalid capability response contains only generic error",
+  );
+  const verificationDb = createClient(
+    env.SUPABASE_URL,
+    env.SUPABASE_SERVICE_ROLE_KEY,
+    {
+      auth: { persistSession: false, autoRefreshToken: false },
+    },
+  );
+  const responseRows = await verificationDb
+    .from("bm_responses")
+    .select("id", { count: "exact", head: true })
+    .eq("exposure_id", exposure.id);
+  ensure(
+    !responseRows.error && responseRows.count === 1,
+    "Concurrent separate-tab submissions create one response row",
+  );
+  const capability = await verificationDb
+    .from("bm_response_tokens")
+    .select("expires_at,revoked_at")
+    .eq("exposure_id", exposure.id)
+    .single();
+  ensure(
+    !capability.error && capability.data,
+    "Fresh synthetic capability available for expiry verification",
+  );
+  try {
+    for (const [label, change] of [
+      ["Expired", { expires_at: new Date(Date.now() - 60000).toISOString() }],
+      [
+        "Revoked",
+        {
+          expires_at: capability.data.expires_at,
+          revoked_at: new Date().toISOString(),
+        },
+      ],
+    ]) {
+      const changed = await verificationDb
+        .from("bm_response_tokens")
+        .update(change)
+        .eq("exposure_id", exposure.id);
+      ensure(
+        !changed.error,
+        `${label} state applied to fresh synthetic capability only`,
+      );
+      const denied = await fetch(origin + "/api/buyermatch-response", {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify(responseBody),
+      });
+      ensure(
+        denied.status === 400 &&
+          Object.keys(await denied.json()).join() === "error",
+        `${label} capability denies even an already-recorded response`,
+      );
+    }
+  } finally {
+    const restored = await verificationDb
+      .from("bm_response_tokens")
+      .update(capability.data)
+      .eq("exposure_id", exposure.id);
+    ensure(
+      !restored.error,
+      "Synthetic capability expiry/revocation restored after verification",
+    );
+  }
   await api(user, "title", { id, title: { ...title, eoc: date(45) } });
   await api(admin, "admin-review", { id });
   const extended = await api(user, "detail", { id });
