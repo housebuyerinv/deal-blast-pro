@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import type { AuthChangeEvent, Session } from '@supabase/supabase-js'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAppStore } from './store/useAppStore'
 import { supabase } from './lib/supabase'
@@ -53,6 +54,24 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const [checkingSession, setCheckingSession] = useState(true)
   const [authorized, setAuthorized] = useState(false)
   const [deactivated, setDeactivated] = useState(false)
+  const [authRevision, setAuthRevision] = useState(0)
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: AuthChangeEvent, session: Session | null) => {
+      if (event === 'SIGNED_OUT') {
+        setAuthorized(false)
+        setCheckingSession(false)
+        logout()
+        setAuthRevision(value => value + 1)
+      } else if (event === 'SIGNED_IN' && session?.user.id !== useAppStore.getState().user?.id) {
+        // Hide private content immediately, before checking the replacement account.
+        setAuthorized(false)
+        setCheckingSession(true)
+        setAuthRevision(value => value + 1)
+      }
+    })
+    return () => subscription.unsubscribe()
+  }, [logout])
 
   useEffect(() => {
     let cancelled = false
@@ -64,6 +83,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
       try {
         const { data } = await supabase.auth.getSession()
+        if (cancelled) return
         const session = data.session
         const token = session?.access_token
 
@@ -78,6 +98,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
           headers: { Authorization: `Bearer ${token}` },
         })
         const payload = await response.json().catch(() => ({}))
+        if (cancelled) return
 
         if (response.status === 403 || payload?.deactivated) {
           await supabase.auth.signOut().catch(() => {})
@@ -167,7 +188,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true
     }
-  }, [location.pathname, location.search, login, logout, updateUserProfile, currentUserId, currentUserEmail])
+  }, [location.pathname, location.search, login, logout, updateUserProfile, currentUserId, currentUserEmail, authRevision])
 
   if (checkingSession) {
     return (
