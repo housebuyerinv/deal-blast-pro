@@ -526,6 +526,29 @@ try {
     "Verified closing and payment remain separate",
   );
   privateSafe(publicDetail);
+  const terminalRace = await Promise.all(
+    [6000000, 6100000, 6100000, 6000000].map((amountCents) =>
+      fetch(origin + "/api/buyermatch-response", {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...responseBody,
+          amountCents,
+          operationKey: randomUUID(),
+        }),
+      }),
+    ),
+  );
+  ensure(
+    terminalRace.map((r) => r.status).join() === "200,400,400,200",
+    "Concurrent terminal replay acknowledges old offers and denies new offers",
+  );
+  const terminalDetail = await api(user, "detail", { id });
+  ensure(
+    terminalDetail.deal.status === "closed" &&
+      terminalDetail.offers.length === 1,
+    "Terminal response race cannot duplicate offers or regress closed state",
+  );
   console.log(
     "Staging HTTP checks passed. Stripe checkout completion, delivery callback receipt and browser interactions still require the handoff checks.",
   );

@@ -653,6 +653,42 @@ test("capability scope is immutable, action/environment constrained and semantic
   await assert.rejects(respond(), /unavailable/);
 });
 
+test("Production capability consumption rejects synthetic invitations and staging environments", async () => {
+  const { ex, o } = await deliveryFixture();
+  const hash = randomUUID();
+  await db.query(
+    "update bm_outbox set accepted_at=now(),state='accepted' where id=$1",
+    [o],
+  );
+  await db.query(
+    "insert into bm_response_tokens(token_hash,exposure_id,expires_at,environment) values($1,$2,now()+interval '1 day','production')",
+    [hash, ex],
+  );
+  await assert.rejects(
+    db.query(
+      "select bm_buyer_response_scoped($1,$2,'offer',6000000,'QA','production')",
+      [hash, randomUUID()],
+    ),
+    /Test capability unavailable/,
+  );
+  await assert.rejects(
+    db.query("select bm_buyer_response($1,$2,'offer',6000000,'QA')", [
+      hash,
+      randomUUID(),
+    ]),
+    /unavailable/,
+  );
+  assert.equal(
+    (
+      await db.query(
+        "select count(*)::int n from bm_responses where exposure_id=$1",
+        [ex],
+      )
+    ).rows[0].n,
+    0,
+  );
+});
+
 test("admin merge preserves optout and immutable exposure attribution; distinct review is audited", async () => {
   const source = randomUUID(),
     target = randomUUID();
