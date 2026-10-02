@@ -285,6 +285,38 @@ try {
     amountCents: 6000000,
     terms: "SYNTHETIC QA offer",
   };
+  const concurrentResponses = await Promise.all(
+    Array.from({ length: 8 }, () =>
+      fetch(origin + "/api/buyermatch-response", {
+        method: "POST",
+        headers: {
+          ...headers,
+          Authorization: `Bearer ${other.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...responseBody,
+          operationKey: randomUUID(),
+          dealId: randomUUID(),
+          exposureId: randomUUID(),
+          buyerId: randomUUID(),
+          workspaceId: randomUUID(),
+          accountId: randomUUID(),
+        }),
+      }),
+    ),
+  );
+  ensure(
+    concurrentResponses.every((r) => r.ok),
+    "Eight simultaneous first submissions with distinct keys and unrelated account session succeed",
+  );
+  const concurrentBodies = await Promise.all(
+    concurrentResponses.map((r) => r.json()),
+  );
+  ensure(
+    concurrentBodies.every((b) => JSON.stringify(b) === '{"recorded":true}'),
+    "Fresh concurrent submissions expose acknowledgement only",
+  );
   for (let i = 0; i < 2; i++) {
     const response = await fetch(origin + "/api/buyermatch-response", {
       method: "POST",
@@ -297,23 +329,6 @@ try {
       "Capability response exposes only acknowledgement",
     );
   }
-  const concurrentResponses = await Promise.all(
-    Array.from({ length: 3 }, () =>
-      fetch(origin + "/api/buyermatch-response", {
-        method: "POST",
-        headers: {
-          ...headers,
-          Authorization: `Bearer ${other.token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ ...responseBody, operationKey: randomUUID() }),
-      }),
-    ),
-  );
-  ensure(
-    concurrentResponses.every((r) => r.ok),
-    "Separate-tab operation keys replay safely with an unrelated account session",
-  );
   let publicDetail = await api(user, "detail", { id });
   privateSafe(publicDetail);
   ensure(
@@ -407,6 +422,59 @@ try {
       "Synthetic capability expiry/revocation restored after verification",
     );
   }
+  const mixed = await Promise.all(
+    ["interested", "interested", "declined", "declined"].map((kind) =>
+      fetch(origin + "/api/buyermatch-response", {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...responseBody,
+          kind,
+          operationKey: randomUUID(),
+        }),
+      }),
+    ),
+  );
+  ensure(
+    mixed.every((r) => r.ok),
+    "Simultaneous allowed response kinds succeed without account binding",
+  );
+  const mixedRows = await verificationDb
+    .from("bm_responses")
+    .select("kind")
+    .eq("exposure_id", exposure.id);
+  ensure(
+    !mixedRows.error &&
+      mixedRows.data.length === 3 &&
+      new Set(mixedRows.data.map((r) => r.kind)).size === 3,
+    "Mixed concurrent kinds create exactly one row per kind",
+  );
+  const mixedDetail = await api(user, "detail", { id });
+  ensure(
+    mixedDetail.deal.status === "offer_received" &&
+      mixedDetail.offers.length === 1,
+    "Concurrent interest cannot regress an existing offer",
+  );
+  const tampered = await fetch(origin + "/api/buyermatch-response", {
+    method: "POST",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      ...responseBody,
+      token:
+        (responseBody.token[0] === "A" ? "B" : "A") +
+        responseBody.token.slice(1),
+    }),
+  });
+  ensure(tampered.status === 400, "One-character token tampering denied");
+  const substitutedKind = await fetch(origin + "/api/buyermatch-response", {
+    method: "POST",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify({ ...responseBody, kind: "admin" }),
+  });
+  ensure(
+    substitutedKind.status === 400,
+    "Response action outside invitation scope denied",
+  );
   await api(user, "title", { id, title: { ...title, eoc: date(45) } });
   await api(admin, "admin-review", { id });
   const extended = await api(user, "detail", { id });

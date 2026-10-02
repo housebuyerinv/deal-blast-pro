@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { Buffer } from "node:buffer";
 import process from "node:process";
 import { randomUUID } from "node:crypto";
+import { createServer } from "node:http";
 import { build } from "esbuild";
 import { responseOperationKey } from "../../server/buyermatch/tokens.js";
 
@@ -50,24 +51,8 @@ process.env.SUPABASE_URL = "https://fixture.supabase.co";
 process.env.SUPABASE_SERVICE_ROLE_KEY = "fixture-only";
 const calls = [];
 let rpcError = false;
-let legacyResponse = false;
-let capabilityValid = true;
+
 globalThis.__responseFixture = {
-  from: () => {
-    const query = {
-      select: () => query,
-      eq: () => query,
-      is: () => query,
-      gt: () => query,
-      maybeSingle: async () => ({
-        data: capabilityValid ? { exposure_id: "fixture-exposure" } : null,
-      }),
-      limit: async () => ({
-        data: legacyResponse ? [{ id: "legacy-response" }] : [],
-      }),
-    };
-    return query;
-  },
   rpc: async (name, body) => {
     calls.push({ name, body });
     return rpcError
@@ -140,23 +125,6 @@ test("invalid, expired and direct GET capability access fails without private de
   assert.deepEqual(Object.keys(expired.body), ["error"]);
   assert.equal(JSON.stringify(expired).includes("PRIVATE"), false);
 });
-test("legacy accepted responses replay without mutations but expired capabilities still deny", async () => {
-  legacyResponse = true;
-  const before = calls.length;
-  assert.deepEqual(
-    (await invoke({ ...input, operationKey: randomUUID() })).body,
-    { recorded: true },
-  );
-  assert.equal(calls.length, before);
-  capabilityValid = false;
-  assert.equal(
-    (await invoke({ ...input, operationKey: randomUUID() })).status,
-    400,
-  );
-  capabilityValid = true;
-  legacyResponse = false;
-});
-
 test("caller identity and scope overrides never reach the response transaction", async () => {
   const result = await invoke({
     ...input,
@@ -170,6 +138,7 @@ test("caller identity and scope overrides never reach the response transaction",
   assert.equal(result.status, 200);
   assert.deepEqual(Object.keys(calls.at(-1).body).sort(), [
     "p_amount",
+    "p_environment",
     "p_hash",
     "p_key",
     "p_kind",
@@ -199,5 +168,72 @@ test("public response handler refuses Production before any response transaction
   } finally {
     if (previous === undefined) delete process.env.VERCEL_ENV;
     else process.env.VERCEL_ENV = previous;
+  }
+});
+
+test("Production-mode HTTP acknowledgement works only with explicit safe configuration", async () => {
+  const config = {
+    VERCEL_ENV: "production",
+    BM_ENVIRONMENT: "production",
+    BM_RESPONSE_ENABLED: "true",
+    BM_PRODUCTION_PROJECT_REF: "aigvnbxiydbzzqbetlhl",
+    SUPABASE_URL: "https://aigvnbxiydbzzqbetlhl.supabase.co",
+    SUPABASE_SERVICE_ROLE_KEY: "fixture-only",
+    BM_CHECKOUT_ENABLED: "false",
+    BM_DELIVERY_MODE: "disabled",
+  };
+  const prior = Object.fromEntries(
+    Object.keys(config).map((k) => [k, process.env[k]]),
+  );
+  const server = createServer(async (req, res) => {
+    let body = "";
+    for await (const part of req) body += part;
+    req.body = body;
+    res.status = (status) => {
+      res.statusCode = status;
+      return res;
+    };
+    res.json = (value) => res.end(JSON.stringify(value));
+    await handler(req, res);
+  });
+  try {
+    Object.assign(process.env, config);
+    await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const send = () =>
+      globalThis.fetch(
+        `http://127.0.0.1:${server.address().port}/api/buyermatch-response`,
+        {
+          method: "POST",
+          body: JSON.stringify({ ...input, operationKey: randomUUID() }),
+        },
+      );
+    const accepted = await send();
+    assert.equal(accepted.status, 200);
+    assert.deepEqual(await accepted.json(), { recorded: true });
+    assert.equal(calls.at(-1).body.p_environment, "production");
+    for (const [key, value] of Object.entries({
+      BM_RESPONSE_ENABLED: "false",
+      SUPABASE_SERVICE_ROLE_KEY: "",
+      BM_PRODUCTION_PROJECT_REF: "fixture",
+      BM_CHECKOUT_ENABLED: "true",
+      BM_DELIVERY_MODE: "mock",
+      BM_ENVIRONMENT: "staging",
+    })) {
+      process.env[key] = value;
+      const before = calls.length;
+      const denied = await send();
+      assert.equal(denied.status, 400);
+      assert.deepEqual(await denied.json(), {
+        error: "Response link unavailable.",
+      });
+      assert.equal(calls.length, before);
+      process.env[key] = config[key];
+    }
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+    for (const [key, value] of Object.entries(prior)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
   }
 });

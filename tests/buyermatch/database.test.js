@@ -29,6 +29,7 @@ for (const name of [
   "20260930180000_buyermatch_document_publishing.sql",
   "20260930190000_buyermatch_reminders.sql",
   "20261001090000_buyermatch_test_commerce_delivery.sql",
+  "20261002190115_buyermatch_response_scope.sql",
 ])
   await db.exec(
     readFileSync(
@@ -512,7 +513,7 @@ test("capability responses require accepted exposure, reject unknown/expired lin
   const { d, b, ex, o } = await deliveryFixture();
   const hash = randomUUID();
   await db.query(
-    "insert into bm_response_tokens values($1,$2,now()+interval '1 day',null)",
+    "insert into bm_response_tokens(token_hash,exposure_id,expires_at,revoked_at) values($1,$2,now()+interval '1 day',null)",
     [hash, ex],
   );
   const respond = (kind, key = randomUUID(), token = hash) =>
@@ -551,7 +552,7 @@ test("capability responses require accepted exposure, reject unknown/expired lin
     "offer_received",
   );
   await respond("unsubscribe");
-  await assert.rejects(respond("interested"), /unavailable/);
+  await assert.rejects(respond("declined"), /unavailable/);
   assert.ok(
     (await db.query("select opted_out_at from bm_buyers where id=$1", [b]))
       .rows[0].opted_out_at,
@@ -562,6 +563,96 @@ test("capability responses require accepted exposure, reject unknown/expired lin
   );
   await assert.rejects(respond("offer"), /unavailable/);
 });
+test("capability scope is immutable, action/environment constrained and semantic replay atomic", async () => {
+  const { ex, o, d } = await deliveryFixture();
+  const hash = randomUUID();
+  await db.query(
+    "update bm_outbox set accepted_at=now(),state='accepted' where id=$1",
+    [o],
+  );
+  await db.query(
+    "insert into bm_response_tokens(token_hash,exposure_id,expires_at,allowed_actions) values($1,$2,now()+interval '1 day',array['offer'])",
+    [hash, ex],
+  );
+  const respond = (kind = "offer", amount = 6000000, environment = "staging") =>
+    db.query("select bm_buyer_response_scoped($1,$2,$3,$4,'QA',$5)", [
+      hash,
+      randomUUID(),
+      kind,
+      amount,
+      environment,
+    ]);
+  await assert.rejects(respond("interested"), /unavailable/);
+  await assert.rejects(respond("offer", 6000000, "production"), /unavailable/);
+  for (const column of [
+    "token_hash",
+    "exposure_id",
+    "capability_id",
+    "environment",
+    "allowed_actions",
+  ]) {
+    const value =
+      column === "environment"
+        ? "'production'"
+        : column === "allowed_actions"
+          ? "array['interested']"
+          : column === "token_hash"
+            ? "'altered'"
+            : "gen_random_uuid()";
+    await assert.rejects(
+      db.query(
+        `update bm_response_tokens set ${column}=${value} where token_hash=$1`,
+        [hash],
+      ),
+      /immutable/,
+    );
+  }
+  // PGlite schedules these on one connection; real overlapping transactions are
+  // separately exercised by the hosted HTTP runner, not claimed by this test.
+  await Promise.all(Array.from({ length: 8 }, () => respond()));
+  assert.equal(
+    (
+      await db.query(
+        "select count(*)::int n from bm_offers where exposure_id=$1",
+        [ex],
+      )
+    ).rows[0].n,
+    1,
+  );
+  assert.equal(
+    (
+      await db.query(
+        "select count(*)::int n from bm_responses where exposure_id=$1",
+        [ex],
+      )
+    ).rows[0].n,
+    1,
+  );
+  await respond("offer", 6100000);
+  assert.equal(
+    (
+      await db.query(
+        "select count(*)::int n from bm_offers where exposure_id=$1",
+        [ex],
+      )
+    ).rows[0].n,
+    2,
+  );
+  await db.query("update bm_deals set status='closed' where id=$1", [d]);
+  await respond(); // acknowledgement only; no terminal state regression
+  await assert.rejects(respond("offer", 6200000), /unavailable/);
+  assert.equal(
+    (await db.query("select status from bm_deals where id=$1", [d])).rows[0]
+      .status,
+    "closed",
+  );
+  await db.query(
+    "update bm_response_tokens set revoked_at=now() where token_hash=$1",
+    [hash],
+  );
+  await assert.rejects(respond(), /unavailable/);
+});
+
 test("admin merge preserves optout and immutable exposure attribution; distinct review is audited", async () => {
   const source = randomUUID(),
     target = randomUUID();
