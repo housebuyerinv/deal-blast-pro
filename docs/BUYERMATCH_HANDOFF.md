@@ -1,3 +1,7 @@
+# Latest Production audit: restored project
+
+Production is ACTIVE_HEALTHY, but release remains **BLOCKED**. Read-only inspection found 42 applied legacy migrations, including 13 missing from this branch, and no BuyerMatch schema. All ten baseline BuyerMatch migrations plus the pending outbox migration are absent. No Production changes were made. Historical canonical source checksums are unavailable in its ledger. Production Vercel metadata still lacks BuyerMatch configuration. See [current readiness](BUYERMATCH_PRODUCTION_READINESS.md) and [exact migration comparison](BUYERMATCH_PRODUCTION_SCHEMA_AUDIT.json). This finding supersedes older availability/INACTIVE notes below. Keep mock Preview delivery, disabled checkout and disabled success fees.
+
 # BuyerMatch staging handoff
 
 Branch: `codex/buyermatch-network`. Staging installation and synthetic seed are complete. **No production migrations, live charges, real buyer sends, or success fees have been enabled.** Authenticated staging HTTP verification passed on 2026-10-01.

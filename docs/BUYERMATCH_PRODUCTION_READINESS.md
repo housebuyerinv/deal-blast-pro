@@ -2,17 +2,21 @@
 
 Status: **BLOCKED — Production schema and configuration are not ready/verified.**
 
-This continues application commit `2cf5a6e5669f2f4e730a04e04791ddaa83a08dd6`. No Production data, configuration, migration, function or deployment has been changed. No live provider request was made.
+This continues verified application commit `00444a8fbe3b67e39af655b58a4b4f3fd1186074`. No Production data, configuration, migration, function or deployment has been changed. No live provider request was made.
 
 ## Read-only Production findings
 
-The connected Supabase project `aigvnbxiydbzzqbetlhl` is named `deal-blast-pro`, region `us-east-1`, database host `db.aigvnbxiydbzzqbetlhl.supabase.co`. Despite the reported restoration, two project-status reads during this run returned `INACTIVE`. The supported migration-list operation and a narrow information-schema query both failed with connection timeout. This is a database availability/connection failure, not evidence of a slow BuyerMatch query or missing tables. Restoration may still be pending or the connector may have stale status; its exact cause cannot be established from these results.
+Production project `aigvnbxiydbzzqbetlhl` now reports **ACTIVE_HEALTHY**. The read-only comparison completed successfully as an inspection and found a release-blocking baseline difference. No Production writes, migration or deployment occurred.
 
-The current 41-source staging baseline consists of 29 legacy migrations, 10 BuyerMatch migrations and two staging-only bootstrap/access sources. The exact expected paths and canonical-LF SHA-256 checksums are in `BUYERMATCH_SCHEMA_BASELINE.json`. Production-applied versions/checksums, missing migrations, drift and constraint/index differences are **unknown**, not zero. The staging-only bootstrap/access sources must never be blindly applied to Production. No migration was applied while this comparison remains incomplete.
+Production history contains **42 migrations**: 29 identities shared with the staging baseline and **13 newer legacy DBP migrations absent from this branch**. All **10 baseline BuyerMatch migrations are missing**, as is the pending eleventh Production-outbox migration. The two staging-only sources must never be applied to Production. Exact migration identities and pending source hashes are recorded in [BUYERMATCH_PRODUCTION_SCHEMA_AUDIT.json](BUYERMATCH_PRODUCTION_SCHEMA_AUDIT.json); the 41-source manifest now labels each source's observed Production status.
 
-Required schema includes owner-bound deals; unique immutable `(deal_id,buyer_id)` exposures with buyer/deal foreign keys; one outbox per exposure and unique provider receipts; token hash primary key and unique exposure/capability UUID; immutable token environment/actions; expiry/revocation; response operation uniqueness; append-only offers/events; active entitlement/allowance and agreement checks; token/deal/buyer response locking; terminal deal state protection. Local migration tests verify these contracts, but do not establish live Production state.
+Production has **no bm_* tables, functions, indexes, constraints, triggers or types** and no `buyermatch-private` bucket. Thus the required exposure/deal/buyer/owner relationships, response/outbox tables, immutable capability environment/actions, token/capability uniqueness, expiry/revocation, receipt/lease fields, response locking and terminal-state functions are all absent. Auth and Storage prerequisites exist. Existing Storage policies are restricted to other named buckets. The audit captured identities and a column fingerprint for 33 legacy public tables without reading customer records.
 
-Migration risks requiring live comparison: `20260930140000` replaces the analysis RPC signature and drops the older overload; existing callers must be checked. `20261001090000` adds the success-fees-disabled check and may reject incompatible existing configuration. `20261002190115` adds a volatile UUID default plus uniqueness to existing tokens, potentially rewriting/scanning a populated table under DDL locks. The new `20261003001913_buyermatch_production_outbox.sql` adds a disabled configuration table, nullable lease UUID and private RPCs; it contains no destructive data operations, but ALTER TABLE still needs a lock. Production row counts, lock impact and compatibility cannot be certified while inaccessible.
+The Production migration ledger stores version, name and SQL statement arrays, but no canonical source-file checksums. Newline-joined stored statements differ from original source formatting and cannot certify source-file equality. **29 identity matches are not 29 checksum matches.** No historical source checksum mismatch is established; exact equality remains unverified. Staging's independently verified 41 canonical source checksums are a different claim.
+
+The pending outbox migration is additive relative to the expected BuyerMatch schema: disabled configuration, nullable lease UUID and private RPCs, with no destructive data operations. **It is not independently applicable to current Production**, because its prerequisite tables/functions do not exist. Installing all eleven BuyerMatch sources would be a broader initial installation. Before that installation, reconcile the thirteen newer legacy migrations with this branch and review the complete ordered plan. Never replay the 29 shared legacy migrations or staging bootstrap scripts. This baseline gap prevents certifying compatibility with the currently deployed app.
+
+Full-chain migration risks: `20260930140000` drops an earlier analysis RPC overload; `20261001090000` installs a success-fees-disabled check; `20261002190115` adds a volatile UUID default and uniqueness that can rewrite/scan populated tokens. These objects are absent in Production today, so there is no existing BuyerMatch data to rewrite, but that does not substitute for reconciling the deployed application baseline. DDL still takes locks. The pending migration remains unapplied in both hosted projects.
 
 ## Vercel configuration
 
@@ -53,10 +57,16 @@ TypeScript/build passed. Full lint and final candidate staging results are repor
 
 Before Production can be considered ready:
 
-1. Restore/confirm the exact Supabase Production project at https://supabase.com/dashboard/project/aigvnbxiydbzzqbetlhl and complete read-only schema/ledger comparison.
+1. Reconcile the 13 additional Production legacy migrations listed in the audit with this branch and the deployed application. The database is restored and the read-only comparison is complete.
 2. Review missing migrations and populated-table risks; apply only the reviewed deployment plan.
 3. Configure and verify required Production categories securely in Vercel; do not paste secrets into chat.
 4. Finish provider authorization and controlled provider verification, then explicitly enable the approved sender/database boundary.
 5. Verify the exact candidate, real database locking/concurrency, and safe enabled Production workflows before any Production deployment/smoke claim.
 
-The remaining blockers are **not solely Resend authorization**: Production schema availability and missing/unverified configuration remain independent blockers.
+The remaining blockers are **not solely Resend authorization**: the missing complete BuyerMatch schema, unreconciled newer legacy baseline, unavailable historical source checksums and missing/unverified Production configuration remain independent blockers.
+
+## Restored-project verification refresh
+
+Local verification passed again: **78/78 tests**, including **21/21 fixture Production-mode assertions** (a nested assertion count, not 21 additional test cases). TypeScript/build passed. Lint: **0 errors, 103 existing warnings**. No application or security code changed during this audit; previously passed browser/two-tab results remain prior evidence rather than newly executed browser results. Fresh exact-commit Preview and hosted assertion results are reported with the final run. Production smoke tests are blocked and were not run.
+
+Staging migration verification: the installed **41/41** source checksums match the committed baseline. The standard full setup `--verify-only` correctly **fails** with `Missing staging migration: supabase/migrations/20261003001913_buyermatch_production_outbox.sql`; the current source set contains 42 entries. This is an explicitly pending migration, not a checksum mismatch. No verifier was weakened and no hosted migration was applied.
