@@ -1,3 +1,5 @@
+> October 3, 2026 reconciliation update: **PRODUCTION MIGRATION PLAN VERIFIED**. All 13 legacy sources recovered; the unchanged eleven-migration BuyerMatch chain passes a disposable Production-schema rehearsal. No bridge required. The outbox migration is now applied only in staging (42/42 checksums). Production remains unchanged and application release remains separately gated. See [the full rehearsal report](BUYERMATCH_MIGRATION_REHEARSAL.md). This supersedes earlier unreconciled/pending-staging statements below.
+
 # BuyerMatch Production readiness audit
 
 Status: **BLOCKED — Production schema and configuration are not ready/verified.**

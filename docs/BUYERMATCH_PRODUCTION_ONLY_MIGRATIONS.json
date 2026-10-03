@@ -1,0 +1,1679 @@
+[
+  {
+    "version": "20260729193000",
+    "name": "durable_submission_inventory",
+    "path": "supabase/migrations/20260729193000_durable_submission_inventory.sql",
+    "sourceCommits": [
+      "260aff4e635e38caef36fa821fdcd0260779bb28"
+    ],
+    "objects": [
+      "public.inventory_deals",
+      "inventory_deals_workspace_updated_idx",
+      "public.submission_inventory_links",
+      "public.can_access_inventory_workspace",
+      "public.inventory_deal_from_submission",
+      "public.convert_deal_submission_to_inventory"
+    ],
+    "sourceCommit": "260aff4e635e38caef36fa821fdcd0260779bb28",
+    "sourceRecoverable": true,
+    "gitSourceBytes": 12372,
+    "affectedTables": [
+      "workspaces",
+      "inventory_deals",
+      "submission_inventory_links",
+      "deal_submissions"
+    ],
+    "resultingSchemaObjects": [
+      {
+        "table": "deal_submissions",
+        "columns": [
+          "id",
+          "deal_data",
+          "status",
+          "source",
+          "created_at",
+          "updated_at",
+          "converted_at",
+          "converted_by",
+          "inventory_deal_id",
+          "workspace_id"
+        ],
+        "indexes": [
+          "deal_submissions_pkey",
+          "deal_submissions_created_at_idx",
+          "deal_submissions_status_idx",
+          "deal_submissions_conversion_idx",
+          "deal_submissions_inventory_deal_id_idx",
+          "deal_submissions_workspace_created_idx"
+        ],
+        "constraints": [
+          "deal_submissions_pkey",
+          "deal_submissions_workspace_id_fkey"
+        ],
+        "policies": [
+          "Public can submit deals",
+          "Authenticated can read deal submissions",
+          "Authenticated can update deal submissions",
+          "Authenticated can delete deal submissions",
+          "Service role can manage deal submissions",
+          "Public can create deal submissions",
+          "Deal submissions readable by workspace member",
+          "Deal submissions updateable by workspace member"
+        ],
+        "triggers": [
+          "assign_submission_workspace_before_insert"
+        ]
+      },
+      {
+        "table": "submission_inventory_links",
+        "columns": [
+          "source_submission_id",
+          "inventory_deal_id",
+          "user_id",
+          "created_at",
+          "updated_at",
+          "workspace_id"
+        ],
+        "indexes": [
+          "submission_inventory_links_pkey",
+          "submission_inventory_links_inventory_deal_id_key"
+        ],
+        "constraints": [
+          "submission_inventory_links_inventory_deal_id_key",
+          "submission_inventory_links_pkey",
+          "submission_inventory_links_workspace_id_fkey"
+        ],
+        "policies": [
+          "Submission Inventory links readable by workspace member",
+          "Submission Inventory links insertable by owner"
+        ],
+        "triggers": []
+      },
+      {
+        "table": "inventory_deals",
+        "columns": [
+          "id",
+          "workspace_id",
+          "created_by_user_id",
+          "source_submission_id",
+          "status",
+          "deal_data",
+          "created_at",
+          "updated_at"
+        ],
+        "indexes": [
+          "inventory_deals_pkey",
+          "inventory_deals_workspace_id_source_submission_id_key",
+          "inventory_deals_workspace_updated_idx"
+        ],
+        "constraints": [
+          "inventory_deals_pkey",
+          "inventory_deals_workspace_id_fkey",
+          "inventory_deals_workspace_id_source_submission_id_key"
+        ],
+        "policies": [
+          "Inventory deals deleteable by workspace member",
+          "Inventory deals readable by workspace member",
+          "Inventory deals insertable by workspace member",
+          "Inventory deals updateable by workspace member"
+        ],
+        "triggers": []
+      },
+      {
+        "table": "workspaces",
+        "columns": [
+          "id",
+          "owner_user_id",
+          "owner_email",
+          "name",
+          "created_at",
+          "updated_at",
+          "account_status",
+          "deactivated_at",
+          "deactivation_reason",
+          "scheduled_deactivation_at",
+          "data_deletion_requested_at",
+          "scheduled_data_deletion_at",
+          "retention_expires_at"
+        ],
+        "indexes": [
+          "workspaces_pkey",
+          "workspaces_owner_user_id_key"
+        ],
+        "constraints": [
+          "workspaces_owner_user_id_key",
+          "workspaces_pkey"
+        ],
+        "policies": [
+          "Workspaces readable by owner"
+        ],
+        "triggers": [
+          "workspaces_updated_at"
+        ]
+      }
+    ],
+    "functions": [
+      "can_access_inventory_workspace",
+      "inventory_deal_from_submission",
+      "convert_deal_submission_to_inventory"
+    ],
+    "buyerMatchConflict": false,
+    "equivalentBranchMigration": false,
+    "interpretation": "Legacy DBP schema/function evolution; no bm_* objects or BuyerMatch prerequisite changes."
+  },
+  {
+    "version": "20260802221500",
+    "name": "submission_workspace_review_rls",
+    "path": "supabase/migrations/20260802221500_submission_workspace_review_rls.sql",
+    "sourceCommits": [
+      "4fcaae353cf6b7f03b349eafe0ad315a7afe104b",
+      "ffbcb617995f2251292d8abc60850d6ef1b7ab82"
+    ],
+    "objects": [
+      "public.deal_submissions",
+      "deal_submissions_workspace_created_idx",
+      "public.assign_submission_workspace",
+      "assign_submission_workspace_before_insert",
+      "public.submission_inventory_links"
+    ],
+    "sourceCommit": "4fcaae353cf6b7f03b349eafe0ad315a7afe104b",
+    "sourceRecoverable": true,
+    "gitSourceBytes": 2913,
+    "affectedTables": [
+      "deal_submissions",
+      "workspaces",
+      "submission_inventory_links"
+    ],
+    "resultingSchemaObjects": [
+      {
+        "table": "deal_submissions",
+        "columns": [
+          "id",
+          "deal_data",
+          "status",
+          "source",
+          "created_at",
+          "updated_at",
+          "converted_at",
+          "converted_by",
+          "inventory_deal_id",
+          "workspace_id"
+        ],
+        "indexes": [
+          "deal_submissions_pkey",
+          "deal_submissions_created_at_idx",
+          "deal_submissions_status_idx",
+          "deal_submissions_conversion_idx",
+          "deal_submissions_inventory_deal_id_idx",
+          "deal_submissions_workspace_created_idx"
+        ],
+        "constraints": [
+          "deal_submissions_pkey",
+          "deal_submissions_workspace_id_fkey"
+        ],
+        "policies": [
+          "Public can submit deals",
+          "Authenticated can read deal submissions",
+          "Authenticated can update deal submissions",
+          "Authenticated can delete deal submissions",
+          "Service role can manage deal submissions",
+          "Public can create deal submissions",
+          "Deal submissions readable by workspace member",
+          "Deal submissions updateable by workspace member"
+        ],
+        "triggers": [
+          "assign_submission_workspace_before_insert"
+        ]
+      },
+      {
+        "table": "submission_inventory_links",
+        "columns": [
+          "source_submission_id",
+          "inventory_deal_id",
+          "user_id",
+          "created_at",
+          "updated_at",
+          "workspace_id"
+        ],
+        "indexes": [
+          "submission_inventory_links_pkey",
+          "submission_inventory_links_inventory_deal_id_key"
+        ],
+        "constraints": [
+          "submission_inventory_links_inventory_deal_id_key",
+          "submission_inventory_links_pkey",
+          "submission_inventory_links_workspace_id_fkey"
+        ],
+        "policies": [
+          "Submission Inventory links readable by workspace member",
+          "Submission Inventory links insertable by owner"
+        ],
+        "triggers": []
+      },
+      {
+        "table": "workspaces",
+        "columns": [
+          "id",
+          "owner_user_id",
+          "owner_email",
+          "name",
+          "created_at",
+          "updated_at",
+          "account_status",
+          "deactivated_at",
+          "deactivation_reason",
+          "scheduled_deactivation_at",
+          "data_deletion_requested_at",
+          "scheduled_data_deletion_at",
+          "retention_expires_at"
+        ],
+        "indexes": [
+          "workspaces_pkey",
+          "workspaces_owner_user_id_key"
+        ],
+        "constraints": [
+          "workspaces_owner_user_id_key",
+          "workspaces_pkey"
+        ],
+        "policies": [
+          "Workspaces readable by owner"
+        ],
+        "triggers": [
+          "workspaces_updated_at"
+        ]
+      }
+    ],
+    "functions": [
+      "assign_submission_workspace"
+    ],
+    "buyerMatchConflict": false,
+    "equivalentBranchMigration": false,
+    "interpretation": "Legacy DBP schema/function evolution; no bm_* objects or BuyerMatch prerequisite changes."
+  },
+  {
+    "version": "20260802233000",
+    "name": "backfill_workspace_assigned_converted_inventory",
+    "path": "supabase/migrations/20260802233000_backfill_workspace_assigned_converted_inventory.sql",
+    "sourceCommits": [
+      "3084375341b41dd6725d04af93c227e00d42dd51"
+    ],
+    "objects": [],
+    "sourceCommit": "3084375341b41dd6725d04af93c227e00d42dd51",
+    "sourceRecoverable": true,
+    "gitSourceBytes": 2547,
+    "affectedTables": [
+      "inventory_deals",
+      "submission_inventory_links",
+      "deal_submissions"
+    ],
+    "resultingSchemaObjects": [
+      {
+        "table": "deal_submissions",
+        "columns": [
+          "id",
+          "deal_data",
+          "status",
+          "source",
+          "created_at",
+          "updated_at",
+          "converted_at",
+          "converted_by",
+          "inventory_deal_id",
+          "workspace_id"
+        ],
+        "indexes": [
+          "deal_submissions_pkey",
+          "deal_submissions_created_at_idx",
+          "deal_submissions_status_idx",
+          "deal_submissions_conversion_idx",
+          "deal_submissions_inventory_deal_id_idx",
+          "deal_submissions_workspace_created_idx"
+        ],
+        "constraints": [
+          "deal_submissions_pkey",
+          "deal_submissions_workspace_id_fkey"
+        ],
+        "policies": [
+          "Public can submit deals",
+          "Authenticated can read deal submissions",
+          "Authenticated can update deal submissions",
+          "Authenticated can delete deal submissions",
+          "Service role can manage deal submissions",
+          "Public can create deal submissions",
+          "Deal submissions readable by workspace member",
+          "Deal submissions updateable by workspace member"
+        ],
+        "triggers": [
+          "assign_submission_workspace_before_insert"
+        ]
+      },
+      {
+        "table": "submission_inventory_links",
+        "columns": [
+          "source_submission_id",
+          "inventory_deal_id",
+          "user_id",
+          "created_at",
+          "updated_at",
+          "workspace_id"
+        ],
+        "indexes": [
+          "submission_inventory_links_pkey",
+          "submission_inventory_links_inventory_deal_id_key"
+        ],
+        "constraints": [
+          "submission_inventory_links_inventory_deal_id_key",
+          "submission_inventory_links_pkey",
+          "submission_inventory_links_workspace_id_fkey"
+        ],
+        "policies": [
+          "Submission Inventory links readable by workspace member",
+          "Submission Inventory links insertable by owner"
+        ],
+        "triggers": []
+      },
+      {
+        "table": "inventory_deals",
+        "columns": [
+          "id",
+          "workspace_id",
+          "created_by_user_id",
+          "source_submission_id",
+          "status",
+          "deal_data",
+          "created_at",
+          "updated_at"
+        ],
+        "indexes": [
+          "inventory_deals_pkey",
+          "inventory_deals_workspace_id_source_submission_id_key",
+          "inventory_deals_workspace_updated_idx"
+        ],
+        "constraints": [
+          "inventory_deals_pkey",
+          "inventory_deals_workspace_id_fkey",
+          "inventory_deals_workspace_id_source_submission_id_key"
+        ],
+        "policies": [
+          "Inventory deals deleteable by workspace member",
+          "Inventory deals readable by workspace member",
+          "Inventory deals insertable by workspace member",
+          "Inventory deals updateable by workspace member"
+        ],
+        "triggers": []
+      }
+    ],
+    "functions": [],
+    "buyerMatchConflict": false,
+    "equivalentBranchMigration": false,
+    "interpretation": "Data backfill only; resulting customer rows deliberately not copied or rerun."
+  },
+  {
+    "version": "20260802234500",
+    "name": "assign_legacy_submission_workspace_and_backfill",
+    "path": "supabase/migrations/20260802234500_assign_legacy_submission_workspace_and_backfill.sql",
+    "sourceCommits": [
+      "659594d7cfcce2e4094b9be8ec0bf61b2391cfaa"
+    ],
+    "objects": [],
+    "sourceCommit": "659594d7cfcce2e4094b9be8ec0bf61b2391cfaa",
+    "sourceRecoverable": true,
+    "gitSourceBytes": 2669,
+    "affectedTables": [
+      "deal_submissions",
+      "inventory_deals",
+      "submission_inventory_links"
+    ],
+    "resultingSchemaObjects": [
+      {
+        "table": "deal_submissions",
+        "columns": [
+          "id",
+          "deal_data",
+          "status",
+          "source",
+          "created_at",
+          "updated_at",
+          "converted_at",
+          "converted_by",
+          "inventory_deal_id",
+          "workspace_id"
+        ],
+        "indexes": [
+          "deal_submissions_pkey",
+          "deal_submissions_created_at_idx",
+          "deal_submissions_status_idx",
+          "deal_submissions_conversion_idx",
+          "deal_submissions_inventory_deal_id_idx",
+          "deal_submissions_workspace_created_idx"
+        ],
+        "constraints": [
+          "deal_submissions_pkey",
+          "deal_submissions_workspace_id_fkey"
+        ],
+        "policies": [
+          "Public can submit deals",
+          "Authenticated can read deal submissions",
+          "Authenticated can update deal submissions",
+          "Authenticated can delete deal submissions",
+          "Service role can manage deal submissions",
+          "Public can create deal submissions",
+          "Deal submissions readable by workspace member",
+          "Deal submissions updateable by workspace member"
+        ],
+        "triggers": [
+          "assign_submission_workspace_before_insert"
+        ]
+      },
+      {
+        "table": "submission_inventory_links",
+        "columns": [
+          "source_submission_id",
+          "inventory_deal_id",
+          "user_id",
+          "created_at",
+          "updated_at",
+          "workspace_id"
+        ],
+        "indexes": [
+          "submission_inventory_links_pkey",
+          "submission_inventory_links_inventory_deal_id_key"
+        ],
+        "constraints": [
+          "submission_inventory_links_inventory_deal_id_key",
+          "submission_inventory_links_pkey",
+          "submission_inventory_links_workspace_id_fkey"
+        ],
+        "policies": [
+          "Submission Inventory links readable by workspace member",
+          "Submission Inventory links insertable by owner"
+        ],
+        "triggers": []
+      },
+      {
+        "table": "inventory_deals",
+        "columns": [
+          "id",
+          "workspace_id",
+          "created_by_user_id",
+          "source_submission_id",
+          "status",
+          "deal_data",
+          "created_at",
+          "updated_at"
+        ],
+        "indexes": [
+          "inventory_deals_pkey",
+          "inventory_deals_workspace_id_source_submission_id_key",
+          "inventory_deals_workspace_updated_idx"
+        ],
+        "constraints": [
+          "inventory_deals_pkey",
+          "inventory_deals_workspace_id_fkey",
+          "inventory_deals_workspace_id_source_submission_id_key"
+        ],
+        "policies": [
+          "Inventory deals deleteable by workspace member",
+          "Inventory deals readable by workspace member",
+          "Inventory deals insertable by workspace member",
+          "Inventory deals updateable by workspace member"
+        ],
+        "triggers": []
+      }
+    ],
+    "functions": [],
+    "buyerMatchConflict": false,
+    "equivalentBranchMigration": false,
+    "interpretation": "Data backfill only; resulting customer rows deliberately not copied or rerun."
+  },
+  {
+    "version": "20260802235500",
+    "name": "resolve_legacy_workspace_from_durable_evidence",
+    "path": "supabase/migrations/20260802235500_resolve_legacy_workspace_from_durable_evidence.sql",
+    "sourceCommits": [
+      "a92fb4b1147afe177bf6b8f2914f90e4d6c8490e"
+    ],
+    "objects": [],
+    "sourceCommit": "a92fb4b1147afe177bf6b8f2914f90e4d6c8490e",
+    "sourceRecoverable": true,
+    "gitSourceBytes": 3090,
+    "affectedTables": [
+      "deal_submissions",
+      "inventory_deals",
+      "submission_inventory_links"
+    ],
+    "resultingSchemaObjects": [
+      {
+        "table": "deal_submissions",
+        "columns": [
+          "id",
+          "deal_data",
+          "status",
+          "source",
+          "created_at",
+          "updated_at",
+          "converted_at",
+          "converted_by",
+          "inventory_deal_id",
+          "workspace_id"
+        ],
+        "indexes": [
+          "deal_submissions_pkey",
+          "deal_submissions_created_at_idx",
+          "deal_submissions_status_idx",
+          "deal_submissions_conversion_idx",
+          "deal_submissions_inventory_deal_id_idx",
+          "deal_submissions_workspace_created_idx"
+        ],
+        "constraints": [
+          "deal_submissions_pkey",
+          "deal_submissions_workspace_id_fkey"
+        ],
+        "policies": [
+          "Public can submit deals",
+          "Authenticated can read deal submissions",
+          "Authenticated can update deal submissions",
+          "Authenticated can delete deal submissions",
+          "Service role can manage deal submissions",
+          "Public can create deal submissions",
+          "Deal submissions readable by workspace member",
+          "Deal submissions updateable by workspace member"
+        ],
+        "triggers": [
+          "assign_submission_workspace_before_insert"
+        ]
+      },
+      {
+        "table": "submission_inventory_links",
+        "columns": [
+          "source_submission_id",
+          "inventory_deal_id",
+          "user_id",
+          "created_at",
+          "updated_at",
+          "workspace_id"
+        ],
+        "indexes": [
+          "submission_inventory_links_pkey",
+          "submission_inventory_links_inventory_deal_id_key"
+        ],
+        "constraints": [
+          "submission_inventory_links_inventory_deal_id_key",
+          "submission_inventory_links_pkey",
+          "submission_inventory_links_workspace_id_fkey"
+        ],
+        "policies": [
+          "Submission Inventory links readable by workspace member",
+          "Submission Inventory links insertable by owner"
+        ],
+        "triggers": []
+      },
+      {
+        "table": "inventory_deals",
+        "columns": [
+          "id",
+          "workspace_id",
+          "created_by_user_id",
+          "source_submission_id",
+          "status",
+          "deal_data",
+          "created_at",
+          "updated_at"
+        ],
+        "indexes": [
+          "inventory_deals_pkey",
+          "inventory_deals_workspace_id_source_submission_id_key",
+          "inventory_deals_workspace_updated_idx"
+        ],
+        "constraints": [
+          "inventory_deals_pkey",
+          "inventory_deals_workspace_id_fkey",
+          "inventory_deals_workspace_id_source_submission_id_key"
+        ],
+        "policies": [
+          "Inventory deals deleteable by workspace member",
+          "Inventory deals readable by workspace member",
+          "Inventory deals insertable by workspace member",
+          "Inventory deals updateable by workspace member"
+        ],
+        "triggers": []
+      }
+    ],
+    "functions": [],
+    "buyerMatchConflict": false,
+    "equivalentBranchMigration": false,
+    "interpretation": "Data backfill only; resulting customer rows deliberately not copied or rerun."
+  },
+  {
+    "version": "20260803000500",
+    "name": "backfill_legacy_conversion_metadata_variants",
+    "path": "supabase/migrations/20260803000500_backfill_legacy_conversion_metadata_variants.sql",
+    "sourceCommits": [
+      "571f47acf99a657e76bdd4c3a3244ce0dd22d630"
+    ],
+    "objects": [],
+    "sourceCommit": "571f47acf99a657e76bdd4c3a3244ce0dd22d630",
+    "sourceRecoverable": true,
+    "gitSourceBytes": 3418,
+    "affectedTables": [
+      "deal_submissions",
+      "inventory_deals",
+      "submission_inventory_links"
+    ],
+    "resultingSchemaObjects": [
+      {
+        "table": "deal_submissions",
+        "columns": [
+          "id",
+          "deal_data",
+          "status",
+          "source",
+          "created_at",
+          "updated_at",
+          "converted_at",
+          "converted_by",
+          "inventory_deal_id",
+          "workspace_id"
+        ],
+        "indexes": [
+          "deal_submissions_pkey",
+          "deal_submissions_created_at_idx",
+          "deal_submissions_status_idx",
+          "deal_submissions_conversion_idx",
+          "deal_submissions_inventory_deal_id_idx",
+          "deal_submissions_workspace_created_idx"
+        ],
+        "constraints": [
+          "deal_submissions_pkey",
+          "deal_submissions_workspace_id_fkey"
+        ],
+        "policies": [
+          "Public can submit deals",
+          "Authenticated can read deal submissions",
+          "Authenticated can update deal submissions",
+          "Authenticated can delete deal submissions",
+          "Service role can manage deal submissions",
+          "Public can create deal submissions",
+          "Deal submissions readable by workspace member",
+          "Deal submissions updateable by workspace member"
+        ],
+        "triggers": [
+          "assign_submission_workspace_before_insert"
+        ]
+      },
+      {
+        "table": "submission_inventory_links",
+        "columns": [
+          "source_submission_id",
+          "inventory_deal_id",
+          "user_id",
+          "created_at",
+          "updated_at",
+          "workspace_id"
+        ],
+        "indexes": [
+          "submission_inventory_links_pkey",
+          "submission_inventory_links_inventory_deal_id_key"
+        ],
+        "constraints": [
+          "submission_inventory_links_inventory_deal_id_key",
+          "submission_inventory_links_pkey",
+          "submission_inventory_links_workspace_id_fkey"
+        ],
+        "policies": [
+          "Submission Inventory links readable by workspace member",
+          "Submission Inventory links insertable by owner"
+        ],
+        "triggers": []
+      },
+      {
+        "table": "inventory_deals",
+        "columns": [
+          "id",
+          "workspace_id",
+          "created_by_user_id",
+          "source_submission_id",
+          "status",
+          "deal_data",
+          "created_at",
+          "updated_at"
+        ],
+        "indexes": [
+          "inventory_deals_pkey",
+          "inventory_deals_workspace_id_source_submission_id_key",
+          "inventory_deals_workspace_updated_idx"
+        ],
+        "constraints": [
+          "inventory_deals_pkey",
+          "inventory_deals_workspace_id_fkey",
+          "inventory_deals_workspace_id_source_submission_id_key"
+        ],
+        "policies": [
+          "Inventory deals deleteable by workspace member",
+          "Inventory deals readable by workspace member",
+          "Inventory deals insertable by workspace member",
+          "Inventory deals updateable by workspace member"
+        ],
+        "triggers": []
+      }
+    ],
+    "functions": [],
+    "buyerMatchConflict": false,
+    "equivalentBranchMigration": false,
+    "interpretation": "Data backfill only; resulting customer rows deliberately not copied or rerun."
+  },
+  {
+    "version": "20260803013000",
+    "name": "credit_email_closing_foundation",
+    "path": "supabase/migrations/20260803013000_credit_email_closing_foundation.sql",
+    "sourceCommits": [
+      "41b11eccdc5cc01b14c9ebcff61aa8f95ad7c9f6"
+    ],
+    "objects": [
+      "public.property_intelligence_credit_ledger",
+      "pi_credit_ledger_workspace_created_idx",
+      "pi_credit_ledger_operation_idx",
+      "public.stripe_event_receipts",
+      "public.property_intelligence_addon_purchases",
+      "public.property_intelligence_included_limit",
+      "public.property_intelligence_credit_balance",
+      "public.grant_property_intelligence_included_credits",
+      "public.grant_property_intelligence_purchase",
+      "public.reserve_property_intelligence_credit_v2",
+      "public.adjust_property_intelligence_purchased_credits",
+      "public.release_property_intelligence_credit_v2",
+      "public.email_outbox",
+      "email_outbox_due_idx",
+      "email_outbox_workspace_idx",
+      "public.email_delivery_events",
+      "public.email_suppressions",
+      "public.verified_closings",
+      "verified_closings_workspace_date_idx",
+      "verified_closings_hot_zone_idx"
+    ],
+    "sourceCommit": "41b11eccdc5cc01b14c9ebcff61aa8f95ad7c9f6",
+    "sourceRecoverable": true,
+    "gitSourceBytes": 17172,
+    "affectedTables": [
+      "workspaces",
+      "property_intelligence_addon_purchases",
+      "property_intelligence_credit_ledger",
+      "property_intelligence_lookup_operations",
+      "email_outbox",
+      "inventory_deals",
+      "verified_closings",
+      "stripe_event_receipts",
+      "email_delivery_events",
+      "email_suppressions"
+    ],
+    "resultingSchemaObjects": [
+      {
+        "table": "email_outbox",
+        "columns": [
+          "id",
+          "workspace_id",
+          "user_id",
+          "event_type",
+          "recipient",
+          "subject",
+          "html_body",
+          "text_body",
+          "essential",
+          "related_record_id",
+          "idempotency_key",
+          "status",
+          "attempt_count",
+          "next_attempt_at",
+          "provider",
+          "provider_message_id",
+          "last_error_category",
+          "created_at",
+          "updated_at",
+          "sent_at",
+          "delivered_at",
+          "lease_token",
+          "lease_expires_at",
+          "processing_started_at",
+          "completed_at"
+        ],
+        "indexes": [
+          "email_outbox_pkey",
+          "email_outbox_idempotency_key_key",
+          "email_outbox_due_idx",
+          "email_outbox_workspace_idx",
+          "email_outbox_worker_claim_idx"
+        ],
+        "constraints": [
+          "email_outbox_idempotency_key_key",
+          "email_outbox_pkey",
+          "email_outbox_status_check"
+        ],
+        "policies": [
+          "Workspace members view email outbox"
+        ],
+        "triggers": []
+      },
+      {
+        "table": "property_intelligence_lookup_operations",
+        "columns": [
+          "id",
+          "workspace_id",
+          "user_id",
+          "operation_id",
+          "normalized_address",
+          "plan_name",
+          "billing_period_start",
+          "status",
+          "credit_source",
+          "credit_charged",
+          "cache_status",
+          "provider_request_count",
+          "failure_code",
+          "result_summary",
+          "reserved_at",
+          "completed_at",
+          "created_at",
+          "updated_at"
+        ],
+        "indexes": [
+          "property_intelligence_lookup_operations_pkey",
+          "property_intelligence_lookup_operations_operation_id_key",
+          "property_intelligence_lookup_workspace_idx",
+          "property_intelligence_lookup_address_idx"
+        ],
+        "constraints": [
+          "property_intelligence_lookup_operations_cache_status_check",
+          "property_intelligence_lookup_operations_credit_source_check",
+          "property_intelligence_lookup_operations_operation_id_key",
+          "property_intelligence_lookup_operations_pkey",
+          "property_intelligence_lookup_operations_status_check"
+        ],
+        "policies": [
+          "Workspace owners can view property intelligence operations"
+        ],
+        "triggers": []
+      },
+      {
+        "table": "property_intelligence_addon_purchases",
+        "columns": [
+          "id",
+          "workspace_id",
+          "stripe_event_id",
+          "stripe_session_id",
+          "credits_purchased",
+          "amount_cents",
+          "status",
+          "created_at",
+          "fulfilled_at",
+          "pack_key",
+          "stripe_price_id",
+          "currency",
+          "fulfilled_ledger_entry_id"
+        ],
+        "indexes": [
+          "property_intelligence_addon_purchases_pkey",
+          "property_intelligence_addon_purchases_stripe_event_id_key",
+          "property_intelligence_addon_purchases_stripe_session_id_key"
+        ],
+        "constraints": [
+          "property_intelligence_addon_purc_fulfilled_ledger_entry_id_fkey",
+          "property_intelligence_addon_purchases_credits_purchased_check",
+          "property_intelligence_addon_purchases_pkey",
+          "property_intelligence_addon_purchases_status_check",
+          "property_intelligence_addon_purchases_stripe_event_id_key",
+          "property_intelligence_addon_purchases_stripe_session_id_key"
+        ],
+        "policies": [
+          "Workspace owners can view property intelligence purchases"
+        ],
+        "triggers": []
+      },
+      {
+        "table": "inventory_deals",
+        "columns": [
+          "id",
+          "workspace_id",
+          "created_by_user_id",
+          "source_submission_id",
+          "status",
+          "deal_data",
+          "created_at",
+          "updated_at"
+        ],
+        "indexes": [
+          "inventory_deals_pkey",
+          "inventory_deals_workspace_id_source_submission_id_key",
+          "inventory_deals_workspace_updated_idx"
+        ],
+        "constraints": [
+          "inventory_deals_pkey",
+          "inventory_deals_workspace_id_fkey",
+          "inventory_deals_workspace_id_source_submission_id_key"
+        ],
+        "policies": [
+          "Inventory deals deleteable by workspace member",
+          "Inventory deals readable by workspace member",
+          "Inventory deals insertable by workspace member",
+          "Inventory deals updateable by workspace member"
+        ],
+        "triggers": []
+      },
+      {
+        "table": "workspaces",
+        "columns": [
+          "id",
+          "owner_user_id",
+          "owner_email",
+          "name",
+          "created_at",
+          "updated_at",
+          "account_status",
+          "deactivated_at",
+          "deactivation_reason",
+          "scheduled_deactivation_at",
+          "data_deletion_requested_at",
+          "scheduled_data_deletion_at",
+          "retention_expires_at"
+        ],
+        "indexes": [
+          "workspaces_pkey",
+          "workspaces_owner_user_id_key"
+        ],
+        "constraints": [
+          "workspaces_owner_user_id_key",
+          "workspaces_pkey"
+        ],
+        "policies": [
+          "Workspaces readable by owner"
+        ],
+        "triggers": [
+          "workspaces_updated_at"
+        ]
+      },
+      {
+        "table": "property_intelligence_credit_ledger",
+        "columns": [
+          "id",
+          "workspace_id",
+          "entry_type",
+          "credit_bucket",
+          "amount",
+          "operation_id",
+          "stripe_event_id",
+          "purchase_id",
+          "billing_period_start",
+          "billing_period_end",
+          "expires_at",
+          "idempotency_key",
+          "audit_reason",
+          "metadata",
+          "created_by_user_id",
+          "created_at"
+        ],
+        "indexes": [
+          "property_intelligence_credit_ledger_pkey",
+          "property_intelligence_credit_ledger_idempotency_key_key",
+          "pi_credit_ledger_workspace_created_idx",
+          "pi_credit_ledger_operation_idx"
+        ],
+        "constraints": [
+          "property_intelligence_credit_ledger_amount_check",
+          "property_intelligence_credit_ledger_credit_bucket_check",
+          "property_intelligence_credit_ledger_entry_type_check",
+          "property_intelligence_credit_ledger_idempotency_key_key",
+          "property_intelligence_credit_ledger_pkey",
+          "property_intelligence_credit_ledger_purchase_id_fkey",
+          "property_intelligence_credit_ledger_workspace_id_fkey"
+        ],
+        "policies": [
+          "Workspace members view credit ledger"
+        ],
+        "triggers": []
+      },
+      {
+        "table": "stripe_event_receipts",
+        "columns": [
+          "stripe_event_id",
+          "event_type",
+          "livemode",
+          "payload_sha256",
+          "processing_status",
+          "attempt_count",
+          "first_received_at",
+          "last_received_at",
+          "processed_at",
+          "error_category",
+          "metadata"
+        ],
+        "indexes": [
+          "stripe_event_receipts_pkey"
+        ],
+        "constraints": [
+          "stripe_event_receipts_pkey",
+          "stripe_event_receipts_processing_status_check"
+        ],
+        "policies": [],
+        "triggers": []
+      },
+      {
+        "table": "email_delivery_events",
+        "columns": [
+          "id",
+          "outbox_id",
+          "provider_event_id",
+          "provider_message_id",
+          "event_type",
+          "status",
+          "safe_metadata",
+          "occurred_at",
+          "created_at"
+        ],
+        "indexes": [
+          "email_delivery_events_pkey",
+          "email_delivery_events_provider_event_id_key"
+        ],
+        "constraints": [
+          "email_delivery_events_outbox_id_fkey",
+          "email_delivery_events_pkey",
+          "email_delivery_events_provider_event_id_key"
+        ],
+        "policies": [],
+        "triggers": []
+      },
+      {
+        "table": "email_suppressions",
+        "columns": [
+          "recipient_hash",
+          "reason",
+          "provider_event_id",
+          "created_at"
+        ],
+        "indexes": [
+          "email_suppressions_pkey"
+        ],
+        "constraints": [
+          "email_suppressions_pkey",
+          "email_suppressions_reason_check"
+        ],
+        "policies": [],
+        "triggers": []
+      },
+      {
+        "table": "verified_closings",
+        "columns": [
+          "id",
+          "workspace_id",
+          "inventory_deal_id",
+          "closed_at",
+          "verified_at",
+          "verified_by_user_id",
+          "verification_method",
+          "city",
+          "state",
+          "postal_code",
+          "county",
+          "is_demo",
+          "is_sample",
+          "is_duplicate",
+          "outcome",
+          "evidence_metadata",
+          "created_at"
+        ],
+        "indexes": [
+          "verified_closings_pkey",
+          "verified_closings_workspace_id_inventory_deal_id_key",
+          "verified_closings_workspace_date_idx",
+          "verified_closings_hot_zone_idx"
+        ],
+        "constraints": [
+          "verified_closings_inventory_deal_id_fkey",
+          "verified_closings_outcome_check",
+          "verified_closings_pkey",
+          "verified_closings_workspace_id_fkey",
+          "verified_closings_workspace_id_inventory_deal_id_key"
+        ],
+        "policies": [
+          "Workspace members view verified closings",
+          "Workspace members create verified closings"
+        ],
+        "triggers": []
+      }
+    ],
+    "functions": [
+      "property_intelligence_included_limit",
+      "property_intelligence_credit_balance",
+      "grant_property_intelligence_purchase",
+      "reserve_property_intelligence_credit_v2",
+      "release_property_intelligence_credit_v2",
+      "adjust_property_intelligence_purchased_credits",
+      "grant_property_intelligence_included_credits"
+    ],
+    "buyerMatchConflict": false,
+    "equivalentBranchMigration": false,
+    "interpretation": "Legacy DBP schema/function evolution; no bm_* objects or BuyerMatch prerequisite changes."
+  },
+  {
+    "version": "20260803020000",
+    "name": "backfill_active_included_credit_grants",
+    "path": "supabase/migrations/20260803020000_backfill_active_included_credit_grants.sql",
+    "sourceCommits": [
+      "25d778acc69885982d0b74d610ae008387a98be5"
+    ],
+    "objects": [],
+    "sourceCommit": "25d778acc69885982d0b74d610ae008387a98be5",
+    "sourceRecoverable": true,
+    "gitSourceBytes": 1177,
+    "affectedTables": [
+      "property_intelligence_credit_ledger"
+    ],
+    "resultingSchemaObjects": [
+      {
+        "table": "property_intelligence_credit_ledger",
+        "columns": [
+          "id",
+          "workspace_id",
+          "entry_type",
+          "credit_bucket",
+          "amount",
+          "operation_id",
+          "stripe_event_id",
+          "purchase_id",
+          "billing_period_start",
+          "billing_period_end",
+          "expires_at",
+          "idempotency_key",
+          "audit_reason",
+          "metadata",
+          "created_by_user_id",
+          "created_at"
+        ],
+        "indexes": [
+          "property_intelligence_credit_ledger_pkey",
+          "property_intelligence_credit_ledger_idempotency_key_key",
+          "pi_credit_ledger_workspace_created_idx",
+          "pi_credit_ledger_operation_idx"
+        ],
+        "constraints": [
+          "property_intelligence_credit_ledger_amount_check",
+          "property_intelligence_credit_ledger_credit_bucket_check",
+          "property_intelligence_credit_ledger_entry_type_check",
+          "property_intelligence_credit_ledger_idempotency_key_key",
+          "property_intelligence_credit_ledger_pkey",
+          "property_intelligence_credit_ledger_purchase_id_fkey",
+          "property_intelligence_credit_ledger_workspace_id_fkey"
+        ],
+        "policies": [
+          "Workspace members view credit ledger"
+        ],
+        "triggers": []
+      }
+    ],
+    "functions": [],
+    "buyerMatchConflict": false,
+    "equivalentBranchMigration": false,
+    "interpretation": "Data backfill only; resulting customer rows deliberately not copied or rerun."
+  },
+  {
+    "version": "20260803024500",
+    "name": "atomic_admin_credit_adjustments",
+    "path": "supabase/migrations/20260803024500_atomic_admin_credit_adjustments.sql",
+    "sourceCommits": [
+      "1331cd3a8774bd7429796fdfd61c5b5884ecace6"
+    ],
+    "objects": [
+      "public.admin_adjust_property_intelligence_credits"
+    ],
+    "sourceCommit": "1331cd3a8774bd7429796fdfd61c5b5884ecace6",
+    "sourceRecoverable": true,
+    "gitSourceBytes": 2599,
+    "affectedTables": [
+      "property_intelligence_credit_ledger"
+    ],
+    "resultingSchemaObjects": [
+      {
+        "table": "property_intelligence_credit_ledger",
+        "columns": [
+          "id",
+          "workspace_id",
+          "entry_type",
+          "credit_bucket",
+          "amount",
+          "operation_id",
+          "stripe_event_id",
+          "purchase_id",
+          "billing_period_start",
+          "billing_period_end",
+          "expires_at",
+          "idempotency_key",
+          "audit_reason",
+          "metadata",
+          "created_by_user_id",
+          "created_at"
+        ],
+        "indexes": [
+          "property_intelligence_credit_ledger_pkey",
+          "property_intelligence_credit_ledger_idempotency_key_key",
+          "pi_credit_ledger_workspace_created_idx",
+          "pi_credit_ledger_operation_idx"
+        ],
+        "constraints": [
+          "property_intelligence_credit_ledger_amount_check",
+          "property_intelligence_credit_ledger_credit_bucket_check",
+          "property_intelligence_credit_ledger_entry_type_check",
+          "property_intelligence_credit_ledger_idempotency_key_key",
+          "property_intelligence_credit_ledger_pkey",
+          "property_intelligence_credit_ledger_purchase_id_fkey",
+          "property_intelligence_credit_ledger_workspace_id_fkey"
+        ],
+        "policies": [
+          "Workspace members view credit ledger"
+        ],
+        "triggers": []
+      }
+    ],
+    "functions": [
+      "admin_adjust_property_intelligence_credits"
+    ],
+    "buyerMatchConflict": false,
+    "equivalentBranchMigration": false,
+    "interpretation": "Legacy DBP schema/function evolution; no bm_* objects or BuyerMatch prerequisite changes."
+  },
+  {
+    "version": "20260803143000",
+    "name": "update_property_intelligence_credit_policy",
+    "path": "supabase/migrations/20260803143000_update_property_intelligence_credit_policy.sql",
+    "sourceCommits": [
+      "774b8162ceb27076647231e1d741b1e197f88b8b"
+    ],
+    "objects": [
+      "public.workspace_plan_assignments",
+      "public.property_intelligence_included_limit",
+      "public.grant_property_intelligence_included_credits"
+    ],
+    "sourceCommit": "774b8162ceb27076647231e1d741b1e197f88b8b",
+    "sourceRecoverable": true,
+    "gitSourceBytes": 3818,
+    "affectedTables": [
+      "workspace_plan_assignments",
+      "property_intelligence_credit_ledger"
+    ],
+    "resultingSchemaObjects": [
+      {
+        "table": "workspace_plan_assignments",
+        "columns": [
+          "workspace_id",
+          "user_id",
+          "plan_name",
+          "billing_status",
+          "trial_status",
+          "payment_status",
+          "source",
+          "created_at",
+          "updated_at",
+          "access_status",
+          "access_deactivated_at",
+          "purchased_buyer_capacity",
+          "past_due_since",
+          "payment_recovered_at",
+          "subscription_cancel_at_period_end",
+          "subscription_access_ends_at",
+          "scheduled_deactivation_at",
+          "data_deletion_requested_at",
+          "scheduled_data_deletion_at",
+          "retention_expires_at",
+          "stripe_customer_id",
+          "stripe_subscription_id",
+          "subscription_status",
+          "current_period_end",
+          "cancel_at_period_end",
+          "outstanding_balance",
+          "latest_invoice_status",
+          "latest_invoice_id",
+          "latest_invoice_hosted_url",
+          "latest_invoice_pdf",
+          "billing_portal_last_opened_at",
+          "current_plan",
+          "effective_access_plan",
+          "scheduled_plan",
+          "scheduled_plan_change_at",
+          "scheduled_plan_change_reason",
+          "billing_interval",
+          "stripe_price_id",
+          "stripe_product_id",
+          "proration_behavior",
+          "last_plan_sync_at",
+          "plan_change_source",
+          "buyer_capacity_mode",
+          "buyer_capacity_limit",
+          "property_intelligence_included_credits",
+          "trial_started_at",
+          "trial_ends_at",
+          "trial_converted_at",
+          "promotion_code",
+          "stripe_promotion_code_id",
+          "trial_consumed_at",
+          "first_paid_at",
+          "trial_checkout_session_id",
+          "trial_checkout_created_at"
+        ],
+        "indexes": [
+          "workspace_plan_assignments_pkey",
+          "workspace_plan_assignments_stripe_customer_id_idx",
+          "workspace_plan_assignments_stripe_subscription_id_idx",
+          "workspace_plan_assignments_trial_consumed_idx"
+        ],
+        "constraints": [
+          "workspace_plan_assignments_buyer_capacity_limit_nonnegative",
+          "workspace_plan_assignments_buyer_capacity_mode_valid",
+          "workspace_plan_assignments_pkey",
+          "workspace_plan_assignments_property_intelligence_included_check",
+          "workspace_plan_assignments_purchased_buyer_capacity_nonnegative",
+          "workspace_plan_assignments_workspace_id_fkey"
+        ],
+        "policies": [
+          "Workspace plans readable by owner"
+        ],
+        "triggers": [
+          "workspace_plan_assignments_updated_at"
+        ]
+      },
+      {
+        "table": "property_intelligence_credit_ledger",
+        "columns": [
+          "id",
+          "workspace_id",
+          "entry_type",
+          "credit_bucket",
+          "amount",
+          "operation_id",
+          "stripe_event_id",
+          "purchase_id",
+          "billing_period_start",
+          "billing_period_end",
+          "expires_at",
+          "idempotency_key",
+          "audit_reason",
+          "metadata",
+          "created_by_user_id",
+          "created_at"
+        ],
+        "indexes": [
+          "property_intelligence_credit_ledger_pkey",
+          "property_intelligence_credit_ledger_idempotency_key_key",
+          "pi_credit_ledger_workspace_created_idx",
+          "pi_credit_ledger_operation_idx"
+        ],
+        "constraints": [
+          "property_intelligence_credit_ledger_amount_check",
+          "property_intelligence_credit_ledger_credit_bucket_check",
+          "property_intelligence_credit_ledger_entry_type_check",
+          "property_intelligence_credit_ledger_idempotency_key_key",
+          "property_intelligence_credit_ledger_pkey",
+          "property_intelligence_credit_ledger_purchase_id_fkey",
+          "property_intelligence_credit_ledger_workspace_id_fkey"
+        ],
+        "policies": [
+          "Workspace members view credit ledger"
+        ],
+        "triggers": []
+      }
+    ],
+    "functions": [
+      "property_intelligence_included_limit",
+      "grant_property_intelligence_included_credits"
+    ],
+    "buyerMatchConflict": false,
+    "equivalentBranchMigration": false,
+    "interpretation": "Legacy DBP schema/function evolution; no bm_* objects or BuyerMatch prerequisite changes."
+  },
+  {
+    "version": "20260803190000",
+    "name": "harden_email_outbox_delivery",
+    "path": "supabase/migrations/20260803190000_harden_email_outbox_delivery.sql",
+    "sourceCommits": [
+      "1ea8c64a6a3b9d8dff28f6af4f6ab75df82b19e9"
+    ],
+    "objects": [
+      "public.email_outbox",
+      "email_outbox_worker_claim_idx",
+      "public.claim_email_outbox_batch"
+    ],
+    "sourceCommit": "1ea8c64a6a3b9d8dff28f6af4f6ab75df82b19e9",
+    "sourceRecoverable": true,
+    "gitSourceBytes": 2384,
+    "affectedTables": [
+      "email_outbox"
+    ],
+    "resultingSchemaObjects": [
+      {
+        "table": "email_outbox",
+        "columns": [
+          "id",
+          "workspace_id",
+          "user_id",
+          "event_type",
+          "recipient",
+          "subject",
+          "html_body",
+          "text_body",
+          "essential",
+          "related_record_id",
+          "idempotency_key",
+          "status",
+          "attempt_count",
+          "next_attempt_at",
+          "provider",
+          "provider_message_id",
+          "last_error_category",
+          "created_at",
+          "updated_at",
+          "sent_at",
+          "delivered_at",
+          "lease_token",
+          "lease_expires_at",
+          "processing_started_at",
+          "completed_at"
+        ],
+        "indexes": [
+          "email_outbox_pkey",
+          "email_outbox_idempotency_key_key",
+          "email_outbox_due_idx",
+          "email_outbox_workspace_idx",
+          "email_outbox_worker_claim_idx"
+        ],
+        "constraints": [
+          "email_outbox_idempotency_key_key",
+          "email_outbox_pkey",
+          "email_outbox_status_check"
+        ],
+        "policies": [
+          "Workspace members view email outbox"
+        ],
+        "triggers": []
+      }
+    ],
+    "functions": [
+      "claim_email_outbox_batch"
+    ],
+    "buyerMatchConflict": false,
+    "equivalentBranchMigration": false,
+    "interpretation": "Legacy DBP schema/function evolution; no bm_* objects or BuyerMatch prerequisite changes."
+  },
+  {
+    "version": "20260810123000",
+    "name": "list_email_outbox_operations",
+    "path": "supabase/migrations/20260810123000_list_email_outbox_operations.sql",
+    "sourceCommits": [
+      "80c3bdd1a9180d6d654396ce75b70cb68dcaa8db"
+    ],
+    "objects": [
+      "public.list_email_outbox_operations"
+    ],
+    "sourceCommit": "80c3bdd1a9180d6d654396ce75b70cb68dcaa8db",
+    "sourceRecoverable": true,
+    "gitSourceBytes": 1192,
+    "affectedTables": [],
+    "resultingSchemaObjects": [],
+    "functions": [
+      "list_email_outbox_operations"
+    ],
+    "buyerMatchConflict": false,
+    "equivalentBranchMigration": false,
+    "interpretation": "Legacy DBP schema/function evolution; no bm_* objects or BuyerMatch prerequisite changes."
+  },
+  {
+    "version": "20260815160000",
+    "name": "property_intelligence_history_audit",
+    "path": "supabase/migrations/20260815160000_property_intelligence_history_audit.sql",
+    "sourceCommits": [
+      "f2176fd1ba93f92d3e6b633eb417a197c07f8596"
+    ],
+    "objects": [
+      "public.property_intelligence_searches",
+      "public.property_intelligence_operation_audit",
+      "property_intelligence_searches_recent_idx",
+      "property_intelligence_searches_saved_idx",
+      "property_intelligence_audit_workspace_idx",
+      "property_intelligence_audit_lookup_idx",
+      "property_intelligence_audit_credit_idx"
+    ],
+    "sourceCommit": "f2176fd1ba93f92d3e6b633eb417a197c07f8596",
+    "sourceRecoverable": true,
+    "gitSourceBytes": 4851,
+    "affectedTables": [
+      "property_intelligence_lookup_operations",
+      "property_intelligence_searches",
+      "property_intelligence_operation_audit"
+    ],
+    "resultingSchemaObjects": [
+      {
+        "table": "property_intelligence_lookup_operations",
+        "columns": [
+          "id",
+          "workspace_id",
+          "user_id",
+          "operation_id",
+          "normalized_address",
+          "plan_name",
+          "billing_period_start",
+          "status",
+          "credit_source",
+          "credit_charged",
+          "cache_status",
+          "provider_request_count",
+          "failure_code",
+          "result_summary",
+          "reserved_at",
+          "completed_at",
+          "created_at",
+          "updated_at"
+        ],
+        "indexes": [
+          "property_intelligence_lookup_operations_pkey",
+          "property_intelligence_lookup_operations_operation_id_key",
+          "property_intelligence_lookup_workspace_idx",
+          "property_intelligence_lookup_address_idx"
+        ],
+        "constraints": [
+          "property_intelligence_lookup_operations_cache_status_check",
+          "property_intelligence_lookup_operations_credit_source_check",
+          "property_intelligence_lookup_operations_operation_id_key",
+          "property_intelligence_lookup_operations_pkey",
+          "property_intelligence_lookup_operations_status_check"
+        ],
+        "policies": [
+          "Workspace owners can view property intelligence operations"
+        ],
+        "triggers": []
+      },
+      {
+        "table": "property_intelligence_operation_audit",
+        "columns": [
+          "id",
+          "lookup_id",
+          "workspace_id",
+          "user_id",
+          "normalized_address",
+          "display_address",
+          "action_type",
+          "cache_hit",
+          "provider_called",
+          "provider_name",
+          "provider_succeeded",
+          "credit_operation_id",
+          "credit_reservation_reference",
+          "credit_finalization_reference",
+          "credit_release_reference",
+          "credits_consumed",
+          "cache_reference",
+          "result_status",
+          "error_code",
+          "error_message",
+          "request_correlation_id",
+          "provider_request_count",
+          "created_at",
+          "completed_at",
+          "updated_at"
+        ],
+        "indexes": [
+          "property_intelligence_operation_audit_pkey",
+          "property_intelligence_operation_audit_lookup_id_key",
+          "property_intelligence_audit_workspace_idx",
+          "property_intelligence_audit_lookup_idx",
+          "property_intelligence_audit_credit_idx"
+        ],
+        "constraints": [
+          "property_intelligence_operation_au_provider_request_count_check",
+          "property_intelligence_operation_audit_credit_operation_id_fkey",
+          "property_intelligence_operation_audit_credits_consumed_check",
+          "property_intelligence_operation_audit_lookup_id_key",
+          "property_intelligence_operation_audit_pkey"
+        ],
+        "policies": [
+          "Workspace users view own property audit"
+        ],
+        "triggers": []
+      },
+      {
+        "table": "property_intelligence_searches",
+        "columns": [
+          "id",
+          "workspace_id",
+          "user_id",
+          "normalized_address",
+          "display_address",
+          "last_lookup_operation_id",
+          "last_audit_id",
+          "result_reference",
+          "result_metadata",
+          "is_saved",
+          "saved_at",
+          "last_searched_at",
+          "created_at",
+          "updated_at"
+        ],
+        "indexes": [
+          "property_intelligence_searches_pkey",
+          "property_intelligence_searche_workspace_id_user_id_normaliz_key",
+          "property_intelligence_searches_recent_idx",
+          "property_intelligence_searches_saved_idx"
+        ],
+        "constraints": [
+          "property_intelligence_searche_workspace_id_user_id_normaliz_key",
+          "property_intelligence_searches_last_audit_fk",
+          "property_intelligence_searches_last_lookup_operation_id_fkey",
+          "property_intelligence_searches_pkey"
+        ],
+        "policies": [
+          "Workspace users view own property searches",
+          "Workspace users manage own property searches"
+        ],
+        "triggers": []
+      }
+    ],
+    "functions": [],
+    "buyerMatchConflict": false,
+    "equivalentBranchMigration": false,
+    "interpretation": "Legacy DBP schema/function evolution; no bm_* objects or BuyerMatch prerequisite changes."
+  }
+]
