@@ -154,6 +154,23 @@ test("API denies missing and invalid bearer tokens", async () => {
   assert.equal((await invoke("list", {}, "")).statusCode, 401);
   assert.equal((await invoke("list", {}, "invalid")).statusCode, 401);
 });
+test("Production plans expose disabled integration states without private configuration", async () => {
+  const prior = process.env.VERCEL_ENV;
+  try {
+    process.env.VERCEL_ENV = "production";
+    const result = await invoke("plans", {}, "valid", "GET");
+    assert.equal(result.statusCode, 200);
+    assert.equal(result.body.distributionEnabled, false);
+    assert.equal(result.body.testDeliveryEnabled, false);
+    assert.equal(result.body.checkoutEnabled, false);
+    assert.equal(result.body.successFeesEnabled, false);
+    assert.equal(result.body.deliveryMode, "disabled");
+    assert.equal(JSON.stringify(result.body).includes("fixture-only"), false);
+  } finally {
+    if (prior === undefined) delete process.env.VERCEL_ENV;
+    else process.env.VERCEL_ENV = prior;
+  }
+});
 test("admin detail normalizes PostgREST one-to-one delivery receipts", async () => {
   email = "housebuyerinv@gmail.com";
   records.bm_exposures = [

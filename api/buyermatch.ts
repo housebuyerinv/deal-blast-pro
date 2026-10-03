@@ -18,6 +18,7 @@ import { dispatchOutbox } from "../server/buyermatch/outbox.js";
 import { testProvider } from "../server/buyermatch/provider.js";
 import { responseToken } from "../server/buyermatch/tokens.js";
 import { productionDeliveryConfig } from "../server/buyermatch/production-delivery.js";
+import { deliveryAvailability } from "../server/buyermatch/availability.js";
 import {
   dealSchema,
   criteriaSchema,
@@ -670,7 +671,26 @@ export default async function handler(req: any, res: any) {
         catalog,
         entitlements,
         checkoutEnabled,
-        distributionEnabled: false,
+        ...deliveryAvailability(
+          checked(
+            await db
+              .from("bm_configuration")
+              .select(
+                "distribution_enabled,provider_verified,permissions_verified,agreements_verified",
+              )
+              .eq("id", true)
+              .maybeSingle(),
+          ),
+          process.env.VERCEL_ENV === "production"
+            ? checked(
+                await db
+                  .from("bm_production_delivery_config")
+                  .select("enabled")
+                  .eq("id", true)
+                  .maybeSingle(),
+              )
+            : null,
+        ),
         successFeesEnabled: false,
         isNetworkAdmin: account.isOwnerAdmin,
       });

@@ -1,3 +1,5 @@
+> Core runtime rollout update: Production schema is installed and core-only Vercel settings are prepared, with delivery/checkout off. Application deployment is blocked by missing newer deployed DBP features on this branch. See [core rollout configuration and gates](BUYERMATCH_CORE_RUNTIME_ROLLOUT.md). No Production app deployment, buyer contact or charge occurred.
+
 > October 3, 2026 reconciliation update: **PRODUCTION MIGRATION PLAN VERIFIED**. All 13 legacy sources recovered; the unchanged eleven-migration BuyerMatch chain passes a disposable Production-schema rehearsal. No bridge required. The outbox migration is now applied only in staging (42/42 checksums). Production remains unchanged and application release remains separately gated. See [the full rehearsal report](BUYERMATCH_MIGRATION_REHEARSAL.md). This supersedes earlier unreconciled/pending-staging statements below.
 
 # Latest Production audit: restored project

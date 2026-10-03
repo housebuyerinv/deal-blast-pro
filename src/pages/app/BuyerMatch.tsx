@@ -26,7 +26,7 @@ async function request(action: string, data: RecordData = {}, read = false) {
   );
   const result = await response
     .json()
-    .catch(() => ({ error: "BuyerMatch API is unavailable in this preview." }));
+    .catch(() => ({ error: "BuyerMatch is temporarily unavailable." }));
   if (!response.ok)
     throw Object.assign(new Error(result.error || "Request failed"), {
       status: response.status,
@@ -154,9 +154,13 @@ export default function BuyerMatch() {
       setBusy(false);
     }
   }
-  const button = (label: string, fn: () => Promise<void>) => (
+  const button = (
+    label: string,
+    fn: () => Promise<void>,
+    unavailable = false,
+  ) => (
     <button
-      disabled={busy}
+      disabled={busy || unavailable}
       onClick={() => void run(fn)}
       className="rounded-lg bg-emerald-500 px-4 py-2 text-black font-medium disabled:opacity-40"
     >
@@ -261,7 +265,7 @@ export default function BuyerMatch() {
                   <p className="text-sm text-slate-400 mt-3">
                     {plans.checkoutEnabled
                       ? "Stripe test mode · no live billing"
-                      : "Test checkout awaits staging configuration."}
+                      : "Checkout is unavailable. No payment will be taken."}
                   </p>
                   {plans.catalog
                     ?.filter((item: RecordData) => item.product === product)
@@ -278,21 +282,22 @@ export default function BuyerMatch() {
                             ? `${item.intervalCount} ${item.interval}s`
                             : item.interval}
                         </p>
-                        {button("Open Stripe test checkout", async () => {
-                          const key = (checkoutKeys.current[item.version] ??=
-                            crypto.randomUUID());
-                          try {
-                            const result = await request("checkout", {
-                              planVersion: item.version,
-                              operationKey: key,
-                            });
-                            window.location.assign(result.url);
-                          } catch (error: any) {
-                            if (error.status === 409)
-                              delete checkoutKeys.current[item.version];
-                            throw error;
-                          }
-                        })}
+                        {plans.checkoutEnabled &&
+                          button("Open Stripe test checkout", async () => {
+                            const key = (checkoutKeys.current[item.version] ??=
+                              crypto.randomUUID());
+                            try {
+                              const result = await request("checkout", {
+                                planVersion: item.version,
+                                operationKey: key,
+                              });
+                              window.location.assign(result.url);
+                            } catch (error: any) {
+                              if (error.status === 409)
+                                delete checkoutKeys.current[item.version];
+                              throw error;
+                            }
+                          })}
                       </div>
                     ))}
                 </article>
@@ -300,8 +305,12 @@ export default function BuyerMatch() {
             })}
           </div>
           <p>
-            Only synthetic test delivery is available. Real buyer sends, live
-            billing and success fees remain disabled.
+            {plans.deliveryMode === "test"
+              ? "Synthetic test delivery only. No real buyers are contacted."
+              : plans.deliveryMode === "live"
+                ? "Buyer delivery requires review and approval."
+                : "Buyer delivery is disabled. Saving and analyzing a deal does not send invitations."}{" "}
+            Success fees remain disabled.
           </p>
         </section>
       ) : isAdmin ? (
@@ -690,27 +699,36 @@ export default function BuyerMatch() {
               {adminDetail && (
                 <section className="space-y-3 border border-slate-700 p-4 rounded">
                   <h3>Review {adminDetail.deal.property.address}</h3>
-                  {button("Run synthetic delivery batch", async () => {
-                    const result = await request("admin-test-dispatch");
-                    setTestResult(
-                      `${result.sent} accepted; ${result.retry} require retry.`,
-                    );
-                    setAdminDetail(
-                      await request("admin-detail", {
-                        id: adminDetail.deal.id,
-                      }),
-                    );
-                  })}
+                  {plans.testDeliveryEnabled &&
+                    button("Run synthetic delivery batch", async () => {
+                      const result = await request("admin-test-dispatch");
+                      setTestResult(
+                        `${result.sent} accepted; ${result.retry} require retry.`,
+                      );
+                      setAdminDetail(
+                        await request("admin-detail", {
+                          id: adminDetail.deal.id,
+                        }),
+                      );
+                    })}
                   {testResult && <p role="status">{testResult}</p>}
-                  {button(
-                    "Open selected synthetic buyer response",
-                    async () => {
-                      const result = await request("admin-test-response-link", {
-                        exposureId: progressEvidence.exposureId,
-                      });
-                      window.open(result.url, "_blank", "noopener,noreferrer");
-                    },
-                  )}
+                  {plans.testDeliveryEnabled &&
+                    button(
+                      "Open selected synthetic buyer response",
+                      async () => {
+                        const result = await request(
+                          "admin-test-response-link",
+                          {
+                            exposureId: progressEvidence.exposureId,
+                          },
+                        );
+                        window.open(
+                          result.url,
+                          "_blank",
+                          "noopener,noreferrer",
+                        );
+                      },
+                    )}
                   {button("View private PSA", async () => {
                     const result = await request("admin-document", {
                       id: adminDetail.deal.id,
@@ -962,8 +980,12 @@ export default function BuyerMatch() {
               <section className="border border-slate-700 rounded-xl p-5 space-y-4">
                 <h2 className="text-xl">Prepare for distribution</h2>
                 <p className="text-sm text-slate-400">
-                  Distribution requires review. This preview supports synthetic
-                  test delivery only; success fees remain disabled.
+                  {plans.distributionEnabled
+                    ? plans.testDeliveryEnabled
+                      ? "Synthetic test delivery requires review. No real buyers are contacted."
+                      : "Buyer delivery requires review and approval."
+                    : "Buyer delivery is disabled. You can save documents and prepare this deal for review."}{" "}
+                  Success fees remain disabled.
                 </p>
                 <label>
                   Private PSA PDF (up to 10 MB)
@@ -1070,13 +1092,17 @@ export default function BuyerMatch() {
                   After contract or title changes and admin review, run Analyze
                   saved deal again before requesting distribution.
                 </p>
-                {button("Request distribution", async () => {
-                  await request("distribution", { id, operationKey });
-                  await reload();
-                  setNotice(
-                    "Distribution request recorded. Delivery status appears in Deal progress.",
-                  );
-                })}
+                {button(
+                  "Request distribution",
+                  async () => {
+                    await request("distribution", { id, operationKey });
+                    await reload();
+                    setNotice(
+                      "Distribution request recorded. Delivery status appears in Deal progress.",
+                    );
+                  },
+                  !plans.distributionEnabled,
+                )}
               </section>
               <section className="border border-slate-700 rounded-xl p-5 space-y-3">
                 <h2 className="text-xl">Deal progress</h2>
