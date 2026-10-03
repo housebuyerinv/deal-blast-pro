@@ -170,7 +170,7 @@ export async function getAuthenticatedAccount(req: any) {
     const { data: updatedPlan } = await adminClient
       .from('workspace_plan_assignments')
       .upsert(repairedPlan, { onConflict: 'workspace_id' })
-      .select('workspace_id,user_id,plan_name,billing_status,trial_status,payment_status,access_status,access_deactivated_at,stripe_customer_id,stripe_subscription_id,subscription_status,current_period_end,cancel_at_period_end,outstanding_balance,latest_invoice_status,latest_invoice_hosted_url,latest_invoice_pdf,current_plan,effective_access_plan,scheduled_plan,scheduled_plan_change_at,billing_interval,stripe_price_id,purchased_buyer_capacity,buyer_capacity_mode,buyer_capacity_limit,property_intelligence_included_credits')
+      .select('workspace_id,user_id,plan_name,billing_status,trial_status,payment_status,access_status,access_deactivated_at,stripe_customer_id,stripe_subscription_id,subscription_status,current_period_end,cancel_at_period_end,outstanding_balance,latest_invoice_status,latest_invoice_hosted_url,latest_invoice_pdf,current_plan,effective_access_plan,scheduled_plan,scheduled_plan_change_at,billing_interval,stripe_price_id,purchased_buyer_capacity,buyer_capacity_mode,buyer_capacity_limit,property_intelligence_included_credits,trial_started_at,trial_ends_at,trial_converted_at,trial_consumed_at,first_paid_at,trial_checkout_session_id,trial_checkout_created_at,promotion_code,stripe_promotion_code_id')
       .maybeSingle()
     plan = updatedPlan || plan
   }
@@ -183,7 +183,7 @@ export async function getAuthenticatedAccount(req: any) {
         buyer_capacity_limit: null,
       })
       .eq('workspace_id', workspace.id)
-      .select('workspace_id,user_id,plan_name,billing_status,trial_status,payment_status,access_status,access_deactivated_at,stripe_customer_id,stripe_subscription_id,subscription_status,current_period_end,cancel_at_period_end,outstanding_balance,latest_invoice_status,latest_invoice_hosted_url,latest_invoice_pdf,current_plan,effective_access_plan,scheduled_plan,scheduled_plan_change_at,billing_interval,stripe_price_id,purchased_buyer_capacity,buyer_capacity_mode,buyer_capacity_limit,property_intelligence_included_credits')
+      .select('workspace_id,user_id,plan_name,billing_status,trial_status,payment_status,access_status,access_deactivated_at,stripe_customer_id,stripe_subscription_id,subscription_status,current_period_end,cancel_at_period_end,outstanding_balance,latest_invoice_status,latest_invoice_hosted_url,latest_invoice_pdf,current_plan,effective_access_plan,scheduled_plan,scheduled_plan_change_at,billing_interval,stripe_price_id,purchased_buyer_capacity,buyer_capacity_mode,buyer_capacity_limit,property_intelligence_included_credits,trial_started_at,trial_ends_at,trial_converted_at,trial_consumed_at,first_paid_at,trial_checkout_session_id,trial_checkout_created_at,promotion_code,stripe_promotion_code_id')
       .maybeSingle()
     plan = updatedCapacityPlan || plan
   }

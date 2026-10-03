@@ -20,7 +20,7 @@ test('accepted and delivered provider events remain durable and correlate by mes
 })
 
 test('Owner Admin history is server-authorized and spans only owned settings workspaces', async () => {
-  const endpoint = await source('api/email-operations.ts')
+  const endpoint = await source('server/http/email-operations.ts')
   assert.match(endpoint, /if \(!account\.isOwnerAdmin\).*403/)
   assert.match(endpoint, /\.eq\('user_id', account\.user\.id\)/)
   assert.match(endpoint, /\.in\('workspace_id', workspaceIds\)/)
@@ -33,7 +33,7 @@ test('Owner Admin history is server-authorized and spans only owned settings wor
 })
 
 test('normal users are denied and empty state is returned only without owned operations', async () => {
-  const endpoint = await source('api/email-operations.ts')
+  const endpoint = await source('server/http/email-operations.ts')
   const client = await source('src/lib/emailNotificationSettings.ts')
   assert.match(endpoint, /Owner admin access is required/)
   assert.match(endpoint, /uniqueOutboxRows/)

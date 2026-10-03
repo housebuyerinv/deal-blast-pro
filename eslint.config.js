@@ -32,7 +32,7 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ['src/**/*.{ts,tsx}', 'api/**/*.ts', 'supabase/functions/**/*.ts'],
+    files: ['src/**/*.{ts,tsx}', 'api/**/*.ts', 'server/http/**/*.ts', 'supabase/functions/**/*.ts'],
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',

@@ -1,6 +1,22 @@
 {
   "rewrites": [
     {
+      "source": "/api/buyermatch",
+      "destination": "/api/platform/buyermatch"
+    },
+    {
+      "source": "/api/buyermatch-response",
+      "destination": "/api/platform/buyermatch-response"
+    },
+    {
+      "source": "/api/buyermatch-worker",
+      "destination": "/api/platform/buyermatch-worker"
+    },
+    {
+      "source": "/api/email-operations",
+      "destination": "/api/platform/email-operations"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }

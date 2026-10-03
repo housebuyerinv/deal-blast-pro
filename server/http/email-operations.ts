@@ -1,5 +1,5 @@
-import { getAuthenticatedAccount } from './_accountAuth.js'
-import { correlateEmailOperations } from './_emailOperations.js'
+import { getAuthenticatedAccount } from '../../api/_accountAuth.js'
+import { correlateEmailOperations } from '../../api/_emailOperations.js'
 
 function send(res: any, status: number, payload: any) {
   res.status(status).json(payload)

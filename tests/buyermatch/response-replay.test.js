@@ -61,7 +61,7 @@ globalThis.__responseFixture = {
   },
 };
 const compiled = await build({
-  entryPoints: ["api/buyermatch-response.ts"],
+  entryPoints: ["server/http/buyermatch-response.ts"],
   bundle: true,
   write: false,
   platform: "node",

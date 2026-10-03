@@ -212,6 +212,10 @@ App wrapper `/app/*` remains protected. Two `*` declarations retain their public
 
 ## Verification
 
-Local verification: 158/158 tests (83 BuyerMatch, 70 existing application, 5 route parity); nested 21/21 Production-mode fixture and 188/188 migration rehearsal assertions. TypeScript/build passed. Lint: 0 errors, 94 warnings. Exact-commit hosted parity remains pending. Do not treat prior 120-assertion bce189a Preview evidence as candidate verification. Production deployment is not authorized by this report.
+Local verification: 160/160 tests (83 BuyerMatch, 70 existing application, 5 route parity, 2 API routing); nested 21/21 Production-mode fixture and 188/188 migration rehearsal assertions. TypeScript/build passed. Lint: 0 errors, 94 warnings. Exact-commit hosted parity remains pending. Do not treat prior 120-assertion bce189a Preview evidence as candidate verification. Production deployment is not authorized by this report.
 
 The reconciliation merge is created locally on `codex/buyermatch-production-reconciliation` and published as a fast-forward of the existing `codex/buyermatch-network` Preview branch, retaining its verified staging-only environment scope. Creating overrides on an unpublished branch was rejected by Vercel (`branch_not_found`); no overrides were saved. Reuse the established staging branch rather than allowing an unconfigured new branch to inherit defaults.
+
+## Hosted packaging correction
+
+The first merged Preview (56c6dbd, dpl_KYfGk7jJgx5uEGjcMZgBLfzg9rQY) built but could not deploy: combined endpoints exceeded the Hobby 12-function limit. Consolidated three BuyerMatch handlers and existing email operations behind one strict allowlist router, retaining their public API URLs via explicit rewrites and retaining all handler authorization. Implementations now reside in server/http. Query parameters cannot select another handler. Added routing regression tests. Also made account plan repair selects return the same trial/promotion fields as the initial select, fixing API type-check failures without @ts-nocheck or deleting fields. Dedicated API tsc check passed. No Production deployment/config/database changes.

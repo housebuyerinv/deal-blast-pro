@@ -24,7 +24,7 @@ test('workspace-sensitive tables use RLS and owner/member predicates', async () 
 })
 
 test('admin email operations require server-derived owner workspace scope', async () => {
-  const endpoint = await source('api/email-operations.ts')
+  const endpoint = await source('server/http/email-operations.ts')
   assert.match(endpoint, /owner/i)
   assert.match(endpoint, /workspace/i)
   assert.doesNotMatch(endpoint, /req\.query.*workspace|req\.body.*workspace/)

@@ -1,10 +1,10 @@
 import { z } from "zod";
-import { getSupabaseAdminClient } from "./_accountAuth.js";
+import { getSupabaseAdminClient } from "../../api/_accountAuth.js";
 import {
   hashToken,
   responseOperationKey,
-} from "../server/buyermatch/tokens.js";
-import { responseEnvironment } from "../server/buyermatch/response-config.js";
+} from "../buyermatch/tokens.js";
+import { responseEnvironment } from "../buyermatch/response-config.js";
 export default async function handler(req: any, res: any) {
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("Referrer-Policy", "no-referrer");

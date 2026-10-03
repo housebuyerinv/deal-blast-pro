@@ -95,7 +95,7 @@ globalThis.__buyerMatchFixture = {
   from: (table) => new Query(table),
 };
 const compiled = await build({
-  entryPoints: ["api/buyermatch.ts"],
+  entryPoints: ["server/http/buyermatch.ts"],
   bundle: true,
   write: false,
   platform: "node",

@@ -4,21 +4,21 @@ import {
   getSupabaseAdminClient,
   getBearerToken,
   isOwnerAdminEmail,
-} from "./_accountAuth.js";
-import { analyzeDeal } from "../server/buyermatch/matching.js";
-import { calculateFee } from "../server/buyermatch/workflow.js";
+} from "../../api/_accountAuth.js";
+import { analyzeDeal } from "../buyermatch/matching.js";
+import { calculateFee } from "../buyermatch/workflow.js";
 import {
   createCheckout,
   testStripe,
   isTestPlanPrice,
-} from "../server/buyermatch/checkout.js";
-import { assertStaging, stagingOrigin } from "../server/buyermatch/staging.js";
-import { findDuplicates } from "../server/buyermatch/deduplication.js";
-import { dispatchOutbox } from "../server/buyermatch/outbox.js";
-import { testProvider } from "../server/buyermatch/provider.js";
-import { responseToken } from "../server/buyermatch/tokens.js";
-import { productionDeliveryConfig } from "../server/buyermatch/production-delivery.js";
-import { deliveryAvailability } from "../server/buyermatch/availability.js";
+} from "../buyermatch/checkout.js";
+import { assertStaging, stagingOrigin } from "../buyermatch/staging.js";
+import { findDuplicates } from "../buyermatch/deduplication.js";
+import { dispatchOutbox } from "../buyermatch/outbox.js";
+import { testProvider } from "../buyermatch/provider.js";
+import { responseToken } from "../buyermatch/tokens.js";
+import { productionDeliveryConfig } from "../buyermatch/production-delivery.js";
+import { deliveryAvailability } from "../buyermatch/availability.js";
 import {
   dealSchema,
   criteriaSchema,
@@ -31,7 +31,7 @@ import {
   decryptIdentity,
   identityHash,
   reminderDates,
-} from "../server/buyermatch/security.js";
+} from "../buyermatch/security.js";
 
 const fail = (message: string, status = 400) => {
   throw Object.assign(new Error(message), { status });

@@ -1,13 +1,13 @@
 import { timingSafeEqual } from "node:crypto";
-import { getSupabaseAdminClient } from "./_accountAuth.js";
-import { assertStaging } from "../server/buyermatch/staging.js";
-import { testProvider } from "../server/buyermatch/provider.js";
-import { dispatchOutbox } from "../server/buyermatch/outbox.js";
+import { getSupabaseAdminClient } from "../../api/_accountAuth.js";
+import { assertStaging } from "../buyermatch/staging.js";
+import { testProvider } from "../buyermatch/provider.js";
+import { dispatchOutbox } from "../buyermatch/outbox.js";
 import {
   productionDeliveryConfig,
   productionProvider,
   deliverProductionInvitation,
-} from "../server/buyermatch/production-delivery.js";
+} from "../buyermatch/production-delivery.js";
 export default async function handler(req: any, res: any) {
   res.setHeader("Cache-Control", "no-store");
   if (!["POST", "GET"].includes(req.method)) return res.status(405).end();
