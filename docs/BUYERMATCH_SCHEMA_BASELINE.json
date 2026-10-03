@@ -1,0 +1,207 @@
+[
+  {
+    "path": "supabase/staging/000_baseline_prerequisites.sql",
+    "sha256": "5ebb199fe0bcc5418f28439b0eda175cedca007adcd38a2602e1b2b12c9aef63",
+    "productionStatus": "staging-only-do-not-apply"
+  },
+  {
+    "path": "supabase/migrations/20260707120000_create_contact_submissions.sql",
+    "sha256": "ac44100b6a5ab816efe975235892c3903cf9b08f3695e555e292c616c9970e25",
+    "productionStatus": "migration-identity-present-source-checksum-unverified"
+  },
+  {
+    "path": "supabase/migrations/20260707123000_contact_submissions_owner_read.sql",
+    "sha256": "c2e29fb0536baf22a409b2f9864ce586d66bc282015e3dddc4f35773a86b905c",
+    "productionStatus": "migration-identity-present-source-checksum-unverified"
+  },
+  {
+    "path": "supabase/migrations/20260711015000_deal_submissions_public_insert.sql",
+    "sha256": "bfefd1d9a1ee344a090451f9283e85c1fb9d4737c1fcbf776503096dd08681c6",
+    "productionStatus": "migration-identity-present-source-checksum-unverified"
+  },
+  {
+    "path": "supabase/migrations/20260711020500_deal_submissions_public_insert_check.sql",
+    "sha256": "028ed864e55ba75762c9c82f75daabd3aea15a76c0e1a095abcae6d9e6ada499",
+    "productionStatus": "migration-identity-present-source-checksum-unverified"
+  },
+  {
+    "path": "supabase/migrations/20260711033000_email_notification_settings.sql",
+    "sha256": "27fc552625cad5c10800bbc6e76f76e398d4141f22f3304ca6b9605a4e326061",
+    "productionStatus": "migration-identity-present-source-checksum-unverified"
+  },
+  {
+    "path": "supabase/migrations/20260712010000_add_new_account_email_notifications.sql",
+    "sha256": "5c43116de94519eb3a1f79afe458a54e404ed76f96da69efdf31be1cad99ef74",
+    "productionStatus": "migration-identity-present-source-checksum-unverified"
+  },
+  {
+    "path": "supabase/migrations/20260712011500_email_notification_log_rpc.sql",
+    "sha256": "7058653614218cf50bb6238099e8ba51e8708f84736a2b1b85a3f9819d867daf",
+    "productionStatus": "migration-identity-present-source-checksum-unverified"
+  },
+  {
+    "path": "supabase/migrations/20260712023000_buyer_proof_storage_rls.sql",
+    "sha256": "4f818ee0b8cd70235220e7b9f06e9b6d49f32a7cc2614c5bb8441aa230d9a939",
+    "productionStatus": "migration-identity-present-source-checksum-unverified"
+  },
+  {
+    "path": "supabase/migrations/20260712180000_registration_durability.sql",
+    "sha256": "53fb1c9ae3b479470fd83e026918653123ff9e8f0d206b2669dbac9e4b9732e8",
+    "productionStatus": "migration-identity-present-source-checksum-unverified"
+  },
+  {
+    "path": "supabase/migrations/20260715120000_cloud_snapshots_user_isolation.sql",
+    "sha256": "99ec025bf666251031d6b97e00bfac192d74693f25b9333ad572d1b1b69b811e",
+    "productionStatus": "migration-identity-present-source-checksum-unverified"
+  },
+  {
+    "path": "supabase/migrations/20260715133000_create_waitlist_entries.sql",
+    "sha256": "c102712e3a538767f74623fd27da64862e903385c7daf386654946678057f504",
+    "productionStatus": "migration-identity-present-source-checksum-unverified"
+  },
+  {
+    "path": "supabase/migrations/20260715134500_grant_waitlist_insert.sql",
+    "sha256": "9366a8d7af7a71feac801dd7827d1980512d8d4a6a48895dd6b82ab94768cf53",
+    "productionStatus": "migration-identity-present-source-checksum-unverified"
+  },
+  {
+    "path": "supabase/migrations/20260715135000_relax_waitlist_insert_policy.sql",
+    "sha256": "be1c93d5117c93addaa0b3879372490493b63afba69f6280108152b5fad2e1c5",
+    "productionStatus": "migration-identity-present-source-checksum-unverified"
+  },
+  {
+    "path": "supabase/migrations/20260715143000_account_deactivation_status.sql",
+    "sha256": "d088317b25e06de7b9310fecd5f3b3c2cea31fb3a45867b348a64050b28679c3",
+    "productionStatus": "migration-identity-present-source-checksum-unverified"
+  },
+  {
+    "path": "supabase/migrations/20260715152000_waitlist_email_delivery_status.sql",
+    "sha256": "6f278c9ec674549b12202a2c035d700c3bc92fdc8f1a6da65cdcc8fc672e709e",
+    "productionStatus": "migration-identity-present-source-checksum-unverified"
+  },
+  {
+    "path": "supabase/migrations/20260716090000_workspace_buyers_rls_and_limits.sql",
+    "sha256": "583ec161770f106e85c6e2a0ed8748f3cc1190e557d6574adabec60bee9c9d24",
+    "productionStatus": "migration-identity-present-source-checksum-unverified"
+  },
+  {
+    "path": "supabase/migrations/20260716103000_permanent_free_plan_defaults.sql",
+    "sha256": "e1996f94a5d9641170469b381007c91e7080bd5548519ffc27bf17179932f15c",
+    "productionStatus": "migration-identity-present-source-checksum-unverified"
+  },
+  {
+    "path": "supabase/migrations/20260716113000_property_intelligence_credits.sql",
+    "sha256": "1548cffd8b6ecca75291c0b873f654a438b48ad95fda5a631c150353ac9a06a6",
+    "productionStatus": "migration-identity-present-source-checksum-unverified"
+  },
+  {
+    "path": "supabase/migrations/20260716123000_update_buyer_capacity_limits.sql",
+    "sha256": "8de58a5cbc736c7cb5f2cc4146450072552002507f52e844cad2dd203fb0d61f",
+    "productionStatus": "migration-identity-present-source-checksum-unverified"
+  },
+  {
+    "path": "supabase/migrations/20260716170000_account_lifecycle_and_buyer_capacity.sql",
+    "sha256": "b8ca8e22dc981ed8abcd2c619bc6a0bbbb48e92cd2ac30c8876a14e8861eafc4",
+    "productionStatus": "migration-identity-present-source-checksum-unverified"
+  },
+  {
+    "path": "supabase/migrations/20260716190000_stripe_customer_portal_fields.sql",
+    "sha256": "f26bb5d81f90ee25633c9fec646688225fd4cfa916d497e1c7c83b59a8ebed23",
+    "productionStatus": "migration-identity-present-source-checksum-unverified"
+  },
+  {
+    "path": "supabase/migrations/20260716203000_plan_downgrade_and_billing_preferences.sql",
+    "sha256": "c2400e198adf2518e3dc66871e3e8d713b227b822d369231f5ca6b15037bb533",
+    "productionStatus": "migration-identity-present-source-checksum-unverified"
+  },
+  {
+    "path": "supabase/migrations/20260716213000_account_profile_identity_fields.sql",
+    "sha256": "0d3e2bde1950687377da1c949fddfc62c1a23c3cbcc90ae67aab4a40881740dc",
+    "productionStatus": "migration-identity-present-source-checksum-unverified"
+  },
+  {
+    "path": "supabase/migrations/20260717001000_email_change_audit_workspace_events.sql",
+    "sha256": "7c9ba875848541ef9bea994df64b1a1ada3575e195329d718dc978a78cdaebfd",
+    "productionStatus": "migration-identity-present-source-checksum-unverified"
+  },
+  {
+    "path": "supabase/migrations/20260717120000_account_profile_onboarding_state.sql",
+    "sha256": "8a251235571f8a75e695ee68bf0011bff1ab4ef7de4a0fd1f04e5bb3ff5a3e78",
+    "productionStatus": "migration-identity-present-source-checksum-unverified"
+  },
+  {
+    "path": "supabase/migrations/20260717121000_deal_submission_conversion_metadata.sql",
+    "sha256": "94c49f2c4eb14522e13c8d893e9d7d462ec40a31d1bf314cc55b596159310165",
+    "productionStatus": "migration-identity-present-source-checksum-unverified"
+  },
+  {
+    "path": "supabase/migrations/20260717133000_buyer_portal_approval_metadata.sql",
+    "sha256": "170df59f79d60240d75149814f43758039d9ebe1feb0edf6343363e4d02a02a9",
+    "productionStatus": "migration-identity-present-source-checksum-unverified"
+  },
+  {
+    "path": "supabase/migrations/20260717160000_owner_admin_buyer_capacity_unlimited.sql",
+    "sha256": "a9db30daf29205540a5e99734d345904ddb68a14a6262f910bec46558c7bcff9",
+    "productionStatus": "migration-identity-present-source-checksum-unverified"
+  },
+  {
+    "path": "supabase/migrations/20260723143000_reserve_submission_inventory_conversion.sql",
+    "sha256": "b151136e90c8576c9cfe4479c5724cbe5fedc67d8e6e71641be1c138f5cf799f",
+    "productionStatus": "migration-identity-present-source-checksum-unverified"
+  },
+  {
+    "path": "supabase/migrations/20260930120000_buyermatch_foundation.sql",
+    "sha256": "7295520362bbfb8bec6fdab15b2669397ba786e31b4eea7a74da130c7366faab",
+    "productionStatus": "missing"
+  },
+  {
+    "path": "supabase/migrations/20260930130000_buyermatch_workflow.sql",
+    "sha256": "750098d818cc871fbe89ff8435d1bc7ff340fd05569054c888979fe11d037866",
+    "productionStatus": "missing"
+  },
+  {
+    "path": "supabase/migrations/20260930140000_buyermatch_analysis_concurrency.sql",
+    "sha256": "434bf9d7baa14abc37e2f62b4ee8b4ca7b52e11abfc699c34eb55814f58b1872",
+    "productionStatus": "missing"
+  },
+  {
+    "path": "supabase/migrations/20260930150000_buyermatch_billing.sql",
+    "sha256": "427119f837a1d18331da680719373ac8b41cc186a95eadd89d7376ed92bdc107",
+    "productionStatus": "missing"
+  },
+  {
+    "path": "supabase/migrations/20260930160000_buyermatch_agreements_imports.sql",
+    "sha256": "c5501ec1672557a849e4197a591c7d604bb4b0fec2c5e222fa36cb1fc95d4866",
+    "productionStatus": "missing"
+  },
+  {
+    "path": "supabase/migrations/20260930170000_buyermatch_outbox_claim.sql",
+    "sha256": "91d3bda7566d1894a94f4dd76941e128544a220651e5f1aa856cc29da59d0e2d",
+    "productionStatus": "missing"
+  },
+  {
+    "path": "supabase/migrations/20260930180000_buyermatch_document_publishing.sql",
+    "sha256": "877822006df11324de717905bb7b22b125d3580a5815a2ddadd2b58c0283cb2f",
+    "productionStatus": "missing"
+  },
+  {
+    "path": "supabase/migrations/20260930190000_buyermatch_reminders.sql",
+    "sha256": "6ecfdaf1e51074a05c0a7795a61ebf7a1a16cf13ddca655ab054fccc2ad7ef62",
+    "productionStatus": "missing"
+  },
+  {
+    "path": "supabase/migrations/20261001090000_buyermatch_test_commerce_delivery.sql",
+    "sha256": "8290f3c4c3f64ea7cfec0fff52c5a4bf6913a66a2b36a82f98b9e6efec0aba96",
+    "productionStatus": "missing"
+  },
+  {
+    "path": "supabase/migrations/20261002190115_buyermatch_response_scope.sql",
+    "sha256": "1a34889963f594acc23eddc82afc1080b38a1da022681c2b667eaacd4409ae97",
+    "productionStatus": "missing"
+  },
+  {
+    "path": "supabase/staging/999_staging_access.sql",
+    "sha256": "94f686058652a78865a18cbb0c8cc152092bd1afb803f8a074758fa88437777b",
+    "productionStatus": "staging-only-do-not-apply"
+  }
+]

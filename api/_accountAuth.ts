@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { createClient } from '@supabase/supabase-js'
 
 const PLAN_RANK: Record<string, number> = {

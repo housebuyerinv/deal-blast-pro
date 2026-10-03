@@ -1,0 +1,162 @@
+[
+  {
+    "path": "/",
+    "element": "{<Landing />}"
+  },
+  {
+    "path": "/pricing",
+    "element": "{<Pricing />}"
+  },
+  {
+    "path": "/features",
+    "element": "{<Features />}"
+  },
+  {
+    "path": "/contact",
+    "element": "{<Contact />}"
+  },
+  {
+    "path": "/privacy",
+    "element": "{<Privacy />}"
+  },
+  {
+    "path": "/terms",
+    "element": "{<Terms />}"
+  },
+  {
+    "path": "/refund-policy",
+    "element": "{<RefundPolicy />}"
+  },
+  {
+    "path": "/acceptable-use",
+    "element": "{<AcceptableUse />}"
+  },
+  {
+    "path": "/security",
+    "element": "{<Security />}"
+  },
+  {
+    "path": "/waitlist",
+    "element": "{<Waitlist />}"
+  },
+  {
+    "path": "/portal",
+    "element": "{<Portal />}"
+  },
+  {
+    "path": "/buyer-portal",
+    "element": "{<BuyerPortal />}"
+  },
+  {
+    "path": "/admin-login",
+    "element": "{<Login />}"
+  },
+  {
+    "path": "/refunds",
+    "element": "{<Navigate to=\"/refund-policy\" replace />}"
+  },
+  {
+    "path": "/admin-register",
+    "element": "{<Navigate to=\"/register\" replace />}"
+  },
+  {
+    "path": "/auth/callback",
+    "element": "{<AuthCallback />}"
+  },
+  {
+    "path": "/forgot-password",
+    "element": "{<ForgotPassword />}"
+  },
+  {
+    "path": "/reset-password",
+    "element": "{<ResetPassword />}"
+  },
+  {
+    "path": "/login",
+    "element": "{<Navigate to=\"/admin-login\" replace />}"
+  },
+  {
+    "path": "/register",
+    "element": "{<Register />}"
+  },
+  {
+    "path": "/verify-email",
+    "element": "{<VerifyEmail />}"
+  },
+  {
+    "path": "/upgrade",
+    "element": "{<Navigate to=\"/pricing\" replace />}"
+  },
+  {
+    "path": "/app/*",
+    "element": "{\n            <ProtectedRoute>\n              <AppShell>\n                <Routes>\n                  <Route path=\"dashboard\" element={<Dashboard />} />\n                  <Route path=\"submissions\" element={<Submissions />} />\n                  <Route path=\"inventory\" element={<Inventory />} />\n                  <Route path=\"buyers\" element={<Buyers />} />\n                  <Route path=\"resources\" element={<Resources />} />\n                  <Route path=\"blast\" element={<Blast />} />\n                  <Route path=\"calculator\" element={<DealCalculator />} />\n                  <Route path=\"settings\" element={<Settings />} />\n                  <Route path=\"upgrade\" element={<Upgrade />} />\n                  <Route path=\"intake\" element={<ManualIntake />} />\n                  <Route path=\"followups\" element={<FollowUps />} />\n                  <Route path=\"analytics\" element={<Analytics />} />\n                  <Route path=\"hot-zones\" element={<HotZones />} />\n                  <Route path=\"pipeline\" element={<Pipeline />} />\n                  <Route path=\"whats-new\" element={<WhatsNew />} />\n                  <Route path=\"*\" element={<Navigate to=\"dashboard\" replace />} />\n                </Routes>\n              </AppShell>\n            </ProtectedRoute>\n          }"
+  },
+  {
+    "path": "dashboard",
+    "element": "{<Dashboard />}"
+  },
+  {
+    "path": "submissions",
+    "element": "{<Submissions />}"
+  },
+  {
+    "path": "inventory",
+    "element": "{<Inventory />}"
+  },
+  {
+    "path": "buyers",
+    "element": "{<Buyers />}"
+  },
+  {
+    "path": "resources",
+    "element": "{<Resources />}"
+  },
+  {
+    "path": "blast",
+    "element": "{<Blast />}"
+  },
+  {
+    "path": "calculator",
+    "element": "{<DealCalculator />}"
+  },
+  {
+    "path": "settings",
+    "element": "{<Settings />}"
+  },
+  {
+    "path": "upgrade",
+    "element": "{<Upgrade />}"
+  },
+  {
+    "path": "intake",
+    "element": "{<ManualIntake />}"
+  },
+  {
+    "path": "followups",
+    "element": "{<FollowUps />}"
+  },
+  {
+    "path": "analytics",
+    "element": "{<Analytics />}"
+  },
+  {
+    "path": "hot-zones",
+    "element": "{<HotZones />}"
+  },
+  {
+    "path": "pipeline",
+    "element": "{<Pipeline />}"
+  },
+  {
+    "path": "whats-new",
+    "element": "{<WhatsNew />}"
+  },
+  {
+    "path": "*",
+    "element": "{<Navigate to=\"dashboard\" replace />}"
+  },
+  {
+    "path": "*",
+    "element": "{<Navigate to=\"/\" replace />}"
+  }
+]

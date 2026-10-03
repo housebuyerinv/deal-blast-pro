@@ -6,6 +6,7 @@ artifacts/
 .env
 .env.*
 !.env.example
+!.env.buyermatch-staging.example
 
 supabase/.temp/
 .vercel/

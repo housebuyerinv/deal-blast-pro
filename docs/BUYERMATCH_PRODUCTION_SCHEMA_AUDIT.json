@@ -1,0 +1,235 @@
+{
+  "projectRef": "aigvnbxiydbzzqbetlhl",
+  "projectStatus": "ACTIVE_HEALTHY",
+  "applicationCommit": "00444a8fbe3b67e39af655b58a4b4f3fd1186074",
+  "readOnly": true,
+  "productionChanged": false,
+  "productionMigrationCount": 42,
+  "sharedLegacyMigrationIdentities": 29,
+  "productionOnlyMigrationCount": 13,
+  "missingBaselineBuyerMatchMigrations": 10,
+  "pendingOutboxMigration": "20261003001913_buyermatch_production_outbox.sql",
+  "stagingOnlySources": 2,
+  "checksumResult": "Original source-file hashes unavailable in Production history. Hashes of joined stored SQL statements are not equivalent to canonical source-file hashes; no verified source checksum mismatch can be asserted.",
+  "buyerMatchSchema": "No bm_* tables, functions, constraints, indexes, triggers or types; buyermatch-private bucket absent.",
+  "prerequisites": "auth.users and storage.objects present; existing storage policies restrict other named buckets.",
+  "legacyPublicTables": 33,
+  "legacyColumnFingerprint": "f9843704f65f9e7e37f7530798d640e6",
+  "decision": "BLOCKED: outbox migration cannot apply standalone. Reconcile 13 newer legacy Production migrations and certify the full 11-source BuyerMatch installation before migration/deployment.",
+  "productionMigrations": [
+    {
+      "version": "20260707120000",
+      "name": "create_contact_submissions"
+    },
+    {
+      "version": "20260707123000",
+      "name": "contact_submissions_owner_read"
+    },
+    {
+      "version": "20260711015000",
+      "name": "deal_submissions_public_insert"
+    },
+    {
+      "version": "20260711020500",
+      "name": "deal_submissions_public_insert_check"
+    },
+    {
+      "version": "20260711033000",
+      "name": "email_notification_settings"
+    },
+    {
+      "version": "20260712010000",
+      "name": "add_new_account_email_notifications"
+    },
+    {
+      "version": "20260712011500",
+      "name": "email_notification_log_rpc"
+    },
+    {
+      "version": "20260712023000",
+      "name": "buyer_proof_storage_rls"
+    },
+    {
+      "version": "20260712180000",
+      "name": "registration_durability"
+    },
+    {
+      "version": "20260715120000",
+      "name": "cloud_snapshots_user_isolation"
+    },
+    {
+      "version": "20260715133000",
+      "name": "create_waitlist_entries"
+    },
+    {
+      "version": "20260715134500",
+      "name": "grant_waitlist_insert"
+    },
+    {
+      "version": "20260715135000",
+      "name": "relax_waitlist_insert_policy"
+    },
+    {
+      "version": "20260715143000",
+      "name": "account_deactivation_status"
+    },
+    {
+      "version": "20260715152000",
+      "name": "waitlist_email_delivery_status"
+    },
+    {
+      "version": "20260716090000",
+      "name": "workspace_buyers_rls_and_limits"
+    },
+    {
+      "version": "20260716103000",
+      "name": "permanent_free_plan_defaults"
+    },
+    {
+      "version": "20260716113000",
+      "name": "property_intelligence_credits"
+    },
+    {
+      "version": "20260716123000",
+      "name": "update_buyer_capacity_limits"
+    },
+    {
+      "version": "20260716170000",
+      "name": "account_lifecycle_and_buyer_capacity"
+    },
+    {
+      "version": "20260716190000",
+      "name": "stripe_customer_portal_fields"
+    },
+    {
+      "version": "20260716203000",
+      "name": "plan_downgrade_and_billing_preferences"
+    },
+    {
+      "version": "20260716213000",
+      "name": "account_profile_identity_fields"
+    },
+    {
+      "version": "20260717001000",
+      "name": "email_change_audit_workspace_events"
+    },
+    {
+      "version": "20260717120000",
+      "name": "account_profile_onboarding_state"
+    },
+    {
+      "version": "20260717121000",
+      "name": "deal_submission_conversion_metadata"
+    },
+    {
+      "version": "20260717133000",
+      "name": "buyer_portal_approval_metadata"
+    },
+    {
+      "version": "20260717160000",
+      "name": "owner_admin_buyer_capacity_unlimited"
+    },
+    {
+      "version": "20260723143000",
+      "name": "reserve_submission_inventory_conversion"
+    },
+    {
+      "version": "20260729193000",
+      "name": "durable_submission_inventory"
+    },
+    {
+      "version": "20260802221500",
+      "name": "submission_workspace_review_rls"
+    },
+    {
+      "version": "20260802233000",
+      "name": "backfill_workspace_assigned_converted_inventory"
+    },
+    {
+      "version": "20260802234500",
+      "name": "assign_legacy_submission_workspace_and_backfill"
+    },
+    {
+      "version": "20260802235500",
+      "name": "resolve_legacy_workspace_from_durable_evidence"
+    },
+    {
+      "version": "20260803000500",
+      "name": "backfill_legacy_conversion_metadata_variants"
+    },
+    {
+      "version": "20260803013000",
+      "name": "credit_email_closing_foundation"
+    },
+    {
+      "version": "20260803020000",
+      "name": "backfill_active_included_credit_grants"
+    },
+    {
+      "version": "20260803024500",
+      "name": "atomic_admin_credit_adjustments"
+    },
+    {
+      "version": "20260803143000",
+      "name": "update_property_intelligence_credit_policy"
+    },
+    {
+      "version": "20260803190000",
+      "name": "harden_email_outbox_delivery"
+    },
+    {
+      "version": "20260810123000",
+      "name": "list_email_outbox_operations"
+    },
+    {
+      "version": "20260815160000",
+      "name": "property_intelligence_history_audit"
+    }
+  ],
+  "pendingBuyerMatchSources": [
+    {
+      "path": "supabase/migrations/20260930120000_buyermatch_foundation.sql",
+      "sha256": "7295520362bbfb8bec6fdab15b2669397ba786e31b4eea7a74da130c7366faab"
+    },
+    {
+      "path": "supabase/migrations/20260930130000_buyermatch_workflow.sql",
+      "sha256": "750098d818cc871fbe89ff8435d1bc7ff340fd05569054c888979fe11d037866"
+    },
+    {
+      "path": "supabase/migrations/20260930140000_buyermatch_analysis_concurrency.sql",
+      "sha256": "434bf9d7baa14abc37e2f62b4ee8b4ca7b52e11abfc699c34eb55814f58b1872"
+    },
+    {
+      "path": "supabase/migrations/20260930150000_buyermatch_billing.sql",
+      "sha256": "427119f837a1d18331da680719373ac8b41cc186a95eadd89d7376ed92bdc107"
+    },
+    {
+      "path": "supabase/migrations/20260930160000_buyermatch_agreements_imports.sql",
+      "sha256": "c5501ec1672557a849e4197a591c7d604bb4b0fec2c5e222fa36cb1fc95d4866"
+    },
+    {
+      "path": "supabase/migrations/20260930170000_buyermatch_outbox_claim.sql",
+      "sha256": "91d3bda7566d1894a94f4dd76941e128544a220651e5f1aa856cc29da59d0e2d"
+    },
+    {
+      "path": "supabase/migrations/20260930180000_buyermatch_document_publishing.sql",
+      "sha256": "877822006df11324de717905bb7b22b125d3580a5815a2ddadd2b58c0283cb2f"
+    },
+    {
+      "path": "supabase/migrations/20260930190000_buyermatch_reminders.sql",
+      "sha256": "6ecfdaf1e51074a05c0a7795a61ebf7a1a16cf13ddca655ab054fccc2ad7ef62"
+    },
+    {
+      "path": "supabase/migrations/20261001090000_buyermatch_test_commerce_delivery.sql",
+      "sha256": "8290f3c4c3f64ea7cfec0fff52c5a4bf6913a66a2b36a82f98b9e6efec0aba96"
+    },
+    {
+      "path": "supabase/migrations/20261002190115_buyermatch_response_scope.sql",
+      "sha256": "1a34889963f594acc23eddc82afc1080b38a1da022681c2b667eaacd4409ae97"
+    },
+    {
+      "path": "supabase/migrations/20261003001913_buyermatch_production_outbox.sql",
+      "sha256": "2b9d312d634a5a1db6827a51cfa14169550803b6df67d2e04a815f4a82b95e13"
+    }
+  ]
+}

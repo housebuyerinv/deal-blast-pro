@@ -1,3 +1,4 @@
+import { URL } from 'node:url'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
@@ -9,7 +10,7 @@ const app = fs.readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8')
 test('basic intake is available to every customer plan', () => {
   for (const plan of ['Free', 'Free Demo', 'Starter', 'Pro']) {
     const line = access.match(new RegExp(`${plan === 'Free Demo' ? "'Free Demo'" : plan}: \\[[^\\n]+`))?.[0] || ''
-    assert.match(line, /['\"]\/app\/intake['\"]/, `${plan} should allow /app/intake`)
+    assert.match(line, /['"]\/app\/intake['"]/, `${plan} should allow /app/intake`)
   }
   assert.match(access, /Agency: ALL_APP_ROUTES/)
   assert.match(access, /Enterprise: ALL_APP_ROUTES/)

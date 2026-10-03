@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import type { AuthChangeEvent, Session } from '@supabase/supabase-js'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAppStore } from './store/useAppStore'
 import { supabase } from './lib/supabase'
@@ -27,6 +28,8 @@ import ResetPassword from './pages/public/ResetPassword'
 import AuthCallback from './pages/public/AuthCallback'
 import AppShell from './components/layout/AppShell'
 
+import BuyerMatch from './pages/app/BuyerMatch'
+import BuyerMatchResponse from './pages/public/BuyerMatchResponse'
 import Dashboard from './pages/app/Dashboard'
 import Submissions from './pages/app/Submissions'
 import Inventory from './pages/app/Inventory'
@@ -57,6 +60,25 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const [checkingSession, setCheckingSession] = useState(true)
   const [authorized, setAuthorized] = useState(false)
   const [deactivated, setDeactivated] = useState(false)
+  const [authRevision, setAuthRevision] = useState(0)
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: AuthChangeEvent, session: Session | null) => {
+      if (event === 'SIGNED_OUT') {
+        setAuthorized(false)
+        setCheckingSession(false)
+        logout()
+        setAuthRevision(value => value + 1)
+      } else if (event === 'SIGNED_IN' && session?.user.id !== useAppStore.getState().user?.id) {
+        // Hide private content immediately, before checking the replacement account.
+        setAuthorized(false)
+        setCheckingSession(true)
+        setAuthRevision(value => value + 1)
+      }
+    })
+    return () => subscription.unsubscribe()
+  }, [logout])
+
 
   useEffect(() => {
     let cancelled = false
@@ -68,6 +90,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
       try {
         const { data } = await supabase.auth.getSession()
+        if (cancelled) return
         const session = data.session
         const token = session?.access_token
 
@@ -82,6 +105,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
           headers: { Authorization: `Bearer ${token}` },
         })
         const payload = await response.json().catch(() => ({}))
+        if (cancelled) return
 
         if (response.status === 403 || payload?.deactivated) {
           await supabase.auth.signOut().catch(() => {})
@@ -179,7 +203,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true
     }
-  }, [location.pathname, location.search, login, logout, updateUserProfile, currentUserId, currentUserEmail])
+  }, [location.pathname, location.search, login, logout, updateUserProfile, currentUserId, currentUserEmail, authRevision])
 
   if (checkingSession) {
     return (
@@ -280,6 +304,8 @@ function App() {
     <ErrorBoundary>
       <Routes>
         <Route path="/" element={<Landing />} />
+        <Route path="/buyermatch/*" element={<Navigate to={location.pathname.replace(/^\/buyermatch/, '/app/buyermatch')} replace />} />
+        <Route path="/buyer-response" element={<BuyerMatchResponse />} />
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/features" element={<Features />} />
         <Route path="/contact" element={<Contact />} />
@@ -308,6 +334,10 @@ function App() {
             <ProtectedRoute>
               <AppShell>
                 <Routes>
+                  <Route path="buyermatch" element={<BuyerMatch />} />
+                  <Route path="buyermatch/plans" element={<BuyerMatch />} />
+                  <Route path="buyermatch/admin" element={<BuyerMatch />} />
+                  <Route path="buyermatch/deals/:id" element={<BuyerMatch />} />
                   <Route path="dashboard" element={<Dashboard />} />
                   <Route path="submissions" element={<Submissions />} />
                   <Route path="inventory" element={<Inventory />} />

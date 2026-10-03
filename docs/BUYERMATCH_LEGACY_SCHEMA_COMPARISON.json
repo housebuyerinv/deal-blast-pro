@@ -1,0 +1,96 @@
+{
+  "constraintDifferences": [
+    {
+      "table": "cloud_snapshots",
+      "name": "cloud_snapshots_pkey",
+      "definition": "PRIMARY KEY (user_id, storage_key)"
+    }
+  ],
+  "policyDifferences": [
+    {
+      "schemaname": "public",
+      "tablename": "deal_submissions",
+      "policyname": "Public can create deal submissions",
+      "permissive": "PERMISSIVE",
+      "roles": [
+        "anon",
+        "authenticated"
+      ],
+      "cmd": "INSERT",
+      "qual": null,
+      "with_check": "true"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "submission_inventory_links",
+      "policyname": "Submission Inventory links readable by owner",
+      "permissive": "PERMISSIVE",
+      "roles": [
+        "authenticated"
+      ],
+      "cmd": "SELECT",
+      "qual": "(user_id = auth.uid())",
+      "with_check": null
+    }
+  ],
+  "indexDifferences": [
+    {
+      "table": "cloud_snapshots",
+      "name": "cloud_snapshots_pkey",
+      "definition": "CREATE UNIQUE INDEX cloud_snapshots_pkey ON public.cloud_snapshots USING btree (user_id, storage_key)"
+    }
+  ],
+  "sharedMigrationIdentities": 29,
+  "branchPrelude": "Reconstructed staging bootstrap, not an original Production migration",
+  "comparedTables": 21,
+  "comparedColumns": 297,
+  "columnDrift": [
+    {
+      "object": "buyer_portal_submissions.buyer_data",
+      "field": "default",
+      "branch": "'{}'::jsonb",
+      "production": null
+    },
+    {
+      "object": "buyer_portal_submissions.updated_at",
+      "field": "type",
+      "branch": "timestamp with time zone",
+      "production": null
+    },
+    {
+      "object": "buyer_portal_submissions.updated_at",
+      "field": "notnull",
+      "branch": true,
+      "production": null
+    },
+    {
+      "object": "buyer_portal_submissions.updated_at",
+      "field": "default",
+      "branch": "now()",
+      "production": null
+    },
+    {
+      "object": "cloud_snapshots.storage_key",
+      "field": "default",
+      "branch": null,
+      "production": "'dealblastpro-v1'::text"
+    }
+  ],
+  "changedFunctionDefinitions": [],
+  "rlsDrift": [],
+  "productionAdditionalTables": [
+    "email_outbox",
+    "deal_portal_submissions",
+    "buyers_backup_before_match_ui_fix",
+    "buyers_backup_20260624_before_sql_cleanup",
+    "inventory_deals",
+    "property_intelligence_operation_audit",
+    "property_intelligence_searches",
+    "property_intelligence_credit_ledger",
+    "stripe_event_receipts",
+    "email_delivery_events",
+    "email_suppressions",
+    "verified_closings"
+  ],
+  "conclusion": "Differences are expected legacy evolution or staging bootstrap differences; BuyerMatch SQL depends on auth.users and storage.buckets, not these public legacy tables. No historical checksum equality is claimed."
+}

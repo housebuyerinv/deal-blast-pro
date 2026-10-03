@@ -1,3 +1,4 @@
+import { shouldApplyWorkspaceSync } from '../lib/persistedWorkspaceSync'
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { toast } from 'sonner'
@@ -2266,10 +2267,12 @@ function syncStoreFromPersistedStorage() {
       teamMembers: canUsePersistedPrivateState && Array.isArray(persistedState.teamMembers) ? persistedState.teamMembers : currentState.teamMembers,
     }
 
-    useAppStore.setState({
+    const synchronizedState = {
       ...nextState,
       ...cleanupOrphanedDealState(nextState),
-    })
+    }
+    if (!shouldApplyWorkspaceSync(currentState, synchronizedState, canUsePersistedPrivateState)) return
+    useAppStore.setState(synchronizedState)
   } catch (error) {
     console.warn('[Deal Blast Pro] Failed to sync persisted store', error)
   }

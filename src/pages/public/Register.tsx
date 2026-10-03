@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { supabase } from '../../lib/supabase'
@@ -15,6 +15,10 @@ export default function Register() {
   })
 
   const [loading, setLoading] = useState(false)
+  const [agreements,setAgreements]=useState<any[]>([])
+  const [agreementsAccepted,setAgreementsAccepted]=useState(false)
+  const [agreementError,setAgreementError]=useState('')
+  useEffect(()=>{let active=true;fetch('/api/register-account').then(async response=>{const result=await response.json();if(!response.ok)throw new Error(result.error);if(active)setAgreements(result.documents||[])}).catch(()=>{if(active)setAgreementError('Platform agreements could not be loaded. Registration will verify the required versions before proceeding.')});return()=>{active=false}},[])
   const login = useAppStore(s => s.login)
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -48,6 +52,8 @@ export default function Register() {
           company: form.company,
           role: form.role,
           plan: requestedPlan,
+          agreementsAccepted,
+          platformAgreements:agreements.map(doc=>({id:doc.id,hash:doc.document_hash})),
         }),
       })
 
@@ -132,6 +138,9 @@ export default function Register() {
               </select>
             </div>
 
+            {agreementError&&<p role="status" className="text-sm text-amber-400">{agreementError}</p>}
+            {agreements.map(doc=><details key={doc.id}><summary>{doc.kind} · {doc.version}</summary><div className="whitespace-pre-wrap max-h-60 overflow-auto text-sm">{doc.content}</div></details>)}
+            {agreements.length>0&&<label className="flex gap-2 text-sm"><input type="checkbox" required checked={agreementsAccepted} onChange={e=>setAgreementsAccepted(e.target.checked)}/>I accept these document versions. My full name above is my electronic signature.</label>}
             <button disabled={loading} type="submit" className="btn btn-green w-full py-3">
               {loading ? 'Creating Account...' : 'Create Account'}
             </button>
@@ -149,5 +158,3 @@ export default function Register() {
     </div>
   )
 }
-
-
