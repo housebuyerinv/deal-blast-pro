@@ -17,6 +17,7 @@ import { findDuplicates } from "../server/buyermatch/deduplication.js";
 import { dispatchOutbox } from "../server/buyermatch/outbox.js";
 import { testProvider } from "../server/buyermatch/provider.js";
 import { responseToken } from "../server/buyermatch/tokens.js";
+import { productionDeliveryConfig } from "../server/buyermatch/production-delivery.js";
 import {
   dealSchema,
   criteriaSchema,
@@ -969,12 +970,19 @@ export default async function handler(req: any, res: any) {
       return emit({ saved: true, closingVerified: false });
     }
     if (action === "distribution") {
-      assertStaging();
-      const result = await db.rpc("bm_queue_distribution", {
-        p_owner: user.id,
-        p_deal: deal.id,
-        p_key: uuid.parse(body.operationKey),
-      });
+      const production = process.env.VERCEL_ENV === "production";
+      if (production) productionDeliveryConfig();
+      else assertStaging();
+      const result = await db.rpc(
+        production
+          ? "bm_queue_production_distribution"
+          : "bm_queue_distribution",
+        {
+          p_owner: user.id,
+          p_deal: deal.id,
+          p_key: uuid.parse(body.operationKey),
+        },
+      );
       if (result.error)
         fail(
           "Distribution unavailable. Verified provider, permissions, approved agreements, entitlement, contract review and jurisdiction policy are required. No charges created.",

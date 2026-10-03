@@ -13,15 +13,22 @@ export async function deliveryHandler(
       },
     });
   if (req.method !== "POST") return respond({ error: "POST required" }, 405);
-  const ref = env.get("BM_STAGING_PROJECT_REF");
+  const production = env.get("BM_ENVIRONMENT") === "production";
+  const ref = env.get(
+    production ? "BM_PRODUCTION_PROJECT_REF" : "BM_STAGING_PROJECT_REF",
+  );
   const url = env.get("SUPABASE_URL");
   if (
-    env.get("BM_ENVIRONMENT") !== "staging" ||
     !ref ||
-    ref === "aigvnbxiydbzzqbetlhl" ||
+    (production
+      ? ref !== "aigvnbxiydbzzqbetlhl" ||
+        env.get("BM_LIVE_DELIVERY_ENABLED") !== "true" ||
+        env.get("BM_DELIVERY_MODE") !== "resend"
+      : env.get("BM_ENVIRONMENT") !== "staging" ||
+        ref === "aigvnbxiydbzzqbetlhl") ||
     url !== `https://${ref}.supabase.co`
   )
-    return respond({ error: "Staging required" }, 503);
+    return respond({ error: "Delivery environment unavailable" }, 503);
   let event: any;
   try {
     const raw = await req.text();

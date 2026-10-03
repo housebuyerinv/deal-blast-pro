@@ -89,6 +89,8 @@ The worker is explicitly invoked through the admin screen or `POST /api/buyermat
 
 ## Current verification and blockers
 
+The latest disabled Production issuer/outbox work and read-only Production findings are documented in [BUYERMATCH_PRODUCTION_READINESS.md](BUYERMATCH_PRODUCTION_READINESS.md). The new Production-outbox migration is pending and has not been applied to either hosted project. Preserve the 41-source applied staging baseline separately from this new source. Production remains unchanged and blocked on schema availability, configuration and provider verification.
+
 ### Scoped capability and concurrency follow-up
 
 This section supersedes the prior account/type-binding blocker: external buyers **do not need a DBP account**. An invitation intentionally allows multiple response kinds (`interested`, `offer`, `declined`, `unsubscribe`) within its server-stored allowed-action scope. Identical responses acknowledge without mutation; changed offers are distinct. Closed/canceled/expired deals and opted-out buyers reject new responses (unsubscribe remains available), while an identical accepted response may receive acknowledgement only. Expired/revoked links always deny, including replay. A different logged-in DBP account neither changes nor inherits capability authority.

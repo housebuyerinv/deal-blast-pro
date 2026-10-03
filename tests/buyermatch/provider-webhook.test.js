@@ -90,3 +90,28 @@ test.after(() => {
   delete globalThis.Deno;
   delete globalThis.__Webhook;
 });
+
+test("Production delivery callback requires explicit provider enablement and valid signature", async () => {
+  const prior = { ...values };
+  try {
+    Object.assign(values, {
+      BM_ENVIRONMENT: "production",
+      BM_PRODUCTION_PROJECT_REF: "aigvnbxiydbzzqbetlhl",
+      SUPABASE_URL: "https://aigvnbxiydbzzqbetlhl.supabase.co",
+      BM_DELIVERY_MODE: "resend",
+      BM_LIVE_DELIVERY_ENABLED: "false",
+    });
+    const before = calls.length;
+    assert.equal((await handler(request())).status, 503);
+    assert.equal(calls.length, before);
+    values.BM_LIVE_DELIVERY_ENABLED = "true";
+    assert.equal((await handler(request(false))).status, 400);
+    assert.equal(calls.length, before);
+    found = true;
+    assert.equal((await handler(request())).status, 200);
+    assert.equal(calls.at(-1).options.body.includes("private@"), false);
+  } finally {
+    for (const key of Object.keys(values)) delete values[key];
+    Object.assign(values, prior);
+  }
+});

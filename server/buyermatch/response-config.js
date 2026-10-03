@@ -16,7 +16,11 @@ export function responseEnvironment(env = process.env) {
     (env.VITE_SUPABASE_URL && env.VITE_SUPABASE_URL !== env.SUPABASE_URL) ||
     !env.SUPABASE_SERVICE_ROLE_KEY ||
     env.BM_CHECKOUT_ENABLED !== "false" ||
-    env.BM_DELIVERY_MODE !== "disabled"
+    !(
+      env.BM_DELIVERY_MODE === "disabled" ||
+      (env.BM_DELIVERY_MODE === "resend" &&
+        env.BM_LIVE_DELIVERY_ENABLED === "true")
+    )
   )
     throw new Error("Production response configuration unavailable");
   return "production";

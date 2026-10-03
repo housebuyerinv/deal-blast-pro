@@ -211,6 +211,64 @@ test("actual public detail response strips private evidence and storage keys", a
 test("read-only method cannot execute mutation", async () => {
   assert.equal((await invoke("save", {}, "valid", "GET")).statusCode, 405);
 });
+
+test("Production outreach uses authenticated owner, denies cross-owner and fails closed when disabled", async () => {
+  const config = {
+    VERCEL_ENV: "production",
+    BM_ENVIRONMENT: "production",
+    BM_RESPONSE_ENABLED: "true",
+    BM_PRODUCTION_PROJECT_REF: "aigvnbxiydbzzqbetlhl",
+    SUPABASE_URL: "https://aigvnbxiydbzzqbetlhl.supabase.co",
+    BM_CHECKOUT_ENABLED: "false",
+    BM_DELIVERY_MODE: "resend",
+    BM_LIVE_DELIVERY_ENABLED: "true",
+    RESEND_API_KEY: "fixture",
+    BM_RESEND_FROM: "fixture@example.invalid",
+    BM_RESPONSE_SECRET: "x".repeat(32),
+    BM_APP_ORIGIN: "https://deal-blast-pro.vercel.app",
+    PUBLIC_APP_URL: "https://deal-blast-pro.vercel.app",
+  };
+  const prior = Object.fromEntries(
+    Object.keys(config).map((k) => [k, process.env[k]]),
+  );
+  const rpc = [];
+  globalThis.__buyerMatchFixture.rpc = async (name, args) => {
+    rpc.push({ name, args });
+    return { data: { status: "queued", sent: false } };
+  };
+  const body = {
+    id: dealId,
+    operationKey: dealId,
+    ownerId: "forged",
+    workspaceId: "forged",
+    buyerId: "forged",
+  };
+  try {
+    Object.assign(process.env, config);
+    assert.equal((await invoke("distribution", body, "")).statusCode, 401);
+    records.bm_deals[0].owner_id = "other";
+    assert.equal((await invoke("distribution", body)).statusCode, 404);
+    records.bm_deals[0].owner_id = owner;
+    process.env.BM_LIVE_DELIVERY_ENABLED = "false";
+    assert.equal((await invoke("distribution", body)).statusCode, 503);
+    assert.equal(rpc.length, 0);
+    process.env.BM_LIVE_DELIVERY_ENABLED = "true";
+    const queued = await invoke("distribution", body);
+    assert.equal(queued.statusCode, 200);
+    assert.deepEqual(queued.body, { status: "queued", sent: false });
+    assert.deepEqual(rpc[0], {
+      name: "bm_queue_production_distribution",
+      args: { p_owner: owner, p_deal: dealId, p_key: dealId },
+    });
+  } finally {
+    records.bm_deals[0].owner_id = owner;
+    delete globalThis.__buyerMatchFixture.rpc;
+    for (const [key, value] of Object.entries(prior)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+});
 test.after(() => {
   delete globalThis.__buyerMatchFixture;
 });

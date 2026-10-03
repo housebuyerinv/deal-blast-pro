@@ -30,6 +30,7 @@ for (const name of [
   "20260930190000_buyermatch_reminders.sql",
   "20261001090000_buyermatch_test_commerce_delivery.sql",
   "20261002190115_buyermatch_response_scope.sql",
+  "20261003001913_buyermatch_production_outbox.sql",
 ])
   await db.exec(
     readFileSync(
@@ -687,6 +688,105 @@ test("Production capability consumption rejects synthetic invitations and stagin
     ).rows[0].n,
     0,
   );
+});
+
+test("Production issuer authorizes immutable scope, leases retries and requires actual receipt before response", async () => {
+  const { d, b, ex, o } = await deliveryFixture();
+  const hash = "a".repeat(64);
+  const claim = (who = owner, dealId = d, exposureId = ex) =>
+    db.query("select bm_claim_production_invitation($1,$2,$3,$4) result", [
+      who,
+      dealId,
+      exposureId,
+      hash,
+    ]);
+  await assert.rejects(claim(), /disabled/);
+  await db.exec("update bm_production_delivery_config set enabled=true");
+  try {
+    await assert.rejects(claim(other), /unavailable/);
+    await assert.rejects(claim(owner, randomUUID()), /unavailable/);
+    await assert.rejects(claim(owner, d, randomUUID()), /unavailable/);
+    await assert.rejects(claim(), /Authorized distribution/);
+    await db.query(
+      "insert into bm_distribution_requests(owner_id,deal_id,operation_key) values($1,$2,$3)",
+      [owner, d, randomUUID()],
+    );
+    await assert.rejects(claim(), /Buyer unavailable/); // synthetic cannot become live
+    await db.query("update bm_buyers set synthetic=false where id=$1", [b]);
+    await db.query("update bm_deals set status='closed' where id=$1", [d]);
+    await assert.rejects(claim(), /Deal unavailable/);
+    await db.query("update bm_deals set status='distributing' where id=$1", [
+      d,
+    ]);
+    const claims = await Promise.all(Array.from({ length: 4 }, () => claim()));
+    const jobs = claims.map((r) => r.rows[0].result).filter(Boolean);
+    assert.equal(jobs.length, 1);
+    assert.equal(
+      (await db.query("select accepted_at from bm_outbox where id=$1", [o]))
+        .rows[0].accepted_at,
+      null,
+    );
+    const respond = () =>
+      db.query(
+        "select bm_buyer_response_scoped($1,$2,'interested',null,'','production')",
+        [hash, randomUUID()],
+      );
+    await assert.rejects(respond(), /Exposure not accepted/);
+    await db.query("select bm_retry_production_invitation($1,$2)", [
+      o,
+      jobs[0].leaseId,
+    ]);
+    const retry = (await claim()).rows[0].result;
+    assert.notEqual(retry.leaseId, jobs[0].leaseId);
+    assert.equal(
+      (
+        await db.query(
+          "select bm_finish_production_invitation($1,$2,'receipt-stale') result",
+          [o, jobs[0].leaseId],
+        )
+      ).rows[0].result,
+      false,
+    );
+    assert.equal(
+      (
+        await db.query(
+          "select bm_finish_production_invitation($1,$2,'receipt-production-fixture') result",
+          [o, retry.leaseId],
+        )
+      ).rows[0].result,
+      true,
+    );
+    await respond();
+    assert.equal((await claim()).rows[0].result, null);
+    assert.equal(
+      (
+        await db.query(
+          "select count(*)::int n from bm_response_tokens where exposure_id=$1",
+          [ex],
+        )
+      ).rows[0].n,
+      1,
+    );
+    await db.query(
+      "update bm_response_tokens set revoked_at=now() where exposure_id=$1",
+      [ex],
+    );
+    await assert.rejects(claim(), /Capability unavailable/);
+    await assert.rejects(respond(), /unavailable/);
+    for (const role of ["anon", "authenticated"]) {
+      assert.equal(
+        (
+          await db.query(
+            "select has_function_privilege($1,'bm_claim_production_invitation(uuid,uuid,uuid,text)','EXECUTE') allowed",
+            [role],
+          )
+        ).rows[0].allowed,
+        false,
+      );
+    }
+  } finally {
+    await db.exec("update bm_production_delivery_config set enabled=false");
+  }
 });
 
 test("admin merge preserves optout and immutable exposure attribution; distinct review is audited", async () => {
