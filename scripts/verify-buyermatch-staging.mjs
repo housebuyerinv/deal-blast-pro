@@ -125,6 +125,20 @@ try {
   const user = await account("USER"),
     other = await account("OTHER"),
     admin = await account("ADMIN");
+  // Exercise browser GET reads as well as POST calls: dynamic route parameters
+  // must not overwrite the application's action query.
+  for (const [actor, action, expected] of [
+    [user, "plans", 200], [user, "list", 200], [user, "documents", 200],
+    [admin, "admin-list", 200], [user, "admin-list", 403], [user, "save", 405],
+  ]) {
+    const response = await fetch(origin + "/api/buyermatch?action=" + action, {
+      headers: { ...headers, Authorization: "Bearer " + actor.token },
+    });
+    ensure(response.status === expected, "Browser GET " + action + ": HTTP " + expected);
+    const body = await response.json();
+    if (action === "plans") ensure(typeof body.distributionEnabled === "boolean", "GET plans returns availability");
+    if (action === "list" && expected === 200) ensure(Array.isArray(body.deals), "GET list returns deal collection");
+  }
   const list = await api(admin, "admin-list");
   ensure(
     list.buyers.length >= 6 &&

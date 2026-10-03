@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs'
 import { URL } from 'node:url'
 
 const built = await build({
-  entryPoints: ['api/platform/[action].ts'], bundle: true, write: false, format: 'esm', platform: 'node',
+  entryPoints: ['api/platform/[endpoint].ts'], bundle: true, write: false, format: 'esm', platform: 'node',
   plugins: [{ name: 'record-dispatch', setup(builder) {
     builder.onResolve({ filter: /server\/http\// }, args => ({ path: args.path, namespace: 'fixture' }))
     builder.onLoad({ filter: /.*/, namespace: 'fixture' }, args => ({ contents: `export default (req,res)=>res.json({handler:${JSON.stringify(args.path.split('/').at(-1))},method:req.method})` }))
@@ -32,4 +32,8 @@ test('query parameters cannot replace the endpoint or escape the handler allowli
   for (const path of ['/api/platform/unknown', '/api/platform/__proto__', '/api/platform/buyermatch/extra']) {
     assert.equal(dispatch(path, { action: 'buyermatch' }).status, 404)
   }
+})
+
+test("routing parameter cannot shadow the BuyerMatch action query", () => {
+  assert.equal(readFileSync(new URL("../api/platform/[endpoint].ts", import.meta.url), "utf8").includes("req.query.action"), false)
 })
