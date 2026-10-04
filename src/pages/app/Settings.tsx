@@ -1387,12 +1387,15 @@ export default function Settings() {
     setProfileLoading(true)
     try {
       const { authUser, profile } = await loadAccountProfile()
+      // A profile request may finish after another tab replaces the account.
+      if (authUser.id !== user.id || useAppStore.getState().user?.id !== user.id ||
+          (profile?.user_id && profile.user_id !== user.id)) return
       const authPendingEmail = getPendingAuthEmailChange(authUser)
       const names = profileToUserNames(profile, authUser.email || user.email)
       const next = {
         fullName: names.fullName || user.fullName || user.name || '',
         displayName: names.displayName || user.displayName || '',
-        businessName: names.businessName || user.businessName || user.company || '',
+        businessName: getWorkspaceDisplayName(profile?.business_name, profile?.company, user.businessName, user.company),
         email: authUser.email || user.email || '',
       }
       setProfileForm(next)
@@ -1415,6 +1418,7 @@ export default function Settings() {
         name: names.name,
       })
     } catch (error) {
+      if (useAppStore.getState().user?.id !== user.id) return
       console.warn('[Deal Blast Pro] Account profile unavailable:', error)
       const fallback = {
         fullName: user?.fullName || user?.name || '',
@@ -1442,15 +1446,17 @@ export default function Settings() {
     setProfileSaving(true)
     try {
       const saved = await saveAccountProfile({
+        expectedUserId: user!.id,
         fullName: profileForm.fullName,
         displayName: profileForm.displayName,
         businessName: profileForm.businessName,
       })
+      if (saved.user_id !== user?.id || useAppStore.getState().user?.id !== user?.id) return
       const names = profileToUserNames(saved, profileForm.email || user?.email || '')
       const next = {
         fullName: saved.full_name || profileForm.fullName.trim(),
         displayName: saved.display_name || '',
-        businessName: saved.business_name || saved.company || '',
+        businessName: getWorkspaceDisplayName(saved.business_name, saved.company, user?.businessName, user?.company),
         email: saved.email || profileForm.email || user?.email || '',
       }
       setProfileForm(next)

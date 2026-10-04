@@ -714,13 +714,14 @@ export const useAppStore = create<AppStore>()(
       login: (email, name, options) => {
         const currentUser = get().user
         const normalizedEmail = email.trim().toLowerCase()
-        const isSameUser = currentUser?.email?.trim().toLowerCase() === normalizedEmail
+        const isSameUser = currentUser?.email?.trim().toLowerCase() === normalizedEmail &&
+          (!options?.id || currentUser?.id === options.id)
         const currentDeletion = get().settings?.deletionRequest
         const currentDeletedOrDeactivated = ['Deleted', 'Deactivated'].includes(String(currentDeletion?.accountStatus || ''))
-        const shouldPreserveWorkspace = options?.newWorkspace ? false : (options?.preserveWorkspace ?? (isSameUser && !currentDeletedOrDeactivated))
-        const fullName = String(options?.fullName || name || currentUser?.fullName || '').trim()
-        const displayName = String(options?.displayName || currentUser?.displayName || '').trim()
-        const businessName = String(options?.businessName || options?.company || currentUser?.businessName || currentUser?.company || '').trim()
+        const shouldPreserveWorkspace = isSameUser && !currentDeletedOrDeactivated && !options?.newWorkspace && options?.preserveWorkspace !== false
+        const fullName = String(options?.fullName || name || (isSameUser ? currentUser?.fullName : '') || '').trim()
+        const displayName = String(options?.displayName || (isSameUser ? currentUser?.displayName : '') || '').trim()
+        const businessName = String(options?.businessName || options?.company || (isSameUser ? currentUser?.businessName || currentUser?.company : '') || '').trim()
         const nextUser = {
           id: options?.id || (isSameUser ? currentUser?.id : undefined) || 'u_' + Date.now(),
           name: displayName || fullName || name || email.split('@')[0],
@@ -730,7 +731,7 @@ export const useAppStore = create<AppStore>()(
           fullName,
           displayName,
           businessName,
-          company: businessName || currentUser?.company || ''
+          company: businessName
         }
         const workspaceInstanceId = shouldPreserveWorkspace
           ? (get().workspaceInstanceId || makeWorkspaceInstanceId(nextUser))

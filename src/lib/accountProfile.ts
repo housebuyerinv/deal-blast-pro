@@ -68,6 +68,7 @@ export async function loadPaymentPendingAccountStatus(signal?: AbortSignal): Pro
 }
 
 export type EditableAccountProfile = {
+  expectedUserId: string
   fullName: string
   displayName: string
   businessName: string
@@ -278,6 +279,7 @@ export async function saveAccountProfile(input: EditableAccountProfile) {
   if (userError) throw userError
   const authUser = userData.user
   if (!authUser?.id || !authUser.email) throw new Error('Sign in before saving your profile.')
+  if (authUser.id !== input.expectedUserId) throw new Error('Account changed. Reload Settings before saving your profile.')
 
   const row = {
     user_id: authUser.id,
