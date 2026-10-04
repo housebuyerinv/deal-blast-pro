@@ -146,3 +146,38 @@ test('session recovery and account replacement apply server onboarding after wor
     assert.equal(store.get().deals.length, 0)
   }
 })
+
+test('another tab cannot reset server-confirmed onboarding or billing during session recovery', () => {
+  const source = read('src/store/useAppStore.ts')
+  const start = source.indexOf('function syncStoreFromPersistedStorage()')
+  const end = source.indexOf("if (typeof window !== 'undefined')", start)
+  const js = ts.transpileModule(source.slice(start, end) + '; syncStoreFromPersistedStorage()', { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText
+  let state = { ...initial(), settings: { onboarding: { planSelectionCompleted: true, selectedPlan: 'Free' } }, trial: { plan: 'Free', billingStatus: 'Free Active' } }
+  const persisted = { ...state, user: undefined, settings: { onboarding: { planSelectionCompleted: false } }, trial: { plan: 'Pro' } }
+  vm.runInNewContext(js, {
+    window: { localStorage: { getItem: () => JSON.stringify({state:persisted}) } }, STORAGE_KEY: 'fixture', IS_PRODUCTION: true,
+    useAppStore: { getState: () => state, setState: patch => { state = {...state,...patch} } },
+    privateWorkspaceScopeMatchesUser: () => true, shouldPersistBuyersLocally: false,
+    stripPreviewSettings: value => value, readOwnerPreviewSession: () => undefined,
+    cleanupOrphanedDealState: () => ({}), shouldApplyWorkspaceSync: () => true,
+  })
+  assert.equal(state.settings.onboarding.planSelectionCompleted,true)
+  assert.equal(state.settings.onboarding.selectedPlan,'Free')
+  assert.equal(state.trial.plan,'Free')
+})
+
+test('an inventory request started by User A cannot populate User B after replacement', async () => {
+  const source = read('src/store/useAppStore.ts')
+  const start = source.indexOf('      hydrateInventory: async () => {')
+  const end = source.indexOf('      cacheInventoryDeal:', start)
+  const arrow = source.slice(start,end).trim().replace(/^hydrateInventory: /,'').replace(/,$/,'')
+  const js = ts.transpileModule('const hydrate = '+arrow+'; hydrate', { compilerOptions:{target:ts.ScriptTarget.ES2022} }).outputText
+  let state = {...initial(), cleanupOrphanedDealData() {}}
+  let complete
+  const hydrate = vm.runInNewContext(js, {get:()=>state,set:patch=>{state={...state,...patch}},listInventoryDeals:()=>new Promise(resolve=>{complete=resolve}),makeWorkspaceDataScopeKey:user=>user ? user.id+':'+user.email : ''})
+  const pending=hydrate()
+  state={...state,user:{id:'B',email:'b@example.invalid'},deals:[]}
+  complete({ok:true,data:[{id:'A-deal'}]})
+  await pending
+  assert.equal(state.deals.length,0)
+})

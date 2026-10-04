@@ -18,4 +18,6 @@ Seven tests cover fallback ordering, actual production login transition and clea
 
 The exact a83318e browser check caught onboarding being reset on a fresh second tab: RequireAuth applied the authenticated plan before login cleared account-scoped settings. The follow-up moves server plan/onboarding synchronization after the identity transition. An eighth regression test executes that actual RequireAuth success block together with production login for both fresh-session recovery and account replacement. Full local suite: 170 passing; build passes. Hosted acceptance must use the follow-up commit, not a83318e.
 
+The 6296de4 browser check then exposed intermediate cross-tab snapshots overwriting restored onboarding after refresh. Production-mode storage synchronization now retains the current authenticated billing/onboarding state. A further actual-code race test proved a late inventory request could populate a replacement account; hydrateInventory now rejects results after a scope change. Ten workspace tests and 172 full tests pass locally. These follow-up changes still require exact-commit hosted acceptance.
+
 Exact-commit hosted/browser checks remain to be recorded in the final acceptance report. Authenticated live Production parity is still an explicit manual blocker. Do not deploy Production from this document.

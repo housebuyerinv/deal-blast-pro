@@ -965,7 +965,12 @@ export const useAppStore = create<AppStore>()(
 
       // Deals
       hydrateInventory: async () => {
+        const scope = makeWorkspaceDataScopeKey(get().user)
+        if (!get().user) return { ok: false, error: 'Sign in before loading inventory.' }
         const result = await listInventoryDeals()
+        if (!get().user || makeWorkspaceDataScopeKey(get().user) !== scope) {
+          return { ok: false, error: 'Account changed while loading inventory.' }
+        }
         if (!result.ok) return { ok: false, error: result.error }
         set({ deals: result.data })
         get().cleanupOrphanedDealData()
@@ -2247,7 +2252,9 @@ function syncStoreFromPersistedStorage() {
       workspaceOwnerId: persistedState.workspaceOwnerId ?? currentState.workspaceOwnerId,
       workspaceOwnerEmail: persistedState.workspaceOwnerEmail ?? currentState.workspaceOwnerEmail,
       workspaceDataScopeKey: persistedState.workspaceDataScopeKey ?? currentState.workspaceDataScopeKey,
-      trial: persistedState.trial ?? currentState.trial,
+      // Billing and plan selection come from authenticated account-status, not
+      // another tab's intermediate login/reset snapshot.
+      trial: IS_PRODUCTION ? currentState.trial : (persistedState.trial ?? currentState.trial),
       deals: canUsePersistedPrivateState && Array.isArray(persistedState.deals) ? persistedState.deals : currentState.deals,
       buyers: canUsePersistedBuyers ? persistedState.buyers : [],
       offers: canUsePersistedPrivateState ? (persistedState.offers ?? currentState.offers) : currentState.offers,
@@ -2255,6 +2262,10 @@ function syncStoreFromPersistedStorage() {
       documents: canUsePersistedPrivateState ? (persistedState.documents ?? currentState.documents) : currentState.documents,
       settings: {
         ...stripPreviewSettings({ settings: persistedState.settings ?? currentState.settings }).settings,
+        ...(IS_PRODUCTION ? { onboarding: {
+          ...persistedState.settings?.onboarding,
+          ...currentState.settings.onboarding,
+        } } : {}),
         ownerPreviewPlan: readOwnerPreviewSession(),
       },
       viewedDealIds: canUsePersistedPrivateState && Array.isArray(persistedState.viewedDealIds) ? persistedState.viewedDealIds : currentState.viewedDealIds,
