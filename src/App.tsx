@@ -124,6 +124,34 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
           return
         }
 
+        const email = session.user.email || ''
+        const profileNames = profileToUserNames({
+          full_name: payload?.profile?.fullName || session.user.user_metadata?.full_name || session.user.user_metadata?.name || '',
+          display_name: payload?.profile?.displayName || '',
+          business_name: getWorkspaceDisplayName(payload?.profile?.businessName, payload?.workspace?.name),
+        }, email)
+        const fullName = profileNames.name
+
+        if (!currentUserId || currentUserId !== session.user.id || currentUserEmail !== email.toLowerCase()) {
+          login(email, fullName, {
+            id: session.user.id,
+            preserveWorkspace: true,
+            fullName: profileNames.fullName,
+            displayName: profileNames.displayName,
+            businessName: getWorkspaceDisplayName(payload?.profile?.businessName, payload?.workspace?.name),
+            isOwnerAdmin: payload?.isOwnerAdmin === true,
+          })
+        } else {
+          updateUserProfile({
+            fullName: profileNames.fullName,
+            displayName: profileNames.displayName,
+            businessName: getWorkspaceDisplayName(payload?.profile?.businessName, payload?.workspace?.name),
+            company: getWorkspaceDisplayName(payload?.profile?.businessName, payload?.workspace?.name),
+            name: profileNames.name,
+            isOwnerAdmin: payload?.isOwnerAdmin === true,
+          })
+        }
+
         const serverPlan = (payload?.planName === 'Free Demo' ? 'Free' : payload?.planName) as TrialState['plan'] | undefined
         if (serverPlan) {
           const state = useAppStore.getState()
@@ -157,34 +185,6 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
               },
             })
           }
-        }
-
-        const email = session.user.email || ''
-        const profileNames = profileToUserNames({
-          full_name: payload?.profile?.fullName || session.user.user_metadata?.full_name || session.user.user_metadata?.name || '',
-          display_name: payload?.profile?.displayName || '',
-          business_name: getWorkspaceDisplayName(payload?.profile?.businessName, payload?.workspace?.name),
-        }, email)
-        const fullName = profileNames.name
-
-        if (!currentUserId || currentUserId !== session.user.id || currentUserEmail !== email.toLowerCase()) {
-          login(email, fullName, {
-            id: session.user.id,
-            preserveWorkspace: true,
-            fullName: profileNames.fullName,
-            displayName: profileNames.displayName,
-            businessName: getWorkspaceDisplayName(payload?.profile?.businessName, payload?.workspace?.name),
-            isOwnerAdmin: payload?.isOwnerAdmin === true,
-          })
-        } else {
-          updateUserProfile({
-            fullName: profileNames.fullName,
-            displayName: profileNames.displayName,
-            businessName: getWorkspaceDisplayName(payload?.profile?.businessName, payload?.workspace?.name),
-            company: getWorkspaceDisplayName(payload?.profile?.businessName, payload?.workspace?.name),
-            name: profileNames.name,
-            isOwnerAdmin: payload?.isOwnerAdmin === true,
-          })
         }
 
         if (!cancelled) {

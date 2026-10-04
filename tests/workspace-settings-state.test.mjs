@@ -27,7 +27,10 @@ function loginFromStore(initial) {
   const arrow = source.slice(start, end).trim().replace(/^login: /, '').replace(/,$/, '')
     .replace("import('../lib/buyerSupabaseSync')", 'Promise.resolve({invalidateBuyerHydrationCache(){}})')
   const js = ts.transpileModule('const login = ' + arrow + '; login', { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText
-  let state = { ...initial, hydrateInventory() {} }
+  let state = { ...initial, hydrateInventory() {},
+    activateManualPlan(patch) { state = { ...state, trial: { ...state.trial, ...patch } } },
+    updateSettings(patch) { state = { ...state, settings: { ...state.settings, ...patch } } },
+  }
   const cleanStart = source.indexOf('const cleanWorkspaceState = () => ({')
   const cleanEnd = source.indexOf('const removeDealScopedState', cleanStart)
   const clean = vm.runInNewContext(source.slice(cleanStart, cleanEnd) + '; cleanWorkspaceState')
@@ -115,4 +118,31 @@ test('same-looking names cannot preserve BuyerMatch-related private state across
   store.login('b@example.invalid', 'Person A', {id:'B',preserveWorkspace:true,displayName:'Person A'})
   for (const key of ['offers','buyerResponses','documents','viewedDealIds','viewedBuyerIds','blastLogs','teamMembers']) assert.equal(Object.keys(store.get()[key]).length,0,key)
   assert.equal(store.get().user.isOwnerAdmin,false)
+})
+
+test('session recovery and account replacement apply server onboarding after workspace clearing', () => {
+  const app = read('src/App.tsx')
+  const start = app.indexOf("        const email = session.user.email || ''")
+  const end = app.indexOf('          setAuthorized(true)', start)
+  const block = app.slice(start, app.lastIndexOf('        if (!cancelled)', end))
+  // Execute the actual RequireAuth success path together with the real store login.
+  const js = ts.transpileModule(block, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText
+  for (const previous of [null, initial().user]) {
+    const store = loginFromStore({ ...initial(), user: previous, trial: {} })
+    vm.runInNewContext(js, {
+      session: { user: { id: 'B', email: 'b@example.invalid', user_metadata: {} } },
+      payload: { planName: 'Free', workspace: { name: 'Workspace B' } },
+      currentUserId: previous?.id, currentUserEmail: previous?.email,
+      login: store.login, updateUserProfile() { throw new Error('unexpected same-user path') },
+      useAppStore: { getState: store.get }, DEFAULT_SETTINGS: { onboarding: {} },
+      getWorkspaceDisplayName: exports.getWorkspaceDisplayName,
+      profileToUserNames: () => ({ name: 'Person B', fullName: 'Person B' }),
+    })
+    assert.equal(store.get().workspaceOwnerId, 'B')
+    assert.equal(store.get().user.businessName, 'Workspace B')
+    assert.equal(store.get().settings.onboarding.planSelectionCompleted, true)
+    assert.equal(store.get().settings.onboarding.selectedPlan, 'Free')
+    assert.equal(store.get().trial.plan, 'Free')
+    assert.equal(store.get().deals.length, 0)
+  }
 })
