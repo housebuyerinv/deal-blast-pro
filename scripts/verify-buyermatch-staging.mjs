@@ -139,6 +139,21 @@ try {
     if (action === "plans") ensure(typeof body.distributionEnabled === "boolean", "GET plans returns availability");
     if (action === "list" && expected === 200) ensure(Array.isArray(body.deals), "GET list returns deal collection");
   }
+  for (const [path, method, authenticated, expected] of [
+    ["/api/platform/unknown", "GET", true, 404],
+    ["/api/buyermatch?action=plans", "DELETE", true, 405],
+    ["/api/buyermatch?action=plans", "GET", false, 401],
+  ]) {
+    const response = await fetch(origin + path, { method,
+      headers: { ...headers, ...(authenticated ? {Authorization: "Bearer " + user.token} : {}) },
+    });
+    ensure(response.status === expected, "Hosted route " + method + " " + path + ": HTTP " + expected);
+  }
+  await api(user, "plans");
+  if (process.argv.includes("--routing-only")) {
+    console.log("Hosted routing preflight passed: " + checks.length + " assertions; synthetic sign-in/read-only checks only.");
+    process.exit(0);
+  }
   const list = await api(admin, "admin-list");
   ensure(
     list.buyers.length >= 6 &&
@@ -172,6 +187,11 @@ try {
     sqft: 1200,
   };
   const { id } = await api(user, "save", { property });
+  const detailRead = await fetch(origin + "/api/buyermatch?action=detail&id=" + id, {
+    headers: { ...headers, Authorization: "Bearer " + user.token },
+  });
+  ensure(detailRead.status === 200 && (await detailRead.json()).deal.id === id, "Browser GET detail preserves action and deal id");
+
   for (const action of [
     "detail",
     "upload",

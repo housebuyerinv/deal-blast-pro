@@ -9,13 +9,13 @@ const built = await build({
   entryPoints: ['api/platform/[endpoint].ts'], bundle: true, write: false, format: 'esm', platform: 'node',
   plugins: [{ name: 'record-dispatch', setup(builder) {
     builder.onResolve({ filter: /server\/http\// }, args => ({ path: args.path, namespace: 'fixture' }))
-    builder.onLoad({ filter: /.*/, namespace: 'fixture' }, args => ({ contents: `export default (req,res)=>res.json({handler:${JSON.stringify(args.path.split('/').at(-1))},method:req.method})` }))
+    builder.onLoad({ filter: /.*/, namespace: 'fixture' }, args => ({ contents: `export default (req,res)=>res.json({handler:${JSON.stringify(args.path.split('/').at(-1))},method:req.method,query:req.query})` }))
   } }],
 })
 const { default: handler } = await import('data:text/javascript;base64,' + Buffer.from(built.outputFiles[0].text).toString('base64'))
-function dispatch(url, query = {}) {
+function dispatch(url, query = {}, method = 'POST') {
   let status = 200, body
-  handler({ url, query, method: 'POST' }, { status(value) { status = value; return this }, json(value) { body = value } })
+  handler({ url, query, method }, { status(value) { status = value; return this }, json(value) { body = value } })
   return { status, body }
 }
 test('all public API URLs rewrite to the intended guarded handler', () => {
@@ -36,4 +36,15 @@ test('query parameters cannot replace the endpoint or escape the handler allowli
 
 test("routing parameter cannot shadow the BuyerMatch action query", () => {
   assert.equal(readFileSync(new URL("../api/platform/[endpoint].ts", import.meta.url), "utf8").includes("req.query.action"), false)
+})
+
+test('GET actions and method survive endpoint dispatch independently of path capture', () => {
+  for (const action of ['plans', 'list', 'detail', 'documents', 'admin-list']) {
+    const query = { endpoint: 'buyermatch', action, id: 'synthetic-id' }
+    const result = dispatch('/api/platform/buyermatch?action=' + action, query, 'GET')
+    assert.equal(result.body.handler, 'buyermatch.js')
+    assert.equal(result.body.method, 'GET')
+    assert.deepEqual(result.body.query, query)
+  }
+  assert.equal(dispatch('/api/buyermatch', {endpoint:'buyermatch-worker'}, 'POST').body.handler, 'buyermatch.js')
 })

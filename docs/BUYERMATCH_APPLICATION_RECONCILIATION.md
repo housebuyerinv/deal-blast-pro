@@ -212,7 +212,7 @@ App wrapper `/app/*` remains protected. Two `*` declarations retain their public
 
 ## Verification
 
-Local verification: 161/161 tests (83 BuyerMatch, 70 existing application, 5 route parity, 3 API routing); nested 21/21 Production-mode fixture and 188/188 migration rehearsal assertions. TypeScript/build passed. Lint: 0 errors, 94 warnings. Exact-commit hosted parity remains pending. Do not treat prior 120-assertion bce189a Preview evidence as candidate verification. Production deployment is not authorized by this report.
+Local verification: 162/162 tests (83 BuyerMatch, 70 existing application, 5 route parity, 4 API routing); nested 21/21 Production-mode fixture and 188/188 migration rehearsal assertions. TypeScript/build passed. Lint: 0 errors, 94 warnings. Exact-commit hosted parity remains pending. Do not treat prior 120-assertion bce189a Preview evidence as candidate verification. Production deployment is not authorized by this report.
 
 The reconciliation merge is created locally on `codex/buyermatch-production-reconciliation` and published as a fast-forward of the existing `codex/buyermatch-network` Preview branch, retaining its verified staging-only environment scope. Creating overrides on an unpublished branch was rejected by Vercel (`branch_not_found`); no overrides were saved. Reuse the established staging branch rather than allowing an unconfigured new branch to inherit defaults.
 
@@ -227,3 +227,7 @@ Production and reconciled ec1fefa public browser checks matched: homepage, featu
 The retained synthetic other-user browser session loaded the reconciled command center and correct workspace. It then exposed a GET routing regression after ec1fefa passed all 120 POST-based staging assertions: dynamic `[action]` shadowed `action=plans` and returned 405. Renamed the Vercel parameter to `[endpoint]`; expanded hosted checks to include GET plans/list/documents, admin reads and GET authorization/mutation rejection. The corrected exact-commit Preview must pass these new checks.
 
 Production schema/configuration/data remain unchanged in this reconciliation. Current known Production state is 53 migrations, zero BuyerMatch outbox/responses/checkouts and all delivery/payment gates off. Final read-only confirmation and exact Preview results are reported in the chat; no live buyer sends or charges are authorized.
+
+## Permanent hosted routing regression gate
+
+The runner now keeps hosted GET checks permanently; local dispatch tests cannot prove Vercel query representation. Run `node --env-file=.env.buyermatch-staging --env-file=.env.buyermatch-preview-access scripts/verify-buyermatch-staging.mjs --routing-only` against the exact READY SHA before the full runner. It verifies plans/list/documents/admin-list, regular-user admin rejection, GET mutation rejection, unauthorized reads, unsupported DELETE, unknown platform path and POST plans. Full verification additionally checks owned GET detail with its id query. No authorization code changed. Property Intelligence retains its separate path-only action; no equivalent caller collision was found.
