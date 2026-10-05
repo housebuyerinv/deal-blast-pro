@@ -1,5 +1,11 @@
 # Workspace and account replacement acceptance
 
+## October 5 final browser acceptance follow-up
+
+On candidate `6fa92da`, supported synthetic A-to-B-to-A replacement converged in both tabs. Both tabs retained B after refresh; A's unsaved Settings draft was unmounted, B's profile/workspace stayed unchanged, and an A deal deep link under B displayed "Deal not found". Both persisted workspace names remained correct. These observations do not certify a forced stale-save callback or a populated inventory delay: the browser routing harness has no request-hold option and the staging `inventory_deals` table is absent. Existing targeted race tests remain required.
+
+A real public response navigation defect was reproduced: after refresh removed the capability from memory, reopening the original invitation in the same document changed only its fragment, but the component read the fragment only on mount. The fix consumes `hashchange`, clears the previous invitation's draft/status, removes the visible fragment, and fences completion of an older submission. It does not change token authorization, accepted-outbox enforcement, response idempotency, provider gates or database schema. Two actual-component regression tests cover reopening and stale completion. Local full suite: 187/187; build passes; lint: 0 errors, 94 existing warnings. Exact replacement Preview verification remains required before acceptance; Production remains untouched.
+
 Starting candidate: a6f23faa486ec3a6db22c6539100e422ec53502d. Production remains unchanged; no migration, provider, checkout or fee changes.
 
 ## Findings

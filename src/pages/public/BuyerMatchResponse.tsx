@@ -1,16 +1,34 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 export default function BuyerMatchResponse() {
-  const [token] = useState(() => window.location.hash.slice(1));
-  useEffect(() => {
-    window.history.replaceState(null, "", window.location.pathname);
-  }, []);
+  const [token, setToken] = useState(() => window.location.hash.slice(1));
+  const generation = useRef(0);
   const [kind, setKind] = useState("interested");
   const [amount, setAmount] = useState("");
   const [terms, setTerms] = useState("");
   const [operationKey, setOperationKey] = useState(() => crypto.randomUUID());
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  useEffect(() => {
+    const reopen = () => {
+      generation.current += 1;
+      setToken(window.location.hash.slice(1));
+      window.history.replaceState(null, "", window.location.pathname);
+      setKind("interested");
+      setAmount("");
+      setTerms("");
+      setOperationKey(crypto.randomUUID());
+      setMessage("");
+      setBusy(false);
+    };
+    window.history.replaceState(null, "", window.location.pathname);
+    window.addEventListener("hashchange", reopen);
+    return () => {
+      generation.current += 1;
+      window.removeEventListener("hashchange", reopen);
+    };
+  }, []);
   async function submit() {
+    const started = generation.current;
     setBusy(true);
     setMessage("");
     try {
@@ -31,15 +49,17 @@ export default function BuyerMatchResponse() {
       });
       if (!result.ok || data?.recorded !== true)
         throw new Error(data?.error || "Your response could not be recorded.");
+      if (started !== generation.current) return;
       setMessage(
         kind === "unsubscribe"
           ? "You have been opted out of this network."
           : "Your response has been recorded.",
       );
     } catch (e: any) {
-      setMessage(e.message || "Response unavailable");
+      if (started === generation.current)
+        setMessage(e.message || "Response unavailable");
     } finally {
-      setBusy(false);
+      if (started === generation.current) setBusy(false);
     }
   }
   return (
