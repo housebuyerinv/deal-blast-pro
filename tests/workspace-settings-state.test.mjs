@@ -1,7 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
-import { URL } from 'node:url'
+import { URL, URLSearchParams } from 'node:url'
+import { setTimeout } from 'node:timers'
 import vm from 'node:vm'
 import ts from 'typescript'
 import { build } from 'esbuild'
@@ -83,14 +84,17 @@ const profileBundle = await build({ entryPoints: ['src/lib/accountProfile.ts'], 
 })
 let authenticatedId = 'B'
 let writes = []
+let beforeResult = () => {}
 globalThis.profileClientFixture = {
-  auth: { getUser: async () => ({ data: { user: { id: authenticatedId, email: authenticatedId + '@example.invalid' } } }) },
+  auth: { getUser: async () => ({ data: { user: { id: authenticatedId, email: authenticatedId + '@example.invalid' } } }),
+    getSession: async () => ({ data: { session: {user:{id:authenticatedId}} } }),
+  },
   from(table) {
     const query = { select() { return query }, eq() { return query },
       upsert(row) { writes.push({ table, row }); return query },
       update(row) { writes.push({ table, row }); return query },
-      maybeSingle: async () => ({ data: { user_id: authenticatedId, business_name: null, company: null } }),
-      single: async () => ({ data: { user_id: authenticatedId, ...writes.at(-1)?.row } }),
+      maybeSingle: async () => { const id=authenticatedId; beforeResult(); return { data: { user_id: id, business_name: null, company: null } } },
+      single: async () => { const id=authenticatedId; beforeResult(); return { data: { user_id: id, ...writes.at(-1)?.row } } },
     }
     return query
   },
@@ -180,4 +184,108 @@ test('an inventory request started by User A cannot populate User B after replac
   complete({ok:true,data:[{id:'A-deal'}]})
   await pending
   assert.equal(state.deals.length,0)
+})
+for (const [label, run] of [
+  ['workspace profile', () => profileApi.loadAccountProfile()],
+  ['onboarding', () => profileApi.loadAuthenticatedOnboardingState()],
+  ['billing', () => profileApi.loadPaymentPendingAccountStatus()],
+]) test(label+' result rejects account replacement before publication', async () => {
+  authenticatedId='A'; beforeResult=()=>{authenticatedId='B'}
+  try { await assert.rejects(run(),/Account changed/) } finally { beforeResult=()=>{} }
+})
+
+test('Settings save resolving after account replacement cannot rename the replacement workspace',async()=>{
+  authenticatedId='A';writes=[];beforeResult=()=>{authenticatedId='B'}
+  try { await assert.rejects(profileApi.saveAccountProfile({expectedUserId:'A',fullName:'Person A',businessName:'Workspace A'}),/Account changed/)
+    assert.equal(writes.length,1);assert.equal(writes[0].row.user_id,'A');assert.equal(writes[0].table,'account_profiles')
+  } finally {beforeResult=()=>{}}
+})
+test('stale onboarding save cannot bind User A completion to User B',async()=>{
+  authenticatedId='B';writes=[]
+  await assert.rejects(profileApi.saveAuthenticatedOnboardingState({expectedUserId:'A',completed:true}),/Account changed/)
+  assert.equal(writes.length,0)
+})
+test('unchanged authenticated account can still load onboarding',async()=>{
+  authenticatedId='A';beforeResult=()=>{}
+  assert.equal((await profileApi.loadAuthenticatedOnboardingState()).authUser.id,'A')
+})
+
+test('cloud snapshot restore rejects an account switch before local state writes', async()=>{
+  let active='A';let stored=0
+  globalThis.cloudClientFixture = {
+    auth: { getUser: async () => ({ data: { user: { id: active, email: active+'@example.invalid' } } }) },
+    from() {
+      const q = {
+        select() { return q }, eq() { return q },
+        async maybeSingle() {
+          active = 'B'
+          return { data: { snapshot: { state: { user: { id:'A',email:'A@example.invalid' }, settings:{} } } } }
+        },
+      }
+      return q
+    },
+  }
+  const bundle=await build({entryPoints:['src/lib/cloudSync.ts'],bundle:true,write:false,format:'esm',platform:'node',plugins:[{name:'cloud-client-fixture',setup(b){b.onResolve({filter:/supabase(Client)?$/},()=>({path:'client',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:'export const supabase=globalThis.cloudClientFixture'}))}}]})
+  globalThis.localStorage={setItem(){stored++}}
+  try {
+    const api=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'))
+    await assert.rejects(api.loadCloudAppDataToLocal({reload:false}),/Account changed/)
+    assert.equal(stored,0)
+  } finally {delete globalThis.localStorage;delete globalThis.cloudClientFixture}
+})
+
+test('late buyer insert result is discarded while same-account re-auth keeps it',async()=>{
+  const source=read('src/store/useAppStore.ts');const start=source.indexOf('      addBuyer: (partial) => {');const end=source.indexOf('      updateBuyer:',start)
+  const arrow=source.slice(start,end).trim().replace(/^addBuyer: /,'').replace(/,$/,'').replace("import('../lib/buyerSupabaseSync')",'Promise.resolve(buyerApi)')
+  const js=ts.transpileModule('const add = '+arrow+'; add',{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText
+  for(const target of ['B','A']){
+    let state={user:{id:'A',email:'a@example.invalid'},buyers:[],logActivity(){}}
+    let complete
+    const add=vm.runInNewContext(js,{get:()=>state,set:patch=>{state={...state,...(typeof patch==='function'?patch(state):patch)}},makeWorkspaceDataScopeKey:user=>user?.id,safeLower:v=>String(v).toLowerCase(),buyerApi:{insertBuyerToSupabase:()=>new Promise(resolve=>{complete=resolve})}})
+    add({name:'Same display name',email:'synthetic@example.invalid'})
+    await Promise.resolve()
+    state.user={id:target,email:target.toLowerCase()+'@example.invalid'}
+    complete({ok:true,data:{id:'A-buyer'}})
+    await new Promise(resolve=>setTimeout(resolve,0))
+    assert.equal(state.buyers.length,target==='A'?1:0)
+  }
+})
+test('BuyerMatch result is rejected after account replacement, including private admin data',async()=>{
+  const source=read('src/pages/app/BuyerMatch.tsx');const start=source.indexOf('async function request(');const end=source.indexOf('function Analysis',start)
+  const js=ts.transpileModule(source.slice(start,end)+'; request',{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText
+  let active='A';let complete;let notifyStarted
+  const started=new Promise(resolve=>{notifyStarted=resolve})
+  const request=vm.runInNewContext(js,{useAppStore:{getState:()=>({user:{id:active}})},supabase:{auth:{getSession:async()=>({data:{session:{access_token:'fixture',user:{id:active}}}})}},URLSearchParams,fetch:()=>new Promise(resolve=>{complete=resolve;notifyStarted()})})
+  const pending=request('admin-detail',{id:'A-deal'})
+  await started;active='B'
+  complete({ok:true,json:async()=>({privateBuyer:'A-only',exposureId:'A-exposure'})})
+  await assert.rejects(pending,/Account changed/)
+})
+test('buyer page global state writer rejects an old account closure',()=>{
+  const source=read('src/pages/app/Buyers.tsx');const start=source.indexOf('  const setAccountState =');const end=source.indexOf('  const effectivePlan =',start)
+  const js=ts.transpileModule(source.slice(start,end)+'; setAccountState',{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText
+  let active='A';let writes=0
+  const write=vm.runInNewContext(js,{useCallback:fn=>fn,user:{id:'A'},useAppStore:{getState:()=>({user:{id:active}}),setState:()=>{writes++}}})
+  active='B';write({buyers:[{id:'A-buyer'}]});assert.equal(writes,0)
+  active='A';write({buyers:[{id:'A-buyer'}]});assert.equal(writes,1)
+})
+test('buyer edit caches cannot match another account by shared buyer email',()=>{
+  const source=read('src/pages/app/Buyers.tsx');const start=source.indexOf('const BUYER_LOCAL_EDIT_OVERRIDES_KEY');const end=source.indexOf('const applyBuyerEditOverrides',start)
+  const js=ts.transpileModule(source.slice(start,end)+'; ({readBuyerEditOverrides,writeBuyerEditOverride})',{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText
+  let active='A';const cache=new Map()
+  const api=vm.runInNewContext(js,{window:{localStorage:{getItem:k=>cache.get(k),setItem:(k,v)=>cache.set(k,v)}},useAppStore:{getState:()=>({user:{id:active}})}})
+  api.writeBuyerEditOverride({id:'A-buyer',email:'same@example.invalid',notes:'A-private'},'A')
+  active='B';assert.equal(Object.keys(api.readBuyerEditOverrides()).length,0)
+  api.writeBuyerEditOverride({id:'A-late',email:'same@example.invalid'},'A')
+  assert.equal(cache.has('dbp_buyer_local_edit_overrides_v1:B'),false)
+  active='A';assert.equal(api.readBuyerEditOverrides()['id:A-buyer'].notes,'A-private')
+})
+
+test('inventory request survives same-account refresh with normalized email identity',async()=>{
+  const source=read('src/store/useAppStore.ts');const start=source.indexOf('      hydrateInventory: async () => {');const end=source.indexOf('      cacheInventoryDeal:',start)
+  const js=ts.transpileModule('const hydrate = '+source.slice(start,end).trim().replace(/^hydrateInventory: /,'').replace(/,$/,'')+'; hydrate',{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText
+  let state={user:{id:'A',email:'a@example.invalid'},deals:[],cleanupOrphanedDealData(){}};let complete
+  const hydrate=vm.runInNewContext(js,{get:()=>state,set:patch=>{state={...state,...patch}},listInventoryDeals:()=>new Promise(resolve=>{complete=resolve}),makeWorkspaceDataScopeKey:u=>u.id+':'+u.email.trim().toLowerCase()})
+  const pending=hydrate();state.user={id:'A',email:'A@example.invalid'}
+  complete({ok:true,data:[{id:'A-deal'}]});await pending;assert.equal(state.deals[0].id,'A-deal')
 })

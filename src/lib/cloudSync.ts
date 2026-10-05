@@ -1,5 +1,6 @@
 ﻿import { supabase } from './supabase'
 
+import { assertAuthenticatedAccount } from './accountRequestScope'
 const STORAGE_KEY = 'dealblastpro-v1'
 
 function normalizeEmail(value: any) {
@@ -83,6 +84,8 @@ export async function uploadLocalAppDataToCloud() {
   if (!raw) throw new Error('No local Deal Blast Pro data found.')
 
   const snapshot = JSON.parse(raw)
+  const snapshotOwner = snapshot?.state?.workspaceOwnerId || snapshot?.state?.user?.id
+  if (!snapshotOwner || snapshotOwner !== sessionData.user.id) throw new Error('Account changed. Refusing another workspace backup.')
   const safeSnapshot = stripPreviewOnlyState(snapshotMatchesSignedInUser(snapshot, sessionData.user)
     ? snapshot
     : clearPrivateSnapshotSlices(snapshot, sessionData.user))
@@ -125,6 +128,7 @@ export async function loadCloudAppDataToLocal(options?: { reload?: boolean; sile
     ? data.snapshot
     : clearPrivateSnapshotSlices(data.snapshot, sessionData.user))
 
+  await assertAuthenticatedAccount(sessionData.user.id)
   localStorage.setItem(STORAGE_KEY, JSON.stringify(safeSnapshot))
   window.dispatchEvent(new Event('dealblastpro:storage-sync'))
 

@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient'
 import type { TrialState } from './types'
+import { assertAuthenticatedAccount } from './accountRequestScope'
 import { getWorkspaceDisplayName, validateWorkspaceNameInput } from './workspaceName'
 
 export type AccountProfile = {
@@ -44,6 +45,7 @@ export async function loadPaymentPendingAccountStatus(signal?: AbortSignal): Pro
   if (signal) query = query.abortSignal(signal)
   const { data, error } = await query
   if (error) throw error
+  await assertAuthenticatedAccount(userId)
   if (!data?.plan_name || !data?.billing_status) return null
 
   const plan = String(data.plan_name) === 'Free Demo' ? 'Free' : String(data.plan_name)
@@ -204,6 +206,7 @@ export async function loadAccountProfile() {
     .maybeSingle()
 
   if (error) throw error
+  await assertAuthenticatedAccount(authUser.id)
   return {
     authUser,
     profile: data as AccountProfile | null,
@@ -225,6 +228,7 @@ export async function loadAuthenticatedOnboardingState() {
     .maybeSingle()
 
   if (error) throw error
+  await assertAuthenticatedAccount(authUser.id)
   return {
     authUser,
     profile: data as AccountProfile | null,
@@ -232,6 +236,7 @@ export async function loadAuthenticatedOnboardingState() {
 }
 
 export async function saveAuthenticatedOnboardingState(input: {
+  expectedUserId: string
   completed?: boolean
   skipped?: boolean
   completedAt?: string
@@ -243,6 +248,7 @@ export async function saveAuthenticatedOnboardingState(input: {
   if (userError) throw userError
   const authUser = userData.user
   if (!authUser?.id || !authUser.email) throw new Error('Sign in before saving onboarding state.')
+  if (authUser.id !== input.expectedUserId) throw new Error('Account changed. Reload before saving onboarding state.')
 
   const now = new Date().toISOString()
   const row: any = {
@@ -262,6 +268,7 @@ export async function saveAuthenticatedOnboardingState(input: {
     .single()
 
   if (error) throw error
+  await assertAuthenticatedAccount(authUser.id)
   return data as AccountProfile
 }
 
@@ -298,6 +305,7 @@ export async function saveAccountProfile(input: EditableAccountProfile) {
     .single()
 
   if (error) throw error
+  await assertAuthenticatedAccount(input.expectedUserId)
 
   if (businessName) {
     const { error: workspaceError } = await supabase

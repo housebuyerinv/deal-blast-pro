@@ -1,5 +1,5 @@
 ﻿
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useAppStore } from '../../store/useAppStore'
 import { useSearchParams } from 'react-router-dom'
 import Papa from 'papaparse'
@@ -557,16 +557,19 @@ const getBuyerEditOverrideKeys = (buyer: any): string[] => {
 const readBuyerEditOverrides = (): Record<string, any> => {
   try {
     if (typeof window === 'undefined') return {}
-    const raw = window.localStorage.getItem(BUYER_LOCAL_EDIT_OVERRIDES_KEY)
+    const ownerId = useAppStore.getState().user?.id
+    if (!ownerId) return {}
+    const raw = window.localStorage.getItem(BUYER_LOCAL_EDIT_OVERRIDES_KEY + ':' + ownerId)
     return raw ? JSON.parse(raw) : {}
   } catch {
     return {}
   }
 }
 
-const writeBuyerEditOverride = (buyer: any) => {
+const writeBuyerEditOverride = (buyer: any, expectedOwnerId: string | undefined) => {
   try {
     if (typeof window === 'undefined' || !buyer) return
+    if (!expectedOwnerId || useAppStore.getState().user?.id !== expectedOwnerId) return
     const overrides = readBuyerEditOverrides()
     const cleanBuyer = {
       ...buyer,
@@ -578,7 +581,7 @@ const writeBuyerEditOverride = (buyer: any) => {
       overrides[key] = cleanBuyer
     })
 
-    window.localStorage.setItem(BUYER_LOCAL_EDIT_OVERRIDES_KEY, JSON.stringify(overrides))
+    window.localStorage.setItem(BUYER_LOCAL_EDIT_OVERRIDES_KEY + ':' + expectedOwnerId, JSON.stringify(overrides))
   } catch (error) {
     console.warn('[Deal Blast Pro] Could not save local buyer edit override:', error)
   }
@@ -965,6 +968,10 @@ export default function Buyers() {
     addToSuppression,
     getBuyerMatchHistory, user, trial, settings
   } = useAppStore()
+  const setAccountState = useCallback((patch: Partial<ReturnType<typeof useAppStore.getState>> | ((state: ReturnType<typeof useAppStore.getState>) => Partial<ReturnType<typeof useAppStore.getState>>)) => {
+    if (!user?.id || useAppStore.getState().user?.id !== user.id) return
+    useAppStore.setState(patch)
+  }, [user?.id])
   const effectivePlan = getEffectivePlan(trial, user, settings)
   const buyerCapacity = getBuyerCapacity(effectivePlan, buyers.length)
   const buyerPortalReviewAllowed = canUseBuyerPortalReview(effectivePlan)
@@ -1172,12 +1179,12 @@ export default function Buyers() {
       data: { ...(result.data?.data || {}), ...(submittedUpdates.data || {}) },
     }
 
-    writeBuyerEditOverride(savedBuyer)
+    writeBuyerEditOverride(savedBuyer, user?.id)
 
     // BUYER_FORCE_GRID_UPDATE_AFTER_SAVE_V1
     // Force the visible Deal Blast Pro buyer grid/store to use the values just saved.
     // This prevents the card from staying on stale Supabase/local state after the toast says saved.
-    useAppStore.setState((state: any) => {
+    setAccountState((state: any) => {
       const savedEmail = String(savedBuyer?.email || '').trim().toLowerCase()
 
       return {
@@ -1262,7 +1269,7 @@ export default function Buyers() {
     }
 
     const removeSet = new Set(cleanIds)
-    useAppStore.setState((state: any) => {
+    setAccountState((state: any) => {
       const nextBuyerResponses = { ...(state.buyerResponses || {}) }
       cleanIds.forEach(id => delete nextBuyerResponses[id])
       const nextDealSuppressions: any = {}
@@ -1334,14 +1341,14 @@ export default function Buyers() {
       const cloudBuyers = applyBuyerEditOverrides(dedupeCloudBuyers(Array.isArray(result.data) ? result.data : []))
 
       if (!cancelled) {
-        useAppStore.setState({ buyers: cloudBuyers as any })
+        setAccountState({ buyers: cloudBuyers as any })
       }
     })()
 
     return () => {
       cancelled = true
     }
-  }, [effectivePlan])
+  }, [effectivePlan, user?.id, setAccountState])
 
   const [search, setSearch] = useState('')
 const [showImport, setShowImport] = useState(false)
@@ -1593,9 +1600,10 @@ const [showImport, setShowImport] = useState(false)
   }
 
   // Buyer Custom Lists (localStorage persisted)
+  const [buyerListsKey] = useState(() => 'dbp_buyer_lists:' + (user?.id || 'signed-out'))
   const [buyerLists, setBuyerLists] = useState<any[]>(() => {
     try {
-      const saved = localStorage.getItem('dbp_buyer_lists')
+      const saved = localStorage.getItem(buyerListsKey)
       return saved ? JSON.parse(saved) : []
     } catch { return [] }
   })
@@ -1615,8 +1623,9 @@ const [showImport, setShowImport] = useState(false)
 
   // Persist buyer lists
   React.useEffect(() => {
-    try { localStorage.setItem('dbp_buyer_lists', JSON.stringify(buyerLists)) } catch {}
-  }, [buyerLists])
+    if (!user?.id || useAppStore.getState().user?.id !== user.id) return
+    try { localStorage.setItem(buyerListsKey, JSON.stringify(buyerLists)) } catch {}
+  }, [buyerLists, buyerListsKey, user?.id])
 
   useEffect(() => {
     if (!selectedBuyer?.id) return
@@ -1766,7 +1775,7 @@ const [showImport, setShowImport] = useState(false)
 
     const savedKeeper = updateResult.data || merged
     const duplicateSet = new Set(duplicateIds)
-    useAppStore.setState((state: any) => ({
+    setAccountState((state: any) => ({
       buyers: (state.buyers || [])
         .map((buyer: any) => buyer.id === keeper.id ? { ...buyer, ...savedKeeper, id: keeper.id } : buyer)
         .filter((buyer: any) => !duplicateSet.has(buyer.id)),
@@ -4037,7 +4046,7 @@ const cleanBuyerName = (value: any, emailValue = '') => {
 
     const cloud = await fetchBuyersFromSupabase({ force: true })
     if (cloud.ok) {
-      useAppStore.setState({ buyers: Array.isArray(cloud.data) ? cloud.data as any : [] })
+      setAccountState({ buyers: Array.isArray(cloud.data) ? cloud.data as any : [] })
     } else {
       console.warn('[Deal Blast Pro] Buyer reload after portal approval failed:', cloud.error)
       if (approved > 0) toast.warning('Approved buyers saved, but the buyer list refresh needs review.')
@@ -4127,7 +4136,7 @@ const cleanBuyerName = (value: any, emailValue = '') => {
 
     const cloud = await fetchBuyersFromSupabase({ force: true })
     if (cloud.ok) {
-      useAppStore.setState({ buyers: Array.isArray(cloud.data) ? cloud.data as any : [] })
+      setAccountState({ buyers: Array.isArray(cloud.data) ? cloud.data as any : [] })
     } else {
       console.warn('[Deal Blast Pro] Buyer reload after approval failed:', cloud.error)
     }
@@ -4647,7 +4656,7 @@ const cleanBuyerName = (value: any, emailValue = '') => {
                 return
               }
 
-              useAppStore.setState((state: any) => {
+              setAccountState((state: any) => {
                 const nextBuyerResponses = { ...(state.buyerResponses || {}) }
                 idsToDelete.forEach(id => delete nextBuyerResponses[id])
 
@@ -4691,7 +4700,7 @@ const cleanBuyerName = (value: any, emailValue = '') => {
                 return
               }
 
-              useAppStore.setState((state: any) => ({
+              setAccountState((state: any) => ({
                 buyers: [],
                 viewedBuyerIds: [],
                 buyerResponses: {},

@@ -44,7 +44,7 @@ export default function OnboardingTour() {
     ;(async () => {
       try {
         const result = await loadAuthenticatedOnboardingState()
-        if (!active || result.authUser.id !== user.id) return
+        if (!active || result.authUser.id !== user.id || useAppStore.getState().user?.id !== user.id) return
         const serverVersion = Number(result.profile?.onboarding_version_completed || 0)
         const serverHasCurrentVersion = serverVersion >= CURRENT_ONBOARDING_VERSION
 
@@ -70,12 +70,13 @@ export default function OnboardingTour() {
           const completedAt = onboarding.onboardingCompletedAt || onboarding.tourCompletedAt || new Date().toISOString()
           const dismissedAt = onboarding.onboardingDismissedAt || onboarding.tourCompletedAt || new Date().toISOString()
           await saveAuthenticatedOnboardingState({
+            expectedUserId: user.id,
             completed: Boolean(onboarding.tourCompleted),
             skipped: Boolean(onboarding.tourSkipped),
             completedAt,
             dismissedAt,
           })
-          if (!active) return
+          if (!active || useAppStore.getState().user?.id !== user.id) return
           updateSettings({
             onboarding: {
               ...onboarding,
@@ -108,6 +109,7 @@ export default function OnboardingTour() {
   const currentStep = TOUR_STEPS.find(s => s.id === step) || TOUR_STEPS[0]
 
   const persistTourState = async (skipped: boolean) => {
+    if (!user?.id || useAppStore.getState().user?.id !== user.id) return
     const now = new Date().toISOString()
     updateSettings({
       onboarding: {
@@ -125,6 +127,7 @@ export default function OnboardingTour() {
     setManualRestart(false)
     try {
       await saveAuthenticatedOnboardingState({
+        expectedUserId: user.id,
         completed: !skipped,
         skipped,
         completedAt: skipped ? undefined : now,

@@ -718,7 +718,11 @@ export async function fetchBuyersFromSupabase(options?: { force?: boolean }) {
     return { ok: false, data: [], error: 'Supabase client not configured' }
   }
 
+  const scopeGeneration = buyerHydrationGeneration
   const scope = await getBuyerScope()
+  if (scopeGeneration !== buyerHydrationGeneration) {
+    return { ok: false, data: [], error: 'Buyer account changed while resolving workspace.' }
+  }
   if (!scope) {
     return { ok: true, data: [], error: null }
   }

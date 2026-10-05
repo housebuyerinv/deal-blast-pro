@@ -1581,6 +1581,7 @@ export const useAppStore = create<AppStore>()(
 
       // Buyers
       addBuyer: (partial) => {
+        const scope = makeWorkspaceDataScopeKey(get().user)
         const id = 'B' + Date.now().toString(36).toUpperCase()
         const buyer: Buyer = {
           ...partial,
@@ -1591,8 +1592,12 @@ export const useAppStore = create<AppStore>()(
           markets: partial.markets || []
         }
         void import('../lib/buyerSupabaseSync')
-          .then(m => m.insertBuyerToSupabase(buyer))
+          .then(m => {
+            if (!get().user || makeWorkspaceDataScopeKey(get().user) !== scope) throw new Error('Account changed.')
+            return m.insertBuyerToSupabase(buyer)
+          })
           .then(result => {
+            if (!get().user || makeWorkspaceDataScopeKey(get().user) !== scope) return
             if (!result.ok || !result.data) {
               console.warn('[Deal Blast Pro] Buyer Supabase insert failed:', result.error)
               return
@@ -1625,6 +1630,7 @@ export const useAppStore = create<AppStore>()(
         return buyer
       },
       updateBuyer: (id, updates) => {
+        const scope = makeWorkspaceDataScopeKey(get().user)
         const cleanUpdates: any = {
           ...updates,
           ...(updates.email ? { email: updates.email.trim() } : {}),
@@ -1640,8 +1646,12 @@ export const useAppStore = create<AppStore>()(
 
         if (updatedBuyer) {
           void import('../lib/buyerSupabaseSync')
-            .then(m => m.updateBuyerInSupabase(id, updatedBuyer))
+            .then(m => {
+              if (!get().user || makeWorkspaceDataScopeKey(get().user) !== scope) throw new Error('Account changed.')
+              return m.updateBuyerInSupabase(id, updatedBuyer)
+            })
             .then(result => {
+              if (!get().user || makeWorkspaceDataScopeKey(get().user) !== scope) return
               if (!result.ok) {
                 console.warn('[Deal Blast Pro] Buyer Supabase update failed:', result.error)
                 return
@@ -1658,9 +1668,14 @@ export const useAppStore = create<AppStore>()(
         }
       },
       deleteBuyer: (id) => {
+        const scope = makeWorkspaceDataScopeKey(get().user)
         void import('../lib/buyerSupabaseSync')
-          .then(m => m.deleteBuyersFromSupabase([id]))
+          .then(m => {
+            if (!get().user || makeWorkspaceDataScopeKey(get().user) !== scope) throw new Error('Account changed.')
+            return m.deleteBuyersFromSupabase([id])
+          })
           .then(result => {
+            if (!get().user || makeWorkspaceDataScopeKey(get().user) !== scope) return
             if (!result.ok) {
               console.warn('[Deal Blast Pro] Buyer Supabase delete failed:', result.error)
               return

@@ -4,13 +4,17 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import Papa from "papaparse";
 import { supabase } from "../../lib/supabase";
+import { useAppStore } from "../../store/useAppStore";
 
 type RecordData = Record<string, any>;
 const inputClass =
   "w-full rounded-lg border border-[#30384a] bg-[#0b101a] p-3 text-white";
 async function request(action: string, data: RecordData = {}, read = false) {
+  const ownerId = useAppStore.getState().user?.id;
   const { data: session } = await supabase.auth.getSession();
   if (!session.session?.access_token) throw new Error("Sign in to continue.");
+  if (!ownerId || session.session.user.id !== ownerId || useAppStore.getState().user?.id !== ownerId)
+    throw new Error("Account changed. Reload BuyerMatch.");
   const response = await fetch(
     read
       ? `/api/buyermatch?${new URLSearchParams({ action, ...data })}`
@@ -27,6 +31,9 @@ async function request(action: string, data: RecordData = {}, read = false) {
   const result = await response
     .json()
     .catch(() => ({ error: "BuyerMatch is temporarily unavailable." }));
+  const { data: latestSession } = await supabase.auth.getSession();
+  if (useAppStore.getState().user?.id !== ownerId || latestSession.session?.user.id !== ownerId)
+    throw new Error("Account changed. Reload BuyerMatch.");
   if (!response.ok)
     throw Object.assign(new Error(result.error || "Request failed"), {
       status: response.status,

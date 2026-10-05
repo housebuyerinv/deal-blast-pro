@@ -105,7 +105,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
           headers: { Authorization: `Bearer ${token}` },
         })
         const payload = await response.json().catch(() => ({}))
-        if (cancelled) return
+        const { data: latestSession } = await supabase.auth.getSession()
+        if (cancelled || latestSession.session?.user.id !== session.user.id) return
 
         if (response.status === 403 || payload?.deactivated) {
           await supabase.auth.signOut().catch(() => {})
@@ -230,6 +231,7 @@ function App() {
   useCloudAutoSave()
   const initializeStore = useAppStore(s => s.initialize)
   const billingStatus = useAppStore(s => s.trial.billingStatus)
+  const billingUserId = useAppStore(s => s.user?.id)
   const activateManualPlan = useAppStore(s => s.activateManualPlan)
 
   useEffect(() => {
@@ -258,6 +260,7 @@ function App() {
         const activation = await loadPaymentPendingAccountStatus(activeController.signal)
         if (
           cancelled ||
+          useAppStore.getState().user?.id !== billingUserId ||
           !activation?.plan ||
           !activation.billingStatus ||
           activation.billingStatus === 'Payment Pending'
@@ -298,7 +301,7 @@ function App() {
       window.removeEventListener('focus', refreshWhenVisible)
       document.removeEventListener('visibilitychange', refreshWhenVisible)
     }
-  }, [billingStatus, activateManualPlan])
+  }, [billingStatus, billingUserId, activateManualPlan])
 
   return (
     <ErrorBoundary>
@@ -367,6 +370,4 @@ function App() {
 }
 
 export default App
-
-
 
