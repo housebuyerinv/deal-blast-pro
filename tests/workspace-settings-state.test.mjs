@@ -289,3 +289,12 @@ test('inventory request survives same-account refresh with normalized email iden
   const pending=hydrate();state.user={id:'A',email:'A@example.invalid'}
   complete({ok:true,data:[{id:'A-deal'}]});await pending;assert.equal(state.deals[0].id,'A-deal')
 })
+test('an old getUser HTTP response cannot override the latest authenticated session',async()=>{
+  const auth=globalThis.profileClientFixture.auth
+  const originalGetUser=auth.getUser
+  try {
+    authenticatedId='B'
+    auth.getUser=async()=>({data:{user:{id:'A',email:'a@example.invalid'}}})
+    await assert.rejects(profileApi.loadAccountProfile(),/Account changed/)
+  } finally {auth.getUser=originalGetUser}
+})

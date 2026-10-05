@@ -7,4 +7,10 @@ export async function assertAuthenticatedAccount(expectedUserId: string) {
   if (error || !expectedUserId || data.user?.id !== expectedUserId) {
     throw new Error('Account changed. Reload before continuing.')
   }
+  // getUser itself may have been in flight during replacement. Check the
+  // client's latest session too rather than trusting that older HTTP result.
+  const { data: current, error: sessionError } = await supabase.auth.getSession()
+  if (sessionError || current.session?.user.id !== expectedUserId) {
+    throw new Error('Account changed. Reload before continuing.')
+  }
 }
