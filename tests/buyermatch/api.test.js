@@ -103,6 +103,11 @@ globalThis.__buyerMatchFixture = {
         : { data: { user: null }, error: {} },
   },
   from: (table) => new Query(table),
+  rpc: async (name, args) => {
+    calls.push({ rpc: name, args });
+    if (name === 'bm_account_usage') return {data: {analysis:{used:2,remaining:18},softwareDistribution:{used:1,remaining:19},managedDispo:{used:3,remaining:7}},error:null};
+    return {data:{accounts:[]},error:null};
+  },
 };
 const compiled = await build({
   entryPoints: ["server/http/buyermatch.ts"],
@@ -259,6 +264,7 @@ test("Production outreach uses authenticated owner, denies cross-owner and fails
     Object.keys(config).map((k) => [k, process.env[k]]),
   );
   const rpc = [];
+  const previousRpc = globalThis.__buyerMatchFixture.rpc;
   globalThis.__buyerMatchFixture.rpc = async (name, args) => {
     rpc.push({ name, args });
     return { data: { status: "queued", sent: false } };
@@ -289,7 +295,7 @@ test("Production outreach uses authenticated owner, denies cross-owner and fails
     });
   } finally {
     records.bm_deals[0].owner_id = owner;
-    delete globalThis.__buyerMatchFixture.rpc;
+    globalThis.__buyerMatchFixture.rpc = previousRpc;
     for (const [key, value] of Object.entries(prior)) {
       if (value === undefined) delete process.env[key];
       else process.env[key] = value;
@@ -323,6 +329,7 @@ test('BuyerMatch access is independent of CRM plans and denies inactive entitlem
 test("all private admin operations deny regular accounts before network access", async () => {
   for (const action of [
     "admin-list",
+    "admin-usage",
     "admin-detail",
     "admin-preview",
     "admin-import",
@@ -385,4 +392,15 @@ test("terminal deal cannot be reopened by title edit or administrator contract a
     records.bm_deals[0].status = before;
     delete process.env.DEALBLAST_OWNER_ADMIN_EMAILS;
   }
+});
+
+test('plans binds usage to authenticated owner and excludes operating metrics', async () => {
+  calls.length=0;
+  const response=await invoke('plans',{ownerId:'99999999-9999-4999-8999-999999999999'});
+  assert.equal(response.statusCode,200);
+  assert.equal(calls.find(c=>c.rpc==='bm_account_usage').args.p_owner,owner);
+  assert.equal(response.body.usage.softwareDistribution.used,1);
+  assert.equal(response.body.usage.managedDispo.used,3);
+  assert.equal('accounts' in response.body,false);
+  assert.equal('hypothetical' in response.body,false);
 });

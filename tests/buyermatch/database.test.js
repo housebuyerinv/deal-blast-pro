@@ -36,6 +36,7 @@ for (const name of [
   "20261006010804_buyermatch_conversation_safety.sql",
   "20261006013219_buyermatch_portal_sync_atomic.sql",
   "20261006013640_buyermatch_software_distribution.sql",
+  "20261006030201_buyermatch_usage_accounting.sql",
 ])
   await db.exec(
     readFileSync(
@@ -1081,23 +1082,23 @@ test('portal buyer approval retries preserve one identity, unverified status, su
 });
 
 test('software distribution needs no network subscription or fee agreement; managed distribution still does', async () => {
- const who=randomUUID(), d=randomUUID(), buyer=randomUUID();
+ const who=randomUUID(), d=randomUUID(), buyer=randomUUID(), buyer2=randomUUID(), buyer3=randomUUID();
  await db.query('insert into auth.users values($1)',[who]);
  await db.query("insert into bm_entitlements values($1,'buyermatch','software-v1','active',now()-interval '1 day',now()+interval '30 days',5,null,0)",[who]);
  const contract=`${who}/${d}/contract.pdf`;
  await db.query("insert into storage.objects(bucket_id,name) values('buyermatch-private',$1)",[contract]);
  await db.query("insert into bm_deals(id,owner_id,property,title,status,contract_verified,admin_approved,contract_key) values($1,$2,$3,$4,'approved_for_distribution',true,true,$5)",[d,who,{...property,serviceType:'software'},{company:'Synthetic Title',name:'Agent',email:'title@example.invalid',phone:'5555555555',eoc:'2099-01-01'},contract]);
- await db.query("insert into bm_buyers(id,identity_ciphertext,identity_hash,criteria,status,consent_evidence,synthetic) values($1,'encrypted',$2,'{}','active','SYNTHETIC CONSENT',true)",[buyer,randomUUID()]);
+ for (const recipient of [buyer,buyer2,buyer3]) await db.query("insert into bm_buyers(id,identity_ciphertext,identity_hash,criteria,status,consent_evidence,synthetic) values($1,'encrypted',$2,'{}','active','SYNTHETIC CONSENT',true)",[recipient,randomUUID()]);
  for(const kind of ['network','deal_certification']) {
   const doc=(await db.query('select id,document_hash from bm_documents where kind=$1 and current and approved limit 1',[kind])).rows[0];
   await db.query('select bm_accept_document($1,$2,$3,$4,$5)',[who,d,doc.id,doc.document_hash,'Synthetic Owner']);
  }
- await db.query('insert into bm_analyses(deal_id,owner_id,operation_key,private_result,public_result) values($1,$2,$3,$4,$5)',[d,who,randomUUID(),{matches:[{buyerId:buyer,eligible:true}]},{}]);
+ await db.query('insert into bm_analyses(deal_id,owner_id,operation_key,private_result,public_result) values($1,$2,$3,$4,$5)',[d,who,randomUUID(),{matches:[buyer,buyer2,buyer3].map(buyerId=>({buyerId,eligible:true}))},{}]);
  const key=randomUUID(), queue=()=>db.query('select bm_queue_distribution($1,$2,$3) value',[who,d,key]);
  const results=await Promise.all([queue(),queue(),queue()]);
  assert.equal(new Set(results.map(r=>r.rows[0].value.requestId)).size,1);
  const exposures=(await db.query('select frozen_terms from bm_exposures where deal_id=$1',[d])).rows;
- assert.equal(exposures.length,1);assert.equal(exposures[0].frozen_terms.serviceType,'software');assert.equal(exposures[0].frozen_terms.policy.enabled,false);
+ assert.equal(exposures.length,3);assert.equal(exposures[0].frozen_terms.serviceType,'software');assert.equal(exposures[0].frozen_terms.policy.enabled,false);
  assert.equal(exposures[0].frozen_terms.acceptances.some(a=>a.kind==='fee_schedule'),false);
  const managed=randomUUID();
  await db.query("insert into bm_deals(id,owner_id,property,title,status,contract_verified,admin_approved,contract_key) select $1,owner_id,jsonb_set(property,'{serviceType}','\"managed_dispo\"'),title,'approved_for_distribution',true,true,contract_key from bm_deals where id=$2",[managed,d]);
@@ -1105,5 +1106,42 @@ test('software distribution needs no network subscription or fee agreement; mana
  await db.query("insert into bm_entitlements values($1,'network','network-v1','active',now()-interval '1 day',now()+interval '30 days',5,null,0)",[who]);
  await assert.rejects(db.query('select bm_queue_distribution($1,$2,$3)',[who,managed,randomUUID()]),/agreements/);
  assert.equal((await db.query('select count(*)::int n from bm_outbox o join bm_exposures e on e.id=o.exposure_id where e.deal_id=$1 and o.accepted_at is not null',[d])).rows[0].n,0);
+ const usage=(await db.query('select bm_account_usage($1) value',[who])).rows[0].value;
+ assert.equal(usage.analysis.used,1);assert.equal(usage.softwareDistribution.used,1);assert.equal(usage.softwareDistribution.remaining,4);assert.equal(usage.managedDispo.used,0);
+ const metrics=(await db.query('select bm_operating_metrics($1) value',[who])).rows[0].value;
+ assert.equal(metrics.softwareExposures,3);assert.deepEqual(metrics.softwareFanout,{average:3,median:3,minimum:3,maximum:3});
+ assert.equal(metrics.retryAttempts,0);assert.equal(metrics.deduplicatedOrRejectedAttempts,null);
+ assert.equal(JSON.stringify(usage).includes(buyer),false);
+ // Complete a Managed Dispo request for the SAME account; neither counter contaminates the other.
+ for(const kind of ['network','deal_certification','fee_schedule']) {
+  const doc=(await db.query('select id,document_hash from bm_documents where kind=$1 and current and approved limit 1',[kind])).rows[0];
+  await db.query('select bm_accept_document($1,$2,$3,$4,$5)',[who,managed,doc.id,doc.document_hash,'Synthetic Owner']);
+ }
+ await db.query("insert into bm_fee_policies(state,plan_version,version,approved,enabled,formula,document_id) values('TN','network-v1','mixed-v1',true,false,'{}',(select id from bm_documents where kind='fee_schedule' and current and approved limit 1))");
+ await db.query('insert into bm_analyses(deal_id,owner_id,operation_key,private_result,public_result) values($1,$2,$3,$4,$5)',[managed,who,randomUUID(),{matches:[{buyerId:buyer,eligible:true}]},{}]);
+ await db.query('select bm_queue_distribution($1,$2,$3)',[who,managed,randomUUID()]);
+ const mixed=(await db.query('select bm_account_usage($1) value',[who])).rows[0].value;
+ assert.equal(mixed.softwareDistribution.used,1);assert.equal(mixed.managedDispo.used,1);
+ const emptyDeal=randomUUID();
+ await db.query("insert into bm_deals(id,owner_id,property,title,status,contract_verified,admin_approved,contract_key) select $1,owner_id,property,title,'approved_for_distribution',true,true,contract_key from bm_deals where id=$2",[emptyDeal,d]);
+ for(const kind of ['network','deal_certification']) {
+  const doc=(await db.query('select id,document_hash from bm_documents where kind=$1 and current and approved limit 1',[kind])).rows[0];
+  await db.query('select bm_accept_document($1,$2,$3,$4,$5)',[who,emptyDeal,doc.id,doc.document_hash,'Synthetic Owner']);
+ }
+ await db.query('insert into bm_analyses(deal_id,owner_id,operation_key,private_result,public_result) values($1,$2,$3,$4,$5)',[emptyDeal,who,randomUUID(),{matches:[]},{}]);
+ await assert.rejects(db.query('select bm_queue_distribution($1,$2,$3)',[who,emptyDeal,randomUUID()]),/No consented/);
+ assert.equal((await db.query('select count(*)::int n from bm_distribution_requests where deal_id=$1',[emptyDeal])).rows[0].n,0,'failed reservation rolls back attribution and usage');
+ await db.query("update bm_deals set status='closed',property=jsonb_set(property,'{serviceType}','\"managed_dispo\"') where id=$1",[d]);
+ assert.equal((await db.query('select bm_account_usage($1) value',[who])).rows[0].value.softwareDistribution.used,1,'frozen usage survives mutable deal changes');
+ await assert.rejects(db.query('select bm_queue_distribution($1,$2,$3)',[who,d,randomUUID()]),/Contract review/);
+ await assert.rejects(db.query('select bm_queue_distribution($1,$2,$3)',[other,d,randomUUID()]),/Deal not found/);
+ await db.query("update bm_entitlements set status='inactive' where owner_id=$1 and product='buyermatch'",[who]);
+ await assert.rejects(db.query('select bm_queue_distribution($1,$2,$3)',[who,emptyDeal,randomUUID()]),/entitlement/);
+ const inactive=(await db.query('select bm_account_usage($1) value',[who])).rows[0].value;
+ assert.equal(inactive.analysis.active,false);assert.equal(inactive.softwareDistribution.remaining,0);assert.equal(inactive.softwareDistribution.used,1);
+ for(const role of ['anon','authenticated']) {
+  assert.equal((await db.query("select has_table_privilege($1,'bm_distribution_usage','SELECT') allowed",[role])).rows[0].allowed,false);
+  for(const fn of ['bm_account_usage(uuid)','bm_operating_metrics(uuid)']) assert.equal((await db.query("select has_function_privilege($1,$2,'EXECUTE') allowed",[role,fn])).rows[0].allowed,false);
+ }
 });
 

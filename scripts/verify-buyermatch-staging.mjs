@@ -155,6 +155,11 @@ try {
     process.exit(0);
   }
   const list = await api(admin, "admin-list");
+  await api(user, 'admin-usage', {}, 403);
+  const ownUsage = await api(user, 'plans');
+  const forgedUsage = await api(user, 'plans', { ownerId: other.id, workspaceId: other.id });
+  ensure(JSON.stringify(ownUsage.usage) === JSON.stringify(forgedUsage.usage), 'Customer cannot choose another account usage');
+  ensure(!('accounts' in ownUsage) && !('hypothetical' in ownUsage), 'Customer plans excludes admin simulations');
   ensure(
     list.buyers.length >= 6 &&
       list.buyers.every(
@@ -232,8 +237,9 @@ try {
     "Checkout and success fees remain disabled",
   );
   const operationKey = randomUUID();
-  const first = await api(user, "analyze", { id, operationKey });
-  const retry = await api(user, "analyze", { id, operationKey });
+  const concurrentAnalyses = await Promise.all(Array.from({length:4},()=>api(user, 'analyze', {id,operationKey})));
+  const [first,retry] = concurrentAnalyses;
+  ensure(concurrentAnalyses.every(result=>JSON.stringify(result)===JSON.stringify(first)), 'Simultaneous analysis retries return the same saved result');
   ensure(
     JSON.stringify(first) === JSON.stringify(retry),
     "Analysis retry replays original result",
@@ -300,6 +306,9 @@ try {
       queued.requestId,
     "Distribution retry reuses reservation",
   );
+  const managedUsage = await api(user, 'plans');
+  ensure(managedUsage.usage.managedDispo.used === ownUsage.usage.managedDispo.used + 1, 'Managed Dispo reservation consumes one Network unit');
+  ensure(managedUsage.usage.softwareDistribution.used === ownUsage.usage.softwareDistribution.used, 'Managed Dispo does not consume Software distribution units');
   const sent = await api(admin, "admin-test-dispatch");
   ensure(sent.sent > 0 && sent.retry === 0, "Synthetic delivery accepted");
   await api(admin, "admin-test-dispatch");
@@ -406,6 +415,7 @@ try {
   const messageBody = { ...responseBody, kind: 'message', terms: 'SYNTHETIC question contact@example.invalid (202) 555-0101' };
   // Prove the normal software product independently of the legacy Network entitlement.
   const software = await api(other, 'save', { property: { ...property, serviceType: 'software' } });
+  const softwareBefore = await api(other, 'plans');
   const softwareUpload = await api(other, 'upload', { id: software.id, purpose: 'contract' });
   const softwareStored = await other.db.storage.from('buyermatch-private').uploadToSignedUrl(softwareUpload.path, softwareUpload.token, pdf, { contentType: 'application/pdf' });
   ensure(!softwareStored.error, 'Software deal private PDF upload');
@@ -425,6 +435,17 @@ try {
     ensure(new Set(softwareRequests.map(r => r.requestId)).size === 1, 'Software distribution concurrent retries reserve once without Network access');
     const softwareDetail = await api(admin, 'admin-detail', { id: software.id });
     ensure(softwareDetail.exposures.length > 0 && softwareDetail.exposures.every(e => e.frozen_terms.serviceType === 'software' && e.frozen_terms.policy.enabled === false && !e.frozen_terms.acceptances.some(a => a.kind === 'fee_schedule')), 'Software exposures have no fee agreement or enabled fee policy');
+    const softwareAfter = await api(other, 'plans');
+    ensure(softwareAfter.usage.softwareDistribution.used === softwareBefore.usage.softwareDistribution.used + 1, 'Concurrent software retries consume one unit independent of fanout');
+    ensure(softwareAfter.usage.managedDispo.used === softwareBefore.usage.managedDispo.used, 'Software does not inflate Network usage');
+    ensure(softwareAfter.usage.analysis.used === softwareBefore.usage.analysis.used + 1, 'Software analysis counted separately');
+    const attribution = await verificationDb.from('bm_distribution_requests').select('service_type,period_start,period_end').eq('deal_id',software.id).single();
+    ensure(!attribution.error && attribution.data.service_type === 'software' && attribution.data.period_start && attribution.data.period_end, 'Reservation freezes service and billing-period attribution');
+    const economics = await api(admin, 'admin-usage', { ownerId: other.id });
+    const distributionRows = await verificationDb.from('bm_distribution_usage').select('fanout').eq('owner_id',other.id).eq('service_type','software');
+    ensure(!distributionRows.error && economics.softwareExposures === distributionRows.data.reduce((sum,row)=>sum+row.fanout,0), 'Admin fanout matches immutable reservation exposures');
+    ensure(economics.accounts.length === 1 && economics.accounts[0].hypothetical.starter.softwareDistribution.remaining === Math.max(0,20-softwareAfter.usage.softwareDistribution.used), 'Admin hypothetical Starter is display-only and correctly counted');
+    privateSafe(softwareAfter.usage);
   } finally {
     const restored = await verificationDb.from('bm_entitlements').update({ status: networkBefore.data.status }).eq('owner_id', other.id).eq('product', 'network');
     ensure(!restored.error, 'Synthetic Network entitlement restored');

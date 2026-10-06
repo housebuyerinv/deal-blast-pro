@@ -22,6 +22,7 @@ import { deliveryAvailability } from "../buyermatch/availability.js";
 import { hasBuyerMatchAccess } from "../../src/lib/buyerMatchAccess.js";
 import { safeConversationText } from '../buyermatch/conversation.js';
 import { billingConfig, isLiveSoftwarePrice } from "../buyermatch/billing-config.js";
+import { simulatePlans } from '../buyermatch/usage.js';
 import {
   dealSchema,
   criteriaSchema,
@@ -98,6 +99,7 @@ export default async function handler(req: any, res: any) {
       "plans",
       "access",
       "admin-list",
+      "admin-usage",
       "documents",
     ]);
     if (req.method === "GET" && !readActions.has(action))
@@ -126,6 +128,10 @@ export default async function handler(req: any, res: any) {
     const emit = (value: any) => res.status(200).json(value);
     if (action.startsWith("admin-")) {
       assertAdmin(account);
+      if (action === 'admin-usage') {
+        const metrics = checked(await db.rpc('bm_operating_metrics', { p_owner: body.ownerId ? uuid.parse(body.ownerId) : null }));
+        return emit({ ...metrics, accounts: metrics.accounts.map((item: any) => ({ ...item, hypothetical: simulatePlans(item.usage) })) });
+      }
       if (action === "admin-test-dispatch") {
         assertStaging();
         const provider = testProvider();
@@ -661,23 +667,12 @@ export default async function handler(req: any, res: any) {
           )
           .eq("owner_id", user.id),
       );
+      // Never take a customer-supplied owner/workspace ID for quota reporting.
+      const usage = checked(await db.rpc('bm_account_usage', { p_owner: user.id }));
       for (const entitlement of entitlements) {
-        const usage = await db
-          .from(
-            entitlement.product === "buyermatch"
-              ? "bm_analyses"
-              : "bm_distribution_requests",
-          )
-          .select("id", { count: "exact", head: true })
-          .eq("owner_id", user.id)
-          .gte("created_at", entitlement.period_start)
-          .lt("created_at", entitlement.period_end);
-        checked(usage);
-        entitlement.used = usage.count || 0;
-        entitlement.remaining = Math.max(
-          0,
-          entitlement.allowance - entitlement.used,
-        );
+        const counter = entitlement.product === 'buyermatch' ? usage.analysis : usage.managedDispo;
+        entitlement.used = counter.used;
+        entitlement.remaining = counter.remaining;
       }
       let catalog: any[] = [];
       let checkoutEnabled = false;
@@ -720,6 +715,7 @@ export default async function handler(req: any, res: any) {
       return emit({
         catalog,
         entitlements,
+        usage,
         checkoutEnabled,
         checkoutMode: checkoutEnabled ? (checkoutLive ? 'live' : 'test') : 'disabled',
         ...deliveryAvailability(

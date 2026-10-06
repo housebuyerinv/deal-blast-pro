@@ -1,5 +1,6 @@
 import BuyerCriteriaEditor from "./BuyerCriteriaEditor";
 import BuyerMatchConfiguration from "./BuyerMatchConfiguration";
+import { UsageCards, AdminUsage } from './BuyerMatchUsage';
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import Papa from "papaparse";
@@ -130,7 +131,9 @@ export default function BuyerMatch() {
     if (isAdmin) {
       if (!plan.isNetworkAdmin)
         throw new Error("Network administrator required");
-      setData(await request("admin-list", { page: String(adminPage) }, true));
+      const listing = await request("admin-list", { page: String(adminPage) }, true);
+      const metrics = await request('admin-usage', {}, true);
+      setData({ ...listing, metrics });
       return;
     }
     if (id) {
@@ -243,6 +246,7 @@ export default function BuyerMatch() {
       )}
       {isPlans ? (
         <section className="space-y-5">
+          <UsageCards usage={plans.usage} />
           <p>
             BuyerMatch analysis and Private Network distribution have separate
             allowances from your CRM subscription and purchased credits.
@@ -258,13 +262,11 @@ export default function BuyerMatch() {
                   className="border border-slate-700 rounded-xl p-5"
                 >
                   <h2 className="text-xl">
-                    {product === "buyermatch"
-                      ? "BuyerMatch analysis"
-                      : "Private Network"}
+                    {product === "buyermatch" ? "BuyerMatch subscription" : "Managed Dispo / Network subscription"}
                   </h2>
                   <p>
                     {p
-                      ? `${p.plan_version} · ${p.status} · ${p.remaining} remaining of ${p.allowance} (${p.used} used)`
+                      ? `${p.plan_version} · ${p.status}`
                       : "Not activated"}
                   </p>
                   {p && (
@@ -326,6 +328,7 @@ export default function BuyerMatch() {
       ) : isAdmin ? (
         plans.isNetworkAdmin && (
           <>
+            <AdminUsage metrics={data.metrics} />
             <section className="border border-slate-700 rounded-xl p-5 space-y-4">
               <h2 className="text-xl">Import buyers</h2>
               <p className="text-sm text-slate-400">
