@@ -1,5 +1,7 @@
 > Current commercial decision: [BUYERMATCH_COMMERCIAL_LIMITS.md](BUYERMATCH_COMMERCIAL_LIMITS.md) supersedes the historical unapproved/shared-allowance proposals below. Starter is 20 analyses / 10 distributions / 25 buyers; Pro is 50 / 25 / 50. Purchasing remains inactive; Production is unchanged.
 
+Commercial-limit acceptance: **205 local tests, 205 hosted full-flow assertions, 31 hosted commercial concurrency assertions, 230 rehearsal assertions, 65 staging checksums**. Desktop/mobile customer plans and admin economics passed. The only verification defect was synthetic fixture encryption in the new runner; repaired and rerun successfully. See the linked report for exact application commit/Preview, safety gates and the QA account's remaining allowance. The commercial decision is settled; Stripe sandbox and authorized Resend verification remain separate external activation gates, followed by an owner-approved Production release.
+
 > Usage correction: see [BUYERMATCH_USAGE_ACCOUNTING.md](BUYERMATCH_USAGE_ACCOUNTING.md) for separate Software/Managed Dispo counters, private admin fanout/simulations and the additive staging-only accounting migration. The commercial 20/50 proposal remains unapproved.
 
 > Activation audit: see [BUYERMATCH_ACTIVATION_GATE.md](BUYERMATCH_ACTIVATION_GATE.md) for actual allowance semantics, the unapproved 20/50 proposal, read-only configuration audit, ordered migration checksums and remaining provider/owner gates. No configuration or Production changes were made.

@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { randomUUID } from 'node:crypto';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { stagingOrigin } from '../server/buyermatch/staging.js';
+import { encryptIdentity, identityHash } from '../server/buyermatch/security.js';
 import plans from '../supabase/functions/_shared/buyermatchPlans.json' with {type:'json'};
 const env=process.env, origin=stagingOrigin(env);
 if(env.BM_STAGING_CONFIRM!=='I_HAVE_VERIFIED_THIS_IS_NOT_PRODUCTION') throw Error('Staging confirmation required');
@@ -26,7 +27,10 @@ const before=checked(await db.from('bm_entitlements').select('*').eq('owner_id',
 const initial=await api(account,'plans');check(initial.status===200&&!initial.body.checkoutEnabled&&!initial.body.successFeesEnabled&&initial.body.deliveryMode==='test','Only test delivery available; checkout and fees disabled');
 const buyers=[],deals=[],results=[];let failure;
 try {
- for(let i=0;i<100;i++) buyers.push({id:randomUUID(),identity_ciphertext:'SYNTHETIC NONDELIVERABLE',identity_hash:randomUUID(),criteria:{markets:['AK']},status:'active',consent_evidence:'SYNTHETIC COMMERCIAL CAP QA ONLY',synthetic:true});
+ for(let i=0;i<100;i++) {
+  const id=randomUUID(),identity={name:'SYNTHETIC CAP QA',email:`cap-${id}@example.invalid`,phone:''};
+  buyers.push({id,identity_ciphertext:encryptIdentity(identity),identity_hash:identityHash(identity.email),criteria:{markets:['AK']},status:'active',consent_evidence:'SYNTHETIC COMMERCIAL CAP QA ONLY',synthetic:true});
+ }
  checked(await db.from('bm_buyers').insert(buyers));
  const matches=buyers.map((b,i)=>({buyerId:b.id,eligible:true,score:Math.floor(i/2),confidence:i%2?95:90}));
  for(const plan of plans) {
