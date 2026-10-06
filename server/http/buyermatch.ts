@@ -391,6 +391,57 @@ export default async function handler(req: any, res: any) {
         );
         return emit(result);
       }
+      if (action === "admin-sync-buyer") {
+        const identity = z.object({
+          name: z.string().trim().max(200).default(""),
+          email: z.string().trim().email(),
+          phone: z.string().trim().max(100).default(""),
+          company: z.string().trim().max(200).default(""),
+        }).parse(body.identity || {});
+        const criteria = criteriaSchema.parse(body.criteria || {});
+        if (!criteria.markets.length || !criteria.assetTypes.length)
+          fail("BuyerMatch requires at least one supported market and property type");
+        const hash = identityHash(identity.email);
+        const existing = checked(
+          await db
+            .from("bm_buyers")
+            .select("id,status")
+            .eq("identity_hash", hash)
+            .maybeSingle(),
+        );
+        if (existing?.status === "suppressed")
+          return emit({ id: existing.id, status: "suppressed", synced: false });
+        const payload = {
+          identity_hash: hash,
+          identity_ciphertext: encryptIdentity(identity),
+          criteria,
+          status: "active",
+          criteria_verified_at: new Date().toISOString(),
+          consent_evidence: String(body.consentEvidence || "Approved Buyer Portal submission").slice(0, 2000),
+          source_ciphertext: encryptIdentity({
+            source: "buyer_portal",
+            sourceId: String(body.sourceId || ""),
+            syncedAt: new Date().toISOString(),
+          }),
+        };
+        if (existing?.id) {
+          checked(
+            await db
+              .from("bm_buyers")
+              .update(payload)
+              .eq("id", existing.id),
+          );
+          return emit({ id: existing.id, status: "active", synced: true, updated: true });
+        }
+        const inserted = checked(
+          await db
+            .from("bm_buyers")
+            .insert(payload)
+            .select("id,status")
+            .single(),
+        );
+        return emit({ ...inserted, synced: true, updated: false });
+      }
       if (action === "admin-buyer") {
         uuid.parse(body.id);
         const status = z
