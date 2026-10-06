@@ -880,10 +880,22 @@ export default async function handler(req: any, res: any) {
           .eq("deal_id", deal.id)
           .order("created_at"),
       );
+      const conversations = checked(
+        await db
+          .from("bm_exposures")
+          .select("id,buyer_id,created_at")
+          .eq("deal_id", deal.id)
+          .eq("owner_id", user.id)
+          .order("created_at"),
+      ).map((exposure: any) => ({
+        exposureId: exposure.id,
+        buyerRef: `BM-${createHash("sha256").update(exposure.buyer_id).digest("hex").slice(0, 8).toUpperCase()}`,
+      }));
       return emit({
         offers,
         closing,
         messages,
+        conversations,
         deal: {
           id: deal.id,
           property: deal.property,
