@@ -4020,6 +4020,68 @@ const cleanBuyerName = (value: any, emailValue = '') => {
 
         const savedBuyer = Array.isArray(saveResult.data) ? saveResult.data.find((buyer: any) => safeLower(buyer.email).trim() === email) || saveResult.data[0] : null
 
+        // House Buyer Investments owns the private BuyerMatch network. Keep the
+        // existing Buyer Portal approval path authoritative, then mirror only
+        // owner-admin approved buyers into BuyerMatch as a best-effort sync.
+        if (user?.isOwnerAdmin) {
+          try {
+            const normalizeAsset = (value: string) => {
+              const v = String(value || '').trim().toLowerCase()
+              if (v.includes('single') || v === 'sfh') return 'sfh'
+              if (v.includes('condo')) return 'condo'
+              if (v.includes('town')) return 'townhouse'
+              if (v.includes('land')) return 'land'
+              if (v.includes('multi') || v.includes('apartment') || v.includes('mobile home') || v.includes('rv park')) return 'multifamily'
+              if (v.includes('single tenant') || v.includes('stnl')) return 'stnl'
+              if (v.includes('commercial') || v.includes('retail') || v.includes('office') || v.includes('industrial') || v.includes('storage') || v.includes('hotel') || v.includes('mixed') || v.includes('development')) return 'commercial'
+              return ''
+            }
+            const stateCodes = new Set('AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY'.split(' '))
+            const marketValues = Array.isArray(buyerToApprove.markets) ? buyerToApprove.markets : []
+            const markets = marketValues
+              .flatMap((value: any) => String(value || '').toUpperCase().match(/\b[A-Z]{2}\b/g) || [])
+              .filter((value: string, index: number, all: string[]) => stateCodes.has(value) && all.indexOf(value) === index)
+              .map((state: string) => ({ state }))
+            const assetTypes = Array.from(new Set(
+              (Array.isArray(buyerToApprove.assetTypes) ? buyerToApprove.assetTypes : [])
+                .map((value: any) => normalizeAsset(String(value || '')))
+                .filter(Boolean)
+            ))
+            if (markets.length && assetTypes.length) {
+              const { data: session } = await supabase.auth.getSession()
+              if (session.session?.access_token) {
+                const response = await fetch('/api/buyermatch', {
+                  method: 'POST',
+                  headers: {
+                    Authorization: `Bearer ${session.session.access_token}`,
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    action: 'admin-sync-buyer',
+                    identity: {
+                      name: buyerToApprove.name || '',
+                      email,
+                      phone: buyerToApprove.phone || '',
+                      company: buyerToApprove.company || '',
+                    },
+                    criteria: {
+                      markets,
+                      assetTypes,
+                      ...(Number(buyerToApprove.budgetMin || row.budgetMin || 0) > 0 ? { minPrice: Number(buyerToApprove.budgetMin || row.budgetMin) } : {}),
+                      ...(Number(buyerToApprove.budgetMax || row.budgetMax || 0) > 0 ? { maxPrice: Number(buyerToApprove.budgetMax || row.budgetMax) } : {}),
+                    },
+                    consentEvidence: 'Approved Buyer Portal submission',
+                    sourceId: row.buyerPortalSubmissionId || savedBuyer?.id || '',
+                  }),
+                })
+                if (!response.ok) console.warn('[BuyerMatch] Buyer Portal sync needs review')
+              }
+            }
+          } catch (syncError) {
+            console.warn('[BuyerMatch] Buyer Portal approval succeeded; network sync needs review', syncError)
+          }
+        }
+
         if (row.buyerPortalSubmissionId) {
           await markBuyerPortalSubmissionsImported([row.buyerPortalSubmissionId], {
             buyerId: savedBuyer?.id,
