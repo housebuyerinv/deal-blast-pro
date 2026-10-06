@@ -890,6 +890,65 @@ export default function Submissions() {
       }
       const createdDeal = cacheInventoryDeal(conversion.data)
 
+      // Reuse the existing Deal Submission Portal as BuyerMatch intake. Inventory
+      // approval remains authoritative; BuyerMatch draft creation is additive and
+      // idempotent by the original public submission ID.
+      try {
+        const source = sub?.deal_data || {}
+        const state = cleanText(getField(source, 'state')).toUpperCase()
+        const zip = cleanText(getField(source, 'zip'))
+        const price = toNumberOrUndefined(getField(source, 'contractPrice')) || toNumberOrUndefined(getField(source, 'askingPrice'))
+        const rawAsset = cleanText(getField(source, 'assetType')).toLowerCase()
+        const assetType =
+          rawAsset.includes('single') || rawAsset === 'sfh' ? 'sfh' :
+          rawAsset.includes('condo') ? 'condo' :
+          rawAsset.includes('town') ? 'townhouse' :
+          rawAsset.includes('land') ? 'land' :
+          rawAsset.includes('multi') || rawAsset.includes('apartment') || rawAsset.includes('mhp') || rawAsset.includes('mobile') ? 'multifamily' :
+          rawAsset.includes('single tenant') || rawAsset.includes('stnl') ? 'stnl' :
+          rawAsset.includes('commercial') || rawAsset.includes('retail') || rawAsset.includes('office') || rawAsset.includes('industrial') || rawAsset.includes('storage') || rawAsset.includes('hotel') || rawAsset.includes('mixed') ? 'commercial' :
+          ''
+        if (/^[A-Z]{2}$/.test(state) && /^\d{5}$/.test(zip) && price && assetType) {
+          const { data: session } = await supabase.auth.getSession()
+          if (session.session?.access_token) {
+            const response = await fetch('/api/buyermatch', {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${session.session.access_token}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                action: 'save',
+                property: {
+                  address: cleanText(getField(source, 'address')),
+                  city: cleanText(getField(source, 'city')),
+                  state,
+                  zip,
+                  assetType,
+                  price,
+                  ...(toNumberOrUndefined(getField(source, 'arv')) !== undefined ? { arv: toNumberOrUndefined(getField(source, 'arv')) } : {}),
+                  ...(toNumberOrUndefined(getField(source, 'rehab')) !== undefined ? { repairs: toNumberOrUndefined(getField(source, 'rehab')) } : {}),
+                  ...(toNumberOrUndefined(getField(source, 'beds')) !== undefined ? { beds: toNumberOrUndefined(getField(source, 'beds')) } : {}),
+                  ...(toNumberOrUndefined(getField(source, 'baths')) !== undefined ? { baths: toNumberOrUndefined(getField(source, 'baths')) } : {}),
+                  ...(toNumberOrUndefined(getField(source, 'sqFt')) !== undefined ? { sqft: toNumberOrUndefined(getField(source, 'sqFt')) } : {}),
+                  ...(toNumberOrUndefined(getField(source, 'units')) !== undefined ? { units: toNumberOrUndefined(getField(source, 'units')) } : {}),
+                  ...(toNumberOrUndefined(getField(source, 'noi')) !== undefined ? { noi: toNumberOrUndefined(getField(source, 'noi')) } : {}),
+                  ...(toNumberOrUndefined(getField(source, 'capRate')) !== undefined ? { capRate: toNumberOrUndefined(getField(source, 'capRate')) } : {}),
+                  occupancy: cleanText(getField(source, 'occupancy')),
+                  dealType: cleanText(getField(source, 'structure')),
+                  closingTimeline: cleanText(getField(source, 'closeTimeline')),
+                  financing: cleanText(getField(source, 'sellerFinanceTerms')),
+                  sourceSubmissionId: String(sub.id),
+                },
+              }),
+            })
+            if (!response.ok) console.warn('[BuyerMatch] Deal Portal sync needs review')
+          }
+        }
+      } catch (syncError) {
+        console.warn('[BuyerMatch] Inventory approval succeeded; BuyerMatch sync needs review', syncError)
+      }
+
       setReviewSub(null)
       setApprovalErrors(prev => {
         const next = { ...prev }
