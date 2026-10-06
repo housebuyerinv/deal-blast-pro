@@ -38,7 +38,12 @@ Deno.serve(async req => {
   const status = statusMap[eventType]
   if (!status || !providerEventId) return json({ ok: true, ignored: true })
   const client = createClient(url, key, { auth: { persistSession: false } })
-  const { data: outbox } = await client.from('email_outbox').select('id,recipient').eq('provider_message_id', providerMessageId).maybeSingle()
+  if (!providerMessageId) return json({ ok: true, ignored: true })
+  // This is the legacy DBP callback, not the BuyerMatch receiver. A valid team
+  // signature alone must never create an orphan event for another environment.
+  const { data: outbox, error: lookupError } = await client.from('email_outbox').select('id,recipient').eq('provider_message_id', providerMessageId).eq('provider', 'resend').maybeSingle()
+  if (lookupError) return json({ ok: false, error: 'delivery_lookup_failed' }, 503)
+  if (!outbox?.id) return json({ ok: true, ignored: true })
   const { error: eventError } = await client.from('email_delivery_events').insert({ outbox_id: outbox?.id || null, provider_event_id: providerEventId,
     provider_message_id: providerMessageId || null, event_type: eventType, status,
     safe_metadata: { provider: 'resend' }, occurred_at: event?.created_at || new Date().toISOString() })

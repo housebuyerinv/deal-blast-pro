@@ -78,12 +78,15 @@ test("actual provider handler rejects invalid and stale signatures before access
   assert.equal((await handler(request(true, new Date(0)))).status, 400);
   assert.equal(calls.length, 0);
 });
-test("valid provider signature stores only delivery fields and requests retry for unknown receipt", async () => {
+test("valid provider signature passes explicit scope and safely acknowledges unknown receipt", async () => {
   assert.equal((await handler(request())).status, 200);
   assert.equal(JSON.parse(calls[0].options.body).p_message, "message-fixture");
   assert.equal(calls[0].options.body.includes("private@"), false);
+  assert.equal(JSON.parse(calls[0].options.body).p_environment, "staging");
   found = false;
-  assert.equal((await handler(request())).status, 503);
+  const unknown = await handler(request());
+  assert.equal(unknown.status, 200);
+  assert.deepEqual(await unknown.json(), { ignored: true });
 });
 test.after(() => {
   globalThis.fetch = originalFetch;
@@ -102,7 +105,7 @@ test("Production delivery callback requires explicit provider enablement and val
       BM_LIVE_DELIVERY_ENABLED: "false",
     });
     const before = calls.length;
-    assert.equal((await handler(request())).status, 503);
+    assert.deepEqual(await (await handler(request())).json(), { ignored: true });
     assert.equal(calls.length, before);
     values.BM_LIVE_DELIVERY_ENABLED = "true";
     assert.equal((await handler(request(false))).status, 400);

@@ -21,9 +21,7 @@ export async function deliveryHandler(
   if (
     !ref ||
     (production
-      ? ref !== "aigvnbxiydbzzqbetlhl" ||
-        env.get("BM_LIVE_DELIVERY_ENABLED") !== "true" ||
-        env.get("BM_DELIVERY_MODE") !== "resend"
+      ? ref !== "aigvnbxiydbzzqbetlhl"
       : env.get("BM_ENVIRONMENT") !== "staging" ||
         ref === "aigvnbxiydbzzqbetlhl") ||
     url !== `https://${ref}.supabase.co`
@@ -42,12 +40,21 @@ export async function deliveryHandler(
   } catch {
     return respond({ error: "Invalid webhook" }, 400);
   }
+  // An authenticated shared-team event is harmless while delivery is disabled.
+  // Do not cause endless provider retries or touch the database in this mode.
+  if (
+    production &&
+    (env.get("BM_LIVE_DELIVERY_ENABLED") !== "true" ||
+      env.get("BM_DELIVERY_MODE") !== "resend")
+  )
+    return respond({ ignored: true });
   if (
     ![
       "email.sent",
       "email.delivered",
       "email.delivery_delayed",
       "email.bounced",
+      "email.failed",
       "email.complained",
       "email.suppressed",
       "email.opened",
@@ -58,7 +65,7 @@ export async function deliveryHandler(
   const key = env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!key) return respond({ error: "Server configuration required" }, 503);
   const result = await sendFetch(
-    `${url}/rest/v1/rpc/bm_record_provider_event`,
+    `${url}/rest/v1/rpc/bm_record_provider_event_scoped`,
     {
       method: "POST",
       headers: {
@@ -71,11 +78,13 @@ export async function deliveryHandler(
         p_message: event.data?.email_id,
         p_kind: event.type,
         p_at: event.created_at,
+        p_environment: production ? "production" : "staging",
       }),
     },
   );
-  if (!result.ok || (await result.json()) !== true)
+  if (!result.ok)
     return respond({ error: "Awaiting provider receipt reconciliation" }, 503);
+  if ((await result.json()) !== true) return respond({ ignored: true });
   return respond({ recorded: true });
 }
 Deno.serve((req) => deliveryHandler(req, Deno.env));

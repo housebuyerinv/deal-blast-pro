@@ -40,6 +40,7 @@ for (const name of [
   "20261006030201_buyermatch_usage_accounting.sql",
   "20261006043844_buyermatch_commercial_limits.sql",
   "20261006164348_buyermatch_subscription_plan_changes.sql",
+  "20261006184631_buyermatch_callback_isolation.sql",
 ])
   await db.exec(
     readFileSync(
@@ -66,6 +67,43 @@ const commit = (who, key, p = property) =>
     { score: null },
     p,
   ]);
+// Exercise the real signed HTTP handler against the real rehearsal database.
+const { build: compileCallback } = await import("esbuild");
+const { Webhook: RealWebhook } = await import("svix");
+const { Buffer: NodeBuffer } = await import("node:buffer");
+globalThis.__callbackWebhook = RealWebhook;
+globalThis.Deno = { serve() {}, env: { get() {} } };
+const compiledCallback = await compileCallback({
+  entryPoints: ["supabase/functions/buyermatch-delivery/index.ts"],
+  bundle: true,
+  write: false,
+  platform: "node",
+  format: "esm",
+  plugins: [
+    {
+      name: "callback-svix",
+      setup(b) {
+        b.onResolve({ filter: /^npm:svix/ }, () => ({
+          path: "svix",
+          namespace: "callback-test",
+        }));
+        b.onLoad({ filter: /.*/, namespace: "callback-test" }, () => ({
+          contents: "export const Webhook=globalThis.__callbackWebhook;",
+        }));
+      },
+    },
+  ],
+});
+const { deliveryHandler: signedCallbackHandler } = await import(
+  "data:text/javascript;base64," +
+    NodeBuffer.from(compiledCallback.outputFiles[0].text).toString("base64")
+);
+delete globalThis.Deno;
+delete globalThis.__callbackWebhook;
+const fixtureSigningSecret =
+  "whsec_" +
+  NodeBuffer.from("callback-isolation-fixture-secret").toString("base64");
+
 test("migrations apply; browser roles have no access to network, deals, evidence or RPC", async () => {
   for (const role of ["anon", "authenticated"]) {
     for (const table of [
@@ -471,13 +509,15 @@ test("outbox lease prevents duplicate claims and refuses ambiguous retries after
   );
 });
 test("provider callbacks dedupe and cannot manufacture interest; bounce suppresses future deliveries", async () => {
-  const { o, b } = await deliveryFixture();
+  const { o, b, ex } = await deliveryFixture();
+  await db.query("insert into bm_response_tokens(token_hash,exposure_id,expires_at) values($1,$2,now()+interval '1 day')", [randomUUID(),ex]);
+  await db.query("insert into bm_distribution_requests(owner_id,deal_id,operation_key) select owner_id,deal_id,operation_key from bm_exposures where id=$1", [ex]);
   await db.query(
     "update bm_outbox set accepted_at=now(),provider_message_id=$1,state='accepted' where id=$2",
     [o, o],
   );
   const event = (kind) =>
-    db.query("select bm_record_provider_event($1,$2,$3,now()) as result", [
+    db.query("select bm_record_provider_event_scoped($1,$2,$3,now(),'staging') as result", [
       kind + o,
       o,
       kind,
@@ -1263,4 +1303,283 @@ test('effective upgrades/downgrades affect only future distribution; missing/exp
  await db.query("delete from bm_entitlements where owner_id=$1",[who]);
  await assert.rejects(db.query('select bm_queue_distribution($1,$2,$3)',[who,id,randomUUID()]),/entitlement required/);
  assert.equal((await db.query('select count(*)::int n from bm_exposures where deal_id=$1',[id])).rows[0].n,0);
+});
+
+async function scopedDeliveryFixture(environment) {
+  const f = await deliveryFixture();
+  await db.query(
+    "insert into bm_response_tokens(token_hash,exposure_id,expires_at,environment) values($1,$2,now()+interval '1 day',$3)",
+    [randomUUID(), f.ex, environment],
+  );
+  await db.query(
+    "insert into bm_distribution_requests(owner_id,deal_id,operation_key) select owner_id,deal_id,operation_key from bm_exposures where id=$1",
+    [f.ex],
+  );
+  await db.query("update bm_buyers set synthetic=$1 where id=$2", [
+    environment === "staging",
+    f.b,
+  ]);
+  await db.query(
+    "update bm_outbox set accepted_at=now(),provider_message_id=$1,test_delivery=$2,state='accepted' where id=$3",
+    [f.o, environment === "staging", f.o],
+  );
+  return f;
+}
+const callback = (
+  f,
+  environment,
+  kind = "email.delivered",
+  event = randomUUID(),
+) =>
+  db.query(
+    "select bm_record_provider_event_scoped($1,$2,$3,now(),$4) as result",
+    [event, f.o, kind, environment],
+  );
+async function callbackSnapshot() {
+  const names = [
+    "bm_outbox",
+    "bm_exposures",
+    "bm_provider_events",
+    "bm_buyers",
+    "bm_events",
+    "bm_responses",
+    "bm_closings",
+    "bm_billing_events",
+  ];
+  const snapshot = {};
+  for (const name of names)
+    snapshot[name] = (
+      await db.query(
+        `select coalesce(jsonb_agg(to_jsonb(t) order by to_jsonb(t)::text),'[]') as value from ${name} t`,
+      )
+    ).rows[0].value;
+  return snapshot;
+}
+for (const kind of [
+  "email.delivered",
+  "email.bounced",
+  "email.complained",
+  "email.failed",
+  "email.delivery_delayed",
+  "email.opened",
+  "email.clicked",
+])
+  test(`unknown ${kind} has zero database mutations in either environment`, async () => {
+    const before = await callbackSnapshot();
+    for (const environment of ["production", "staging"])
+      assert.equal(
+        (await callback({ o: randomUUID() }, environment, kind)).rows[0].result,
+        false,
+      );
+    assert.deepEqual(await callbackSnapshot(), before);
+  });
+for (const environment of ["production", "staging"])
+  test(`${environment} immutable scope rejects opposite environment; known callback and concurrent replay affect one record`, async () => {
+    const f = await scopedDeliveryFixture(environment);
+    const before = await callbackSnapshot();
+    assert.equal(
+      (
+        await callback(
+          f,
+          environment === "production" ? "staging" : "production",
+          "email.complained",
+        )
+      ).rows[0].result,
+      false,
+    );
+    assert.deepEqual(await callbackSnapshot(), before);
+    const event = randomUUID();
+    await Promise.all(
+      Array.from({ length: 3 }, () =>
+        callback(f, environment, "email.delivered", event),
+      ),
+    );
+    assert.equal(
+      (
+        await db.query(
+          "select count(*)::int n from bm_provider_events where event_id=$1",
+          [event],
+        )
+      ).rows[0].n,
+      1,
+    );
+    assert.equal(
+      (await db.query("select state from bm_outbox where id=$1", [f.o])).rows[0]
+        .state,
+      "delivered",
+    );
+    const after = await callbackSnapshot();
+    await callback(f, environment, "email.complained", event);
+    assert.deepEqual(await callbackSnapshot(), after);
+  });
+test("invalid owner chain, missing capability and unaccepted receipts fail closed; browser roles cannot call scoped RPC", async () => {
+  const f = await scopedDeliveryFixture("staging");
+  await db.query("update bm_deals set owner_id=$1 where id=$2", [other, f.d]);
+  const before = await callbackSnapshot();
+  assert.equal(
+    (await callback(f, "staging", "email.bounced")).rows[0].result,
+    false,
+  );
+  assert.deepEqual(await callbackSnapshot(), before);
+  const g = await deliveryFixture();
+  await db.query("update bm_outbox set provider_message_id=$1 where id=$1", [
+    g.o,
+  ]);
+  assert.equal((await callback(g, "staging")).rows[0].result, false);
+  for (const role of ["anon", "authenticated"])
+    assert.equal(
+      (
+        await db.query(
+          "select has_function_privilege($1,'bm_record_provider_event_scoped(text,text,text,timestamptz,text)','EXECUTE') allowed",
+          [role],
+        )
+      ).rows[0].allowed,
+      false,
+    );
+  assert.equal(
+    (
+      await db.query(
+        "select bm_record_provider_event('legacy',$1,'email.bounced',now()) result",
+        [f.o],
+      )
+    ).rows[0].result,
+    false,
+  );
+});
+
+async function signedCallback(
+  f,
+  environment,
+  kind,
+  event = randomUUID(),
+  tampering = {},
+) {
+  const payload = JSON.stringify({
+    type: kind,
+    created_at: new Date().toISOString(),
+    data: { email_id: f.o, ...tampering },
+  });
+  const date = new Date();
+  const ref =
+    environment === "production"
+      ? "aigvnbxiydbzzqbetlhl"
+      : "qxhhlprentrufobpcgna";
+  const env = {
+    BM_ENVIRONMENT: environment,
+    BM_PRODUCTION_PROJECT_REF: ref,
+    BM_STAGING_PROJECT_REF: ref,
+    SUPABASE_URL: `https://${ref}.supabase.co`,
+    BM_DELIVERY_MODE: "resend",
+    BM_LIVE_DELIVERY_ENABLED: "true",
+    SUPABASE_SERVICE_ROLE_KEY: "fixture",
+    BM_RESEND_WEBHOOK_SECRET: fixtureSigningSecret,
+  };
+  const req = new globalThis.Request("https://fixture.invalid", {
+    method: "POST",
+    body: payload,
+    headers: {
+      "svix-id": event,
+      "svix-timestamp": String(Math.floor(date.getTime() / 1000)),
+      "svix-signature": new RealWebhook(fixtureSigningSecret).sign(
+        event,
+        date,
+        payload,
+      ),
+    },
+  });
+  return signedCallbackHandler(
+    req,
+    { get: (key) => env[key] },
+    async (url, options) => {
+      assert.equal(
+        url,
+        `https://${ref}.supabase.co/rest/v1/rpc/bm_record_provider_event_scoped`,
+      );
+      const p = JSON.parse(options.body);
+      assert.deepEqual(Object.keys(p).sort(), [
+        "p_at",
+        "p_environment",
+        "p_event",
+        "p_kind",
+        "p_message",
+      ]);
+      const r = await db.query(
+        "select bm_record_provider_event_scoped($1,$2,$3,$4,$5) result",
+        [p.p_event, p.p_message, p.p_kind, p.p_at, p.p_environment],
+      );
+      return new globalThis.Response(JSON.stringify(r.rows[0].result));
+    },
+  );
+}
+for (const kind of ["email.delivered", "email.bounced", "email.complained"])
+  test(`signed Production HTTP ${kind} unknown message acknowledges with zero mutations`, async () => {
+    const before = await callbackSnapshot();
+    const response = await signedCallback(
+      { o: randomUUID() },
+      "production",
+      kind,
+    );
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { ignored: true });
+    assert.deepEqual(await callbackSnapshot(), before);
+  });
+for (const environment of ["production", "staging"])
+  test(`signed ${environment} callbacks enforce isolation, ignore identity tampering and dedupe simultaneous replay`, async () => {
+    const f = await scopedDeliveryFixture(environment);
+    const before = await callbackSnapshot();
+    const opposite = await signedCallback(
+      f,
+      environment === "production" ? "staging" : "production",
+      "email.bounced",
+    );
+    assert.deepEqual(await opposite.json(), { ignored: true });
+    assert.deepEqual(await callbackSnapshot(), before);
+    const event = randomUUID();
+    const responses = await Promise.all(
+      Array.from({ length: 3 }, () =>
+        signedCallback(f, environment, "email.delivered", event, {
+          owner_id: other,
+          deal_id: deal,
+          workspace_id: other,
+          buyer_id: other,
+          to: ["unrelated@example.invalid"],
+          from: "forged@example.invalid",
+          subject: "forged",
+        }),
+      ),
+    );
+    for (const response of responses)
+      assert.deepEqual(await response.json(), { recorded: true });
+    assert.equal(
+      (
+        await db.query(
+          "select count(*)::int n from bm_provider_events where event_id=$1",
+          [event],
+        )
+      ).rows[0].n,
+      1,
+    );
+    assert.equal(
+      (await db.query("select state from bm_outbox where id=$1", [f.o])).rows[0]
+        .state,
+      "delivered",
+    );
+    const after = await callbackSnapshot();
+    await signedCallback(f, environment, "email.complained", event);
+    assert.deepEqual(await callbackSnapshot(), after);
+  });
+
+test("accepted provider receipt and environment cannot be rebound to another exposure", async () => {
+  const f = await scopedDeliveryFixture("staging");
+  const g = await scopedDeliveryFixture("staging");
+  for (const [column, value] of [
+    ["provider_message_id", randomUUID()],
+    ["exposure_id", g.ex],
+    ["test_delivery", false],
+    ["accepted_at", null],
+  ])
+    await assert.rejects(
+      db.query(`update bm_outbox set ${column}=$1 where id=$2`, [value, f.o]),
+      /Delivery scope is immutable/,
+    );
 });
