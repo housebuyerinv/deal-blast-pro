@@ -9,13 +9,13 @@ const plans = [
     name: "Starter",
     price: `$${catalog[0].amountCents / 100}`,
     description: "Private matching for wholesalers who want qualified buyer reach without giving away the network.",
-    features: ["Private buyer matching", "Anonymous buyer profiles", "Match explanations", "Secure buyer responses", "Deal conversation threads"],
+    features: [`${catalog[0].analysisAllowance} analyses per billing period`, `${catalog[0].distributionAllowance} Software distributions per billing period`, `Up to ${catalog[0].maxDistributionFanout} qualified buyers per distribution`, "Anonymous buyer profiles", "Secure buyer responses"],
   },
   {
     name: "Pro",
     price: `$${catalog[1].amountCents / 100}`,
     description: "More matching capacity and deeper buyer intelligence for active disposition teams.",
-    features: ["Everything in Starter", "Higher matching allowance", "Detailed buyer-fit diagnostics", "Offer and response tracking", "Priority BuyerMatch workflow"],
+    features: [`${catalog[1].analysisAllowance} analyses per billing period`, `${catalog[1].distributionAllowance} Software distributions per billing period`, `Up to ${catalog[1].maxDistributionFanout} qualified buyers per distribution`, "Detailed buyer-fit diagnostics", "Offer and response tracking"],
   },
 ];
 

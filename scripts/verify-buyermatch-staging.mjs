@@ -1,6 +1,7 @@
 // Real staging HTTP verification. Synthetic fixtures only; never prints credentials or private responses.
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "node:crypto";
+import commercialPlans from '../supabase/functions/_shared/buyermatchPlans.json' with {type:'json'};
 import { mkdirSync, writeFileSync } from "node:fs";
 import {
   stagingOrigin,
@@ -444,7 +445,7 @@ try {
     const economics = await api(admin, 'admin-usage', { ownerId: other.id });
     const distributionRows = await verificationDb.from('bm_distribution_usage').select('fanout').eq('owner_id',other.id).eq('service_type','software');
     ensure(!distributionRows.error && economics.softwareExposures === distributionRows.data.reduce((sum,row)=>sum+row.fanout,0), 'Admin fanout matches immutable reservation exposures');
-    ensure(economics.accounts.length === 1 && economics.accounts[0].hypothetical.starter.softwareDistribution.remaining === Math.max(0,20-softwareAfter.usage.softwareDistribution.used), 'Admin hypothetical Starter is display-only and correctly counted');
+    ensure(economics.accounts.length === 1 && economics.accounts[0].hypothetical.starter.softwareDistribution.remaining === Math.max(0,commercialPlans[0].distributionAllowance-softwareAfter.usage.softwareDistribution.used), 'Admin Starter comparison is display-only and correctly counted');
     privateSafe(softwareAfter.usage);
   } finally {
     const restored = await verificationDb.from('bm_entitlements').update({ status: networkBefore.data.status }).eq('owner_id', other.id).eq('product', 'network');

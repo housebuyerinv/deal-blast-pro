@@ -275,6 +275,9 @@ test("Production outreach uses authenticated owner, denies cross-owner and fails
     ownerId: "forged",
     workspaceId: "forged",
     buyerId: "forged",
+    maxDistributionFanout: 10000,
+    distributionAllowance: 10000,
+    planVersion: 'buyermatch-pro-v1',
   };
   try {
     Object.assign(process.env, config);

@@ -1,4 +1,4 @@
 [
-  { "version": "buyermatch-starter-v1", "name": "Starter", "amountCents": 5900, "currency": "usd", "interval": "month" },
-  { "version": "buyermatch-pro-v1", "name": "Pro", "amountCents": 11900, "currency": "usd", "interval": "month" }
+  { "version": "buyermatch-starter-v1", "name": "Starter", "amountCents": 5900, "currency": "usd", "interval": "month", "analysisAllowance": 20, "distributionAllowance": 10, "maxDistributionFanout": 25 },
+  { "version": "buyermatch-pro-v1", "name": "Pro", "amountCents": 11900, "currency": "usd", "interval": "month", "analysisAllowance": 50, "distributionAllowance": 25, "maxDistributionFanout": 50 }
 ]

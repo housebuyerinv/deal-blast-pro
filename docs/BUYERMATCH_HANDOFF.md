@@ -1,3 +1,5 @@
+> Current commercial decision: [BUYERMATCH_COMMERCIAL_LIMITS.md](BUYERMATCH_COMMERCIAL_LIMITS.md) supersedes the historical unapproved/shared-allowance proposals below. Starter is 20 analyses / 10 distributions / 25 buyers; Pro is 50 / 25 / 50. Purchasing remains inactive; Production is unchanged.
+
 > Usage correction: see [BUYERMATCH_USAGE_ACCOUNTING.md](BUYERMATCH_USAGE_ACCOUNTING.md) for separate Software/Managed Dispo counters, private admin fanout/simulations and the additive staging-only accounting migration. The commercial 20/50 proposal remains unapproved.
 
 > Activation audit: see [BUYERMATCH_ACTIVATION_GATE.md](BUYERMATCH_ACTIVATION_GATE.md) for actual allowance semantics, the unapproved 20/50 proposal, read-only configuration audit, ordered migration checksums and remaining provider/owner gates. No configuration or Production changes were made.

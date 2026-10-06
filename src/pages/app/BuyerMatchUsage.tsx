@@ -1,4 +1,15 @@
 type Data = Record<string, any>;
+export function CommercialPlans({ plans }: { plans?: Data[] }) {
+  return <section className="grid sm:grid-cols-2 gap-4" aria-label="BuyerMatch launch plans">
+    {plans?.map(plan => <article key={plan.version} className="border border-slate-700 rounded-xl p-5">
+      <h2 className="text-xl">{plan.name} · ${plan.amountCents/100}/month</h2>
+      <p>{plan.analysisAllowance} analyses per billing period</p>
+      <p>{plan.distributionAllowance} Software distributions per billing period</p>
+      <p>Up to {plan.maxDistributionFanout} qualified buyers per distribution</p>
+      <p className="text-sm text-slate-400">Availability and purchase controls are shown below. Limits do not guarantee buyer matches or delivery.</p>
+    </article>)}
+  </section>;
+}
 export function UsageCards({ usage }: { usage?: Data }) {
   return <section className="grid sm:grid-cols-3 gap-4" aria-label="Billing period usage">
     {Object.entries({analysis:'BuyerMatch Analysis',softwareDistribution:'Software Distribution',managedDispo:'Managed Dispo / Network'}).map(([key,label]) => {
@@ -6,6 +17,7 @@ export function UsageCards({ usage }: { usage?: Data }) {
       return <article key={key} className="border border-slate-700 rounded-xl p-5">
         <h2 className="text-xl">{label}</h2>
         <p>{counter?.active ? `${counter.used} of ${counter.allowance} used · ${counter.remaining} remaining` : 'Not activated'}</p>
+        {key === 'softwareDistribution' && counter?.active && <p className="text-sm">Up to {counter.maxDistributionFanout} qualified buyers per distribution. {counter.invitations} buyer invitations generated from {counter.used} distributions; invitations do not consume extra distribution units.</p>}
         {counter?.periodEnd && <p className="text-sm text-slate-400">Period ends {new Date(counter.periodEnd).toLocaleDateString()}{!counter.active && ` · ${counter.used} recorded in that period`}</p>}
       </article>;
     })}
@@ -23,11 +35,11 @@ export function AdminUsage({ metrics }: { metrics?: Data }) {
     <p>Software fanout — average {metrics.softwareFanout?.average == null ? 'N/A' : Number(metrics.softwareFanout.average).toFixed(2)}, median {metrics.softwareFanout?.median ?? 'N/A'}, minimum {metrics.softwareFanout?.minimum ?? 'N/A'}, maximum {metrics.softwareFanout?.maximum ?? 'N/A'}.</p>
     <p className="text-sm">Historical deduplicated / rejected attempt total: unavailable. {metrics.attemptNote}</p>
     <p className="text-sm">{metrics.providerCost}</p>
-    <h3>Hypothetical plans — not purchased or activated</h3>
+    <h3>Approved plan ceilings — comparison only, not purchased or activated</h3>
     {metrics.accounts?.map((account: Data) => <details key={account.ownerId} className="border-t border-slate-700 pt-3">
       <summary>Account {account.ownerId}</summary>
       <p>Software exposures in current subscription period: {account.softwareExposures}; average per distribution: {account.usage.softwareDistribution.used ? (account.softwareExposures/account.usage.softwareDistribution.used).toFixed(2) : 'N/A'}.</p>
-      {Object.entries(account.hypothetical as Record<string, Data>).map(([name,plan]) => <p key={name}>{name === 'starter' ? 'Starter candidate' : 'Pro candidate'}: analyses {plan.analysis.used}/{plan.analysis.allowance} ({plan.analysis.remaining} remaining); software distributions {plan.softwareDistribution.used}/{plan.softwareDistribution.allowance} ({plan.softwareDistribution.remaining} remaining).</p>)}
+      {Object.entries(account.hypothetical as Record<string, Data>).map(([name,plan]) => <p key={name}>{name === 'starter' ? 'Starter' : 'Pro'}: analyses {plan.analysis.used}/{plan.analysis.allowance} ({plan.analysis.remaining} remaining); software distributions {plan.softwareDistribution.used}/{plan.softwareDistribution.allowance} ({plan.softwareDistribution.remaining} remaining). Up to {plan.maxDistributionFanout} buyers per distribution; {plan.invitationCeiling.toLocaleString()} invitations per billing period is a ceiling, not expected usage.</p>)}
     </details>)}
   </section>;
 }

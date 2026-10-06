@@ -1,3 +1,5 @@
+> Current commercial decision: [BUYERMATCH_COMMERCIAL_LIMITS.md](BUYERMATCH_COMMERCIAL_LIMITS.md) supersedes the historical unapproved/shared-allowance proposals below. Starter is 20 analyses / 10 distributions / 25 buyers; Pro is 50 / 25 / 50. Purchasing remains inactive; Production is unchanged.
+
 # BuyerMatch accounting and fanout
 
 This change corrects accounting only. Starter and Pro remain allowance 0, unapproved, with no price IDs. No Production migration, promotion, checkout, Resend activation or success fee is authorized.

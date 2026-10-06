@@ -1,3 +1,5 @@
+> Current commercial decision: [BUYERMATCH_COMMERCIAL_LIMITS.md](BUYERMATCH_COMMERCIAL_LIMITS.md) supersedes the historical unapproved/shared-allowance proposals below. Starter is 20 analyses / 10 distributions / 25 buyers; Pro is 50 / 25 / 50. Purchasing remains inactive; Production is unchanged.
+
 # BuyerMatch activation audit — October 5, 2026
 
 Candidate `29fc996aba51a5edf7463f74b07a14fefc09a718`, branch `codex/buyermatch-network`, clean before this documentation-only audit. Verified Preview: https://deal-blast-7ly6sowrn-housebuyerinv.vercel.app, deployment `dpl_77ZPPQsBTRGd4h4tG53qEvhNBfRS`, READY / Preview. No application, schema, plan or environment configuration was changed. No Production promotion, provider send or payment was attempted.

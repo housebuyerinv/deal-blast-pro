@@ -70,6 +70,12 @@ const marker = checked(
 );
 if (marker.project_ref !== env.BM_STAGING_PROJECT_REF)
   throw new Error("Staging database marker mismatch");
+// Explicit synthetic QA limits; never a purchasable commercial plan or Production seed.
+checked(await db.from('bm_plans').upsert({
+  version:'staging-only-v2',product:'buyermatch',label:'SYNTHETIC QA ONLY',
+  allowance:50,distribution_allowance:50,max_distribution_fanout:50,
+  approved:false,stripe_price_id:null,
+}, {onConflict:'version'}));
 const users = [];
 for (let page = 1; ; page++) {
   const data = checked(await db.auth.admin.listUsers({ page, perPage: 1000 }));

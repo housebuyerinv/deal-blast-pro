@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { PGlite } from "@electric-sql/pglite";
+import commercialPlans from '../../supabase/functions/_shared/buyermatchPlans.json' with { type: 'json' };
 const db = new PGlite();
 const owner = randomUUID(),
   other = randomUUID(),
@@ -37,6 +38,7 @@ for (const name of [
   "20261006013219_buyermatch_portal_sync_atomic.sql",
   "20261006013640_buyermatch_software_distribution.sql",
   "20261006030201_buyermatch_usage_accounting.sql",
+  "20261006043844_buyermatch_commercial_limits.sql",
 ])
   await db.exec(
     readFileSync(
@@ -1082,6 +1084,7 @@ test('portal buyer approval retries preserve one identity, unverified status, su
 });
 
 test('software distribution needs no network subscription or fee agreement; managed distribution still does', async () => {
+ await db.query("insert into bm_plans(version,product,label,allowance,distribution_allowance,max_distribution_fanout) values('software-v1','buyermatch','Synthetic',5,5,3)");
  const who=randomUUID(), d=randomUUID(), buyer=randomUUID(), buyer2=randomUUID(), buyer3=randomUUID();
  await db.query('insert into auth.users values($1)',[who]);
  await db.query("insert into bm_entitlements values($1,'buyermatch','software-v1','active',now()-interval '1 day',now()+interval '30 days',5,null,0)",[who]);
@@ -1145,3 +1148,99 @@ test('software distribution needs no network subscription or fee agreement; mana
  }
 });
 
+
+// Commercial fixtures remain local: no provider calls or paid entitlements.
+async function commercialOwner(plan) {
+ const who=randomUUID();await db.query('insert into auth.users values($1)',[who]);
+ await db.query("insert into bm_entitlements values($1,'buyermatch',$2,'active',now()-interval '1 day',now()+interval '30 days',$3,null,0)",[who,plan.version,plan.analysisAllowance]);
+ return who;
+}
+async function commercialDeal(who,matches) {
+ const id=randomUUID(),contract=`${who}/${id}/contract.pdf`;
+ await db.query("insert into storage.objects(bucket_id,name) values('buyermatch-private',$1)",[contract]);
+ await db.query("insert into bm_deals(id,owner_id,property,title,status,contract_verified,admin_approved,contract_key,updated_at) values($1,$2,$3,$4,'approved_for_distribution',true,true,$5,now()-interval '3 hours')",[id,who,{...property,serviceType:'software'},{company:'Synthetic',name:'Synthetic',email:'test@example.invalid',phone:'5555555555',eoc:'2099-01-01'},contract]);
+ for(const kind of ['network','deal_certification']) {
+  const doc=(await db.query('select id,document_hash from bm_documents where kind=$1 and current and approved limit 1',[kind])).rows[0];
+  await db.query('select bm_accept_document($1,$2,$3,$4,$5)',[who,id,doc.id,doc.document_hash,'Synthetic Owner']);
+ }
+ await db.query("insert into bm_analyses(deal_id,owner_id,operation_key,private_result,public_result,created_at) values($1,$2,$3,$4,'{}',now()-interval '2 hours')",[id,who,randomUUID(),{matches}]);
+ return id;
+}
+async function rankedBuyers() {
+ const matches=[];
+ for(let i=0;i<103;i++) {
+  const buyerId=randomUUID();
+  await db.query("insert into bm_buyers(id,identity_ciphertext,identity_hash,criteria,status,consent_evidence,synthetic) values($1,'encrypted',$2,'{}',$3,$4,true)",[buyerId,randomUUID(),i===101?'suppressed':'active',i===102?'':'SYNTHETIC']);
+  matches.push({buyerId,eligible:i!==100,score:Math.floor(i/2),confidence:i%2?95:90});
+ }
+ return matches;
+}
+for(const plan of commercialPlans) test(`${plan.name}: hard fanout, deterministic strongest buyers, retries, concurrency and monthly boundary`,async()=>{
+ const stored=(await db.query('select * from bm_plans where version=$1',[plan.version])).rows[0];
+ assert.equal(stored.allowance,plan.analysisAllowance);assert.equal(stored.distribution_allowance,plan.distributionAllowance);assert.equal(stored.max_distribution_fanout,plan.maxDistributionFanout);
+ assert.equal(stored.approved,false);assert.equal(stored.stripe_price_id,null);
+ const who=await commercialOwner(plan), matches=await rankedBuyers(), id=await commercialDeal(who,matches), key=randomUUID();
+ const queue=()=>db.query('select bm_queue_distribution($1,$2,$3) result',[who,id,key]);
+ const attempts=await Promise.all(Array.from({length:8},queue));
+ assert.equal(new Set(attempts.map(r=>r.rows[0].result.requestId)).size,1);
+ await queue();
+ const actual=(await db.query('select buyer_id,frozen_terms from bm_exposures where deal_id=$1 order by buyer_id',[id])).rows;
+ const expected=matches.slice(0,100).sort((a,b)=>b.score-a.score||b.confidence-a.confidence||a.buyerId.localeCompare(b.buyerId)).slice(0,plan.maxDistributionFanout).map(m=>m.buyerId).sort();
+ assert.deepEqual(actual.map(x=>x.buyer_id),expected);
+ assert.ok(actual.every(x=>x.frozen_terms.allowedFanout===plan.maxDistributionFanout && x.frozen_terms.planVersion===plan.version));
+ const frozen=(await db.query('select service_type,plan_version,allowed_fanout,operation_key,created_at from bm_distribution_requests where deal_id=$1',[id])).rows[0];
+ assert.equal(frozen.plan_version,plan.version);assert.equal(frozen.allowed_fanout,plan.maxDistributionFanout);assert.equal(frozen.operation_key,key);assert.ok(frozen.created_at);
+ const usage=(await db.query('select bm_account_usage($1) u',[who])).rows[0].u;
+ assert.equal(usage.softwareDistribution.used,1);assert.equal(usage.softwareDistribution.remaining,plan.distributionAllowance-1);assert.equal(usage.softwareDistribution.invitations,plan.maxDistributionFanout);assert.equal(usage.managedDispo.used,0);
+ assert.ok(matches.every(m=>!JSON.stringify(usage).includes(m.buyerId)));
+ assert.equal((await db.query('select count(*)::int n from bm_outbox o join bm_exposures e on e.id=o.exposure_id where e.deal_id=$1',[id])).rows[0].n,plan.maxDistributionFanout);
+ for(let i=1;i<plan.distributionAllowance;i++) {
+  const next=await commercialDeal(who,matches);
+  await db.query('select bm_queue_distribution($1,$2,$3)',[who,next,randomUUID()]);
+ }
+ const over=await commercialDeal(who,matches);
+ const denied=await Promise.allSettled(Array.from({length:4},()=>db.query('select bm_queue_distribution($1,$2,$3)',[who,over,randomUUID()])));
+ assert.ok(denied.every(x=>x.status==='rejected'&&/allowance exhausted/.test(x.reason.message)));
+ assert.equal((await db.query('select count(*)::int n from bm_exposures where deal_id=$1',[over])).rows[0].n,0);
+ assert.equal((await db.query('select count(*)::int n from bm_distribution_requests where deal_id=$1',[over])).rows[0].n,0);
+ const exhausted=(await db.query('select bm_account_usage($1) u',[who])).rows[0].u;
+ assert.equal(exhausted.softwareDistribution.used,plan.distributionAllowance);assert.equal(exhausted.softwareDistribution.remaining,0);
+ assert.ok(exhausted.analysis.remaining>0);
+ await db.query('select bm_commit_analysis($1,$2,$3,$4,$5,$6)',[who,over,randomUUID(),{matches},{},{...property,serviceType:'software'}]);
+ await assert.rejects(db.query('update bm_distribution_requests set allowed_fanout=999 where deal_id=$1',[id]),/Append-only audit record/);
+});
+
+for(const plan of commercialPlans) test(`${plan.name}: exact analysis allowance rejects next operation independently`,async()=>{
+ const who=await commercialOwner(plan), id=randomUUID();
+ await db.query('insert into bm_deals(id,owner_id,property) values($1,$2,$3)',[id,who,property]);
+ for(let i=0;i<plan.analysisAllowance-1;i++) await db.query("insert into bm_analyses(deal_id,owner_id,operation_key,private_result,public_result,created_at) values($1,$2,$3,'{}','{}',now()-interval '2 hours')",[id,who,randomUUID()]);
+ const args=[who,id,randomUUID(),{}, {},property];
+ await db.query('select bm_commit_analysis($1,$2,$3,$4,$5,$6)',args);
+ await db.query('select bm_commit_analysis($1,$2,$3,$4,$5,$6)',args);
+ await assert.rejects(db.query('select bm_commit_analysis($1,$2,$3,$4,$5,$6)',[who,id,randomUUID(),{},{},property]),/Analysis allowance exhausted/);
+ const usage=(await db.query('select bm_account_usage($1) u',[who])).rows[0].u;
+ assert.equal(usage.analysis.used,plan.analysisAllowance);assert.equal(usage.softwareDistribution.used,0);
+});
+
+test('effective upgrades/downgrades affect only future distribution; missing/expired/canceled/unknown plans fail closed',async()=>{
+ const who=await commercialOwner(commercialPlans[0]),matches=await rankedBuyers(),history=[];
+ for(const plan of [commercialPlans[0],commercialPlans[1],commercialPlans[0]]) {
+  await db.query("update bm_entitlements set plan_version=$2,allowance=$3 where owner_id=$1 and product='buyermatch'",[who,plan.version,plan.analysisAllowance]);
+  const id=await commercialDeal(who,matches),key=randomUUID();
+  await db.query('select bm_queue_distribution($1,$2,$3)',[who,id,key]);history.push({id,key,cap:plan.maxDistributionFanout});
+  for(const prior of history) {
+   await db.query('select bm_queue_distribution($1,$2,$3)',[who,prior.id,prior.key]);
+   assert.equal((await db.query('select count(*)::int n from bm_exposures where deal_id=$1',[prior.id])).rows[0].n,prior.cap);
+   assert.equal((await db.query('select allowed_fanout from bm_distribution_requests where deal_id=$1',[prior.id])).rows[0].allowed_fanout,prior.cap);
+  }
+ }
+ const id=await commercialDeal(who,matches);
+ await assert.rejects(db.query('select bm_queue_distribution($1,$2,$3)',[other,id,randomUUID()]),/Deal not found/);
+ for(const change of ["status='inactive'","status='active',period_end=now()-interval '1 second'","period_end=now()+interval '1 day',plan_version='missing-plan'"]) {
+  await db.query(`update bm_entitlements set ${change} where owner_id=$1 and product='buyermatch'`,[who]);
+  await assert.rejects(db.query('select bm_queue_distribution($1,$2,$3)',[who,id,randomUUID()]),/entitlement required|limits unavailable/);
+ }
+ await db.query("delete from bm_entitlements where owner_id=$1",[who]);
+ await assert.rejects(db.query('select bm_queue_distribution($1,$2,$3)',[who,id,randomUUID()]),/entitlement required/);
+ assert.equal((await db.query('select count(*)::int n from bm_exposures where deal_id=$1',[id])).rows[0].n,0);
+});

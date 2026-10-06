@@ -1,6 +1,6 @@
 import BuyerCriteriaEditor from "./BuyerCriteriaEditor";
 import BuyerMatchConfiguration from "./BuyerMatchConfiguration";
-import { UsageCards, AdminUsage } from './BuyerMatchUsage';
+import { UsageCards, AdminUsage, CommercialPlans } from './BuyerMatchUsage';
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import Papa from "papaparse";
@@ -247,6 +247,7 @@ export default function BuyerMatch() {
       {isPlans ? (
         <section className="space-y-5">
           <UsageCards usage={plans.usage} />
+          <CommercialPlans plans={plans.commercialPlans} />
           <p>
             BuyerMatch analysis and Private Network distribution have separate
             allowances from your CRM subscription and purchased credits.
@@ -1114,6 +1115,7 @@ export default function BuyerMatch() {
                 </p>
                 <section className="rounded border border-slate-700 p-4 space-y-2" aria-label="Distribution readiness">
                   <h3>Distribution check</h3>
+                  {(property.serviceType || 'managed_dispo') === 'software' && <p>Your plan will distribute this deal to up to {plans.usage?.softwareDistribution?.maxDistributionFanout ?? 0} of the strongest eligible matches. {plans.usage?.softwareDistribution?.remaining ?? 0} Software distributions remaining this billing period.</p>}
                   <p>{data.deal.hasContract ? '✓' : 'Required:'} Private contract upload</p>
                   <p>{data.deal.contractVerified ? '✓' : 'Required:'} Contract/control review</p>
                   <p>{data.analysis ? '✓' : 'Required:'} Matching analysis (freshness rechecked before sending)</p>
@@ -1131,7 +1133,7 @@ export default function BuyerMatch() {
                       "Distribution request recorded. Delivery status appears in Deal progress.",
                     );
                   },
-                  !plans.distributionEnabled,
+                  !plans.distributionEnabled || !(plans.usage?.[(property.serviceType || 'managed_dispo') === 'software' ? 'softwareDistribution' : 'managedDispo']?.remaining > 0),
                 )}
               </section>
               <section className="border border-slate-700 rounded-xl p-5 space-y-3">

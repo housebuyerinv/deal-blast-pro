@@ -22,7 +22,7 @@ import { deliveryAvailability } from "../buyermatch/availability.js";
 import { hasBuyerMatchAccess } from "../../src/lib/buyerMatchAccess.js";
 import { safeConversationText } from '../buyermatch/conversation.js';
 import { billingConfig, isLiveSoftwarePrice } from "../buyermatch/billing-config.js";
-import { simulatePlans } from '../buyermatch/usage.js';
+import { commercialPlans, simulatePlans } from '../buyermatch/usage.js';
 import {
   dealSchema,
   criteriaSchema,
@@ -714,6 +714,7 @@ export default async function handler(req: any, res: any) {
       }
       return emit({
         catalog,
+        commercialPlans,
         entitlements,
         usage,
         checkoutEnabled,
