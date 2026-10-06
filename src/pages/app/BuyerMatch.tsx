@@ -102,6 +102,8 @@ export default function BuyerMatch() {
   });
   const [title, setTitle] = useState<RecordData>({});
   const [note, setNote] = useState("");
+  const [messageDraft, setMessageDraft] = useState("");
+  const [conversationId, setConversationId] = useState("");
   const [kind, setKind] = useState("progress_update");
   const [signature, setSignature] = useState("");
   const [documents, setDocuments] = useState<RecordData[]>([]);
@@ -1120,6 +1122,60 @@ export default function BuyerMatch() {
                     {new Date(offer.created_at).toLocaleDateString()}
                   </p>
                 ))}
+                <div className="rounded-lg border border-slate-700 bg-black/20 p-4 space-y-3">
+                  <h3 className="font-semibold">Private buyer conversation</h3>
+                  {data.conversations?.length ? (
+                    <>
+                      <select
+                        aria-label="Buyer conversation"
+                        className={inputClass}
+                        value={conversationId}
+                        onChange={(e) => setConversationId(e.target.value)}
+                      >
+                        <option value="">Select an anonymous buyer</option>
+                        {data.conversations.map((conversation: RecordData) => (
+                          <option key={conversation.exposureId} value={conversation.exposureId}>
+                            {conversation.buyerRef}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="max-h-64 space-y-2 overflow-y-auto">
+                        {(data.messages || [])
+                          .filter((message: RecordData) => !conversationId || message.exposure_id === conversationId)
+                          .map((message: RecordData) => (
+                            <div key={message.id} className="rounded bg-slate-900 p-3">
+                              <p className="text-xs text-slate-400">
+                                {message.sender_kind === "buyer" ? "Buyer" : "You / team"} · {new Date(message.created_at).toLocaleString()}
+                              </p>
+                              <p className="mt-1 whitespace-pre-wrap text-sm">{message.body}</p>
+                            </div>
+                          ))}
+                      </div>
+                      <textarea
+                        aria-label="Message buyer"
+                        className={inputClass}
+                        maxLength={2000}
+                        value={messageDraft}
+                        onChange={(e) => setMessageDraft(e.target.value)}
+                        placeholder="Send a message without exposing either party's email address."
+                      />
+                      {button("Send message", async () => {
+                        if (!conversationId) throw new Error("Select a buyer conversation.");
+                        await request("message", {
+                          id,
+                          exposureId: conversationId,
+                          message: messageDraft,
+                        });
+                        setMessageDraft("");
+                        await reload();
+                      }, !conversationId || !messageDraft.trim())}
+                    </>
+                  ) : (
+                    <p className="text-sm text-slate-400">
+                      Conversations appear after a buyer receives this deal. Buyer identities stay private.
+                    </p>
+                  )}
+                </div>
                 {data.closing && (
                   <p>
                     Closing:{" "}
