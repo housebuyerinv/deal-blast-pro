@@ -41,7 +41,9 @@ export default function BuyerMatchResponse() {
           kind,
           ...(kind === "offer"
             ? { amountCents: Math.round(Number(amount) * 100), terms }
-            : {}),
+            : kind === "message"
+              ? { terms }
+              : {}),
         }),
       });
       const data = await result.json().catch(() => {
@@ -53,7 +55,9 @@ export default function BuyerMatchResponse() {
       setMessage(
         kind === "unsubscribe"
           ? "You have been opted out of this network."
-          : "Your response has been recorded.",
+          : kind === "message"
+            ? "Your message has been sent."
+            : "Your response has been recorded.",
       );
     } catch (e: any) {
       if (started === generation.current)
@@ -97,6 +101,7 @@ export default function BuyerMatchResponse() {
                   ["interested", "Interested"],
                   ["offer", "Submit offer"],
                   ["declined", "Pass on this deal"],
+                  ["message", "Send a message"],
                   ["unsubscribe", "Unsubscribe from the network"],
                 ].map(([value, label]) => (
                   <option key={value} value={value}>
@@ -105,6 +110,26 @@ export default function BuyerMatchResponse() {
                 ))}
               </select>
             </label>
+            {kind === "message" && (
+              <label className="block">
+                Message
+                <textarea
+                  className="block w-full bg-slate-800 p-3"
+                  maxLength={2000}
+                  required
+                  value={terms}
+                  onChange={(e) => {
+                    setTerms(e.target.value);
+                    setOperationKey(crypto.randomUUID());
+                    setMessage("");
+                  }}
+                  placeholder="Ask a question or send an update about this deal."
+                />
+                <span className="mt-1 block text-xs text-slate-400">
+                  Messaging becomes available after you express interest or submit an offer.
+                </span>
+              </label>
+            )}
             {kind === "offer" && (
               <>
                 <label className="block">
