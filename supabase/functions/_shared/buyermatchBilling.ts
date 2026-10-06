@@ -131,7 +131,13 @@ export async function handleBuyerMatchBilling(
       canonicalPrice.recurring?.usage_type !== 'licensed')
       return { status: 503, body: { error: 'Live software price verification failed' } };
   }
-  const active =
+  let paidInvoice = !live;
+  if (live && current.status === 'active') {
+    const invoice = typeof current.latest_invoice === 'string'
+      ? await stripeGet(`/v1/invoices/${current.latest_invoice}`) : current.latest_invoice;
+    paidInvoice = invoice?.status === 'paid' && invoice?.amount_paid > 0 && invoice?.livemode === true;
+  }
+  const active = paidInvoice &&
     (live ? current.status === 'active' : ["active", "trialing"].includes(current.status)) &&
     ![
       "invoice.payment_failed",

@@ -143,6 +143,8 @@ export default function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean;
       <div className="flex-1 py-3">
         {navGroups.map(group => {
           const visibleItems = ownerAdminBypass || hasInternalAdminAccess ? group.items : group.items.filter(item => {
+            // Product discovery link; the destination enforces BuyerMatch entitlement.
+            if (item.to === '/app/buyermatch') return true
             if (item.to === '/app/submissions') return dealSubmissionReviewAllowed
             return canAccessRoute(item.to, trial, user, settings)
           })

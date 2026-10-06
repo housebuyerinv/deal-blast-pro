@@ -414,21 +414,13 @@ export default async function handler(req: any, res: any) {
         if (!criteria.markets.length || !criteria.assetTypes.length)
           fail("BuyerMatch requires at least one supported market and property type");
         const hash = identityHash(identity.email);
-        const existing = checked(
-          await db
-            .from("bm_buyers")
-            .select("id,status")
-            .eq("identity_hash", hash)
-            .maybeSingle(),
-        );
-        if (existing?.status === "suppressed")
-          return emit({ id: existing.id, status: "suppressed", synced: false });
         const payload = {
           identity_hash: hash,
           identity_ciphertext: encryptIdentity(identity),
           criteria,
           status: "active",
           criteria_verified_at: new Date().toISOString(),
+          synthetic: process.env.BM_ENVIRONMENT === 'staging' && identity.email.endsWith('@example.invalid'),
           consent_evidence: String(body.consentEvidence || "Approved Buyer Portal submission").slice(0, 2000),
           source_ciphertext: encryptIdentity({
             source: "buyer_portal",
@@ -436,23 +428,11 @@ export default async function handler(req: any, res: any) {
             syncedAt: new Date().toISOString(),
           }),
         };
-        if (existing?.id) {
-          checked(
-            await db
-              .from("bm_buyers")
-              .update(payload)
-              .eq("id", existing.id),
-          );
-          return emit({ id: existing.id, status: "active", synced: true, updated: true });
-        }
-        const inserted = checked(
-          await db
-            .from("bm_buyers")
-            .insert(payload)
-            .select("id,status")
-            .single(),
-        );
-        return emit({ ...inserted, synced: true, updated: false });
+        return emit(checked(await db.rpc('bm_sync_portal_buyer', {
+          p_actor: user.id,
+          p_key: responseOperationKey({ token: hash, kind: 'message', terms: JSON.stringify({identity,criteria,sourceId:body.sourceId || '',consent:payload.consent_evidence}) }),
+          p_value: payload,
+        })));
       }
       if (action === "admin-buyer") {
         uuid.parse(body.id);
@@ -701,9 +681,11 @@ export default async function handler(req: any, res: any) {
       }
       let catalog: any[] = [];
       let checkoutEnabled = false;
+      let checkoutLive = false;
       if (process.env.BM_CHECKOUT_ENABLED === "true") {
         try {
           const { live } = billingConfig();
+          checkoutLive = live;
           if (live) {
             const gate = checked(await db.from('bm_live_billing_config').select('enabled,verified').eq('id',true).single());
             if (!gate?.enabled || !gate?.verified) throw new Error('Billing disabled');
@@ -739,6 +721,7 @@ export default async function handler(req: any, res: any) {
         catalog,
         entitlements,
         checkoutEnabled,
+        checkoutMode: checkoutEnabled ? (checkoutLive ? 'live' : 'test') : 'disabled',
         ...deliveryAvailability(
           checked(
             await db
@@ -784,9 +767,11 @@ export default async function handler(req: any, res: any) {
         ),
       });
     if (action === "save") {
-      const property = dealSchema.parse(body.property);
+      const priorDeal = body.id ? await owned(body.id) : null;
+      const property = dealSchema.parse({ ...body.property,
+        serviceType: body.property?.serviceType || (priorDeal ? priorDeal.property.serviceType || 'managed_dispo' : 'software') });
       if (body.id) {
-        const existing = await owned(body.id);
+        const existing = priorDeal;
         if (!["draft", "analyzed"].includes(existing.status))
           fail("Property is locked after submission for review");
         const saved = await db.rpc("bm_edit_deal", {

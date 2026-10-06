@@ -30,7 +30,7 @@ async function account(prefix) {
     password: env[`BM_TEST_${prefix}_PASSWORD`],
   });
   ensure(!result.error, `${prefix} fixture authentication`);
-  return { db, token: result.data.session.access_token };
+  return { db, token: result.data.session.access_token, id: result.data.user.id };
 }
 async function api(account, action, data = {}, expected = 200) {
   const r = await fetch(origin + "/api/buyermatch", {
@@ -174,6 +174,7 @@ try {
       "Regular-user response contains no buyer identity",
     );
   const property = {
+    serviceType: "managed_dispo",
     address: "123 SYNTHETIC QA STREET",
     city: "Memphis",
     state: "TN",
@@ -187,6 +188,9 @@ try {
     sqft: 1200,
   };
   const { id } = await api(user, "save", { property });
+  const portalProperty = { ...property, sourceSubmissionId: randomUUID() };
+  const portalDrafts = await Promise.all(Array.from({length: 4}, () => api(user, 'save', {property: portalProperty})));
+  ensure(new Set(portalDrafts.map(draft => draft.id)).size === 1, 'Concurrent Deal Portal sync creates exactly one draft');
   const detailRead = await fetch(origin + "/api/buyermatch?action=detail&id=" + id, {
     headers: { ...headers, Authorization: "Bearer " + user.token },
   });
@@ -399,6 +403,72 @@ try {
       auth: { persistSession: false, autoRefreshToken: false },
     },
   );
+  const messageBody = { ...responseBody, kind: 'message', terms: 'SYNTHETIC question contact@example.invalid (202) 555-0101' };
+  // Prove the normal software product independently of the legacy Network entitlement.
+  const software = await api(other, 'save', { property: { ...property, serviceType: 'software' } });
+  const softwareUpload = await api(other, 'upload', { id: software.id, purpose: 'contract' });
+  const softwareStored = await other.db.storage.from('buyermatch-private').uploadToSignedUrl(softwareUpload.path, softwareUpload.token, pdf, { contentType: 'application/pdf' });
+  ensure(!softwareStored.error, 'Software deal private PDF upload');
+  await api(other, 'title', { id: software.id, title });
+  for (const kind of ['network', 'deal_certification']) await api(other, 'accept', {
+    id: software.id, documentId: documents.find(d => d.kind === kind).id, signature: 'Synthetic software owner',
+  });
+  await api(admin, 'admin-review', { id: software.id });
+  await api(other, 'analyze', { id: software.id, operationKey: randomUUID() });
+  const networkBefore = await verificationDb.from('bm_entitlements').select('status').eq('owner_id', other.id).eq('product', 'network').single();
+  ensure(!networkBefore.error, 'Synthetic Network status available for isolated software test');
+  try {
+    const disabled = await verificationDb.from('bm_entitlements').update({ status: 'inactive' }).eq('owner_id', other.id).eq('product', 'network');
+    ensure(!disabled.error, 'Synthetic Network entitlement temporarily inactive');
+    const softwareKey = randomUUID();
+    const softwareRequests = await Promise.all(Array.from({ length: 4 }, () => api(other, 'distribution', { id: software.id, operationKey: softwareKey })));
+    ensure(new Set(softwareRequests.map(r => r.requestId)).size === 1, 'Software distribution concurrent retries reserve once without Network access');
+    const softwareDetail = await api(admin, 'admin-detail', { id: software.id });
+    ensure(softwareDetail.exposures.length > 0 && softwareDetail.exposures.every(e => e.frozen_terms.serviceType === 'software' && e.frozen_terms.policy.enabled === false && !e.frozen_terms.acceptances.some(a => a.kind === 'fee_schedule')), 'Software exposures have no fee agreement or enabled fee policy');
+  } finally {
+    const restored = await verificationDb.from('bm_entitlements').update({ status: networkBefore.data.status }).eq('owner_id', other.id).eq('product', 'network');
+    ensure(!restored.error, 'Synthetic Network entitlement restored');
+  }
+  const portalBuyer = { sourceId: randomUUID(), identity: {name:'SYNTHETIC PORTAL QA',email:`portal-${randomUUID()}@example.invalid`},
+    criteria:{markets:[{state:'CA'}],assetTypes:['land']},consentEvidence:'SYNTHETIC portal approval QA only'};
+  await api(user,'admin-sync-buyer',portalBuyer,403);
+  const synced = await Promise.all(Array.from({length:4},()=>api(admin,'admin-sync-buyer',portalBuyer)));
+  ensure(new Set(synced.map(buyer=>buyer.id)).size===1,'Concurrent Buyer Portal approvals create one identity');
+  const syncedBuyer = await verificationDb.from('bm_buyers').select('verification_level,synthetic').eq('id',synced[0].id).single();
+  ensure(!syncedBuyer.error && syncedBuyer.data.synthetic && syncedBuyer.data.verification_level==='unverified','Portal buyer remains synthetic and unverified');
+  const suppress = await verificationDb.from('bm_buyers').update({status:'suppressed',opted_out_at:new Date().toISOString()}).eq('id',synced[0].id);
+  ensure(!suppress.error,'Synthetic portal buyer suppressed after QA');
+  ensure((await api(admin,'admin-sync-buyer',portalBuyer)).synced===false,'Portal retry cannot reactivate a suppressed identity');
+  const messageRequests = await Promise.all(Array.from({length: 8}, () => fetch(origin + '/api/buyermatch-response', {
+    method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...messageBody, operationKey: randomUUID() }),
+  })));
+  ensure(messageRequests.every(result => result.ok), 'Concurrent buyer message retries accepted');
+  await Promise.all(Array.from({length: 4}, () => api(user, 'message', { id, exposureId: exposure.id, message: 'SYNTHETIC owner reply' })));
+  const messageRows = await verificationDb.from('bm_messages').select('id', { count: 'exact', head: true }).eq('exposure_id', exposure.id);
+  ensure(!messageRows.error && messageRows.count === 2, 'Buyer and owner concurrent retries create exactly two messages');
+  const conversationResponse = await fetch(origin + '/api/buyermatch-response', {
+    method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...responseBody, kind: 'conversation' }),
+  });
+  ensure(conversationResponse.ok, 'Buyer can read their secure conversation');
+  const conversation = await conversationResponse.json();
+  privateSafe(conversation);
+  ensure(Object.keys(conversation).sort().join() === 'address,city,messages,state', 'Conversation contains only approved public fields');
+  ensure(conversation.messages.length === 2 && !JSON.stringify(conversation).includes('contact@example.invalid') && !JSON.stringify(conversation).includes('555-0101'), 'Conversation withholds contact details and returns one message per side');
+  await api(other, 'message', { id, exposureId: exposure.id, message: 'SYNTHETIC unauthorized' }, 404);
+  const beforeAccess = await verificationDb.from('bm_entitlements').select('status').eq('owner_id', other.id).eq('product','buyermatch').single();
+  ensure(!beforeAccess.error, 'Synthetic other-user entitlement available');
+  try {
+    const disabled = await verificationDb.from('bm_entitlements').update({status:'inactive'}).eq('owner_id',other.id).eq('product','buyermatch');
+    ensure(!disabled.error, 'Synthetic entitlement disabled for access test');
+    await api(other,'list',{},403);
+    ensure((await api(other,'access')).active === false, 'Inactive BuyerMatch is denied independently of DBP plan');
+    await api(other,'plans');
+  } finally {
+    const restored = await verificationDb.from('bm_entitlements').update({status:beforeAccess.data.status}).eq('owner_id',other.id).eq('product','buyermatch');
+    ensure(!restored.error, 'Synthetic entitlement restored');
+  }
   const responseRows = await verificationDb
     .from("bm_responses")
     .select("id", { count: "exact", head: true })

@@ -96,6 +96,7 @@ export default function BuyerMatch() {
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const [property, setProperty] = useState<RecordData>({
+    serviceType: 'software',
     assetType: "sfh",
     state: "",
     zip: "",
@@ -273,7 +274,7 @@ export default function BuyerMatch() {
                   )}
                   <p className="text-sm text-slate-400 mt-3">
                     {plans.checkoutEnabled
-                      ? "Stripe test mode · no live billing"
+                      ? plans.checkoutMode === 'live' ? 'Secure Stripe subscription checkout' : "Stripe test mode · no live billing"
                       : "Checkout is unavailable. No payment will be taken."}
                   </p>
                   {plans.catalog
@@ -292,7 +293,7 @@ export default function BuyerMatch() {
                             : item.interval}
                         </p>
                         {plans.checkoutEnabled &&
-                          button("Open Stripe test checkout", async () => {
+                          button(plans.checkoutMode === 'live' ? 'Open secure checkout' : "Open Stripe test checkout", async () => {
                             const key = (checkoutKeys.current[item.version] ??=
                               crypto.randomUUID());
                             try {
@@ -883,7 +884,7 @@ export default function BuyerMatch() {
                   className="block rounded-xl border border-slate-700 p-4"
                 >
                   {d.property.address} · {d.property.city}, {d.property.state}{" "}
-                  <span className="float-right">
+                  <span className="block mt-2 text-sm text-slate-400 sm:mt-0 sm:float-right">
                     {d.status.replaceAll("_", " ")}
                   </span>
                 </Link>
@@ -905,6 +906,13 @@ export default function BuyerMatch() {
             <h2 className="text-xl">
               {id ? "Deal details" : "Save a new deal"}
             </h2>
+            <label className="block">Service
+              <select className={inputClass} value={property.serviceType || (id ? 'managed_dispo' : 'software')}
+                onChange={event => setProperty({...property,serviceType:event.target.value})}>
+                <option value="software">BuyerMatch software — no automatic success fee</option>
+                <option value="managed_dispo">Managed Dispo — separate deal-specific terms required</option>
+              </select>
+            </label>
             <div className="grid sm:grid-cols-3 gap-4">
               {field("address", "Street address", "text", true)}
               {field("city", "City", "text", true)}
@@ -1074,7 +1082,7 @@ export default function BuyerMatch() {
                         onChange={(e) => setSignature(e.target.value)}
                       />
                     </label>
-                    {documents.map((doc) => (
+                    {documents.filter(doc => (property.serviceType || 'managed_dispo') !== 'software' || doc.kind !== 'fee_schedule').map((doc) => (
                       <details key={doc.id}>
                         <summary>
                           {doc.kind} · version {doc.version}
@@ -1101,6 +1109,16 @@ export default function BuyerMatch() {
                   After contract or title changes and admin review, run Analyze
                   saved deal again before requesting distribution.
                 </p>
+                <section className="rounded border border-slate-700 p-4 space-y-2" aria-label="Distribution readiness">
+                  <h3>Distribution check</h3>
+                  <p>{data.deal.hasContract ? '✓' : 'Required:'} Private contract upload</p>
+                  <p>{data.deal.contractVerified ? '✓' : 'Required:'} Contract/control review</p>
+                  <p>{data.analysis ? '✓' : 'Required:'} Matching analysis (freshness rechecked before sending)</p>
+                  <p>{Date.parse(data.deal.title?.eoc || '') > Date.now() ? '✓' : 'Required:'} Future closing/EOC date</p>
+                  <p>{plans.distributionEnabled ? '✓' : 'Unavailable:'} Delivery authorization</p>
+                  <p className="text-sm text-slate-400">Current signed agreements, consent and available allowance are checked before any exposure.
+                    {(property.serviceType || 'managed_dispo') === 'software' ? ' Software distribution carries no automatic success fee.' : ' Managed Dispo also requires its approved deal-specific fee terms.'}</p>
+                </section>
                 {button(
                   "Request distribution",
                   async () => {

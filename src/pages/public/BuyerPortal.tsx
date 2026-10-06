@@ -384,7 +384,7 @@ const [submitted, setSubmitted] = useState(false)
             <ShieldCheck size={14} />
             Verified Buyer Intake
           </div>
-          <h1 className="text-4xl font-bold mb-3">Get Added to Our Verified Buyer Network</h1>
+          <h1 className="text-4xl font-bold mb-3">Join Our Private Buyer Network</h1>
           <p className="text-[#C5CAD6] max-w-3xl">
             Submit your buying criteria and proof documents so we can confirm your purchasing ability and match you with off-market opportunities.
           </p>
@@ -695,7 +695,7 @@ const [submitted, setSubmitted] = useState(false)
                 onChange={e => updateForm('consent', e.target.checked)}
               />
               <span className="text-[#C5CAD6]">
-                I confirm the information submitted is accurate, and I understand Deal Blast Pro may review my proof documents before adding me to the verified buyer network.
+                I confirm the information submitted is accurate. Verification badges require review of supporting evidence; joining the private network does not automatically verify me.
               </span>
             </label>
           </div>

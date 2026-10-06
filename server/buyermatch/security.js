@@ -14,6 +14,7 @@ export const states =
 const text = z.string().trim().max(500);
 const number = z.number().finite().nonnegative().max(1e12).optional();
 export const dealSchema = z.object({
+  serviceType: z.enum(['software', 'managed_dispo']).default('software'),
   address: text.min(3),
   city: text.min(1),
   state: z.enum(states),

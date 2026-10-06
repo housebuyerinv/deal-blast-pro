@@ -131,7 +131,7 @@ export function canAccessRoute(
   settings?: Pick<AppSettings, 'ownerPreviewPlan'> | null,
 ) {
   if (hasEffectiveOwnerAdminBypass(user, settings)) return true
-  if (route === '/app/buyermatch' || route.startsWith('/app/buyermatch/')) return true
+  // BuyerMatch is authorized independently by its server entitlement and AppShell gate.
   return getAllowedRoutes(trial, user, settings).includes(route as AppRoute)
 }
 
