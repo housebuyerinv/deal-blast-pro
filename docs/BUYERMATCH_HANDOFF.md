@@ -1,3 +1,5 @@
+> Activation audit: see [BUYERMATCH_ACTIVATION_GATE.md](BUYERMATCH_ACTIVATION_GATE.md) for actual allowance semantics, the unapproved 20/50 proposal, read-only configuration audit, ordered migration checksums and remaining provider/owner gates. No configuration or Production changes were made.
+
 > Current candidate, October 5: the core runtime is already deployed in Production at `d9e5be5`; the launch-completion changes below are **Preview only**. Earlier dated rollout notes are historical. Production promotion requires owner approval after final Preview verification.
 
 ## Launch-completion verification
