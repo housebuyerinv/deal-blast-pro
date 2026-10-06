@@ -782,6 +782,17 @@ export default async function handler(req: any, res: any) {
           fail("Deal changed or is locked. Reload before editing.", 409);
         return emit({ id: body.id });
       }
+      if (property.sourceSubmissionId) {
+        const existingPortalDeal = checked(
+          await db
+            .from("bm_deals")
+            .select("id")
+            .eq("owner_id", user.id)
+            .contains("property", { sourceSubmissionId: property.sourceSubmissionId })
+            .maybeSingle(),
+        );
+        if (existingPortalDeal?.id) return emit({ id: existingPortalDeal.id, existing: true });
+      }
       return emit(
         checked(
           await db
