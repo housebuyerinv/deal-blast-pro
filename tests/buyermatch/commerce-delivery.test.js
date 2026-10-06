@@ -72,6 +72,18 @@ test("delivery test sink ignores real email and refuses nonsynthetic buyers or l
   await assert.rejects(provider.send({ ...payload, synthetic: false }));
   assert.throws(() => testProvider({ ...env, BM_DELIVERY_MODE: "live" }));
 });
+test('Resend diagnostics preserve only status and allowlisted category, never provider messages', async () => {
+ for(const [name,expected] of [['validation_error','validation_error'],['secret-in-provider-name','unclassified']]) {
+  const provider=testProvider({...env,BM_DELIVERY_MODE:'resend-test',RESEND_API_KEY:'secret-key'},async()=>({ok:false,status:403,json:async()=>({name,message:'secret-key private buyer payload'})}));
+  await assert.rejects(provider.send({property:{address:'SYNTHETIC'},idempotencyKey:'exposure',responseUrl:env.BM_APP_ORIGIN+'/buyer-response#token',synthetic:true}),error=>{
+   assert.equal(error.code,'test_provider_http_403_'+expected);
+   assert.equal(error.message,'Test provider request failed');
+   assert.ok(!JSON.stringify(error).includes('secret-key'));
+   return true;
+  });
+ }
+});
+
 test("checkout uses approved recurring test price and durable provider key across receipt persistence retry", async () => {
   const plan = {
     version: "v1",

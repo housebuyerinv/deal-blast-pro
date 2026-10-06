@@ -44,13 +44,14 @@ export async function dispatchOutbox(db, id, provider, env = process.env) {
       .is("accepted_at", null);
     if (saved.error) throw new Error("Receipt persistence failed");
     return { sent: true, testMode: true };
-  } catch {
+  } catch (error) {
     await db
       .from("bm_outbox")
       .update({
         state: "pending",
         lease_until: null,
-        last_error_code: "test_delivery_retry",
+        last_error_code: /^test_provider_http_[1-5][0-9]{2}_(validation_error|restricted_api_key|invalid_api_key|missing_api_key|rate_limit_exceeded|daily_quota_exceeded|application_error|unclassified)$/.test(error?.code || '')
+          ? error.code : "test_delivery_retry",
       })
       .eq("id", job.id)
       .is("accepted_at", null);

@@ -31,9 +31,16 @@ export function testProvider(env = process.env, sendFetch = globalThis.fetch) {
           text: `Synthetic staging deal: ${property.address}, ${property.city}, ${property.state}. Asking price: $${property.price}.\nRespond or unsubscribe: ${responseUrl}`,
         }),
       });
-      const data = await response.json();
-      if (!response.ok || !data.id)
-        throw new Error("Test provider request failed");
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.id) {
+        // Never retain provider messages: they may echo credentials or payload data.
+        const categories = new Set(['validation_error', 'restricted_api_key', 'invalid_api_key',
+          'missing_api_key', 'rate_limit_exceeded', 'daily_quota_exceeded', 'application_error']);
+        const category = categories.has(data.name) ? data.name : 'unclassified';
+        const error = new Error('Test provider request failed');
+        error.code = `test_provider_http_${response.status}_${category}`;
+        throw error;
+      }
       return { id: data.id };
     },
   };
