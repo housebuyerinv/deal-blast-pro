@@ -30,6 +30,7 @@ import AppShell from './components/layout/AppShell'
 
 import BuyerMatch from './pages/app/BuyerMatch'
 import BuyerMatchResponse from './pages/public/BuyerMatchResponse'
+import BuyerMatchLanding from './pages/public/BuyerMatchLanding'
 import Dashboard from './pages/app/Dashboard'
 import Submissions from './pages/app/Submissions'
 import Inventory from './pages/app/Inventory'
@@ -307,6 +308,8 @@ function App() {
     <ErrorBoundary>
       <Routes>
         <Route path="/" element={<Landing />} />
+        <Route path="/buyermatch" element={<BuyerMatchLanding />} />
+        <Route path="/buyermatch/pricing" element={<BuyerMatchLanding />} />
         <Route path="/buyermatch/*" element={<Navigate to={location.pathname.replace(/^\/buyermatch/, '/app/buyermatch')} replace />} />
         <Route path="/buyer-response" element={<BuyerMatchResponse />} />
         <Route path="/pricing" element={<Pricing />} />
