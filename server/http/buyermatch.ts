@@ -873,9 +873,17 @@ export default async function handler(req: any, res: any) {
           .eq("deal_id", deal.id)
           .order("created_at"),
       );
+      const messages = checked(
+        await db
+          .from("bm_messages")
+          .select("id,exposure_id,sender_kind,body,created_at")
+          .eq("deal_id", deal.id)
+          .order("created_at"),
+      );
       return emit({
         offers,
         closing,
+        messages,
         deal: {
           id: deal.id,
           property: deal.property,
@@ -1050,6 +1058,44 @@ export default async function handler(req: any, res: any) {
             .in("status", ["draft", "analyzed"]),
         );
       return emit({ saved: true, closingVerified: false });
+    }
+    if (action === "message") {
+      const message = z.string().trim().min(1).max(2000).parse(body.message);
+      let exposureId = null;
+      if (body.exposureId) {
+        exposureId = uuid.parse(body.exposureId);
+        const exposure = checked(
+          await db
+            .from("bm_exposures")
+            .select("id")
+            .eq("id", exposureId)
+            .eq("deal_id", deal.id)
+            .eq("owner_id", user.id)
+            .maybeSingle(),
+        );
+        if (!exposure) fail("Buyer conversation unavailable", 404);
+      }
+      checked(
+        await db.from("bm_messages").insert({
+          deal_id: deal.id,
+          exposure_id: exposureId,
+          sender_kind: account.isOwnerAdmin ? "admin" : "owner",
+          sender_user_id: user.id,
+          body: message,
+        }),
+      );
+      checked(
+        await db.from("bm_events").insert({
+          deal_id: deal.id,
+          actor_id: user.id,
+          kind: "message_sent",
+          public_note: exposureId
+            ? "A message was sent in the private buyer conversation."
+            : "A private deal note was added.",
+          evidence: exposureId ? { exposureId } : {},
+        }),
+      );
+      return emit({ sent: true });
     }
     if (action === "distribution") {
       const production = process.env.VERCEL_ENV === "production";
