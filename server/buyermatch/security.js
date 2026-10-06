@@ -45,6 +45,7 @@ export const dealSchema = z.object({
   financing: text.optional(),
   leaseYears: number,
   debtServiceCoverage: number,
+  sourceSubmissionId: text.optional(),
 });
 export const titleSchema = z.object({
   company: text,
