@@ -13,6 +13,8 @@ const records = {
   account_profiles: [{ user_id: owner, account_status: "Active" }],
   workspaces: [],
   workspace_plan_assignments: [],
+  bm_entitlements: [{ owner_id: owner, product: 'buyermatch', status: 'active',
+    period_start: '2020-01-01', period_end: '2099-01-01' }],
   bm_deals: [
     {
       id: dealId,
@@ -56,6 +58,14 @@ class Query {
   }
   eq(key, value) {
     this.filters.push((row) => row[key] === value);
+    return this;
+  }
+  gte(key, value) {
+    this.filters.push((row) => row[key] >= value);
+    return this;
+  }
+  lt(key, value) {
+    this.filters.push((row) => row[key] < value);
     return this;
   }
   order() {
@@ -288,6 +298,26 @@ test("Production outreach uses authenticated owner, denies cross-owner and fails
 });
 test.after(() => {
   delete globalThis.__buyerMatchFixture;
+});
+
+test('BuyerMatch access is independent of CRM plans and denies inactive entitlements', async () => {
+  const entitlement = records.bm_entitlements[0];
+  try {
+    for (const status of ['inactive', 'past_due', 'canceled']) {
+      entitlement.status = status;
+      assert.equal((await invoke('list')).statusCode, 403);
+    }
+    entitlement.status = 'active';
+    entitlement.period_end = '2020-01-01';
+    assert.equal((await invoke('list')).statusCode, 403);
+    entitlement.period_end = '2099-01-01';
+    entitlement.product = 'network';
+    assert.equal((await invoke('list')).statusCode, 403);
+    entitlement.product = 'buyermatch';
+    assert.equal((await invoke('list')).statusCode, 200);
+  } finally {
+    Object.assign(entitlement, { status: 'active', product: 'buyermatch', period_end: '2099-01-01' });
+  }
 });
 
 test("all private admin operations deny regular accounts before network access", async () => {

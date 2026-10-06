@@ -13,6 +13,12 @@ const input = {
   amountCents: 6200000,
   terms: "QA offer",
 };
+test('message retry fingerprint is stable across tabs and isolates different content and capabilities', () => {
+  const value = { ...input, kind: 'message', terms: 'Question' };
+  assert.equal(responseOperationKey(value), responseOperationKey({ ...value, terms: ' Question ', operationKey: randomUUID() }));
+  assert.notEqual(responseOperationKey(value), responseOperationKey({ ...value, terms: 'Second question' }));
+  assert.notEqual(responseOperationKey(value), responseOperationKey({ ...value, token: 'b'.repeat(43) }));
+});
 test("response fingerprint survives new tabs/retries but separates capabilities and changed offers", () => {
   const key = responseOperationKey(input);
   assert.match(

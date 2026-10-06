@@ -4,6 +4,7 @@ export const hashToken = (token) =>
   createHash("sha256").update(token).digest("hex");
 // Reopening a capability in another tab must not manufacture a new response.
 // Changed offer terms/amounts remain distinct submissions. No browser storage is needed.
+/** @param {{token: string, kind: string, amountCents?: number, terms?: string}} input */
 export function responseOperationKey({ token, kind, amountCents, terms }) {
   const digest = createHash("sha256")
     .update(
@@ -12,7 +13,7 @@ export function responseOperationKey({ token, kind, amountCents, terms }) {
         hashToken(token),
         kind,
         kind === "offer" ? amountCents : null,
-        kind === "offer" ? (terms || "").trim() : "",
+        ["offer", "message"].includes(kind) ? (terms || "").trim() : "",
       ]),
     )
     .digest("hex");

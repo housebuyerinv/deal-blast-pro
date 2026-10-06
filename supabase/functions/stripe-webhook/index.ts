@@ -688,7 +688,12 @@ Deno.serve(async req => {
   if (!verified) return json({ ok: false, error: 'Invalid signature' }, 400)
 
   const event = JSON.parse(payload)
-  const productBilling = await handleBuyerMatchBilling(event, stripeGet, supabaseUrl, serviceKey, {name:Deno.env.get("BM_ENVIRONMENT"),projectRef:Deno.env.get("BM_STAGING_PROJECT_REF"),stripeKey:Deno.env.get("STRIPE_SECRET_KEY")})
+  const productBilling = await handleBuyerMatchBilling(event, stripeGet, supabaseUrl, serviceKey, {
+    name:Deno.env.get("BM_ENVIRONMENT"),
+    projectRef:Deno.env.get("BM_ENVIRONMENT")==='production' ? Deno.env.get("BM_PRODUCTION_PROJECT_REF") : Deno.env.get("BM_STAGING_PROJECT_REF"),
+    stripeKey:Deno.env.get("STRIPE_SECRET_KEY"),
+    liveEnabled:Deno.env.get("BM_LIVE_BILLING_ENABLED"), verified:Deno.env.get("BM_BILLING_VERIFIED"),
+  })
   if (productBilling) return json(productBilling.body, productBilling.status)
   const claimed = await claimStripeEvent(supabaseUrl, serviceKey, event, await sha256(payload))
   if (!claimed) return json({ ok: true, duplicate: true })

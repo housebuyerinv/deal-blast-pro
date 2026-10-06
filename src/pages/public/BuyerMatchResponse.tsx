@@ -8,6 +8,7 @@ export default function BuyerMatchResponse() {
   const [operationKey, setOperationKey] = useState(() => crypto.randomUUID());
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [conversation, setConversation] = useState<{address: string; city: string; state: string; messages: {sender: string; body: string; createdAt: string}[]} | null>(null);
   useEffect(() => {
     const reopen = () => {
       generation.current += 1;
@@ -18,6 +19,7 @@ export default function BuyerMatchResponse() {
       setTerms("");
       setOperationKey(crypto.randomUUID());
       setMessage("");
+      setConversation(null);
       setBusy(false);
     };
     window.history.replaceState(null, "", window.location.pathname);
@@ -27,6 +29,19 @@ export default function BuyerMatchResponse() {
       window.removeEventListener("hashchange", reopen);
     };
   }, []);
+  async function loadConversation() {
+    const started = generation.current;
+    setBusy(true);
+    try {
+      const response = await fetch('/api/buyermatch-response', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, operationKey: crypto.randomUUID(), kind: 'conversation' }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error('This conversation is unavailable. Reopen your invitation or contact the deal team.');
+      if (started === generation.current) setConversation(data);
+    } catch (error: any) {
+      if (started === generation.current) { setConversation(null); setMessage(error.message); }
+    } finally { if (started === generation.current) setBusy(false); }
+  }
   async function submit() {
     const started = generation.current;
     setBusy(true);
@@ -172,6 +187,14 @@ export default function BuyerMatchResponse() {
           </form>
         )}
         {message && <p role="status">{message}</p>}
+        {/^[\w-]{43}$/.test(token) && <button disabled={busy} onClick={() => void loadConversation()} className="rounded border border-slate-600 p-3">View deal & conversation</button>}
+        {conversation && <section className="space-y-3" aria-label="Private conversation">
+          <h2>{conversation.address} · {conversation.city}, {conversation.state}</h2>
+          {!conversation.messages.length && <p>No messages yet.</p>}
+          {conversation.messages.map((item, index) => <article key={index} className="rounded bg-slate-900 p-3">
+            <p className="text-sm text-slate-400">{item.sender}</p><p className="whitespace-pre-wrap">{item.body}</p>
+          </article>)}
+        </section>}
       </div>
     </main>
   );

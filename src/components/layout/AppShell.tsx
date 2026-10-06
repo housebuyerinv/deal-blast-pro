@@ -4,7 +4,9 @@ import Sidebar from './Sidebar'
 import Topbar from './Topbar'
 import { useAppStore } from '../../store/useAppStore'
 import { SectionErrorBoundary } from '../ui/ErrorBoundary'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { useBuyerMatchAccess } from '../../hooks/useBuyerMatchAccess'
+import { isBuyerMatchRoute, isBuyerMatchAccountRoute } from '../../lib/buyerMatchAccess'
 import { isApiMode } from '../../services/storage'
 import { DEFAULT_SETTINGS } from '../../lib/constants'
 import FirstLoginSetup from '../FirstLoginSetup'
@@ -27,6 +29,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const { deals, buyers, followUps, setCurrentDeal, settings, user, trial, activateManualPlan, updateSettings, logout, workspaceInstanceId } = useAppStore()
   const navigate = useNavigate()
   const location = useLocation()
+  const buyerMatch = useBuyerMatchAccess(user?.id, workspaceInstanceId)
 
   const currentDealId = useAppStore(s => s.currentDealId)
 
@@ -136,7 +139,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const deletionBlocksAccess =
     accountStatus === 'Deactivated' ||
     accountStatus === 'Deleted' ||
-    billingStatus === 'Cancelled' ||
+    (billingStatus === 'Cancelled' && !buyerMatch.active) ||
     scheduledPeriodEnded ||
     scheduledWithoutActiveAccess ||
     (accountStatus === 'Deletion Requested' && ['Trial Active', 'Payment Pending', 'Past Due', 'Cancelled'].includes(String(billingStatus)))
@@ -173,6 +176,36 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </div>
     )
+  }
+
+  // Separate product access does not activate or mutate the CRM subscription.
+  const buyerMatchRoute = isBuyerMatchRoute(location.pathname)
+  const crmPaid = ['Paid Active', 'Comped', 'Trial Active'].includes(String(billingStatus)) &&
+    !['Free', 'Free Demo'].includes(String(getEffectivePlan(trial, user, settings)))
+  const buyerMatchOnly = buyerMatch.subscribed && !crmPaid && !hasOwnerAdminAccess
+  if (user && !hasOwnerAdminAccess && buyerMatch.pending) {
+    return <div role="status" className="p-8">Checking account access…</div>
+  }
+  if (buyerMatchOnly && !isBuyerMatchAccountRoute(location.pathname)) {
+    return <Navigate to="/app/buyermatch" replace />
+  }
+  if (user && (buyerMatchRoute || buyerMatchOnly)) {
+    const allowed = hasOwnerAdminAccess || buyerMatch.active || location.pathname === '/app/buyermatch/plans' || location.pathname === '/app/settings'
+    return <div className="min-h-screen bg-[#0A0C12] text-[#E6E8EE]">
+      <nav aria-label="BuyerMatch navigation" className="flex flex-wrap gap-4 border-b border-[#252A38] p-4">
+        <Link to="/app/buyermatch">BuyerMatch</Link>
+        <Link to="/app/buyermatch/plans">Plans & billing</Link>
+        <Link to="/app/settings">Account & settings</Link>
+        <Link to="/contact">Help</Link>
+        {!buyerMatchOnly && <Link to="/app/dashboard">DBP dashboard</Link>}
+        <button onClick={() => { void supabase.auth.signOut().then(() => logout()) }}>Sign out</button>
+      </nav>
+      <SectionErrorBoundary>{allowed ? children : <section className="mx-auto max-w-xl p-8 space-y-4">
+        <h1 className="text-2xl">BuyerMatch subscription required</h1>
+        <p>{buyerMatch.failed ? 'Access could not be verified. Refresh to retry.' : 'BuyerMatch is separate from your DBP plan. Choose BuyerMatch access to start matching.'}</p>
+        <Link className="btn btn-primary" to="/app/buyermatch/plans">View BuyerMatch plans</Link>
+      </section>}</SectionErrorBoundary>
+    </div>
   }
 
   if (user && !hasOwnerAdminAccess && !onboarding.planSelectionCompleted) {

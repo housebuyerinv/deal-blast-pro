@@ -2,17 +2,18 @@ import { Link } from "react-router-dom";
 import { Check, LockKeyhole, MessageSquare, Network, ShieldCheck, Sparkles } from "lucide-react";
 import PublicNav from "../../components/layout/PublicNav";
 import PublicFooter from "../../components/layout/PublicFooter";
+import catalog from '../../../supabase/functions/_shared/buyermatchPlans.json';
 
 const plans = [
   {
     name: "Starter",
-    price: "$59",
+    price: `$${catalog[0].amountCents / 100}`,
     description: "Private matching for wholesalers who want qualified buyer reach without giving away the network.",
     features: ["Private buyer matching", "Anonymous buyer profiles", "Match explanations", "Secure buyer responses", "Deal conversation threads"],
   },
   {
     name: "Pro",
-    price: "$119",
+    price: `$${catalog[1].amountCents / 100}`,
     description: "More matching capacity and deeper buyer intelligence for active disposition teams.",
     features: ["Everything in Starter", "Higher matching allowance", "Detailed buyer-fit diagnostics", "Offer and response tracking", "Priority BuyerMatch workflow"],
   },

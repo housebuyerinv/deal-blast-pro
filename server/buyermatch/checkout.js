@@ -1,6 +1,7 @@
 import process from "node:process";
 import Stripe from "stripe";
 import { stagingOrigin } from "./staging.js";
+import { billingConfig, isPlanPrice, isLiveSoftwarePrice } from "./billing-config.js";
 const conflict = (message) => {
   throw Object.assign(new Error(message), { status: 409 });
 };
@@ -26,17 +27,26 @@ export function testStripe(env = process.env) {
     maxNetworkRetries: 2,
   });
 }
+export function checkoutStripe(env = process.env) {
+  const config = billingConfig(env);
+  if (!config.live) return testStripe(env);
+  return new Stripe(config.key, { apiVersion: "2026-08-26.dahlia", maxNetworkRetries: 2 });
+}
 export async function createCheckout(
   db,
   user,
   version,
   operationKey,
   env = process.env,
-  stripe = testStripe(env),
+  stripe = checkoutStripe(env),
 ) {
-  const origin = stagingOrigin(env);
+  const { origin, live } = billingConfig(env);
   if (env.BM_CHECKOUT_ENABLED !== "true")
-    throw new Error("Test checkout disabled");
+    throw new Error("BuyerMatch checkout disabled");
+  if (live) {
+    const config = await db.from('bm_live_billing_config').select('enabled,verified').eq('id', true).single();
+    if (config.error || !config.data?.enabled || !config.data?.verified) throw new Error('Live BuyerMatch billing disabled');
+  }
   const { data: plan, error } = await db
     .from("bm_plans")
     .select("*")
@@ -44,9 +54,9 @@ export async function createCheckout(
     .eq("approved", true)
     .single();
   if (error || !plan?.stripe_price_id)
-    throw new Error("Approved test plan required");
+    throw new Error("Approved plan required");
   const price = await stripe.prices.retrieve(plan.stripe_price_id);
-  if (!isTestPlanPrice(price))
+  if (!isPlanPrice(price, live) || (live && (!isLiveSoftwarePrice(price, plan) || !(plan.allowance > 0))))
     throw new Error("Active fixed USD recurring TEST price required");
   const reservation = await db.rpc("bm_begin_checkout", {
     p_owner: user.id,
@@ -67,7 +77,7 @@ export async function createCheckout(
   if (record.session_id) {
     const existing = await stripe.checkout.sessions.retrieve(record.session_id);
     if (
-      existing.livemode !== false ||
+      existing.livemode !== live ||
       existing.metadata?.dbpCheckoutId !== record.id ||
       existing.client_reference_id !== user.id
     )
@@ -85,15 +95,15 @@ export async function createCheckout(
       );
     }
     if (existing.status !== "open" || !validCheckoutUrl(existing.url))
-      throw new Error("Invalid test checkout");
-    return { url: existing.url, testMode: true };
+      throw new Error("Invalid checkout");
+    return { url: existing.url, testMode: !live };
   }
   if (Date.now() - Date.parse(record.created_at) > 23 * 3600000)
     throw new Error("Checkout requires reconciliation before retry");
   const session = await stripe.checkout.sessions.create(
     {
       mode: "subscription",
-      integration_identifier: "dbp_buyermatch_test_isfanzpg",
+      integration_identifier: live ? "dbp_buyermatch_live_isfanzpg" : "dbp_buyermatch_test_isfanzpg",
       line_items: [{ price: plan.stripe_price_id, quantity: 1 }],
       client_reference_id: user.id,
       customer_email: record.email,
@@ -114,13 +124,13 @@ export async function createCheckout(
     },
     { idempotencyKey: `bm-checkout-${record.id}` },
   );
-  if (session.livemode !== false || !validCheckoutUrl(session.url))
-    throw new Error("Invalid test checkout");
+  if (session.livemode !== live || !validCheckoutUrl(session.url))
+    throw new Error("Invalid checkout");
   const saved = await db
     .from("bm_checkouts")
     .update({ session_id: session.id, session_url: session.url })
     .eq("id", record.id);
   if (saved.error)
     throw new Error("Retry checkout with the same operation key");
-  return { url: session.url, testMode: true };
+  return { url: session.url, testMode: !live };
 }

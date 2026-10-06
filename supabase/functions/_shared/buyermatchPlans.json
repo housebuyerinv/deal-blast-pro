@@ -1,0 +1,4 @@
+[
+  { "version": "buyermatch-starter-v1", "name": "Starter", "amountCents": 5900, "currency": "usd", "interval": "month" },
+  { "version": "buyermatch-pro-v1", "name": "Pro", "amountCents": 11900, "currency": "usd", "interval": "month" }
+]

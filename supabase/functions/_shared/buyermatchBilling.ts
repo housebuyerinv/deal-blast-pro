@@ -1,11 +1,12 @@
 // Runs only after the existing webhook has verified Stripe's raw-body signature.
 // Separate products never enter the CRM plan/credit mutation path.
+import plans from './buyermatchPlans.json' with { type: 'json' };
 export async function handleBuyerMatchBilling(
   event: any,
   stripeGet: (path: string) => Promise<any>,
   url: string,
   serviceKey: string,
-  environment: { name?: string; projectRef?: string; stripeKey?: string } = {},
+  environment: { name?: string; projectRef?: string; stripeKey?: string; liveEnabled?: string; verified?: string } = {},
 ) {
   const object = event?.data?.object || {};
   const type = String(event.type || "");
@@ -33,17 +34,21 @@ export async function handleBuyerMatchBilling(
   const product =
     subscription?.metadata?.dbpProduct || object.metadata?.dbpProduct;
   if (!["buyermatch", "network"].includes(product)) return null;
-  if (
+  const live = event.livemode === true;
+  const liveAllowed = live && product === 'buyermatch' && environment.name === 'production' &&
+    environment.projectRef === 'aigvnbxiydbzzqbetlhl' && url === 'https://aigvnbxiydbzzqbetlhl.supabase.co' &&
+    environment.liveEnabled === 'true' && environment.verified === 'true' && /^(sk|rk)_live_/.test(environment.stripeKey || '');
+  if (!liveAllowed && (
     event.livemode !== false ||
     environment.name !== "staging" ||
     !environment.projectRef ||
     environment.projectRef === "aigvnbxiydbzzqbetlhl" ||
     url !== "https://" + environment.projectRef + ".supabase.co" ||
     !/^(sk|rk)_test_/.test(environment.stripeKey || "")
-  )
+  ))
     return {
       status: 200,
-      body: { ok: true, ignored: true, reason: "Test staging billing only" },
+      body: { ok: true, ignored: true, reason: "BuyerMatch billing environment disabled" },
     };
   const headers = {
     apikey: serviceKey,
@@ -105,7 +110,7 @@ export async function handleBuyerMatchBilling(
   const owner = current.metadata?.dealBlastUserId;
   const price = item?.price?.id;
   if (
-    current.livemode !== false ||
+    current.livemode !== live ||
     current.metadata?.dbpProduct !== product ||
     !current.metadata?.dbpCheckoutId ||
     !owner ||
@@ -117,15 +122,24 @@ export async function handleBuyerMatchBilling(
       status: 503,
       body: { ok: false, error: "Product billing mapping incomplete" },
     };
+  if (live) {
+    const canonicalPrice = await stripeGet(`/v1/prices/${price}`);
+    if (current.items.data.length !== 1 || item.quantity !== 1 ||
+      canonicalPrice?.livemode !== true || canonicalPrice?.active !== true ||
+      canonicalPrice.currency !== 'usd' || !plans.some(plan => plan.amountCents === canonicalPrice.unit_amount) ||
+      canonicalPrice.recurring?.interval !== 'month' || canonicalPrice.recurring?.interval_count !== 1 ||
+      canonicalPrice.recurring?.usage_type !== 'licensed')
+      return { status: 503, body: { error: 'Live software price verification failed' } };
+  }
   const active =
-    ["active", "trialing"].includes(current.status) &&
+    (live ? current.status === 'active' : ["active", "trialing"].includes(current.status)) &&
     ![
       "invoice.payment_failed",
       "invoice.payment_action_required",
       "charge.refunded",
       "customer.subscription.deleted",
     ].includes(type);
-  const response = await fetch(`${url}/rest/v1/rpc/bm_apply_test_billing`, {
+  const response = await fetch(`${url}/rest/v1/rpc/${live ? 'bm_apply_live_billing' : 'bm_apply_test_billing'}`, {
     method: "POST",
     headers: {
       apikey: serviceKey,

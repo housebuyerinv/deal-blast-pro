@@ -35,14 +35,15 @@ const realFetch = globalThis.fetch;
 const RequestType = globalThis.Request;
 const ResponseType = globalThis.Response;
 const calls = [];
+let subscriptionStatus = 'active';
 globalThis.fetch = async (url, options) => {
   calls.push({ url, options });
   if (String(url).includes("/v1/subscriptions/"))
     return new ResponseType(
       JSON.stringify({
         id: "sub_fixture",
-        status: "active",
-        livemode: false,
+        status: subscriptionStatus,
+        livemode: values.BM_ENVIRONMENT === 'production',
         metadata: {
           dbpProduct: "buyermatch",
           dbpCheckoutId: "33333333-3333-4333-8333-333333333333",
@@ -52,6 +53,7 @@ globalThis.fetch = async (url, options) => {
           data: [
             {
               price: { id: "price_fixture" },
+              quantity: 1,
               current_period_start: 1780000000,
               current_period_end: 1790000000,
             },
@@ -59,7 +61,10 @@ globalThis.fetch = async (url, options) => {
         },
       }),
     );
-  if (String(url).endsWith("/rpc/bm_apply_test_billing"))
+  if (String(url).includes('/v1/prices/')) return new ResponseType(JSON.stringify({
+    livemode:true,active:true,currency:'usd',unit_amount:5900,recurring:{interval:'month',interval_count:1,usage_type:'licensed'},
+  }));
+  if (String(url).endsWith("/rpc/bm_apply_test_billing") || String(url).endsWith('/rpc/bm_apply_live_billing'))
     return new ResponseType("null");
   throw new Error("Unexpected CRM or external request");
 };
@@ -121,6 +126,27 @@ test("signed product events enter independent billing RPC, never CRM updates", a
 test.after(() => {
   globalThis.fetch = realFetch;
   delete globalThis.Deno;
+});
+
+test('explicit live software webhook uses private mapping RPC and revokes canceled or past-due subscriptions', async () => {
+  const prior={...values};
+  Object.assign(values,{ BM_ENVIRONMENT:'production', BM_PRODUCTION_PROJECT_REF:'aigvnbxiydbzzqbetlhl',
+    SUPABASE_URL:'https://aigvnbxiydbzzqbetlhl.supabase.co', STRIPE_SECRET_KEY:'rk_live_fixture',
+    BM_LIVE_BILLING_ENABLED:'true',BM_BILLING_VERIFIED:'true' });
+  try {
+    for (const status of ['active','past_due','canceled']) {
+      subscriptionStatus=status;calls.length=0;
+      const event={id:'evt_live_fixture_'+status,livemode:true,created:1780000001,type:'customer.subscription.updated',
+        data:{object:{id:'sub_fixture',metadata:{dbpProduct:'buyermatch'}}}};
+      const response=await handler(request(JSON.stringify(event)));
+      assert.equal(response.status,200);
+      const write=calls.find(call=>call.url.endsWith('/rpc/bm_apply_live_billing'));
+      assert.ok(write);assert.equal(JSON.parse(write.options.body).p_status,status==='active'?'active':'inactive');
+      assert.equal(calls.some(call=>call.url.includes('workspace_plan_assignments')),false);
+    }
+  } finally {
+    for(const key of Object.keys(values)) delete values[key];Object.assign(values,prior);subscriptionStatus='active';
+  }
 });
 
 test("signed live-mode BuyerMatch events never mutate entitlements or CRM", async () => {

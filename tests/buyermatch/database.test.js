@@ -31,6 +31,9 @@ for (const name of [
   "20261001090000_buyermatch_test_commerce_delivery.sql",
   "20261002190115_buyermatch_response_scope.sql",
   "20261003001913_buyermatch_production_outbox.sql",
+  "20261005203000_buyermatch_messages.sql",
+  "20261006010617_buyermatch_live_billing_boundary.sql",
+  "20261006010804_buyermatch_conversation_safety.sql",
 ])
   await db.exec(
     readFileSync(
@@ -1015,4 +1018,46 @@ test("atomic edits reject terminal rows and stale contract evidence; existing pa
       ).rows[0].allowed,
       false,
     );
+});
+
+
+test('portal draft retries create one record per owner and submission', async () => {
+ const sourceSubmissionId=randomUUID();
+ const create=(who)=>db.query('select bm_create_draft($1,$2) id',[who,{...property,sourceSubmissionId}]);
+ const results=await Promise.all(Array.from({length:4},()=>create(owner)));
+ assert.equal(new Set(results.map(r=>r.rows[0].id)).size,1);
+ assert.notEqual((await create(other)).rows[0].id,results[0].rows[0].id);
+});
+
+test('conversation acceptance, prior interest, replay, suppression and privacy are enforced in SQL', async () => {
+ const {d,b,ex,o}=await deliveryFixture();const hash=randomUUID();const key=randomUUID();
+ await db.query("insert into bm_response_tokens(token_hash,exposure_id,expires_at) values($1,$2,now()+interval '1 day')",[hash,ex]);
+ const send=()=>db.query("select bm_buyer_message_scoped($1,$2,'Synthetic question','staging')",[hash,key]);
+ const view=()=>db.query("select bm_buyer_conversation($1,'staging') value",[hash]);
+ await assert.rejects(send(),/accepted/);await assert.rejects(view(),/Exposure/);
+ await db.query("update bm_outbox set accepted_at=now(),state='accepted' where id=$1",[o]);
+ await assert.rejects(send(),/interest/);
+ await db.query("select bm_buyer_response_scoped($1,$2,'interested',null,'','staging')",[hash,randomUUID()]);
+ await Promise.all([send(),send(),send()]);
+ const ownerKey=randomUUID();const reply=()=>db.query("select bm_owner_message($1,$2,$3,$4,'Synthetic reply')",[owner,d,ex,ownerKey]);
+ await Promise.all([reply(),reply()]);
+ assert.equal((await db.query('select count(*)::int n from bm_messages where deal_id=$1',[d])).rows[0].n,2);
+ const data=(await view()).rows[0].value;
+ assert.equal(data.messages.length,2);assert.deepEqual(Object.keys(data).sort(),['address','city','messages','state']);
+ assert.equal(JSON.stringify(data).includes(b),false);
+ await assert.rejects(db.query("select bm_owner_message($1,$2,$3,$4,'Other')",[other,d,ex,randomUUID()]),/Deal/);
+ await assert.rejects(db.query("select bm_buyer_message_scoped($1,$2,'Other','production')",[hash,randomUUID()]),/unavailable/);
+ await db.query("update bm_buyers set status='suppressed',opted_out_at=now() where id=$1",[b]);
+ await assert.rejects(send(),/unavailable/);await assert.rejects(reply(),/unavailable/);await assert.rejects(view(),/unavailable/);
+});
+
+test('new billing and conversation objects remain private and live billing defaults off', async () => {
+ const config=(await db.query('select enabled,verified from bm_live_billing_config')).rows[0];
+ assert.deepEqual(config,{enabled:false,verified:false});
+ for(const role of ['anon','authenticated']) {
+  assert.equal((await db.query("select has_table_privilege($1,'bm_messages','SELECT') allowed",[role])).rows[0].allowed,false);
+  for(const fn of ['bm_owner_message(uuid,uuid,uuid,uuid,text)','bm_buyer_conversation(text,text)','bm_create_draft(uuid,jsonb)','bm_apply_live_billing(uuid,text,bigint,uuid,text,text,text,text,timestamptz,timestamptz)'])
+   assert.equal((await db.query("select has_function_privilege($1,$2,'EXECUTE') allowed",[role,fn])).rows[0].allowed,false);
+ }
+ await assert.rejects(db.query("select bm_apply_live_billing($1,'evt',1,$2,'buyermatch','price','sub','active',now(),now()+interval '1 month')",[randomUUID(),owner]),/disabled/);
 });

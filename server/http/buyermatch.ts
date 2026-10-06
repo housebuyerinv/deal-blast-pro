@@ -9,16 +9,19 @@ import { analyzeDeal } from "../buyermatch/matching.js";
 import { calculateFee } from "../buyermatch/workflow.js";
 import {
   createCheckout,
-  testStripe,
+  checkoutStripe,
   isTestPlanPrice,
 } from "../buyermatch/checkout.js";
 import { assertStaging, stagingOrigin } from "../buyermatch/staging.js";
 import { findDuplicates } from "../buyermatch/deduplication.js";
 import { dispatchOutbox } from "../buyermatch/outbox.js";
 import { testProvider } from "../buyermatch/provider.js";
-import { responseToken } from "../buyermatch/tokens.js";
+import { responseToken, responseOperationKey } from "../buyermatch/tokens.js";
 import { productionDeliveryConfig } from "../buyermatch/production-delivery.js";
 import { deliveryAvailability } from "../buyermatch/availability.js";
+import { hasBuyerMatchAccess } from "../../src/lib/buyerMatchAccess.js";
+import { safeConversationText } from '../buyermatch/conversation.js';
+import { billingConfig, isLiveSoftwarePrice } from "../buyermatch/billing-config.js";
 import {
   dealSchema,
   criteriaSchema,
@@ -93,11 +96,20 @@ export default async function handler(req: any, res: any) {
       "list",
       "detail",
       "plans",
+      "access",
       "admin-list",
       "documents",
     ]);
     if (req.method === "GET" && !readActions.has(action))
       fail("POST required", 405);
+    if (action === "access" || (!account.isOwnerAdmin && !["plans", "checkout"].includes(action) && !action.startsWith("admin-"))) {
+      const entitlements = checked(await db.from("bm_entitlements")
+        .select("product,status,period_start,period_end").eq("owner_id", user.id));
+      const active = account.isOwnerAdmin || hasBuyerMatchAccess(entitlements);
+      if (action === "access") return res.status(200).json({ active,
+        subscribed: entitlements.some((item: any) => item.product === "buyermatch") });
+      if (!active) fail("An active BuyerMatch subscription is required. View BuyerMatch plans.", 403);
+    }
     const owned = async (id: string) => {
       uuid.parse(id);
       const deal = checked(
@@ -691,7 +703,12 @@ export default async function handler(req: any, res: any) {
       let checkoutEnabled = false;
       if (process.env.BM_CHECKOUT_ENABLED === "true") {
         try {
-          const stripe = testStripe();
+          const { live } = billingConfig();
+          if (live) {
+            const gate = checked(await db.from('bm_live_billing_config').select('enabled,verified').eq('id',true).single());
+            if (!gate?.enabled || !gate?.verified) throw new Error('Billing disabled');
+          }
+          const stripe = checkoutStripe();
           const approved = checked(
             await db
               .from("bm_plans")
@@ -701,7 +718,7 @@ export default async function handler(req: any, res: any) {
           for (const plan of approved) {
             if (!plan.stripe_price_id) continue;
             const price = await stripe.prices.retrieve(plan.stripe_price_id);
-            if (isTestPlanPrice(price))
+            if (price.recurring && (live ? isLiveSoftwarePrice(price, plan) && plan.allowance > 0 : isTestPlanPrice(price)))
               catalog.push({
                 version: plan.version,
                 product: plan.product,
@@ -782,26 +799,8 @@ export default async function handler(req: any, res: any) {
           fail("Deal changed or is locked. Reload before editing.", 409);
         return emit({ id: body.id });
       }
-      if (property.sourceSubmissionId) {
-        const existingPortalDeal = checked(
-          await db
-            .from("bm_deals")
-            .select("id")
-            .eq("owner_id", user.id)
-            .contains("property", { sourceSubmissionId: property.sourceSubmissionId })
-            .maybeSingle(),
-        );
-        if (existingPortalDeal?.id) return emit({ id: existingPortalDeal.id, existing: true });
-      }
-      return emit(
-        checked(
-          await db
-            .from("bm_deals")
-            .insert({ owner_id: user.id, property })
-            .select("id")
-            .single(),
-        ),
-      );
+      const id = checked(await db.rpc('bm_create_draft', { p_owner: user.id, p_property: property }));
+      return emit({ id });
     }
     if (action === "documents")
       return emit({
@@ -894,7 +893,7 @@ export default async function handler(req: any, res: any) {
       return emit({
         offers,
         closing,
-        messages,
+        messages: messages.map((message: any) => ({ ...message, body: safeConversationText(message.body) })),
         conversations,
         deal: {
           id: deal.id,
@@ -1073,40 +1072,13 @@ export default async function handler(req: any, res: any) {
     }
     if (action === "message") {
       const message = z.string().trim().min(1).max(2000).parse(body.message);
-      let exposureId = null;
-      if (body.exposureId) {
-        exposureId = uuid.parse(body.exposureId);
-        const exposure = checked(
-          await db
-            .from("bm_exposures")
-            .select("id")
-            .eq("id", exposureId)
-            .eq("deal_id", deal.id)
-            .eq("owner_id", user.id)
-            .maybeSingle(),
-        );
-        if (!exposure) fail("Buyer conversation unavailable", 404);
-      }
-      checked(
-        await db.from("bm_messages").insert({
-          deal_id: deal.id,
-          exposure_id: exposureId,
-          sender_kind: account.isOwnerAdmin ? "admin" : "owner",
-          sender_user_id: user.id,
-          body: message,
-        }),
-      );
-      checked(
-        await db.from("bm_events").insert({
-          deal_id: deal.id,
-          actor_id: user.id,
-          kind: "message_sent",
-          public_note: exposureId
-            ? "A message was sent in the private buyer conversation."
-            : "A private deal note was added.",
-          evidence: exposureId ? { exposureId } : {},
-        }),
-      );
+      const exposureId = uuid.parse(body.exposureId);
+      const result = await db.rpc('bm_owner_message', {
+        p_owner: user.id, p_deal: deal.id, p_exposure: exposureId,
+        p_key: responseOperationKey({ token: user.id + ':' + deal.id + ':' + exposureId, kind: 'message', terms: message }),
+        p_body: message,
+      });
+      if (result.error) fail('Conversation unavailable or message limit reached.', 409);
       return emit({ sent: true });
     }
     if (action === "distribution") {
