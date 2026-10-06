@@ -39,6 +39,7 @@ for (const name of [
   "20261006013640_buyermatch_software_distribution.sql",
   "20261006030201_buyermatch_usage_accounting.sql",
   "20261006043844_buyermatch_commercial_limits.sql",
+  "20261006164348_buyermatch_subscription_plan_changes.sql",
 ])
   await db.exec(
     readFileSync(
@@ -906,6 +907,25 @@ test("closing tracks selection, signature, title, scheduling and settlement sepa
     /bm_fees_remain_disabled/,
   );
 });
+test('approved plan changes require the original owner and an already bound subscription', async () => {
+ const who=randomUUID(),foreign=randomUUID(),checkout=randomUUID();
+ await db.query('insert into auth.users(id) values($1),($2)',[who,foreign]);
+ await db.query("insert into bm_plans(version,product,label,allowance,stripe_price_id,approved) values ('change-a','buyermatch','A',20,'price_change_a',true),('change-b','buyermatch','B',50,'price_change_b',true),('change-no','buyermatch','Unapproved',50,'price_change_no',false)");
+ await db.query("insert into bm_checkouts(id,owner_id,product,plan_version,operation_key,email,session_id,state) values($1,$2,'buyermatch','change-a',$3,'synthetic@example.invalid','cs_change','completed')",[checkout,who,randomUUID()]);
+ const apply=(price,event,sub='sub_change',user=who)=>db.query("select bm_apply_test_billing($1,$2,600,$3,'buyermatch',$4,$5,'active',now(),now()+interval '30 days')",[checkout,event,user,price,sub]);
+ await assert.rejects(apply('price_change_b','premature'),/Server checkout/);
+ await apply('price_change_a','initial_change');
+ await apply('price_change_b','upgrade_change');
+ assert.equal((await db.query('select allowance from bm_entitlements where owner_id=$1',[who])).rows[0].allowance,50);
+ await assert.rejects(apply('price_change_b','foreign_change','sub_change',foreign),/Server checkout/);
+ await assert.rejects(apply('price_change_b','foreign_sub','sub_other'),/Server checkout/);
+ await assert.rejects(apply('price_change_no','unapproved_change'),/Server checkout/);
+ await Promise.all([apply('price_change_a','downgrade_change'),apply('price_change_a','downgrade_change')]);
+ assert.equal((await db.query('select allowance from bm_entitlements where owner_id=$1',[who])).rows[0].allowance,20);
+ assert.equal((await db.query("select count(*)::int as n from bm_billing_events where event_id='downgrade_change'")).rows[0].n,1);
+ for(const role of ['anon','authenticated'])assert.equal((await db.query("select has_function_privilege($1,'bm_apply_test_billing(uuid,text,bigint,uuid,text,text,text,text,timestamptz,timestamptz)','EXECUTE') as allowed",[role])).rows[0].allowed,false);
+});
+
 test("checkout reservations are durable and billing cannot attach a foreign checkout", async () => {
   const key = randomUUID();
   const reserve = () =>
