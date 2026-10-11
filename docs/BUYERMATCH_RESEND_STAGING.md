@@ -1,4 +1,92 @@
-# BuyerMatch Resend callback hardening — October 6, 2026
+# BuyerMatch Resend staging verification — October 11, 2026
+
+## Current result: STAGING RESEND VERIFIED
+
+The same Resend team passed actual staging delivery and Production callback isolation.
+A separate paid team is not required for this tested configuration. This is staging
+certification, not authorization to send to real buyers or enable Production billing.
+
+- Application SHA: `cd8399890b493b1362cc66c5d3d95293dcbb2592`.
+- Verified Preview: https://deal-blast-h6rj4cj71-housebuyerinv.vercel.app
+  (`dpl_AqowvJbrZ25YfqVkQBM52V4PqfGd`, READY).
+- Authorized replacement key `DBP BuyerMatch staging QA restricted`: Sending access,
+  restricted to `housebuyerinvestments.com`; installed as sensitive `RESEND_API_KEY`
+  only for Preview branch `codex/buyermatch-network`. The earlier lost key was not revoked.
+- Preview remains `BM_DELIVERY_MODE=resend-test`; sender is
+  `DBP BuyerMatch Staging <buyermatch-staging@housebuyerinvestments.com>`.
+  The application hardcodes the sole QA recipient, `delivered@resend.dev`.
+- Existing staging webhook enabled; its actual signing secret is installed as
+  `BM_RESEND_WEBHOOK_SECRET` only in `qxhhlprentrufobpcgna`. Private local credential
+  and access files remain ignored and untracked; no values are in this report.
+- **3 actual sends, 3 provider acceptances, 3 persisted provider IDs, 3 delivered
+  callbacks**, confirmed in both Resend history and staging SQL. All six sent/delivered
+  webhook events succeeded. Three concurrent worker retries sent zero additional emails;
+  immutable receipt IDs, attempts and allowances remained unchanged.
+- Actual provider replay: original and replay both returned HTTP 200/recorded, with
+  exactly one stored event. **9/9** dispatch/receipt/retry checks passed on the final run.
+- **19/19** callback checks passed: real delivered receipts, actual replay deduplication,
+  invalid-signature rejection, unknown-event zero mutation, concurrent signed bounce and
+  complaint simulations, suppression of only the correlated buyer, unchanged unrelated
+  buyer, non-synthetic rejection before a provider call, Production rejection of both
+  synthetic transports. Bounce/complaint events were signed simulations against actual
+  test receipts, not provider-generated bounces or complaints; no alternate recipients used.
+- **82/82 authenticated read-only Preview assertions** passed, including regular/other/admin
+  authorization, foreign deal denial, private buyer table denial, hosted GET plans,
+  staging frontend identity, and actual server-secret scans in API responses and bundle.
+- Fresh full automated suite **235/235**; TypeScript/Vite build passed; lint **0 errors /
+  94 existing warnings**. Existing bundle-size warning remains. Staging checksums **67/67**,
+  read-only. Earlier 236 migration rehearsal and 43 signed fixture assertions remain the
+  prior baseline; no migration SQL changed or was applied in this pass.
+
+### Production isolation and promotion gate
+
+Production is still `d9e5be5f916fd3c46fd3755eae1e85bf2ba19751`, deployment
+`dpl_6F3xwcf6f8dobZFLcKFTGHZfPkbq`, alias https://deal-blast-pro.vercel.app.
+Read-only inspection found the legacy `resend-webhook` already hardened (version 15).
+This run did not deploy it. Its six callbacks for this QA wave succeeded; the inspected
+delivered acknowledgement was `{"ok":true,"ignored":true}`. Production before/after
+counts: BuyerMatch outbox/responses/checkouts/billing events **0/0/0/0**; legacy
+`email_delivery_events` **48/48**. No Production configuration, schema, deployment or
+customer data changes were made. Delivery config and success fees remain false;
+Vercel delivery is disabled, live delivery/checkout false, live-billing/verification flags
+unset and fail closed. Production lacks the live billing table and scoped callback RPC.
+
+Exact remaining approval gates:
+
+1. Approve a controlled Production code/schema promotion with all sending, checkout,
+   billing and success-fee gates still OFF. Recheck backup/recovery, live prerequisites
+   and canonical hashes at execution time; preserve legitimate legacy migration history.
+2. Eight BuyerMatch migrations remain absent in Production, in this order:
+   `20261006010617_buyermatch_live_billing_boundary.sql`,
+   `20261006010804_buyermatch_conversation_safety.sql`,
+   `20261006013219_buyermatch_portal_sync_atomic.sql`,
+   `20261006013640_buyermatch_software_distribution.sql`,
+   `20261006030201_buyermatch_usage_accounting.sql`,
+   `20261006043844_buyermatch_commercial_limits.sql`,
+   `20261006164348_buyermatch_subscription_plan_changes.sql`,
+   `20261006184631_buyermatch_callback_isolation.sql`.
+   Coordinate the scoped callback migration with its matching BuyerMatch Edge handler;
+   the old unscoped RPC deliberately becomes a no-op. Keep unrelated legacy RLS separate.
+3. Deploy the approved application/Edge versions and complete Production smoke tests
+   before certifying the promoted release. This run performed no promotion.
+4. Separately authorize live Resend credentials/sender/recipient-consent scope and
+   Production callback signing configuration, then controlled live-delivery verification.
+   Staging-only key approval does not authorize live delivery.
+5. Separately approve/configure live Stripe catalog and webhook credentials and verify
+   paid signed entitlement activation. Prior 48-assertion Stripe sandbox certification
+   remains staging only. Success fees require their own future approval.
+
+QA fixture corrections: expired historical jobs were reconciled through the existing
+claim RPC without resetting retry clocks. The first fresh fixture omitted frozen
+property data and failed before contacting Resend; it was canceled/suppressed and
+replaced with a correct synthetic fixture. An allowance assertion initially compared
+before fixture creation with after creation; its baseline now starts after setup.
+No application fix or weaker safety check was needed. Production was unchanged.
+
+## Historical callback-hardening report — October 6, 2026
+
+The following records the earlier baseline and blockers, superseded by the current
+verification and remaining gates above.
 
 ## Result and release boundary
 
@@ -52,6 +140,12 @@ performed in this run.
   to the authenticated regular staging account.
 - TypeScript/Vite build passed. Lint: **0 errors / 94 existing warnings**. Existing
   large-bundle warning remains. No lint suppressions or test-only runtime bypasses added.
+- Authenticated Preview read-only suite: **42/42**, covering regular/other/admin
+  authorization, foreign-deal denial, private buyer-table denial, permanent hosted
+  GET plans regression, response route, staging frontend configuration and secret
+  checks. No sends or purchases. Its first admin-list check caught an incorrectly
+  encoded new synthetic callback fixture; the fixture and runner now use the
+  existing staging identity encryption, and the complete suite passed on rerun.
 
 The two generated staging signing secrets were removed after the hosted tests;
 secret inventory confirmed zero remaining fixture callback secrets. Stripe secrets

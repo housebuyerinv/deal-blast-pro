@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { Webhook } from "svix";
 import { randomUUID, createHash } from "node:crypto";
 import { writeFileSync } from "node:fs";
+import { encryptIdentity } from "../server/buyermatch/security.js";
 const env = process.env,
   ref = "qxhhlprentrufobpcgna";
 if (
@@ -147,7 +148,7 @@ data(
     .from("bm_buyers")
     .insert({
       id: buyer,
-      identity_ciphertext: "SYNTHETIC CALLBACK FIXTURE NO CONTACT DATA",
+    identity_ciphertext: encryptIdentity({name:"Synthetic Callback QA",email:"callback-qa@example.invalid",phone:""}),
       identity_hash: randomUUID(),
       criteria: {},
       synthetic: true,

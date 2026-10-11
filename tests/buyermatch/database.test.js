@@ -1567,6 +1567,12 @@ for (const environment of ["production", "staging"])
     const after = await callbackSnapshot();
     await signedCallback(f, environment, "email.complained", event);
     assert.deepEqual(await callbackSnapshot(), after);
+    for (const table of Object.keys(before)) {
+      const unaffected = rows => rows.filter(row =>
+        table === 'bm_outbox' ? row.id !== f.o :
+        table === 'bm_provider_events' ? row.event_id !== event : true);
+      assert.deepEqual(unaffected(after[table]), unaffected(before[table]), `${table}: other records unchanged`);
+    }
   });
 
 test("accepted provider receipt and environment cannot be rebound to another exposure", async () => {
