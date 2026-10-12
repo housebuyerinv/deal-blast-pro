@@ -19,6 +19,7 @@ import { testProvider } from "../buyermatch/provider.js";
 import { responseToken, responseOperationKey } from "../buyermatch/tokens.js";
 import { productionDeliveryConfig } from "../buyermatch/production-delivery.js";
 import { deliveryAvailability } from "../buyermatch/availability.js";
+import { verifyProductionResend } from "../buyermatch/provider-verification.js";
 import { hasBuyerMatchAccess } from "../../src/lib/buyerMatchAccess.js";
 import { safeConversationText } from '../buyermatch/conversation.js';
 import { billingConfig, isLiveSoftwarePrice } from "../buyermatch/billing-config.js";
@@ -100,6 +101,7 @@ export default async function handler(req: any, res: any) {
       "access",
       "admin-list",
       "admin-usage",
+      "admin-verify-provider",
       "documents",
     ]);
     if (req.method === "GET" && !readActions.has(action))
@@ -128,6 +130,7 @@ export default async function handler(req: any, res: any) {
     const emit = (value: any) => res.status(200).json(value);
     if (action.startsWith("admin-")) {
       assertAdmin(account);
+      if (action === 'admin-verify-provider') return emit(await verifyProductionResend());
       if (action === 'admin-usage') {
         const metrics = checked(await db.rpc('bm_operating_metrics', { p_owner: body.ownerId ? uuid.parse(body.ownerId) : null }));
         return emit({ ...metrics, accounts: metrics.accounts.map((item: any) => ({ ...item, hypothetical: simulatePlans(item.usage) })) });

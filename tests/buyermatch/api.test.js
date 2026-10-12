@@ -407,3 +407,15 @@ test('plans binds usage to authenticated owner and excludes operating metrics', 
   assert.equal('accounts' in response.body,false);
   assert.equal('hypothetical' in response.body,false);
 });
+
+test('provider verification denies anonymous and ordinary users without BuyerMatch mutations', async () => {
+  calls.length=0;
+  assert.equal((await invoke('admin-verify-provider',{},'','GET')).statusCode,401);
+  assert.equal((await invoke('admin-verify-provider',{},'valid','GET')).statusCode,403);
+  assert.equal(calls.some(name=>name.startsWith('bm_')),false);
+});
+test('owner-admin provider preflight fails closed outside Production without BuyerMatch writes',async()=>{
+  email='housebuyerinv@gmail.com';calls.length=0;
+  try {const r=await invoke('admin-verify-provider',{},'valid','GET');assert.equal(r.statusCode,200);assert.equal(r.body.authenticated,false);assert.equal(calls.some(name=>name.startsWith('bm_')),false);}
+  finally {email='regular@example.invalid';}
+});
