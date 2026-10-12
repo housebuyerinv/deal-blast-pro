@@ -109,6 +109,17 @@ export default function BuyerMatchConfiguration({
         Plans, agreements & fee policies
       </summary>
       <div className="space-y-3 mt-4">
+        <button type="button" disabled={busy} onClick={async () => {
+          setBusy(true);
+          try {
+            const result = await request('admin-verify-provider', {});
+            setMessage(result.authenticated && result.senderVerified
+              ? 'Production Resend credential and sender verified. No email sent.'
+              : `Production Resend verification failed: ${result.reason}. No email sent.`);
+          } catch {
+            setMessage('Production Resend verification unavailable. No email sent.');
+          } finally { setBusy(false); }
+        }}>Verify Production Resend (no email)</button>
         <p className="text-sm text-slate-400">
           Publish only approved limits and exact reviewed documents. Changes
           create new versions. This form cannot activate charges or sending.
