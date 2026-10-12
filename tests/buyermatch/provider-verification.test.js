@@ -16,3 +16,9 @@ test('provider preflight fails closed on denial, outage, malformed response, or 
  const failure=await verifyProductionResend(env,async()=>{throw Error(env.RESEND_API_KEY)});assert.equal(JSON.stringify(failure).includes(env.RESEND_API_KEY),false);
  const r=await verifyProductionResend(env,async()=>({ok:true,json:async()=>({data:[{name:'housebuyerinvestments.com',status:'pending'}]})}));assert.equal(r.senderVerified,false);
 });
+
+test('only exact Resend restricted-key semantics distinguish authentication from metadata authorization',async()=>{
+ for(const [status,name,message,recognized] of [[401,'restricted_api_key','This API key is restricted to only send emails',true],[403,'restricted_api_key','This API key is restricted to only send emails',true],[401,'validation_error','API key is invalid',false],[401,'restricted_api_key','unknown',false],[400,'restricted_api_key','This API key is restricted to only send emails',false]]){
+ const r=await verifyProductionResend(env,async()=>({ok:false,status,json:async()=>({name,message})}));assert.equal(r.authenticated,recognized);assert.equal(r.scopeVerified,false);assert.equal(r.senderVerified,false);assert.equal(r.sendCapabilityUntested,true);if(recognized)assert.equal(r.reason,'sending_key_cannot_read_domains');
+ }
+});

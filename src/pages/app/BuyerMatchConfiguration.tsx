@@ -113,7 +113,9 @@ export default function BuyerMatchConfiguration({
           setBusy(true);
           try {
             const result = await request('admin-verify-provider', {});
-            setMessage(result.authenticated && result.senderVerified
+            setMessage(result.reason === 'sending_key_cannot_read_domains'
+              ? 'Production Resend recognizes the Sending-only key. Domain metadata access denied; send capability untested. No email sent.'
+              : result.authenticated && result.senderVerified
               ? 'Production Resend credential and sender verified. No email sent.'
               : `Production Resend verification failed: ${result.reason}. No email sent.`);
           } catch {

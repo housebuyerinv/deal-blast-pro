@@ -4,7 +4,7 @@ import { responseEnvironment } from './response-config.js';
 // Read-only preflight: deliberately independent of delivery activation flags.
 // A Sending-access key may deny domain reads; that denial is NOT verification.
 export async function verifyProductionResend(env = process.env, readFetch = globalThis.fetch) {
-  const result = { provider: 'resend', environment: 'production', authenticated: false, senderVerified: false };
+  const result = { provider: 'resend', environment: 'production', authenticated: false, senderVerified: false, scopeVerified: false, sendCapabilityUntested: true };
   try {
     if (env.VERCEL_ENV !== 'production' || responseEnvironment(env) !== 'production')
       return { ...result, reason: 'production_required' };
@@ -16,10 +16,18 @@ export async function verifyProductionResend(env = process.env, readFetch = glob
       headers: { Authorization: `Bearer ${env.RESEND_API_KEY}` },
       signal: globalThis.AbortSignal.timeout(10000),
     });
-    if (!response.ok) return { ...result, reason: response.status === 403 ? 'metadata_access_denied' : response.status === 401 ? 'credential_rejected' : 'provider_unavailable' };
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      // Resend distinguishes recognized sending-only keys from invalid keys.
+      // Status alone is insufficient; never claim that send capability was tested.
+      if ([401, 403].includes(response.status) && error.name === 'restricted_api_key' &&
+          error.message === 'This API key is restricted to only send emails')
+        return { ...result, authenticated: true, reason: 'sending_key_cannot_read_domains' };
+      return { ...result, reason: response.status === 403 ? 'metadata_access_denied' : response.status === 401 ? 'credential_rejected' : 'provider_unavailable' };
+    }
     const body = await response.json();
     const verified = Array.isArray(body.data) && body.data.some(domain => domain.name === 'housebuyerinvestments.com' && domain.status === 'verified');
-    return { ...result, authenticated: true, senderVerified: verified, reason: verified ? 'verified' : 'verified_sender_not_found' };
+    return { ...result, authenticated: true, scopeVerified: true, senderVerified: verified, reason: verified ? 'verified' : 'verified_sender_not_found' };
   } catch {
     // Provider errors may contain request headers. Never forward or log them.
     return { ...result, reason: 'verification_failed' };
