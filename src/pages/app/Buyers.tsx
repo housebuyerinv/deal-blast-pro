@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { useAppStore } from '../../store/useAppStore'
 import { useSearchParams } from 'react-router-dom'
 import Papa from 'papaparse'
+import { parseBuyerRecord, consolidateImportRows, parseGeography, parseBuyerText } from '../../lib/buyerImport.js'
 import { Upload, X, Building2, Home, TrendingUp, MapPin, Flame, CheckSquare, Square, Warehouse, Hotel, Store, Building, Landmark } from 'lucide-react'
 import { toast } from 'sonner'
 import { supabase } from '../../lib/supabase'
@@ -14,7 +15,6 @@ import { fetchBuyersFromSupabase, updateBuyerInSupabase, deleteBuyersFromSupabas
 import { getEffectivePlan } from '../../lib/planAccess'
 import { canUseBuyerPortalReview, formatBuyerCapacityRemaining, getBuyerCapacity } from '../../lib/planEntitlements'
 import {
-  buildCreativeFinanceSourceText,
   cloneCreativeFinanceDetails,
   formatCreativeFinanceAmount,
   formatCreativeFinancePercent,
@@ -1124,11 +1124,9 @@ export default function Buyers() {
       return false
     }
 
-    // BUYER_SAVE_LOCAL_VALUES_WIN_V1
-    // Supabase may return an older/normalized row. Keep the values the user just saved
-    // as the local source of truth so edited names like "Martin Christopher" do not
-    // immediately revert to email-derived names like "Martinchristopher".
-    const submittedUpdates = typeof cleanUpdates !== 'undefined' ? cleanUpdates : { ...updates, id: cleanId, updatedAt: new Date().toISOString() }
+    // The API returns the merged, persisted profile. Do not reapply blank inputs or
+    // rejected eligibility changes over that authoritative result in the local cache.
+    const submittedUpdates = result.data || cleanUpdates
     const savedBuyer = {
       ...(result.data || {}),
       ...submittedUpdates,
@@ -1353,6 +1351,14 @@ export default function Buyers() {
 
   const [search, setSearch] = useState('')
 const [showImport, setShowImport] = useState(false)
+  useEffect(() => {
+    if (!showImport) return
+    const previous = document.activeElement as HTMLElement | null
+    const overflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    document.querySelector<HTMLElement>('[data-buyer-import-dialog]')?.focus()
+    return () => { document.body.style.overflow = overflow; previous?.focus() }
+  }, [showImport])
   const [showAddBuyer, setShowAddBuyer] = useState(false)
   const [buyerPortalQueueCount, setBuyerPortalQueueCount] = useState(0)
   const [addBuyerMode, setAddBuyerMode] = useState<'quick' | 'manual' | 'detailed' | 'multi' | 'text'>('manual')
@@ -1377,6 +1383,7 @@ const [showImport, setShowImport] = useState(false)
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
   const [pendingImport, setPendingImport] = useState<any[]>([]) // CSV/TXT/manual rows waiting for review/approve before any store write
   const [importReviewSearch, setImportReviewSearch] = useState('')
+  const [importReviewPage, setImportReviewPage] = useState(0)
   const [importReviewFilter, setImportReviewFilter] = useState<'all' | 'valid' | 'invalid' | 'duplicate' | 'missingCriteria' | 'hot'>('all')
   const [collapsedImportRows, setCollapsedImportRows] = useState<Record<string, boolean>>({})
   const [importApprovalStatus, setImportApprovalStatus] = useState<Record<string, 'approving' | 'approved' | 'failed'>>({})
@@ -1393,6 +1400,7 @@ const [showImport, setShowImport] = useState(false)
   function hydrateBuyerForEdit(buyer: any) {
     const buyerData: any = buyer && typeof buyer.data === 'object' && buyer.data ? buyer.data : {}
     const merged: any = { ...buyerData, ...buyer }
+    if (merged.importVersion === 2) return merged
 
     const asArray = (...values: any[]) => {
       const out: string[] = []
@@ -1930,37 +1938,6 @@ const [showImport, setShowImport] = useState(false)
   }
 
 
-  const splitEmailUsernameName = (emailValue: any) => {
-    const email = String(emailValue || '').trim().toLowerCase();
-    const match = email.match(/^([^@]+)@/);
-    if (!match) return '';
-
-    const local = match[1]
-      .replace(/\+.*/, '')
-      .replace(/\d+$/g, '')
-      .replace(/[._-]+/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-
-    if (!local) return '';
-
-    const generic = new Set([
-      'info', 'admin', 'administrator', 'contact', 'hello', 'team', 'office',
-      'support', 'sales', 'deals', 'deal', 'acquisitions', 'acquisition',
-      'buyers', 'buyer', 'investors', 'investor', 'dispo', 'offers',
-      'properties', 'property', 'realestate', 'realty', 'homes', 'home',
-      'marketing', 'operations', 'ops', 'management', 'mail'
-    ]);
-
-    const compact = local.replace(/\s+/g, '');
-    if (generic.has(compact)) return '';
-
-    return local
-      .split(' ')
-      .filter(Boolean)
-      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
-      .join(' ');
-  };
   void KNOWN_NAME_PART_FIXES;
 
 const cleanBuyerName = (value: any, emailValue = '') => {
@@ -2194,10 +2171,6 @@ const cleanBuyerName = (value: any, emailValue = '') => {
   const isValidBuyerEmail = (value: any) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim())
 
-
-  const normalizeImportedMarkets = (value: any): string[] => {
-    return normalizeExplicitMarkets(value)
-  }
 
   const parseCreativeTerms = (text: string) => {
     const details = parseCreativeFinanceDetails(text)
@@ -3143,360 +3116,28 @@ const cleanBuyerName = (value: any, emailValue = '') => {
   const handleFile = (file: File) => {
     const isTxt = safeLower(file.name).endsWith('.txt')
 
-    const cleanKey = (key: string) =>
-      safeLower(String(key || ''))
-        .replace(/[^a-z0-9]/g, '')
-
-    const pick = (raw: any, aliases: string[]) => {
-      if (!raw) return ''
-      const keys = Object.keys(raw)
-      for (const alias of aliases) {
-        const wanted = cleanKey(alias)
-        const found = keys.find(k => cleanKey(k) === wanted)
-        if (found && raw[found] !== undefined && raw[found] !== null && String(raw[found]).trim() !== '') {
-          return String(raw[found]).trim()
+    const queueRows = (rawRows: any[]) => {
+      const mapped = rawRows.map(raw => parseBuyerRecord(raw, 'import-' + crypto.randomUUID()))
+      setPendingImport(prev => consolidateImportRows([...prev, ...mapped], buyers))
+      setImportResult(null)
+      toast.info(mapped.length + ' source rows ready for review. Nothing has been saved.')
+    }
+    const reader = new FileReader()
+    reader.onload = () => {
+      const text = String(reader.result || '')
+      const parsed = Papa.parse<Record<string, string>>(text, { header: true, skipEmptyLines: 'greedy' })
+      if (parsed.meta.fields?.some(field => /^(e[ -]?mail|email address|buyer email|contact email)$/i.test(field.trim()))) {
+        if (parsed.errors.length) {
+          toast.error('File has malformed or inconsistent columns. Correct the file before importing; no rows were queued.')
+          return
         }
-      }
-      return ''
+        queueRows(parsed.data)
+      } else if (isTxt) {
+        queueRows(parseBuyerText(text))
+      } else toast.error('No recognized email column. Nothing was imported.')
     }
-
-    const splitList = (value: any) => {
-      const text = String(value || '').trim()
-      if (!text) return []
-      return text
-        .split(/[,;|\/]+/)
-        .map(x => x.trim())
-        .filter(Boolean)
-    }
-
-    const publicEmailDomains = new Set(['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'aol.com', 'icloud.com', 'msn.com', 'live.com', 'me.com', 'protonmail.com'])
-
-    const getEmailDomain = (emailValue: any) => String(emailValue || '').toLowerCase().split('@')[1] || ''
-
-    const inferCompanyFromEmailDomain = (emailValue: any) => {
-      const domain = getEmailDomain(emailValue)
-      if (!domain || publicEmailDomains.has(domain)) return ''
-      const root = domain.split('.')[0]
-      if (!root || root.length < 3) return ''
-      return autoCapBuyerName(root.replace(/[-_]+/g, ' '))
-    }
-
-    const parseMoney = (value: any) => {
-      const text = String(value || '').toLowerCase().replace(/[$,\s]/g, '')
-      if (!text) return 0
-
-      const match = text.match(/[0-9]+(?:\.[0-9]+)?/)
-      if (!match) return 0
-
-      let num = parseFloat(match[0])
-      if (text.includes('m')) num *= 1000000
-      if (text.includes('k')) num *= 1000
-      return Math.round(num)
-    }
-
-    const hasBudgetLanguage = (value: any) =>
-      /\b(budget|max(?:imum)?|min(?:imum)?|price\s*range|purchase\s*price|buy\s*up\s*to|up\s*to|target\s*price|spend|acquisition\s*price)\b/i.test(String(value || ''))
-
-    const parseBudgetRange = (raw: any) => {
-      const directMin = parseMoney(pick(raw, ['Budget Min', 'Min Budget', 'Minimum Budget', 'Min Price', 'Price Min', 'Minimum Price']))
-      const directMax = parseMoney(pick(raw, ['Budget Max', 'Max Budget', 'Maximum Budget', 'Max Price', 'Price Max', 'Maximum Price']))
-
-      if (directMin || directMax) {
-        return { budgetMin: directMin || 0, budgetMax: directMax || 0 }
-      }
-
-      const combined = pick(raw, ['Budget', 'Budget Range', 'Price Range', 'Purchase Price', 'Target Price', 'Buy Box Price', 'Price'])
-      if (!hasBudgetLanguage(combined)) return { budgetMin: 0, budgetMax: 0, confidence: 'Missing' }
-      const numbers = String(combined || '')
-        .match(/[0-9]+(?:\.[0-9]+)?\s*[kKmM]?/g)
-        ?.map(parseMoney)
-        .filter(Boolean) || []
-
-      if (numbers.length >= 2) return { budgetMin: numbers[0], budgetMax: numbers[1], confidence: 'Parsed' }
-      if (numbers.length === 1) return { budgetMin: 0, budgetMax: numbers[0], confidence: 'Parsed' }
-
-      return { budgetMin: 0, budgetMax: 0, confidence: 'Missing' }
-    }
-
-    const inferStates = (text: string) => normalizeImportedMarkets(text)
-    void inferStates
-
-    const normalizeAssetTypes = (value: any, fallbackText = '') => {
-      const rawList = splitList(value)
-      const text = safeLower(rawList.join(' ') + ' ' + fallbackText)
-      const assets: string[] = []
-
-      if (/single family|sfh|sfr|house|houses|residential/.test(text)) assets.push('SFH')
-      if (/duplex|triplex|quad|2-4|1-4|small multi|small multifamily/.test(text)) assets.push('Small Multifamily')
-      if (/multifamily|multi family|apartment|apartments|units/.test(text)) assets.push('Multifamily')
-      if (/mobile home park|mhp|trailer park/.test(text)) assets.push('MHP')
-      if (/rv park/.test(text)) assets.push('RV Park')
-      if (/\bland\b|development|lot|acre|build.?to.?rent|btr/.test(text)) assets.push(/build.?to.?rent|btr/.test(text) ? 'Build-to-Rent' : 'Land')
-      if (/retail/.test(text)) assets.push('Retail')
-      if (/office/.test(text)) assets.push('Office')
-      if (/warehouse|industrial/.test(text)) assets.push('Industrial')
-      if (/storage|self storage/.test(text)) assets.push('Storage')
-      if (/mixed use|mixed-use/.test(text)) assets.push('Mixed Use')
-      if (/commercial/.test(text)) assets.push('Commercial')
-      if (/hotel|motel|hospitality/.test(text)) assets.push('Hotel')
-
-      rawList.forEach(x => {
-        if (!assets.some(a => safeLower(a) === safeLower(x))) assets.push(x)
-      })
-
-      return assets.length ? Array.from(new Set(assets)) : []
-    }
-
-    const normalizeImportedBuyer = (raw: any) => {
-      const email = (pick(raw, ['Email', 'Email Address', 'E-mail', 'Buyer Email', 'Contact Email', 'Primary Email']) || '').toLowerCase()
-      const explicitName =
-        pick(raw, ['Name', 'Full Name', 'Buyer Name', 'Contact Name', 'First Last', 'Principal', 'Investor Name']) ||
-        [pick(raw, ['First Name', 'Firstname', 'first_name']), pick(raw, ['Last Name', 'Lastname', 'last_name'])].filter(Boolean).join(' ')
-      const inferredName = explicitName ? '' : splitEmailUsernameName(email)
-      const fullName = explicitName || inferredName || ''
-      const explicitCompany = pick(raw, ['Company', 'Company Name', 'Entity', 'Business', 'Organization', 'LLC', 'company_name'])
-      const inferredCompany = explicitCompany ? '' : inferCompanyFromEmailDomain(email)
-
-      const notes = pick(raw, ['Notes', 'Buy Box', 'Criteria', 'Buyer Criteria', 'Description', 'Comments', 'Strategy Notes'])
-      const marketText = pick(raw, ['Markets', 'Market', 'Target Markets', 'Locations', 'Location', 'States', 'Target States', 'Buying Areas', 'Areas'])
-      const assetText = pick(raw, ['Asset Types', 'Asset Type', 'Property Types', 'Property Type', 'Category', 'Asset Focus', 'Product Type'])
-      const strategyText = pick(raw, ['Strategy', 'Strategies', 'Exit Strategy', 'Exit Strategies', 'Investment Strategy', 'Investment Strategies'])
-      const financeText = pick(raw, ['Finance Type', 'Financing', 'Buyer Type', 'Type', 'Purchase Type'])
-      const rawImportedText = Object.entries(raw || {})
-        .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(', ') : String(value ?? '')}`)
-        .join(' | ')
-      const combinedText = [notes, marketText, assetText, strategyText, financeText, rawImportedText].filter(Boolean).join(' ')
-
-      const downText = pick(raw, ['downPaymentMax', 'Down Payment Max', 'Down Payment', 'DP', 'Max Down Payment'])
-      const monthlyText = pick(raw, ['monthlyPaymentMax', 'Monthly Payment Max', 'Monthly Payment', 'Monthly Budget', 'Payment Max'])
-      const interestText = pick(raw, ['interestRateMax', 'Interest Rate Max', 'Interest Rate', 'Rate'])
-      const capText = pick(raw, ['capRateTarget', 'Cap Rate Target', 'Cap Rate', 'Target Cap'])
-      const balloonText = pick(raw, ['balloonTerm', 'Balloon Term', 'Balloon'])
-
-      const creativeParseText = [
-        combinedText,
-        buildCreativeFinanceSourceText(raw),
-        downText ? 'Down Payment ' + downText : '',
-        monthlyText ? 'Monthly Payment ' + monthlyText : '',
-        interestText ? 'Interest Rate ' + interestText : '',
-        capText ? 'Cap Rate ' + capText : '',
-        balloonText ? 'Balloon Term ' + balloonText : ''
-      ].filter(Boolean).join(' | ')
-
-      const markets = normalizeExplicitMarkets(marketText, [combinedText, notes].filter(Boolean).join(' '))
-      const finalMarkets = markets.length ? markets : []
-      const assetTypes = normalizeAssetTypes(assetText, combinedText)
-      const strategies = normalizeBuyerStrategies({
-        strategy: strategyText,
-        exitStrategy: strategyText,
-        investmentStrategy: strategyText,
-        notes,
-        buyBox: notes,
-        criteria: pick(raw, ['Buyer Criteria', 'Criteria']),
-        comments: pick(raw, ['Comments']),
-        description: pick(raw, ['Description']),
-        rawText: combinedText,
-      })
-
-      const isCreative = /creative|seller\s*financ(?:e|ing)|owner\s*financ(?:e|ing)|subto|subject\s*to|wrap|lease\s*option|rent\s*to\s*own|rto|novation|balloon|down\s*payment|interest/i.test(creativeParseText)
-      const isSellerFinance = /seller\s*financ(?:e|ing)|owner\s*financ(?:e|ing)/i.test(creativeParseText)
-      const isCash = /\b(cash buyer|cash|proof of funds|pof|closes cash|cash close)\b/i.test(combinedText) && !isCreative
-      const budgets = parseBudgetRange(raw)
-      const creativeTerms = parseCreativeTerms(creativeParseText)
-      const creativeDetails = mergeCreativeFinanceDetails(creativeTerms.creativeFinanceDetails)
-      const hasCreativeTerms = hasCreativeFinanceDetails(creativeDetails)
-      const creativeStructures = [...((creativeTerms.creativeStructures as string[]) || [])]
-      const explicitBuyerType = pick(raw, ['Buyer Type', 'Type', 'Investor Type', 'Strategy'])
-      const parsedType = explicitBuyerType ||
-        ((isCreative || hasCreativeTerms) ? (isSellerFinance || creativeDetails.sellerFinanceAccepted ? 'Seller Finance Buyer' : 'Creative Finance Buyer') :
-          isCash ? 'Cash Buyer' :
-            /\bhedge fund|fund\b/i.test(combinedText) ? 'Hedge Fund' :
-              /\bwholesaler|jv|joint venture\b/i.test(combinedText) ? 'JV / Wholesaler' :
-                /\bagent|broker|realtor\b/i.test(combinedText) ? 'Agent' :
-                  /\blender|private money|hard money\b/i.test(combinedText) ? 'Lender' :
-                    /\bdeveloper|builder\b/i.test(combinedText) ? 'Developer' :
-                      /\bland\b/i.test(combinedText) ? 'Land Buyer' :
-                        /\bcommercial|retail|office|industrial|hotel|storage\b/i.test(combinedText) ? 'Commercial Buyer' : '')
-      const rawNotes = notes || ''
-      const parserNotes = [
-        'Imported from CSV. Missing fields left blank.',
-        explicitName ? 'Name parsed from source.' : inferredName ? 'Name inferred from email.' : 'Name missing.',
-        explicitCompany ? 'Company parsed from source.' : inferredCompany ? 'Company inferred from business email domain.' : 'Company missing.',
-        finalMarkets.length ? 'Markets parsed from source.' : 'Markets missing.',
-        assetTypes.length ? 'Asset focus parsed from source.' : 'Asset focus missing.',
-        budgets.budgetMax || budgets.budgetMin ? 'Budget parsed from source.' : 'Budget unknown.',
-      ]
-
-      return {
-        _id: 'tmp_' + Date.now() + Math.random().toString(36).slice(2),
-        name: cleanBuyerName(fullName, email),
-        email: String(email || '').trim(),
-        phone: pick(raw, ['Phone', 'Phone Number', 'Mobile', 'Cell', 'Contact Phone']),
-        company: explicitCompany || inferredCompany,
-        type: parsedType,
-        markets: finalMarkets,
-        assetTypes,
-        strategies,
-        strategy: strategies.join(', '),
-        exitStrategy: strategies.join(', '),
-        investmentStrategy: strategies.join(', '),
-        rawText: rawImportedText,
-        originalCriteria: notes,
-        budgetMin: budgets.budgetMin,
-        budgetMax: budgets.budgetMax,
-        creativeFinance: hasCreativeTerms || isCreative || strategies.some(strategy => ['Creative Finance', 'Seller Finance', 'Subject To', 'Wrap', 'Lease Option', 'Novation'].includes(strategy)),
-        sellerFinance: !!creativeDetails.sellerFinanceAccepted || isSellerFinance || strategies.includes('Seller Finance'),
-        subjectToAccepted: !!creativeDetails.subjectToAccepted,
-        assumableAccepted: !!creativeDetails.assumableAccepted,
-        leaseOptionAccepted: !!creativeDetails.leaseOptionAccepted,
-        wrapAccepted: !!creativeDetails.wrapAccepted,
-        sellerCarryAccepted: !!creativeDetails.sellerCarryAccepted,
-        dscrAccepted: !!creativeDetails.dscrAccepted,
-        cashBuyer: /cash accepted|will buy all cash/i.test(String(creativeDetails.creativeStructure || '')) || isCash || strategies.some(strategy => ['Fix & Flip', 'BRRRR', 'Buy & Hold', 'Section 8', 'Wholesale', 'DSCR Rental'].includes(strategy)),
-        downPaymentMax: formatDownPaymentField(creativeTerms.downPaymentMax || downText || ''),
-        downPaymentRange: creativeTerms.downPaymentRange || '',
-        monthlyPaymentMax: formatMonthlyPaymentField(creativeTerms.monthlyPaymentMax || monthlyText || ''),
-        interestRateMax: creativeTerms.interestRateMax || interestText || '',
-        capRateTarget: creativeTerms.capRateTarget || capText || '',
-        balloonTerm: creativeTerms.balloonTerm || balloonText || '',
-        amortizationTerm: creativeTerms.amortizationTerm || '',
-        creativeStructure: creativeTerms.creativeStructure || (isSellerFinance ? 'Seller Finance' : ''),
-        creativeFinanceDetails: cloneCreativeFinanceDetails(creativeDetails),
-        creativeStructures,
-        creativeFinanceNotes: creativeDetails.creativeFinanceNotes || '',
-        notes: [
-          rawNotes,
-          creativeDetails.creativeFinanceNotes ? `Creative Finance Details: ${creativeDetails.creativeFinanceNotes}` : '',
-          parserNotes.join(' ')
-        ].filter(Boolean).join('\n\n'),
-        status: /(\bhot\b|vip|priority|responded|active|recent buyer)/i.test(combinedText) ? 'Hot' : 'New',
-        source: 'CSV/TXT Import',
-        tags: [
-          ...(isCreative ? ['Creative Finance'] : []),
-          ...(inferredName ? ['Name Inferred'] : []),
-          ...(inferredCompany ? ['Company Inferred'] : []),
-        ],
-        parserConfidence: {
-          name: explicitName ? 'Parsed' : inferredName ? 'Inferred' : 'Missing',
-          company: explicitCompany ? 'Parsed' : inferredCompany ? 'Inferred' : 'Missing',
-          markets: finalMarkets.length ? 'Parsed' : 'Missing',
-          budget: budgets.budgetMax || budgets.budgetMin ? 'Parsed' : 'Missing',
-          assetTypes: assetTypes.length ? 'Parsed' : 'Missing',
-          buyerType: parsedType ? 'Parsed' : 'Missing',
-          strategy: strategies.length ? 'Parsed' : 'Missing',
-        },
-        _valid: /\S+@\S+\.\S+/.test(String(email || ''))
-      }
-    }
-
-    if (isTxt) {
-      const reader = new FileReader()
-
-      reader.onload = (e) => {
-        const text = ((e.target?.result as string) || '').trim()
-
-        const chunks = text
-          .split(/[\r\n,;]+/)
-          .map(x => x.trim())
-          .filter(Boolean)
-
-        const mapped: any[] = []
-        let invalidCount = 0
-
-        chunks.forEach(chunk => {
-          const emailMatch = chunk.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)
-          const email = emailMatch?.[0] || ''
-
-          if (!email) {
-            invalidCount++
-            return
-          }
-
-          const cleanedName = chunk
-            .replace(email, '')
-            .replace(/phone\s*missing/ig, '')
-            .replace(/company\s*missing/ig, '')
-            .replace(/\s+/g, ' ')
-            .trim()
-
-          mapped.push(normalizeBuyerReviewRow(normalizeImportedBuyer({
-            Name: cleanedName.length > 1 ? cleanedName : email.split('@')[0],
-            Email: email,
-            Notes: chunk
-          })))
-        })
-
-        const uniqueByEmail = Array.from(
-          new Map(mapped.map(m => [safeLower(m.email), m])).values()
-        )
-
-        const withDupFlag = uniqueByEmail.map(m => ({
-          ...m,
-          _dup: buyers.some((b: any) => safeLower(b.email) === safeLower(m.email))
-        }))
-
-        setPendingImport(prev => {
-          const existingEmails = new Set(prev.map((p: any) => String(p.email || '')))
-          return [
-            ...prev,
-            ...withDupFlag.map((row: any) => ({
-              ...row,
-              _dup: row._dup || existingEmails.has(String(row.email || ''))
-            }))
-          ]
-        })
-        setImportResult(null)
-        toast.info(`${withDupFlag.length} TXT buyers ready for review. ${invalidCount} invalid skipped.`)
-      }
-
-      reader.onerror = () => toast.error('Could not read TXT file.')
-      reader.readAsText(file)
-      return
-    }
-
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        const rows = results.data as any[]
-        const mapped: any[] = []
-        let invalidCount = 0
-
-        rows.forEach((r: any) => {
-          const normalized = normalizeImportedBuyer(r)
-
-          if (!normalized._valid) {
-            invalidCount++
-            return
-          }
-
-          mapped.push(normalizeBuyerReviewRow(normalized))
-        })
-
-        const uniqueByEmail = Array.from(
-          new Map(mapped.map(m => [safeLower(m.email), m])).values()
-        )
-
-        const withDupFlag = uniqueByEmail.map(m => ({
-          ...m,
-          _dup: buyers.some((b: any) => safeLower(b.email) === safeLower(m.email))
-        }))
-
-        setPendingImport(prev => {
-          const existingEmails = new Set(prev.map((p: any) => String(p.email || '')))
-          return [
-            ...prev,
-            ...withDupFlag.map((row: any) => ({
-              ...row,
-              _dup: row._dup || existingEmails.has(String(row.email || ''))
-            }))
-          ]
-        })
-        setImportResult(null)
-        toast.info(`${withDupFlag.length} unique rows ready for review. ${invalidCount} invalid skipped.`)
-      },
-      error: () => toast.error('Could not parse CSV file.')
-    })
+    reader.onerror = () => toast.error('Could not read buyer file.')
+    reader.readAsText(file)
   }
 
   // Review screen actions (edit/remove/merge/approve)
@@ -3623,6 +3264,18 @@ const cleanBuyerName = (value: any, emailValue = '') => {
     setPendingImport(prev => prev.map(r => {
       if (r._id !== id) return r
       const next = { ...r, ...changes }
+      if (r.importVersion === 2) {
+        next.email = String(next.email || '').trim().toLowerCase()
+        next._valid = isValidBuyerEmail(next.email)
+        next._dup = buyers.some((buyer: any) => String(buyer.email || '').trim().toLowerCase() === next.email)
+        next._identityConflict = consolidateImportRows([next], buyers)[0]._identityConflict
+        if ('markets' in changes) next.structuredMarkets = parseGeography(changes.markets.join('; ')).markets
+        if (next.buyingMandates?.length === 1) next.buyingMandates = [{
+          ...next.buyingMandates[0], markets: next.structuredMarkets, assetTypes: next.assetTypes,
+          strategies: next.strategies, purchaseMin: next.budgetMin || null, purchaseMax: next.budgetMax || null,
+          originalCriteria: next.criteria,
+        }]
+      }
       if (changes.creativeFinanceDetails) {
         next.creativeFinanceDetails = cloneCreativeFinanceDetails(changes.creativeFinanceDetails)
         next.data = {
@@ -3708,6 +3361,7 @@ const cleanBuyerName = (value: any, emailValue = '') => {
 
 
   const normalizeBuyerBeforeApproval = (buyer: any) => {
+    if (buyer.importVersion === 2) return { ...buyer, status: 'Inactive', verificationStatus: 'Unverified', blastEligible: false, distributionEligible: false, consentStatus: 'unknown' }
     const splitToArray = (value: any) => {
       if (Array.isArray(value)) return value.map(x => String(x).trim()).filter(Boolean)
       if (value === undefined || value === null) return []
@@ -4179,7 +3833,7 @@ const cleanBuyerName = (value: any, emailValue = '') => {
       delete rest.buyerPortalSubmissionId
       delete rest.buyerPortalSubmission
       delete rest.rawPortalSubmission
-      return buildBuyerStrategyUpdate(normalizeBuyerBeforeApproval(rest))
+      return rest.importVersion === 2 ? normalizeBuyerBeforeApproval(rest) : buildBuyerStrategyUpdate(normalizeBuyerBeforeApproval(rest))
     })
 
     const saveResult = await upsertBuyersToSupabase(buyersToApprove)
@@ -4368,6 +4022,11 @@ const cleanBuyerName = (value: any, emailValue = '') => {
     return true
   })
 
+  const importPageCount = Math.max(1, Math.ceil(importReviewRows.length / 50))
+  const currentImportPage = Math.min(importReviewPage, importPageCount - 1)
+  const visibleImportRows = importReviewRows.slice(currentImportPage * 50, (currentImportPage + 1) * 50)
+  useEffect(() => { setImportReviewPage(0) }, [importReviewSearch, importReviewFilter])
+
   const importSummary = {
     total: pendingImport.length,
     validEmails: pendingImport.filter((row: any) => row._valid !== false).length,
@@ -4382,7 +4041,7 @@ const cleanBuyerName = (value: any, emailValue = '') => {
     buyers.some((buyer: any) => safeLower(buyer.email).trim() === safeLower(row.email).trim())
 
   const isSelectableImportRow = (row: any) =>
-    row._valid !== false && importApprovalStatus[row._id] !== 'approved'
+    row._valid !== false && !row._identityConflict && (!row._dup || row._merge) && importApprovalStatus[row._id] !== 'approved'
 
   const importNewRowsReady = pendingImport.filter((row: any) =>
     row._valid !== false &&
@@ -4421,17 +4080,19 @@ const cleanBuyerName = (value: any, emailValue = '') => {
   }
 
   const selectImportRowsUpToCapacity = (rows: any[] = pendingImport) => {
-    let remainingSlots = buyerCapacity.isUnlimited ? Number.POSITIVE_INFINITY : buyerCapacity.remaining
-    const next: Record<string, true> = {}
-
-    rows.filter(isSelectableImportRow).forEach((row: any) => {
-      const isNew = !isExistingBuyerImportRow(row)
-      if (isNew && remainingSlots <= 0) return
-      next[row._id] = true
-      if (isNew) remainingSlots -= 1
+    setSelectedImportRowIds(prev => {
+      const selectedNew = pendingImport.filter(row => prev[row._id] && isSelectableImportRow(row) && !isExistingBuyerImportRow(row)).length
+      let remainingSlots = buyerCapacity.isUnlimited ? Number.POSITIVE_INFINITY : Math.max(0, buyerCapacity.remaining - selectedNew)
+      const next = { ...prev }
+      rows.filter(isSelectableImportRow).forEach((row: any) => {
+        if (next[row._id]) return
+        const isNew = !isExistingBuyerImportRow(row)
+        if (isNew && remainingSlots <= 0) return
+        next[row._id] = true
+        if (isNew) remainingSlots -= 1
+      })
+      return next
     })
-
-    setSelectedImportRowIds(prev => ({ ...prev, ...next }))
   }
 
   const clearImportSelection = () => setSelectedImportRowIds({})
@@ -4442,6 +4103,7 @@ const cleanBuyerName = (value: any, emailValue = '') => {
       return
     }
 
+    if (!window.confirm(`Import ${selectedImportRows.length} selected contacts (${selectedImportNewRows} new)? Existing contact fields are preserved when merging. New contacts remain inactive and unverified. No invitations will be sent.`)) return
     await approveSelected(selectedImportRows)
   }
 
@@ -5152,7 +4814,13 @@ const company = getDisplayCompany(buyerAny) || 'Company Missing';
               <button onClick={() => setSelectedBuyer(null)}><X size={20} /></button>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 text-sm">
+            {editBuyer.importVersion === 2 && <details className="my-4 rounded-lg border border-[#252A38] p-3">
+                <summary>Imported criteria, mandates and original source</summary>
+                <p className="whitespace-pre-wrap">{editBuyer.originalCriteria}</p>
+                <p className="whitespace-pre-wrap">{editBuyer.originalNotes}</p>
+                <pre className="whitespace-pre-wrap break-words">{JSON.stringify({ purchaseCriteria: editBuyer.purchaseCriteria, buyingMandates: editBuyer.buyingMandates, sourceRecords: editBuyer.sourceRecords }, null, 2)}</pre>
+              </details>}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 text-sm">
               {/* A. Core Information */}
               <div>
                 <div className="font-semibold mb-2 text-base">Core Information</div>
@@ -5171,7 +4839,7 @@ const company = getDisplayCompany(buyerAny) || 'Company Missing';
                       </select>
                     </div>
                   </div>
-                  <div><div className="text-xs text-[#8B92A3]">Lead Source / Channel</div><input className="input" value={editBuyer.leadSource || ''} onChange={e => setEditBuyer({...editBuyer, leadSource: e.target.value})} /></div>
+                  <div><div className="text-xs text-[#8B92A3]">Lead Source / Channel</div><input className="input" value={editBuyer.leadSource || editBuyer.source || ''} onChange={e => setEditBuyer({...editBuyer, leadSource: e.target.value, source: e.target.value})} /></div>
 
                   <div>
 <div className="text-xs text-[#8B92A3]">Notes / Buy Box Summary</div><textarea className="input h-20" value={firstMeaningfulBuyerText(editBuyer.notes, editBuyer.buyBox, editBuyer.buy_box, editBuyer.criteria, editBuyer.data?.notes, editBuyer.data?.buyBox, editBuyer.data?.buy_box, editBuyer.data?.criteria)} onChange={e => {
@@ -5830,7 +5498,7 @@ const company = getDisplayCompany(buyerAny) || 'Company Missing';
                           <div>
                             <div className="text-lg font-semibold">{row.name || 'Name Missing'}</div>
                             <div className="text-sm text-blue-400">{row.email || 'Email Missing'}</div>
-                            <div className="text-xs text-[#22C55E] mt-1">Portal Review #{idx + 1}</div>
+                            <div className="text-xs text-[#22C55E] mt-1">Portal Review #{currentImportPage * 50 + idx + 1}</div>
                           </div>
                           <div className="flex gap-2">
                             <button
@@ -6045,7 +5713,7 @@ const company = getDisplayCompany(buyerAny) || 'Company Missing';
       {/* IMPORT MODAL - Profile-style review screen before any store write. */}
       {showImport && (
         <div className="fixed inset-0 bg-black/70 z-[200] flex items-center justify-center p-4">
-          <div className="card w-full max-w-5xl max-h-[92vh] overflow-auto p-6">
+          <div data-buyer-import-dialog role="dialog" aria-modal="true" aria-label="Import Buyers — Review & Approve" tabIndex={0} className="card w-[95vw] max-w-6xl max-h-[94dvh] overflow-y-auto overscroll-contain p-4 sm:p-6">
             <div className="flex justify-between items-start mb-4">
               <div>
                 <div className="font-semibold text-xl">Import Buyers - Review & Approve</div>
@@ -6080,7 +5748,7 @@ const company = getDisplayCompany(buyerAny) || 'Company Missing';
 
             {pendingImport.length > 0 && (
               <>
-                <div className="sticky top-0 z-10 bg-[#0F131D] border border-[#252A38] rounded-xl p-3 mb-4 shadow-xl">
+                <div className="bg-[#0F131D] border border-[#252A38] rounded-xl p-3 mb-4 shadow-xl">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <div className="text-sm font-medium">{pendingImport.length} buyer{pendingImport.length === 1 ? '' : 's'} ready for review</div>
@@ -6164,14 +5832,19 @@ const company = getDisplayCompany(buyerAny) || 'Company Missing';
                   </div>
                 </div>
 
-                <div className="space-y-5 max-h-[62vh] overflow-auto pr-1">
+                <div className="flex flex-wrap items-center gap-3 my-3">
+                  <span>Review page {currentImportPage + 1} of {importPageCount} · {visibleImportRows.length} profiles on this page</span>
+                  <button className="btn btn-ghost" disabled={currentImportPage === 0} onClick={() => setImportReviewPage(currentImportPage - 1)}>Previous review page</button>
+                  <button className="btn btn-ghost" disabled={currentImportPage + 1 >= importPageCount} onClick={() => setImportReviewPage(currentImportPage + 1)}>Next review page</button>
+                </div>
+                <div className="space-y-5">
                   {importReviewRows.length === 0 && (
                     <div className="rounded-xl border border-dashed border-[#252A38] p-8 text-center text-sm text-[#8B92A3]">
                       No imported buyers match this review filter.
                     </div>
                   )}
 
-                  {importReviewRows.map((row, idx) => {
+                  {visibleImportRows.map((row, idx) => {
                     const marketOptions = ['Any','Nationwide','AL','AK','AZ','AR','CA','CO','CT','DE','DC','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY']
                     const assetOptions = ['SFH','Multifamily','Small Multifamily','MHP','Mobile Home Park','RV Park','Hotel','Retail','Office','Industrial','Storage','Land','Mixed Use','Mixed-Use','Commercial','Development','Build-to-Rent','Any']
                     const rowMarkets = Array.isArray(row.markets) ? row.markets : []
@@ -6204,7 +5877,7 @@ const company = getDisplayCompany(buyerAny) || 'Company Missing';
                             <div className="text-xs mt-1 flex flex-wrap gap-2">
                               <span className="text-[#22C55E]">Review #{idx + 1}</span>
                               {rowSelected && <span className="text-[#22C55E]">Selected for import</span>}
-                              {!rowSelectable && !rowSelected && row._valid !== false && <span className="text-amber-300">Capacity reached</span>}
+                              {!rowSelectable && !rowSelected && row._valid !== false && <span className="text-amber-300">{row._identityConflict ? 'Identity review required' : row._dup && !row._merge ? 'Review merge before selecting' : 'Capacity reached'}</span>}
                               {row._dup && <span className="text-amber-400">Possible Duplicate</span>}
                               {row._valid === false && <span className="text-red-400">Marked Invalid</span>}
                               {row.status && <span className="text-amber-400">Status: {row.status}</span>}
@@ -6237,6 +5910,22 @@ const company = getDisplayCompany(buyerAny) || 'Company Missing';
                             <button onClick={() => { void removePendingRow(row._id) }} className="btn btn-ghost px-3 py-1 text-red-400">Remove</button>
                           </div>
                         </div>
+
+                        {row.importDiagnostics && !isCollapsed && (
+                          <details className="mb-4 rounded-lg border border-[#252A38] p-3 text-sm break-words">
+                            <summary className="cursor-pointer">Source mapping, extracted criteria and review issues</summary>
+                            <p className="mt-2">Imported as inactive and unverified. No outreach consent is granted.</p>
+                            <ul className="my-2 list-disc pl-5">{row.importDiagnostics.columns.map((column: any) => <li key={column.source}>{column.source} → {column.destination || 'Unmapped — preserved in original source'}</li>)}</ul>
+                            <p>Purchase budget: {row.budgetMin ?? 'Unknown'} – {row.budgetMax ?? 'Unknown'}. All-in budget: {row.purchaseCriteria?.allInMax ?? 'Unknown'}. ARV: {row.purchaseCriteria?.arv ?? 'Unknown'}.</p>
+                            <p>Formula: {row.purchaseCriteria?.formula?.text || 'None supplied'}</p>
+                            <p>ZIPs: {row.zipCodes?.join(', ') || 'None supplied'} · Cities: {row.cities?.join(', ') || 'None extracted'} · Mandates: {row.buyingMandates?.length || 0}</p>
+                            <ul className="my-2 list-disc pl-5">{row.importDiagnostics.review.map((issue: string, i: number) => <li key={i}>{issue}</li>)}</ul>
+                            {row._identityConflict && <p className="text-amber-300">Phone matches another contact with a different email. Resolve identity before importing.</p>}
+                            <p className="whitespace-pre-wrap">Original criteria: {row.originalCriteria || 'Not supplied'}</p>
+                            <p className="whitespace-pre-wrap">Original mandates: {row.originalMandates || 'Not supplied'}</p>
+                            <details><summary>Exact original source records</summary><pre className="whitespace-pre-wrap break-words">{JSON.stringify(row.sourceRecords, null, 2)}</pre></details>
+                          </details>
+                        )}
 
                         {isCollapsed ? (
                           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
@@ -6307,7 +5996,7 @@ const company = getDisplayCompany(buyerAny) || 'Company Missing';
                                 </div>
                                 <div>
                                   <div className="text-xs text-[#8B92A3]">Status</div>
-                                  <select className="select min-w-[220px]" value={row.status || 'Active'} onChange={e => updatePendingRow(row._id, { status: e.target.value })}>
+                                  <select className="select w-full min-w-0" value={row.status || 'Active'} onChange={e => updatePendingRow(row._id, { status: e.target.value })}>
                                     <option>Active</option><option>Hot</option><option>New</option><option>Inactive</option>
                                   </select>
                                 </div>
@@ -6669,9 +6358,9 @@ const company = getDisplayCompany(buyerAny) || 'Company Missing';
                   })}
                 </div>
 
-                <div className="sticky bottom-0 bg-[#0F131D] flex gap-2 mt-5 pt-4 border-t border-[#252A38]">
+                <div className="bg-[#0F131D] flex flex-wrap gap-2 mt-5 pt-4 border-t border-[#252A38]">
                   <button onClick={() => selectImportRowsUpToCapacity(importReviewRows)} className="btn btn-ghost flex-1">
-                    Select Visible Up to Capacity
+                    Select Filtered Up to Capacity
                   </button>
                   <button onClick={() => { void approveSelectedImportRows() }} disabled={Object.values(importApprovalStatus).includes('approving') || importWouldExceedCapacity || selectedImportRows.length === 0} className="btn btn-green flex-1 disabled:opacity-60">
                     {Object.values(importApprovalStatus).includes('approving') ? 'Importing...' : `Import Selected Buyers (${selectedImportRows.length})`}

@@ -1,3 +1,4 @@
+import { mergeImportedBuyer } from './buyerImportMerge.js'
 import { supabase } from './supabase'
 
 export const BUYERS_TABLE =
@@ -107,7 +108,7 @@ async function getBuyerScope(): Promise<BuyerScope | null> {
   }
 }
 
-async function importBuyersThroughApi(buyers: any[]): Promise<BuyerSyncResult<any[]> | null> {
+async function importBuyersThroughApi(buyers: any[], reviewed = false): Promise<BuyerSyncResult<any[]> | null> {
   if (!supabase || typeof fetch === 'undefined') return null
 
   const session = await getActiveSupabaseSession()
@@ -125,7 +126,7 @@ async function importBuyersThroughApi(buyers: any[]): Promise<BuyerSyncResult<an
         Authorization: `Bearer ${session.access_token}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ buyers }),
+      body: JSON.stringify({ buyers, operation: reviewed ? 'reviewed-update' : 'import' }),
     })
     const payload = await response.json().catch(() => ({}))
 
@@ -238,7 +239,7 @@ function normalizeEmail(buyer: any) {
 }
 
 function rowToBuyer(row: any) {
-  const data = row?.data && typeof row.data === 'object' ? row.data : {}
+  const data = row?.data && typeof row.data === 'object' ? { ...row.data, ...(row.importVersion === 2 ? row : {}) } : row?.importVersion === 2 ? row : {}
   const hasBudgetMinColumn = row && Object.prototype.hasOwnProperty.call(row, 'budget_min')
   const hasBudgetMaxColumn = row && Object.prototype.hasOwnProperty.call(row, 'budget_max')
 
@@ -250,8 +251,8 @@ function rowToBuyer(row: any) {
     company: row.company || data.company || '',
     phone: row.phone || data.phone || '',
     status: row.status || data.status || 'Active',
-    type: row.buyer_type || data.type || data.buyerType || 'Cash Buyer',
-    buyerType: row.buyer_type || data.buyerType || data.type || 'Cash Buyer',
+    type: row.buyer_type || data.type || data.buyerType || (data.importVersion === 2 ? '' : 'Cash Buyer'),
+    buyerType: row.buyer_type || data.buyerType || data.type || (data.importVersion === 2 ? '' : 'Cash Buyer'),
     source: row.source || data.source || '',
     markets: Array.isArray(row.markets) && row.markets.length ? row.markets : Array.isArray(data.markets) ? data.markets : [],
     assetTypes: Array.isArray(row.asset_types) && row.asset_types.length ? row.asset_types : Array.isArray(data.assetTypes) ? data.assetTypes : [],
@@ -470,6 +471,7 @@ const listValue = (...values: any[]) => {
 };
 
 const repairBuyerForDisplay = (buyer: any) => {
+  if (buyer?.importVersion === 2 || buyer?.data?.importVersion === 2) return rowToBuyer(buyer)
   const email = textValue(
     buyer?.email,
     buyer?.buyer_email,
@@ -670,6 +672,7 @@ const repairBuyerForDisplay = (buyer: any) => {
 
 
 function mergeBuyerRecords(existing: any, buyer: any) {
+  if (buyer?.importVersion === 2) return mergeImportedBuyer(existing, buyer)
   const now = new Date().toISOString()
   const hasBuyerField = (key: string) =>
     buyer && typeof buyer === 'object' && Object.prototype.hasOwnProperty.call(buyer, key)
@@ -798,14 +801,14 @@ function dedupeBuyersBeforeSupabaseSave(buyers: any[]) {
   return Array.from(map.values())
 }
 
-export async function upsertBuyersToSupabase(buyers: any[]): Promise<BuyerSyncResult<any[]>> {
+export async function upsertBuyersToSupabase(buyers: any[], reviewed = false): Promise<BuyerSyncResult<any[]>> {
   try {
     if (!supabase) return { ok: false, error: 'Supabase client missing' }
 
     const incoming = dedupeBuyersBeforeSupabaseSave(buyers || [])
     if (!incoming.length) return { ok: true, data: [] }
 
-    const apiResult = await importBuyersThroughApi(incoming)
+    const apiResult = await importBuyersThroughApi(incoming, reviewed)
     if (apiResult) {
       if (apiResult.ok) invalidateActiveBuyerHydrationCache()
       return apiResult
@@ -890,7 +893,7 @@ export async function updateBuyerInSupabase(id: string, updates: any): Promise<B
       ...updates,
       id,
       updatedAt: new Date().toISOString(),
-    }])
+    }], true)
     if (!result.ok) return result
 
     return { ok: true, data: result.data?.[0] }

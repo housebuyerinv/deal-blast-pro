@@ -2,6 +2,7 @@
 ﻿import { Deal, Buyer } from './types'
 
 const safeLower = (value: any) => String(value ?? '').toLowerCase();
+import { importedMandateFit } from './importedBuyerMatching.js'
 
 const safeArray = (value: any): string[] => {
   if (Array.isArray(value)) return value.map(v => String(v || '').trim()).filter(Boolean);
@@ -60,6 +61,8 @@ interface ScoreBreakdown {
 }
 
 export function computeMatchScore(deal: Deal, buyer: Buyer, weights: any): ScoreBreakdown {
+  const importedFit = importedMandateFit(deal, buyer)
+  if (importedFit) return importedFit
   let score = 0
   const reasons: string[] = []
   const missing: string[] = []

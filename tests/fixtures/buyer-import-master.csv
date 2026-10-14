@@ -1,0 +1,17 @@
+Name,Email,Company,Phone,Markets,Buyer Type,Property Criteria,Strategy,ZIPs / Areas,Price / Formula,Budget Min,Budget Max,Closing Speed,Verification Status,Verification Evidence,Contact Preference,Last Contact,Notes,Buying Mandates,Source,Do Not Email,Contact Consent,Import Review
+Synthetic Buyer 1,synthetic1@example.invalid,Synthetic Company 1,5550101000,"Austin, TX",,"SFH; 3 beds, 2 baths; no pools",Buy & Hold,78701,$100K–$500K,,,,Claimed Verified,,,,"  Exact multiline notes
+Retain these spaces  ",,Synthetic QA,no,unknown,
+Synthetic Buyer 2,synthetic2@example.invalid,Synthetic Company 2,5550101001,"Boston, MA",,"SFH; 3 beds, 2 baths; no pools",Buy & Hold,02108,$100K–$500K,,,,Claimed Verified,,,,"  Exact multiline notes
+Retain these spaces  ",,Synthetic QA,no,unknown,
+Synthetic Buyer 3,synthetic3@example.invalid,Synthetic Company 3,5550101002,"Austin, TX",,"SFH; 3 beds, 2 baths; no pools",Buy & Hold,78701,65% ARV minus repairs,,,,Claimed Verified,,,,"  Exact multiline notes
+Retain these spaces  ",,Synthetic QA,no,unknown,
+Synthetic Buyer 4,synthetic4@example.invalid,Synthetic Company 4,5550101003,"Boston, MA",,"SFH; 3 beds, 2 baths; no pools",Buy & Hold,02108,all-in up to $500K,,,,Claimed Verified,,,,"  Exact multiline notes
+Retain these spaces  ",,Synthetic QA,no,unknown,
+Synthetic Buyer 5,synthetic5@example.invalid,Synthetic Company 5,5550101004,"Austin, TX",,"SFH; 3 beds, 2 baths; no pools",Buy & Hold,78701,under $30K,,,,Claimed Verified,,,,"  Exact multiline notes
+Retain these spaces  ",,Synthetic QA,no,unknown,
+Synthetic Buyer 6,synthetic6@example.invalid,Synthetic Company 6,5550101005,"Boston, MA",,"SFH; 3 beds, 2 baths; no pools",Buy & Hold,02108,$100K–$500K,,,,Claimed Verified,,,,"  Exact multiline notes
+Retain these spaces  ",,Synthetic QA,no,unknown,
+Synthetic Buyer 7,synthetic7@example.invalid,Synthetic Company 7,5550101006,"Austin, TX",,"SFH; 3 beds, 2 baths; no pools",Buy & Hold,78701,$100K–$500K,,,,Claimed Verified,,,,"  Exact multiline notes
+Retain these spaces  ",,Synthetic QA,yes,unknown,
+Synthetic Buyer 8,synthetic8@example.invalid,,5550101007,"Boston, MA",,"SFH; 3 beds, 2 baths; no pools",Buy & Hold,02108,$100K–$500K,,,,Claimed Verified,,,,"  Exact multiline notes
+Retain these spaces  ",,Synthetic QA,no,unknown,

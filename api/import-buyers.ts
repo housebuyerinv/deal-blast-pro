@@ -1,4 +1,7 @@
 import { getAuthenticatedAccount, cleanString } from './_accountAuth.js'
+import { createHash } from 'node:crypto'
+import { mergeImportedBuyer, preserveBuyerFields } from '../src/lib/buyerImportMerge.js'
+import { consolidateImportRows } from '../src/lib/buyerImport.js'
 
 const BUYERS_TABLE = process.env.SUPABASE_BUYERS_TABLE || process.env.VITE_SUPABASE_BUYERS_TABLE || 'buyers'
 
@@ -90,10 +93,15 @@ function canAddBuyers(capacity: BuyerCapacity, netNewCount: number) {
   return Math.max(0, Number(netNewCount) || 0) <= capacity.remaining
 }
 
-function buyerToRow(buyer: any, workspaceId: string, userId: string, ownerUserId: string, existing?: any) {
-  const now = new Date().toISOString()
+function buyerToRow(buyer: any, workspaceId: string, userId: string, ownerUserId: string, existing?: any, reviewed = false) {
+  if (buyer.importVersion === 2 || existing?.data?.importVersion === 2) {
+    buyer = mergeImportedBuyer(existing ? rowToBuyer(existing) : {}, buyer, reviewed)
+  } else if (existing) buyer = preserveBuyerFields(rowToBuyer(existing), buyer, reviewed)
+  const now = new Date(Math.max(Date.now(), (Date.parse(existing?.updated_at) || 0) + 1)).toISOString()
   const email = normalizeEmail(buyer)
-  const id = cleanString(existing?.id) || normalizeBuyerId(buyer)
+  const id = cleanString(existing?.id) || (buyer.importVersion === 2
+    ? `BI${createHash('sha256').update(`${workspaceId}:${email}`).digest('hex').slice(0, 30)}`
+    : normalizeBuyerId(buyer))
   const data = {
     ...(existing?.data && typeof existing.data === 'object' ? existing.data : {}),
     ...buyer,
@@ -117,13 +125,13 @@ function buyerToRow(buyer: any, workspaceId: string, userId: string, ownerUserId
     phone: cleanString(data.phone || data.mobile),
     status: cleanString(data.status) || 'Active',
     source: cleanString(data.source),
-    buyer_type: cleanString(data.buyerType || data.type) || 'Cash Buyer',
+    buyer_type: cleanString(data.buyerType || data.type) || (buyer.importVersion === 2 ? '' : 'Cash Buyer'),
     markets: data.markets,
     asset_types: data.assetTypes,
     strategy: cleanString(data.strategy || data.exitStrategy || data.investmentStrategy),
     budget_min: data.budgetMin ?? data.budget_min ?? null,
     budget_max: data.budgetMax ?? data.budget_max ?? data.budget ?? null,
-    notes: cleanString(data.notes || data.buyBox || data.buy_box),
+    notes: data.notes ?? data.buyBox ?? data.buy_box ?? '',
     data,
     created_at: data.createdAt,
     updated_at: now,
@@ -140,8 +148,8 @@ function rowToBuyer(row: any) {
     company: row.company || data.company || '',
     phone: row.phone || data.phone || '',
     status: row.status || data.status || 'Active',
-    type: row.buyer_type || data.type || data.buyerType || 'Cash Buyer',
-    buyerType: row.buyer_type || data.buyerType || data.type || 'Cash Buyer',
+    type: row.buyer_type || data.type || data.buyerType || (data.importVersion === 2 ? '' : 'Cash Buyer'),
+    buyerType: row.buyer_type || data.buyerType || data.type || (data.importVersion === 2 ? '' : 'Cash Buyer'),
     source: row.source || data.source || '',
     markets: Array.isArray(row.markets) && row.markets.length ? row.markets : Array.isArray(data.markets) ? data.markets : [],
     assetTypes: Array.isArray(row.asset_types) && row.asset_types.length ? row.asset_types : Array.isArray(data.assetTypes) ? data.assetTypes : [],
@@ -198,16 +206,23 @@ export default async function handler(req: any, res: any) {
     }
 
     const body = parseJsonBody(req.body)
+    const reviewed = body.operation === 'reviewed-update'
     const rawBuyers = Array.isArray(body.buyers) ? body.buyers : []
-    const buyers = rawBuyers.filter((buyer: any) => normalizeEmail(buyer))
+    const buyers = consolidateImportRows(rawBuyers.filter((buyer: any) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizeEmail(buyer))))
     if (!buyers.length) return send(res, 400, { ok: false, code: 'validation_failed', error: 'Some selected buyers could not be imported. Review the highlighted rows.' })
 
     const emails: string[] = Array.from(new Set(buyers.map(normalizeEmail).filter(Boolean)))
-    const { data: existingRows, error: existingError } = await account.adminClient
-      .from(BUYERS_TABLE)
-      .select('id,email,data,created_at')
-      .eq('workspace_id', workspaceId)
-      .in('email', emails)
+    // Legacy email values can be mixed-case. Page the authorized workspace rather
+    // than an exact-case IN lookup (which previously missed those contacts).
+    const existingRows: any[] = []
+    let existingError: any = null
+    for (let offset = 0; ; offset += 1000) {
+      const page = await account.adminClient.from(BUYERS_TABLE).select('*')
+        .eq('workspace_id', workspaceId).order('id').range(offset, offset + 999)
+      if (page.error) { existingError = page.error; break }
+      existingRows.push(...(page.data || []))
+      if ((page.data || []).length < 1000) break
+    }
 
     if (existingError) {
       const classified = classifySupabaseError(existingError)
@@ -215,10 +230,28 @@ export default async function handler(req: any, res: any) {
     }
 
     const existingByEmail = new Map<string, any>()
+    const ambiguousEmails = new Set<string>()
     ;(Array.isArray(existingRows) ? existingRows : []).forEach((row: any) => {
       const email = normalizeEmail(row)
+      if (email && existingByEmail.has(email)) ambiguousEmails.add(email)
       if (email && !existingByEmail.has(email)) existingByEmail.set(email, row)
     })
+    if (emails.some(email => ambiguousEmails.has(email))) {
+      return send(res, 409, { ok: false, code: 'identity_conflict', error: 'Multiple existing profiles share an email. Resolve those existing duplicates before importing.' })
+    }
+
+    const identityConflict = reviewed
+      ? buyers.some((buyer: any) => consolidateImportRows([buyer], existingRows.filter(row => row.id !== buyer.id)).some(row => row._identityConflict))
+      : consolidateImportRows(buyers, existingRows).some(row => row._identityConflict)
+    if (identityConflict) {
+      return send(res, 409, { ok: false, code: 'identity_conflict', error: 'A phone number belongs to an existing contact with a different email. Review the identity before importing.' })
+    }
+    if (reviewed && buyers.some((buyer: any) => !existingRows.some(row => row.id === buyer.id))) {
+      return send(res, 409, { ok: false, code: 'identity_conflict', error: 'The reviewed buyer no longer exists in this workspace. Refresh before saving.' })
+    }
+    if (reviewed && buyers.some((buyer: any) => existingByEmail.has(normalizeEmail(buyer)) && existingByEmail.get(normalizeEmail(buyer)).id !== buyer.id)) {
+      return send(res, 409, { ok: false, code: 'identity_conflict', error: 'That email already belongs to another buyer. Review a merge instead.' })
+    }
 
     const { count: savedBuyerCount, error: countError } = await account.adminClient
       .from(BUYERS_TABLE)
@@ -251,16 +284,49 @@ export default async function handler(req: any, res: any) {
     }
 
     const ownerUserId = cleanString(account.workspace?.owner_user_id || account.user.id)
-    const payload = buyers.map((buyer: any) => buyerToRow(buyer, workspaceId, account.user.id, ownerUserId, existingByEmail.get(normalizeEmail(buyer))))
+    const payload = buyers.map((buyer: any) => buyerToRow(buyer, workspaceId, account.user.id, ownerUserId,
+      reviewed ? existingRows.find(row => row.id === buyer.id) : existingByEmail.get(normalizeEmail(buyer)), reviewed))
 
-    const { data, error } = await account.adminClient
-      .from(BUYERS_TABLE)
-      .upsert(payload, { onConflict: 'id' })
-      .select('id,email,name,company,phone,status,source,buyer_type,markets,asset_types,strategy,budget_min,budget_max,notes,data,created_at,updated_at')
-
-    if (error) {
-      const classified = classifySupabaseError(error)
-      return send(res, classified.status, { ok: false, code: classified.code, error: classified.error })
+    // Never overwrite a concurrently created profile. Merge retries read the latest
+    // row and compare its version in the UPDATE predicate before writing.
+    const data: any[] = []
+    const inserted = new Map<string, any>()
+    const newRows = reviewed ? [] : payload.filter(row => !existingByEmail.has(row.email))
+    for (let offset = 0; offset < newRows.length; offset += 250) {
+      const result = await account.adminClient.from(BUYERS_TABLE)
+        .upsert(newRows.slice(offset, offset + 250), { onConflict: 'id', ignoreDuplicates: true }).select('*')
+      if (result.error) {
+        const classified = classifySupabaseError(result.error)
+        return send(res, classified.status, { ok: false, code: classified.code, error: 'Import stopped. Some earlier rows may have saved; refresh before retrying.', imported: inserted.size })
+      }
+      for (const row of result.data || []) inserted.set(row.id, row)
+    }
+    for (let index = 0; index < payload.length; index += 1) {
+      if (inserted.has(payload[index].id)) { data.push(inserted.get(payload[index].id)); continue }
+      const buyer = buyers[index]
+      let current = reviewed ? existingRows.find(row => row.id === buyer.id) : existingByEmail.get(normalizeEmail(buyer))
+      let saved: any = null
+      for (let attempt = 0; attempt < 5 && !saved; attempt += 1) {
+        const row = buyerToRow(buyer, workspaceId, account.user.id, ownerUserId, current, reviewed)
+        let query = current
+          ? account.adminClient.from(BUYERS_TABLE).update(row).eq('workspace_id', workspaceId).eq('id', current.id)
+          : account.adminClient.from(BUYERS_TABLE).upsert([row], { onConflict: 'id', ignoreDuplicates: true })
+        if (current) query = current.updated_at == null ? query.is('updated_at', null) : query.eq('updated_at', current.updated_at)
+        const result = await query.select('*')
+        if (result.error) {
+          const classified = classifySupabaseError(result.error)
+          return send(res, classified.status, { ok: false, code: classified.code, error: 'Import stopped. Some earlier rows may have saved; refresh before retrying.', imported: data.length })
+        }
+        saved = result.data?.[0]
+        if (!saved) {
+          if (reviewed) return send(res, 409, { ok: false, code: 'concurrent_update', error: 'This buyer changed during review. Refresh and review the latest profile before saving.' })
+          const fresh = await account.adminClient.from(BUYERS_TABLE).select('*').eq('workspace_id', workspaceId).eq('id', row.id)
+          if (fresh.error || !fresh.data?.[0]) return send(res, 409, { ok: false, code: 'concurrent_update', error: 'Buyer changed during import. Refresh before retrying.', imported: data.length })
+          current = fresh.data[0]
+        }
+      }
+      if (!saved) return send(res, 409, { ok: false, code: 'concurrent_update', error: 'Buyer is being updated by another request. Refresh before retrying.', imported: data.length })
+      data.push(saved)
     }
 
     return send(res, 200, {
