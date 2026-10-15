@@ -2,7 +2,11 @@ export const supplied = value => value !== null && value !== undefined &&
   (typeof value !== 'string' || value.trim() !== '') &&
   (!Array.isArray(value) || value.length > 0) &&
   (typeof value !== 'object' || Array.isArray(value) || Object.keys(value).length > 0);
-const union = (left = [], right = []) => [...new Map([...left, ...right].map(value => [JSON.stringify(value), value])).values()];
+// PostgreSQL JSONB can return object keys in a different order. Identity must
+// compare content, not serialization order, including nested mandate criteria.
+const canonical = value => Array.isArray(value) ? value.map(canonical) :
+  value && typeof value === 'object' ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])])) : value;
+const union = (left = [], right = []) => [...new Map([...left, ...right].map(value => [JSON.stringify(canonical(value)), value])).values()];
 export function preserveBuyerFields(existing, incoming, reviewed = false) {
   const result = { ...existing };
   for (const [key, value] of Object.entries(incoming)) {

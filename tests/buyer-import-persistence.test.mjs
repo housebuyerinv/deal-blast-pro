@@ -3,6 +3,30 @@ import assert from 'node:assert/strict';
 import * as parsing from '../src/lib/buyerImport.js';
 import { createBuyerImportFixture } from './helpers/buyerImportFixture.mjs';
 
+test('JSONB replay and simultaneous reimports retain exact flip and rental mandates', async () => {
+  const { db, invoke } = await createBuyerImportFixture();
+  const rows = [
+    parsing.parseBuyerRecord({ Email: 'mandates@example.invalid', Markets: 'Austin, TX', 'Property Criteria': 'SFH', Strategy: 'Fix & Flip', 'Price / Formula': '65% ARV minus repairs', Notes: '  exact flip notes\n', 'Do Not Email': 'yes' }),
+    parsing.parseBuyerRecord({ Email: 'mandates@example.invalid', Markets: 'Tampa, FL', 'Property Criteria': 'Multifamily', Strategy: 'Buy and Hold', 'Price / Formula': '$100K–$500K', Notes: ' rental notes ' }),
+  ];
+  try {
+    for (const row of rows) assert.equal((await invoke([row])).status, 200);
+    for (let pass = 0; pass < 3; pass++) {
+      const results = await Promise.all(rows.map(row => invoke([row])));
+      assert.ok(results.every(result => result.status === 200));
+      const stored = (await db.query('SELECT data FROM buyers')).rows;
+      assert.equal(stored.length, 1);
+      assert.equal(stored[0].data.buyingMandates.length, 2);
+      for (const row of rows) {
+        assert.ok(stored[0].data.buyingMandates.some(mandate => { try { assert.deepEqual(mandate, row.buyingMandates[0]); return true; } catch { return false; } }));
+        assert.ok(stored[0].data.sourceRecords.some(source => source.Notes === row.notes));
+      }
+      assert.equal(stored[0].data.suppressed, true);
+      assert.equal(stored[0].data.distributionEligible, false);
+    }
+  } finally { await db.close(); }
+});
+
 test('sparse reviewed profile edit preserves import safeguards and permits its own phone', async () => {
   const { db, invoke } = await createBuyerImportFixture();
   try {

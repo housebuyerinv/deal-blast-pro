@@ -6,6 +6,20 @@ import { mergeImportedBuyer, preserveBuyerFields } from '../src/lib/buyerImportM
 import { importedMandateFit } from '../src/lib/importedBuyerMatching.js';
 import { matchBuyer } from '../server/buyermatch/matching.js';
 
+test('JSONB key reordering does not duplicate mandates or exact source records on replay', () => {
+  const incoming = parseBuyerRecord({ Email: 'jsonb@example.invalid', Markets: 'Austin, TX', 'Property Criteria': 'SFH', 'Price / Formula': 'under $500K', Notes: ' exact notes ' });
+  const reorder = value => Array.isArray(value) ? value.map(reorder) : value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).reverse().map(([key, child]) => [key, reorder(child)])) : value;
+  const stored = reorder(JSON.parse(JSON.stringify(incoming)));
+  const merged = mergeImportedBuyer(stored, incoming);
+  assert.equal(merged.buyingMandates.length, 1);
+  assert.equal(merged.sourceRecords.length, 1);
+  assert.equal(merged.sourceRecords[0].Notes, ' exact notes ');
+  const repaired = mergeImportedBuyer({ ...stored, buyingMandates: [...stored.buyingMandates, ...incoming.buyingMandates] }, incoming);
+  assert.equal(repaired.buyingMandates.length, 1);
+  const different = parseBuyerRecord({ Email: incoming.email, Markets: 'Tampa, FL', 'Property Criteria': 'Land', 'Price / Formula': 'under $30K' });
+  assert.equal(mergeImportedBuyer(merged, different).buyingMandates.length, 2);
+});
+
 test('master-list columns preserve complete source and separate claims from authorization', () => {
   const raw = { Name: 'Synthetic Buyer', Email: ' QA@EXAMPLE.INVALID ', Company: 'Synthetic Co', Phone: '+1 (555) 010-1000', Markets: 'Austin, TX', 'ZIPs / Areas': '78701', 'Property Criteria': '  SFH only\n3 bedrooms  ', Strategy: 'Fix & Flip', 'Price / Formula': '$100K–$500K', 'Closing Speed': '14 days', 'Verification Status': 'Verified', 'Proof Provided': 'Claimed POF', 'Contact Consent': 'Yes', Notes: '  Exact notes\n  retained ', Source: 'Synthetic master list', Extra: 'untouched' };
   const row = parseBuyerRecord(raw, 'sample');
