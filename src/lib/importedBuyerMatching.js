@@ -1,3 +1,4 @@
+import { unsupportedBuyerRestrictions } from './buyerRestrictionReview.js';
 // Imported mandates stay separate: never combine one mandate's geography with
 // another mandate's price. This returns fit information, never delivery consent.
 export function importedMandateFit(deal, buyer) {
@@ -12,6 +13,14 @@ export function importedMandateFit(deal, buyer) {
   const price = pricing.askingPrice || pricing.contractPrice;
   const results = (buyer.buyingMandates || []).map(mandate => {
     const missing = [];
+    // Recompute from saved prose so pre-existing imports cannot bypass the
+    // review gate by lacking a newer parser flag. A generic verified status is
+    // not evidence that a particular deal satisfies an unsupported condition.
+    const restrictionReview = unsupportedBuyerRestrictions(
+      buyer.originalCriteria, buyer.criteria, buyer.originalNotes, buyer.notes,
+      mandate.originalCriteria, mandate.originalMandates,
+    );
+    if (restrictionReview.length) missing.push('Unsupported restrictions require review');
     if (mandate.requiresReview) missing.push('Mandate review');
     if (!mandate.markets?.length) missing.push('Market');
     else if (!mandate.markets.some(m => equal(m.state, property.state) && (!m.city || equal(m.city, property.city)) && (!m.zips?.length || m.zips.includes(property.zip)))) missing.push('Market mismatch');
