@@ -6,6 +6,38 @@ import { mergeImportedBuyer, preserveBuyerFields } from '../src/lib/buyerImportM
 import { importedMandateFit } from '../src/lib/importedBuyerMatching.js';
 import { matchBuyer } from '../server/buyermatch/matching.js';
 
+test('explicit ARV deductions preserve percentage ranges and reject incidental rehab mentions', () => {
+  for (const suffix of ['minus rehab', 'minus rehabilitation', 'minus renovation costs', 'less repairs', '- repair costs', '− estimated rehab costs']) {
+    for (const range of ['60%–70%', '60–70%', '60% to 70%', '60%—70%']) {
+      const raw = `${range} ARV ${suffix}`;
+      assert.deepEqual(parsePurchaseCriteria(raw).formula, { text: raw, minArvRatio: .6, maxArvRatio: .7, subtractRepairs: true });
+    }
+  }
+  for (const suffix of ['; rehab required', ' including renovation costs', '; do not subtract rehab', ' without repairs', ' plus rehab', ' minus rehabbed homes']) {
+    assert.equal(parsePurchaseCriteria(`70% ARV${suffix}`).formula.subtractRepairs, false, suffix);
+  }
+  for (const raw of ['80%–60% ARV minus rehab', '60%–170% ARV minus rehab']) assert.equal(parsePurchaseCriteria(raw).formula, null);
+});
+
+test('Jessica mandate formula wording survives synthetic import and JSONB replay', () => {
+  const prices = ['Up to $500K; approximately 60% to 70% ARV minus rehab', 'Up to approximately $750K; approximately 60% to 70% ARV minus rehab'];
+  const raw = { Email: 'formula-pilot@example.invalid', Notes: '  Exact notes\nretained  ', 'Buying Mandates': prices.map((price, i) => `Mandate: ${i ? 'Florida' : 'Texas'} SFR rehab; Markets Raw: ${i ? 'Florida' : 'Dallas and Houston, TX'}; Property Criteria Raw: Light to medium rehab; Price / Formula Raw: ${price}`).join(' || ') };
+  const row = parseBuyerRecord(raw);
+  const replay = mergeImportedBuyer(JSON.parse(JSON.stringify(row)), parseBuyerRecord(raw));
+  assert.equal(replay.buyingMandates.length, 2);
+  assert.deepEqual(replay.buyingMandates, row.buyingMandates);
+  assert.deepEqual(replay.originalFields, raw);
+  assert.equal(replay.notes, raw.Notes);
+  row.buyingMandates.forEach((m, i) => {
+    assert.deepEqual(m.purchaseCriteria.formula, { text: prices[i], minArvRatio: .6, maxArvRatio: .7, subtractRepairs: true });
+    assert.equal(m.purchaseCriteria.raw, prices[i]);
+    assert.equal(m.purchaseCriteria.purchaseMax, null);
+    assert.equal(m.requiresReview, true);
+  });
+  assert.equal(row.status, 'Inactive');
+  assert.equal(row.distributionEligible, false);
+});
+
 test('JSONB key reordering does not duplicate mandates or exact source records on replay', () => {
   const incoming = parseBuyerRecord({ Email: 'jsonb@example.invalid', Markets: 'Austin, TX', 'Property Criteria': 'SFH', 'Price / Formula': 'under $500K', Notes: ' exact notes ' });
   const reorder = value => Array.isArray(value) ? value.map(reorder) : value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).reverse().map(([key, child]) => [key, reorder(child)])) : value;

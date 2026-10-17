@@ -76,8 +76,15 @@ export function parsePurchaseCriteria(text) {
   const result = { raw, purchaseMin: null, purchaseMax: null, allInMax: null, arv: null, formula: null, needsReview: false };
   if (!raw.trim()) return result;
   if (/%|\bARV\b|after repair/i.test(raw)) {
-    const ratio = raw.match(/(\d+(?:\.\d+)?)\s*%\s*(?:of\s+)?ARV/i);
-    if (ratio) result.formula = { text: raw, maxArvRatio: Number(ratio[1]) / 100, subtractRepairs: /(?:minus|less|-)\s*(?:the\s+)?repairs/i.test(raw) };
+    const ratio = raw.match(/\b(\d+(?:\.\d+)?)\s*(?:%?\s*(?:[–—-]|to)\s*(\d+(?:\.\d+)?))?\s*%\s*(?:of\s+)?ARV\b/i);
+    if (ratio) {
+      const min = Number(ratio[1]) / 100;
+      const max = Number(ratio[2] ?? ratio[1]) / 100;
+      // Only an explicit deduction immediately following ARV is actionable.
+      // A separate mention of rehab (or "do not subtract rehab") is not one.
+      const deduction = /^\s*(?:minus\b|less\b|[-–—−])\s*(?:the\s+)?(?:estimated\s+)?(?:repairs?|rehab(?:ilitation)?|renovations?)(?:\s+costs?)?\b/i.test(raw.slice(ratio.index + ratio[0].length));
+      if (min > 0 && max <= 1 && min <= max) result.formula = { text: raw, ...(ratio[2] ? { minArvRatio: min } : {}), maxArvRatio: max, subtractRepairs: deduction };
+    }
     else if (!/%/.test(raw)) result.arv = money(raw.replace(/ARV|after repair value|[:=]/gi, '').trim());
     result.needsReview = true;
     return result;
