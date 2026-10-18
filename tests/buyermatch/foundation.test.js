@@ -48,10 +48,11 @@ test("hard price and explicit exclusion remove buyer", () => {
     false,
   );
 });
-test("unknown rehabilitation cost cannot count as strong", () => {
+test("unknown rehabilitation cost cannot satisfy an explicit ARV formula", () => {
   const r = analyzeDeal({ ...deal, repairs: undefined }, [buyer], now);
   assert.equal(r.strongMatches, 0);
-  assert.equal(r.possibleMatches, 1);
+  assert.equal(r.possibleMatches, 0);
+  assert.equal(r.totalMatches, 0);
 });
 test("missing ZIP cannot satisfy ZIP restricted market", () =>
   assert.equal(

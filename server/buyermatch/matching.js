@@ -157,7 +157,8 @@ export function matchBuyer(deal, buyer, now = new Date()) {
   // Missing deal facts cannot satisfy an explicit buyer exclusion/limitation.
   // Other missing dimensions remain visible as confidence gaps as before.
   const unresolvedRestriction = unknown.some(name =>
-    name.startsWith('Excluded ') || ['condition', 'occupancy', 'dealType', 'financing'].includes(name));
+    name.startsWith('Excluded ') || ['condition', 'occupancy', 'dealType', 'financing',
+      'ARV formula', 'price', 'repairs', 'capRate', 'noi', 'debtServiceCoverage'].includes(name));
   const eligible = failed.length === 0 && !unresolvedRestriction && marketFit.includes(true);
   const score = eligible
     ? Math.round(criteriaScore * 0.85 + freshness * 0.15)
