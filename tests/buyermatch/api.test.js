@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { build } from "esbuild";
 import { Buffer } from "node:buffer";
 import process from "node:process";
+import { ENGINE_VERSION } from "../../server/buyermatch/matching.js";
 const owner = "11111111-1111-4111-8111-111111111111",
   dealId = "22222222-2222-4222-8222-222222222222";
 process.env.SUPABASE_URL = "https://fixture.invalid";
@@ -265,6 +266,7 @@ test("Production outreach uses authenticated owner, denies cross-owner and fails
   );
   const rpc = [];
   const previousRpc = globalThis.__buyerMatchFixture.rpc;
+  const previousAnalysis = records.bm_analyses[0].private_result;
   globalThis.__buyerMatchFixture.rpc = async (name, args) => {
     rpc.push({ name, args });
     return { data: { status: "queued", sent: false } };
@@ -285,6 +287,12 @@ test("Production outreach uses authenticated owner, denies cross-owner and fails
     records.bm_deals[0].owner_id = "other";
     assert.equal((await invoke("distribution", body)).statusCode, 404);
     records.bm_deals[0].owner_id = owner;
+    // Missing-version analyses must stop before provider availability is tested.
+    const stale = await invoke("distribution", body);
+    assert.equal(stale.statusCode, 409);
+    assert.match(stale.body.error, /Matching safety revalidation required/);
+    assert.equal(rpc.length, 0);
+    records.bm_analyses[0].private_result = { ...previousAnalysis, engineVersion: ENGINE_VERSION };
     process.env.BM_LIVE_DELIVERY_ENABLED = "false";
     assert.equal((await invoke("distribution", body)).statusCode, 503);
     assert.equal(rpc.length, 0);
@@ -298,6 +306,7 @@ test("Production outreach uses authenticated owner, denies cross-owner and fails
     });
   } finally {
     records.bm_deals[0].owner_id = owner;
+    records.bm_analyses[0].private_result = previousAnalysis;
     globalThis.__buyerMatchFixture.rpc = previousRpc;
     for (const [key, value] of Object.entries(prior)) {
       if (value === undefined) delete process.env[key];
