@@ -5,7 +5,7 @@ import {
   getBearerToken,
   isOwnerAdminEmail,
 } from "../../api/_accountAuth.js";
-import { analyzeDeal } from "../buyermatch/matching.js";
+import { analyzeDeal, ENGINE_VERSION } from "../buyermatch/matching.js";
 import { calculateFee } from "../buyermatch/workflow.js";
 import {
   createCheckout,
@@ -1067,6 +1067,10 @@ export default async function handler(req: any, res: any) {
       return emit({ sent: true });
     }
     if (action === "distribution") {
+      const latest = checked(await db.from('bm_analyses').select('private_result')
+        .eq('deal_id', deal.id).order('created_at', { ascending: false }).limit(1).maybeSingle());
+      if (latest?.private_result?.engineVersion !== ENGINE_VERSION)
+        fail('Matching safety revalidation required. Distribution blocked; no analysis allowance consumed. Contact support before reanalysis.', 409);
       const production = process.env.VERCEL_ENV === "production";
       if (production) productionDeliveryConfig();
       else assertStaging();
