@@ -1,3 +1,4 @@
+import { completeRegistration } from '../../lib/completeRegistration'
 import { useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -62,6 +63,7 @@ export default function AuthCallback() {
           return
         }
 
+        if (!isEmailChangeCallback) await completeRegistration()
         const userEmail = data.user.email
         let syncedEmailResult: Awaited<ReturnType<typeof syncVerifiedAuthEmailToProfile>> | null = null
         if (isEmailChangeCallback) {

@@ -1,3 +1,4 @@
+import { completeRegistration } from '../../lib/completeRegistration'
 import React, { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -73,7 +74,8 @@ export default function Register() {
       }
 
       if (result.session) {
-        login(form.email, form.name || form.email.split('@')[0], { id: result.user?.id, newWorkspace: true })
+        await completeRegistration()
+        login(form.email, form.name || form.email.split('@')[0], { id: result.session.user?.id, newWorkspace: true })
         window.sessionStorage.removeItem('dealblastpro:start-new-account')
         toast.success('Account created and signed in')
         navigate('/app/dashboard')
