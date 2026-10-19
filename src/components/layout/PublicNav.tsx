@@ -7,6 +7,7 @@ export default function PublicNav() {
   const close = () => setOpen(false)
 
   const menuItems = [
+    { to: '/buyermatch', label: 'BuyerMatch' },
     { to: '/pricing', label: 'Pricing' },
     { to: '/features', label: 'Features' },
     { to: '/register', label: 'Sign Up Now' },
@@ -24,7 +25,8 @@ export default function PublicNav() {
           <div className="font-semibold text-base sm:text-lg md:text-xl tracking-[-0.5px] md:tracking-[-1px] whitespace-nowrap leading-none">DEAL BLAST PRO</div>
         </Link>
 
-        <div className="hidden md:flex items-center gap-4 text-sm">
+        <div className="hidden xl:flex items-center gap-4 text-sm">
+          <Link to="/buyermatch" className="font-semibold text-[#22C55E] hover:text-white">BuyerMatch</Link>
           <Link to="/pricing" className="hover:text-white">Pricing</Link>
           <Link to="/features" className="hover:text-white">Features</Link>
           <Link to="/portal" className="hover:text-white">Submit Deal</Link>
@@ -34,7 +36,7 @@ export default function PublicNav() {
           <Link to="/register" className="btn btn-primary px-5 py-1.5 text-sm">Sign Up Free</Link>
         </div>
 
-        <div className="md:hidden flex items-center gap-2 shrink-0">
+        <div className="xl:hidden flex items-center gap-2 shrink-0">
           <Link to="/register" onClick={close} className="btn btn-green px-3 py-1.5 text-xs whitespace-nowrap">Sign Up Free</Link>
           <button
             type="button"
@@ -49,7 +51,7 @@ export default function PublicNav() {
       </div>
 
       {open && (
-        <div className="md:hidden border-t border-[#252A38] bg-[#0A0C12] shadow-xl">
+        <div className="xl:hidden border-t border-[#252A38] bg-[#0A0C12] shadow-xl">
           <div className="px-4 py-3 grid gap-2">
             <Link to="/register" onClick={close} className="btn btn-green w-full py-2.5 text-sm">Sign Up Free</Link>
             <div className="grid gap-1 pt-2">
