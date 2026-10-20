@@ -78,6 +78,9 @@ export default async function handler(req: any, res: any) {
     res.setHeader('Allow', 'GET, POST')
     return res.status(405).json({ ok: false, error: 'Method not allowed' })
   }
+  if (req.method === 'POST' && process.env.DBP_REGISTRATION_PAUSED === 'true') {
+    return res.status(503).json({ ok: false, error: 'New registrations are temporarily paused. Existing customers can sign in.' })
+  }
   try {
     const admin = getSupabaseAdminClient()
     if (req.method === 'GET') return res.status(200).json({ required: process.env.DBP_REQUIRE_VERSIONED_PLATFORM_AGREEMENTS === 'true', documents: await documents(admin) })
@@ -121,7 +124,6 @@ export default async function handler(req: any, res: any) {
     }
     if (body.action && body.action !== 'start') return res.status(400).json({ ok: false, error: 'Invalid registration request.' })
     if (body.product && body.product !== 'crm') return res.status(400).json({ ok: false, error: 'This registration endpoint supports DBP CRM only.' })
-    if (process.env.DBP_REGISTRATION_PAUSED === 'true') return res.status(503).json({ ok: false, error: 'New registrations are temporarily paused. Existing customers can sign in.' })
     const name = clean(body.name), email = clean(body.email).toLowerCase(), company = clean(body.company)
     const password = typeof body.password === 'string' ? body.password : ''
     const role = clean(body.role) || 'Admin'
