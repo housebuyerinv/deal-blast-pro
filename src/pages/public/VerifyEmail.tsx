@@ -48,7 +48,7 @@ export default function VerifyEmail() {
         </div>
         <div className="card p-8">
           <div className="text-2xl font-semibold mb-2">Verify your email</div>
-          <p className="text-[#8B92A3] mb-6">We created your account. Confirm your email before signing in. Delivery can take a few minutes, and spam filtering may apply.</p>
+          <p className="text-[#8B92A3] mb-6">Check your email to continue, or sign in if you already have an account. Confirm your email before first sign-in. Delivery can take a few minutes, and spam filtering may apply.</p>
           <label className="block text-xs text-[#8B92A3] mb-1.5" htmlFor="verification-email">EMAIL</label>
           <input id="verification-email" className="input mb-4" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@company.com" />
           <button type="button" onClick={() => void resend()} disabled={sending} className="btn btn-green w-full py-3">

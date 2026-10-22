@@ -1,4 +1,5 @@
 import test from "node:test";
+import { createHash } from "node:crypto";
 import assert from "node:assert/strict";
 import { build } from "esbuild";
 import { Buffer } from "node:buffer";
@@ -61,6 +62,8 @@ class Query {
     this.filters.push((row) => row[key] === value);
     return this;
   }
+  is(key, value) { return this.eq(key, value); }
+  in(key, values) { this.filters.push(row => values.includes(row[key])); return this; }
   gte(key, value) {
     this.filters.push((row) => row[key] >= value);
     return this;
@@ -427,4 +430,23 @@ test('owner-admin provider preflight fails closed outside Production without Buy
   email='housebuyerinv@gmail.com';calls.length=0;
   try {const r=await invoke('admin-verify-provider',{},'valid','GET');assert.equal(r.statusCode,200);assert.equal(r.body.authenticated,false);assert.equal(calls.some(name=>name.startsWith('bm_')),false);}
   finally {email='regular@example.invalid';}
+});
+
+test('unsubscribed BuyerMatch user can review and sign only current platform agreements',async()=>{
+ const previous=records.bm_entitlements;records.bm_entitlements=[];
+ const doc={id:'33333333-3333-4333-8333-333333333333',kind:'platform_terms',version:'1',approved:true,current:true,content:'Synthetic terms'};
+ doc.document_hash=createHash('sha256').update(doc.content).digest('hex');
+ const privacy={...doc,id:'44444444-4444-4444-8444-444444444444',kind:'privacy'};
+ records.bm_documents=[doc,privacy];records.bm_acceptances=[];
+ try {
+  const result=await invoke('onboarding',{},'valid','GET');assert.equal(result.statusCode,200);assert.equal(result.body.documents.length,2);
+  calls.length=0;
+  const accepted=await invoke('onboarding-accept',{documentId:doc.id,hash:doc.document_hash,signature:'Synthetic Owner',ownerId:'foreign'});
+  assert.equal(accepted.statusCode,200);
+  const write=calls.find(c=>c.rpc==='bm_accept_document');assert.equal(write.args.p_owner,owner);assert.equal(write.args.p_deal,null);
+  calls.length=0;
+  assert.equal((await invoke('onboarding-accept',{documentId:doc.id,hash:'changed',signature:'Synthetic Owner'})).statusCode,409);
+  assert.equal(calls.some(c=>c.rpc==='bm_accept_document'),false);
+  assert.equal((await invoke('checkout',{planVersion:'buyermatch-starter-v1',operationKey:'55555555-5555-4555-8555-555555555555'})).statusCode,409);
+ } finally {records.bm_entitlements=previous;delete records.bm_documents;delete records.bm_acceptances;}
 });

@@ -26,8 +26,12 @@ export function isPlanPrice(price, live = false) {
 }
 
 export function isLiveSoftwarePrice(price, plan) {
+  return isSoftwarePrice(price, plan, true);
+}
+
+export function isSoftwarePrice(price, plan, live = false) {
   // Versioned DB catalog remains authoritative; only the two approved software tiers may launch.
   const expected = plans.find((item) => item.version === plan.version);
   return Boolean(expected) && plan.product === 'buyermatch' && expected.amountCents === price.unit_amount &&
-    isPlanPrice(price, true) && price.recurring.interval === 'month' && price.recurring.interval_count === 1;
+    isPlanPrice(price, live) && price.recurring.interval === 'month' && price.recurring.interval_count === 1;
 }

@@ -1,3 +1,5 @@
+import { subscriberPortal } from '../buyermatch/portal.js';
+import { subscriberAgreements, requireSubscriberAgreements } from '../buyermatch/onboarding.js';
 import { randomUUID, createHash } from "node:crypto";
 import { z } from "zod";
 import {
@@ -22,7 +24,7 @@ import { deliveryAvailability } from "../buyermatch/availability.js";
 import { verifyProductionResend } from "../buyermatch/provider-verification.js";
 import { hasBuyerMatchAccess } from "../../src/lib/buyerMatchAccess.js";
 import { safeConversationText } from '../buyermatch/conversation.js';
-import { billingConfig, isLiveSoftwarePrice } from "../buyermatch/billing-config.js";
+import { billingConfig, isSoftwarePrice } from "../buyermatch/billing-config.js";
 import { commercialPlans, simulatePlans } from '../buyermatch/usage.js';
 import {
   dealSchema,
@@ -103,10 +105,11 @@ export default async function handler(req: any, res: any) {
       "admin-usage",
       "admin-verify-provider",
       "documents",
+      "onboarding",
     ]);
     if (req.method === "GET" && !readActions.has(action))
       fail("POST required", 405);
-    if (action === "access" || (!account.isOwnerAdmin && !["plans", "checkout"].includes(action) && !action.startsWith("admin-"))) {
+    if (action === "access" || (!account.isOwnerAdmin && !["plans", "checkout", "onboarding", "onboarding-accept", "billing-portal"].includes(action) && !action.startsWith("admin-"))) {
       const entitlements = checked(await db.from("bm_entitlements")
         .select("product,status,period_start,period_end").eq("owner_id", user.id));
       const active = account.isOwnerAdmin || hasBuyerMatchAccess(entitlements);
@@ -666,13 +669,15 @@ export default async function handler(req: any, res: any) {
         await db
           .from("bm_entitlements")
           .select(
-            "product,plan_version,status,period_start,period_end,allowance",
+            "product,plan_version,status,period_start,period_end,allowance,stripe_subscription_id",
           )
           .eq("owner_id", user.id),
       );
       // Never take a customer-supplied owner/workspace ID for quota reporting.
       const usage = checked(await db.rpc('bm_account_usage', { p_owner: user.id }));
       for (const entitlement of entitlements) {
+        entitlement.billingManaged = Boolean(entitlement.stripe_subscription_id);
+        delete entitlement.stripe_subscription_id;
         const counter = entitlement.product === 'buyermatch' ? usage.analysis : usage.managedDispo;
         entitlement.used = counter.used;
         entitlement.remaining = counter.remaining;
@@ -698,7 +703,7 @@ export default async function handler(req: any, res: any) {
           for (const plan of approved) {
             if (!plan.stripe_price_id) continue;
             const price = await stripe.prices.retrieve(plan.stripe_price_id);
-            if (price.recurring && (live ? isLiveSoftwarePrice(price, plan) && plan.allowance > 0 : isTestPlanPrice(price)))
+            if (price.recurring && (plan.product === 'buyermatch' ? isSoftwarePrice(price, plan, live) && plan.allowance > 0 : !live && isTestPlanPrice(price)))
               catalog.push({
                 version: plan.version,
                 product: plan.product,
@@ -746,7 +751,21 @@ export default async function handler(req: any, res: any) {
         isNetworkAdmin: account.isOwnerAdmin,
       });
     }
-    if (action === "checkout")
+    if (action === 'onboarding') return emit({ documents: await subscriberAgreements(db, user.id) });
+    if (action === 'onboarding-accept') {
+      const current = await subscriberAgreements(db, user.id);
+      const document = current.find(d => d.id === body.documentId && d.document_hash === body.hash);
+      if (!document) fail('Review the current approved agreement.', 409);
+      const signature = z.string().trim().min(2).max(200).parse(body.signature);
+      if (!document.accepted) checked(await db.rpc('bm_accept_document', {
+        p_owner: user.id, p_deal: null, p_document: document.id, p_hash: document.document_hash, p_signature: signature,
+      }));
+      return emit({ ok: true });
+    }
+    if (action === 'billing-portal') return emit(await subscriberPortal(db, user, body.operation, body.planVersion));
+    if (action === "checkout") {
+      // Independently verify approved consent before any payment session is created.
+      await requireSubscriberAgreements(db, user.id);
       return emit(
         await createCheckout(
           db,
@@ -755,6 +774,7 @@ export default async function handler(req: any, res: any) {
           uuid.parse(body.operationKey),
         ),
       );
+    }
     if (action === "list")
       return emit({
         deals: checked(

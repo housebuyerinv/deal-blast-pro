@@ -2,12 +2,14 @@ import { createHmac, timingSafeEqual } from 'node:crypto'
 
 export type RegistrationIntent = {
   version: 1; email: string; name: string; company: string; role: string;
-  plan: string; documents: { id: string; hash: string }[]; expires: number
+  plan: string; product?: 'crm' | 'buyermatch'; tier?: 'starter' | 'pro'; documents: { id: string; hash: string }[]; expires: number
 }
 const plans = new Set(['Free', 'Starter', 'Pro'])
 const roles = new Set(['Admin', 'Team Member / VA', 'Buyer', 'Seller / Submitter'])
 function validate(value: RegistrationIntent, now: number) {
-  if (value.version !== 1 || !plans.has(value.plan) || !roles.has(value.role) ||
+  if ((value.product !== undefined && !['crm', 'buyermatch'].includes(value.product)) ||
+      (value.product === 'buyermatch' ? (!['starter', 'pro'].includes(value.tier || '') || value.plan !== 'Free' || value.role !== 'Admin') : value.tier !== undefined) ||
+      value.version !== 1 || !plans.has(value.plan) || !roles.has(value.role) ||
       typeof value.email !== 'string' || !value.email.includes('@') || value.email.length > 254 ||
       typeof value.name !== 'string' || !value.name.trim() || value.name.length > 200 ||
       typeof value.company !== 'string' || value.company.length > 200 ||
@@ -34,4 +36,10 @@ export function verifyRegistrationIntent(token: unknown, email: string, key: str
   const value = validate(JSON.parse(Buffer.from(parts[0], 'base64url').toString('utf8')), now)
   if (value.email !== email.toLowerCase()) throw new Error('Registration identity mismatch')
   return value
+}
+
+// Destinations are derived from verified intent; never accept arbitrary return URLs.
+export function registrationDestination(intent?: RegistrationIntent) {
+  return intent?.product === 'buyermatch'
+    ? `/app/buyermatch/plans?tier=${intent.tier}` : '/app/dashboard'
 }

@@ -1,4 +1,5 @@
 {
+  "git": { "deploymentEnabled": { "codex/buyermatch-1b-integration": false } },
   "rewrites": [
     {
       "source": "/api/buyermatch",

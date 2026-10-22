@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { createHash } from 'node:crypto'
 import { getBearerToken, getSupabaseAdminClient } from './_accountAuth.js'
-import { signRegistrationIntent, verifyRegistrationIntent } from './_registrationIntent.js'
+import { signRegistrationIntent, verifyRegistrationIntent, registrationDestination } from './_registrationIntent.js'
 
 async function notifyAccountCreated(input: {
   supabaseUrl: string
@@ -83,6 +83,18 @@ export default async function handler(req: any, res: any) {
   }
   try {
     const admin = getSupabaseAdminClient()
+    if (req.method === 'GET' && req.query?.action === 'status') {
+      const bearer = getBearerToken(req)
+      if (!bearer) return res.status(401).json({ ok: false, error: 'Sign in required.' })
+      const { data, error } = await admin.auth.getUser(bearer)
+      const user = data.user
+      if (error || !user?.email || !user.email_confirmed_at || user.is_anonymous) return res.status(401).json({ ok: false, error: 'A verified session is required.' })
+      const profile = await admin.from('account_profiles').select('user_id').eq('user_id', user.id).maybeSingle()
+      if (profile.error) throw new Error('Account verification unavailable')
+      let intent
+      try { intent = verifyRegistrationIntent(user.user_metadata?.registration_intent, user.email, process.env.SUPABASE_SERVICE_ROLE_KEY || '') } catch { /* Existing logins need no registration intent. */ }
+      return res.status(200).json({ ok: true, provisioned: Boolean(profile.data), destination: registrationDestination(intent) })
+    }
     if (req.method === 'GET') return res.status(200).json({ required: process.env.DBP_REQUIRE_VERSIONED_PLATFORM_AGREEMENTS === 'true', documents: await documents(admin) })
     let body: any
     try { body = typeof req.body === 'string' ? JSON.parse(req.body.replace(/^\uFEFF/, '')) : req.body || {} }
@@ -106,7 +118,7 @@ export default async function handler(req: any, res: any) {
         p_require_documents: process.env.DBP_REQUIRE_VERSIONED_PLATFORM_AGREEMENTS === 'true',
       })
       if (result.error) throw new Error('Atomic account provisioning failed')
-      if (result.data.created) {
+      if (result.data.created && process.env.BM_ENVIRONMENT !== 'staging') {
         // Notification failure must not roll back or falsely report failure of a committed account.
         try {
           await notifyAccountCreated({ supabaseUrl: process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '',
@@ -120,21 +132,24 @@ export default async function handler(req: any, res: any) {
             emailVerified: 'Yes', createdAt: user.created_at })
         } catch { console.error('[Deal Blast Pro] Account created; registration notification unavailable') }
       }
-      return res.status(200).json({ ok: true, ...result.data })
+      return res.status(200).json({ ok: true, ...result.data, destination: registrationDestination(intent) })
     }
     if (body.action && body.action !== 'start') return res.status(400).json({ ok: false, error: 'Invalid registration request.' })
-    if (body.product && body.product !== 'crm') return res.status(400).json({ ok: false, error: 'This registration endpoint supports DBP CRM only.' })
+    const product = body.product || 'crm'
+    if (!['crm', 'buyermatch'].includes(product) || (product === 'buyermatch' && !['starter', 'pro'].includes(body.tier))) return res.status(400).json({ ok: false, error: 'Select a valid product and plan.' })
     const name = clean(body.name), email = clean(body.email).toLowerCase(), company = clean(body.company)
     const password = typeof body.password === 'string' ? body.password : ''
-    const role = clean(body.role) || 'Admin'
-    const plan = body.plan === 'Free Demo' ? 'Free' : clean(body.plan) || 'Free'
+    // BuyerMatch never assigns a paid CRM plan or trusts a client-supplied role.
+    if (product === 'buyermatch' && body.role && body.role !== 'Admin') return res.status(400).json({ ok: false, error: 'Invalid registration details.' })
+    const role = product === 'buyermatch' ? 'Admin' : clean(body.role) || 'Admin'
+    const plan = product === 'buyermatch' ? 'Free' : body.plan === 'Free Demo' ? 'Free' : clean(body.plan) || 'Free'
     const docs = await documents(admin)
     if (!name || !email || password.length < 6 || password.length > 1024) return res.status(400).json({ ok: false, error: 'Name, email and a valid password are required.' })
     if (docs.length && (body.agreementsAccepted !== true || !docs.every(doc =>
       body.platformAgreements?.some((d: any) => d.id === doc.id && d.hash === doc.document_hash) &&
       createHash('sha256').update(doc.content).digest('hex') === doc.document_hash))) return res.status(400).json({ ok: false, error: 'Review and accept the current platform agreements.' })
     let intent
-    try { intent = signRegistrationIntent({ version: 1, email, name, company, role, plan,
+    try { intent = signRegistrationIntent({ version: 1, email, name, company, role, plan, product, ...(product === 'buyermatch' ? { tier: body.tier } : {}),
       documents: docs.map(doc => ({ id: doc.id, hash: doc.document_hash })), expires: Date.now() + 7 * 86400000,
     }, process.env.SUPABASE_SERVICE_ROLE_KEY || '') }
     catch { return res.status(400).json({ ok: false, error: 'Invalid registration details.' }) }

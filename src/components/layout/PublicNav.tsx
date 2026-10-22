@@ -1,17 +1,21 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { Menu, X } from 'lucide-react'
 
 export default function PublicNav() {
   const [open, setOpen] = useState(false)
   const close = () => setOpen(false)
+  const buyerMatchPage = useLocation().pathname.startsWith('/buyermatch')
+  const signup = buyerMatchPage ? '/register?product=buyermatch&tier=starter' : '/register'
+  const signin = buyerMatchPage ? '/admin-login?product=buyermatch&tier=starter' : '/admin-login'
+  const signupLabel = buyerMatchPage ? 'Get BuyerMatch' : 'Sign Up Free'
 
   const menuItems = [
     { to: '/buyermatch', label: 'BuyerMatch' },
     { to: '/pricing', label: 'Pricing' },
     { to: '/features', label: 'Features' },
-    { to: '/register', label: 'Sign Up Now' },
-    { to: '/admin-login', label: 'Login' },
+    { to: signup, label: signupLabel },
+    { to: signin, label: 'Login' },
     { to: '/contact', label: 'Contact' },
     { to: '/portal', label: 'Submit Deal' },
     { to: '/buyer-portal', label: 'Buyer Portal' },
@@ -32,12 +36,12 @@ export default function PublicNav() {
           <Link to="/portal" className="hover:text-white">Submit Deal</Link>
           <Link to="/buyer-portal" className="hover:text-white">Buyer Portal</Link>
           <Link to="/contact" className="hover:text-white">Contact</Link>
-          <Link to="/admin-login" className="px-3 py-1.5 hover:text-white">Sign In</Link>
-          <Link to="/register" className="btn btn-primary px-5 py-1.5 text-sm">Sign Up Free</Link>
+          <Link to={signin} className="px-3 py-1.5 hover:text-white">Sign In</Link>
+          <Link to={signup} className="btn btn-primary px-5 py-1.5 text-sm">{signupLabel}</Link>
         </div>
 
         <div className="xl:hidden flex items-center gap-2 shrink-0">
-          <Link to="/register" onClick={close} className="btn btn-green px-3 py-1.5 text-xs whitespace-nowrap">Sign Up Free</Link>
+          <Link to={signup} onClick={close} className="btn btn-green px-3 py-1.5 text-xs whitespace-nowrap">{signupLabel}</Link>
           <button
             type="button"
             onClick={() => setOpen(v => !v)}
@@ -53,7 +57,7 @@ export default function PublicNav() {
       {open && (
         <div className="xl:hidden border-t border-[#252A38] bg-[#0A0C12] shadow-xl">
           <div className="px-4 py-3 grid gap-2">
-            <Link to="/register" onClick={close} className="btn btn-green w-full py-2.5 text-sm">Sign Up Free</Link>
+            <Link to={signup} onClick={close} className="btn btn-green w-full py-2.5 text-sm">{signupLabel}</Link>
             <div className="grid gap-1 pt-2">
               {menuItems.map(item => (
                 <Link

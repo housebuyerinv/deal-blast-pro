@@ -58,12 +58,12 @@ export default function BuyerMatchLanding() {
             </p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">
               <a href="#pricing" className="btn btn-primary px-6 py-3">Compare BuyerMatch plans</a>
-              <Link to="/contact" className="btn btn-ghost px-6 py-3">Ask about BuyerMatch access</Link>
+              <Link to="/register?product=buyermatch&tier=starter" className="btn btn-ghost px-6 py-3">Get started with BuyerMatch</Link>
             </div>
           </div>
 
           <div className="mx-auto mt-7 max-w-3xl rounded-xl border border-[#30384A] bg-[#0D111A] p-4 text-sm text-[#C5CAD6]">
-            BuyerMatch is subscribed to independently; no paid DBP CRM plan is required. Direct BuyerMatch signup is coming. Contact us about access; the DBP signup links in the site navigation create a CRM account and do not purchase BuyerMatch.
+            BuyerMatch is subscribed to independently; no paid DBP CRM plan is required. Create a BuyerMatch account, confirm your email, then choose secure checkout. Existing DBP customers can sign in and add BuyerMatch without changing their CRM plan.
           </div>
           <div className="mt-16 grid gap-4 md:grid-cols-3">
             {[
@@ -127,11 +127,12 @@ export default function BuyerMatchLanding() {
                 <ul className="mt-6 space-y-3 text-sm">
                   {plan.features.map((feature) => <li key={feature} className="flex gap-2"><Check size={17} className="mt-0.5 text-[#22C55E]" />{feature}</li>)}
                 </ul>
-                <Link to="/contact" className="btn btn-primary mt-7 block w-full text-center">Ask about {plan.name}</Link>
+                <Link to={`/register?product=buyermatch&tier=${plan.name.toLowerCase()}`} className="btn btn-primary mt-7 block w-full text-center">Choose {plan.name}</Link>
               </div>
             ))}
           </div>
-          <p className="mx-auto mt-6 max-w-4xl text-sm text-[#AAB2C2]">Direct signup is coming. Contact links request information, not a subscription or payment. Allowances apply per billing period; match counts and responses are not guaranteed. Distribution remains subject to review, eligibility, consent, and required agreements.</p>
+          <p className="mt-4 text-center"><Link to="/admin-login?product=buyermatch&tier=starter">Already use DBP? Sign in to add BuyerMatch</Link></p>
+          <p className="mx-auto mt-6 max-w-4xl text-sm text-[#AAB2C2]">Creating an account does not start billing. Subscription access begins only after payment is verified. Allowances apply per billing period; match counts and responses are not guaranteed. Distribution remains subject to review, eligibility, consent, and required agreements.</p>
           <div className="mx-auto mt-6 max-w-4xl rounded-2xl border border-[#22C55E]/30 bg-[#22C55E]/5 p-6">
             <h3 className="text-xl font-semibold">Managed disposition  -  separately arranged service</h3>
             <p className="mt-2 text-sm text-[#AAB2C2]">

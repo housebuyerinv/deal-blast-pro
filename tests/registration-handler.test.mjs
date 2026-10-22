@@ -56,7 +56,7 @@ test('atomic RPC failure returns retryable generic error with no fallback writes
  rpcError={message:'private database details'};const r=await call({action:'complete'},'valid');assert.equal(r.status,503);assert.doesNotMatch(JSON.stringify(r.payload),/private database/);assert.deepEqual(calls,['verify','read:account_profiles','dbp_provision_registration'])
 })
 test('privileged role and BuyerMatch product cannot be registered through CRM input',async()=>{
- for(const override of [{role:'Super Admin'},{plan:'Owner Admin'},{plan:'buyermatch-pro-v1'},{product:'buyermatch'}]) assert.equal((await call({...intent,password:'synthetic-password',...override})).status,400)
+ for(const override of [{role:'Super Admin'},{plan:'Owner Admin'},{plan:'buyermatch-pro-v1'},{product:'buyermatch'},{product:'unrecognized'}]) assert.equal((await call({...intent,password:'synthetic-password',...override})).status,400)
  assert.deepEqual(calls,[])
 })
 test('provider rate limits retained and CAPTCHA token forwarded',async()=>{
@@ -150,4 +150,40 @@ test('immediate Auth session still performs no provisioning until verified compl
 test('post-commit notification failure cannot misreport successful provisioning',async()=>{
  created=true;const originalFetch=globalThis.fetch;globalThis.fetch=async()=>{throw new Error('synthetic notification failure')}
  try {const r=await call({action:'complete'},'valid');assert.equal(r.status,200);assert.equal(r.payload.created,true)} finally {globalThis.fetch=originalFetch}
+})
+
+test('BuyerMatch signup binds product and tier while forcing free CRM baseline',async()=>{
+ for(const tier of ['starter','pro']) {
+  const r=await call({...intent,product:'buyermatch',tier,plan:'Pro',password:'synthetic-password'});
+  assert.equal(r.status,200);
+  const encoded=JSON.parse(Buffer.from(signupInput.options.data.registration_intent.split('.')[0],'base64url').toString());
+  assert.equal(encoded.product,'buyermatch');assert.equal(encoded.tier,tier);assert.equal(encoded.plan,'Free');assert.equal(encoded.role,'Admin');
+  user.user_metadata.registration_intent=signupInput.options.data.registration_intent;
+  const completed=await call({action:'complete',product:'crm',plan:'Pro',tier:'pro'},'valid');
+  assert.equal(captured.p_plan,'Free');assert.equal(completed.payload.destination,`/app/buyermatch/plans?tier=${tier}`);
+ }
+})
+test('BuyerMatch invalid tier, product or role fails before Auth signup',async()=>{
+ for(const change of [{tier:'enterprise'},{tier:''},{role:'Super Admin'},{product:'unknown'}]) {
+  assert.equal((await call({...intent,password:'synthetic-password',product:'buyermatch',tier:'starter',...change})).status,400);
+ }
+ assert.ok(!calls.includes('signup'));assert.equal(captured,null);
+})
+test('read-only registration status allows existing login while every POST remains paused',async()=>{
+ process.env.DBP_REGISTRATION_PAUSED='true';existing=true;
+ const r=await request({method:'GET',query:{action:'status'},headers:{authorization:'Bearer valid'}});
+ assert.equal(r.status,200);assert.equal(r.payload.provisioned,true);assert.deepEqual(calls,['verify','read:account_profiles']);
+ assert.equal(captured,null);
+})
+test('read-only status cannot create a missing profile or trust a forged identity',async()=>{
+ const r=await request({method:'GET',query:{action:'status'},headers:{authorization:'Bearer valid'}});
+ assert.equal(r.payload.provisioned,false);assert.equal(captured,null);
+ assert.equal((await request({method:'GET',query:{action:'status'},headers:{authorization:'Bearer forged'}})).status,401);
+})
+
+test('staging provisioning never calls a registration notification provider',async()=>{
+ process.env.BM_ENVIRONMENT='staging';created=true;let notified=false;
+ const originalFetch=globalThis.fetch;globalThis.fetch=async()=>{notified=true;throw new Error('No staging delivery')};
+ try {const r=await call({action:'complete'},'valid');assert.equal(r.status,200);assert.equal(notified,false)}
+ finally{globalThis.fetch=originalFetch;delete process.env.BM_ENVIRONMENT}
 })
