@@ -120,7 +120,14 @@ Browser review uses synthetic local configuration; it is not proof of hosted pay
    Restore registration pause after tests. Hosted outcomes remain UNVERIFIED until run.
 4. Complete provider-aware encrypted backup/restore and independent key custody
    using the separate $0 native-Linux plan. No Production export is authorized here.
-5. Release the SECURITY-ONLY registration fix separately: reviewed additive
+5. Prepare a separately reviewed SECURITY-ONLY candidate first. Code inspection
+   found that unchanged `a722fca` invokes a registration completion POST on ordinary
+   login, which the pause correctly rejects. This integration fixes that with a
+   server-verified read-only provisioned-status check. Backport the minimal login-
+   while-paused correction (without BuyerMatch discovery/onboarding) and verify its
+   focused delta before a paused security canary; do not deploy `a722fca` unchanged
+   assuming existing login remains available. No separate security candidate was
+   created or released in this task. Then release the SECURITY-ONLY repair: reviewed additive
    registration migration, repaired application with explicit server pause, protected
    canary and existing-customer checks, then separate approval to reopen registration.
    Do not deploy this integration branch for the security-only release.
