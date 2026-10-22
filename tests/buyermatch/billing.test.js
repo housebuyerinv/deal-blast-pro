@@ -13,11 +13,12 @@ const compiled = await build({
 let handler;
 const values = {
   STRIPE_WEBHOOK_SECRET: "fixture-signing-secret",
-  SUPABASE_URL: "https://fixture.supabase.co",
+  SUPABASE_URL: "https://qxhhlprentrufobpcgna.supabase.co",
   SUPABASE_SERVICE_ROLE_KEY: "fixture-service-key",
   STRIPE_SECRET_KEY: "sk_test_fixture",
   BM_ENVIRONMENT: "staging",
-  BM_STAGING_PROJECT_REF: "fixture",
+  BM_STAGING_PROJECT_REF: "qxhhlprentrufobpcgna",
+  BM_S2_STRIPE_WEBHOOK_ENABLED: "true",
 };
 globalThis.Deno = {
   env: { get: (name) => values[name] },
@@ -127,6 +128,22 @@ test("signed product events enter independent billing RPC, never CRM updates", a
 test.after(() => {
   globalThis.fetch = realFetch;
   delete globalThis.Deno;
+});
+
+test('Endive invoice parent reference and item-period snapshot shape reconcile without CRM writes', async () => {
+  calls.length = 0;
+  const response = await handler(request(JSON.stringify({
+    id: 'evt_endive_synthetic', api_version: '2026-09-30.endive', livemode: false,
+    created: 1780000001, type: 'invoice.paid', data: { object: {
+      id: 'in_synthetic', parent: { subscription_details: { subscription: 'sub_fixture' } },
+    } },
+  })));
+  assert.equal(response.status, 200);
+  assert.equal(calls.filter(call => String(call.url).includes('/v1/subscriptions/')).length, 2);
+  const write = calls.find(call => String(call.url).endsWith('/rpc/bm_apply_test_billing'));
+  assert.ok(write);
+  assert.equal(JSON.parse(write.options.body).p_status, 'active');
+  assert.equal(calls.some(call => String(call.url).includes('workspace_plan_assignments')), false);
 });
 
 test('explicit live software webhook uses private mapping RPC and revokes canceled or past-due subscriptions', async () => {
