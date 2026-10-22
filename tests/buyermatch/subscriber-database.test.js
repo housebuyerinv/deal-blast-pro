@@ -7,7 +7,7 @@ const db=new PGlite();
 const owner=randomUUID(),other=randomUUID(),checkout=randomUUID();
 await db.exec(`create role anon;create role authenticated;create role service_role;
 create table bm_plans(version text primary key,product text,stripe_price_id text,approved boolean,allowance integer);
-create table bm_checkouts(id uuid,owner_id uuid,product text,plan_version text);
+create table bm_checkouts(id uuid,owner_id uuid,product text,plan_version text,state text default 'completed',session_id text default 'cs_fixture');
 create table bm_entitlements(owner_id uuid,product text,stripe_subscription_id text);
 create table bm_live_billing_config(id boolean,enabled boolean,verified boolean);
 create table applied(owner_id uuid,price text,subscription text);
@@ -36,6 +36,27 @@ test('live config gate and service-only grants remain intact',async()=>{
  for(const mode of ['test','live']) for(const role of ['anon','authenticated','service_role']) {
   const result=await db.query(`select has_function_privilege($1,'bm_apply_${mode}_billing(uuid,text,bigint,uuid,text,text,text,text,timestamptz,timestamptz)','EXECUTE') allowed`,[role]);
   assert.equal(result.rows[0].allowed,role==='service_role');
+ }
+});
+
+test('tier changes preserve completed-checkout and session prerequisites in both modes',async()=>{
+ await db.exec('update bm_live_billing_config set enabled=true');
+ try {
+  for(const mode of ['test','live']) {
+   await db.exec("update bm_checkouts set state='pending'");
+   await assert.rejects(apply(mode),/mapping/);
+   await db.exec("update bm_checkouts set state='completed',session_id=null");
+   await assert.rejects(apply(mode),/mapping/);
+   await db.exec("update bm_checkouts set session_id='cs_fixture'");
+  }
+ } finally { await db.exec("update bm_checkouts set state='completed',session_id='cs_fixture'"); }
+});
+
+test('both billing entrypoints retain owner serialization and fixed search path',async()=>{
+ for(const mode of ['test','live']) {
+  const result=await db.query(`select prosrc,proconfig from pg_proc where proname=$1`,['bm_apply_'+mode+'_billing']);
+  assert.match(result.rows[0].prosrc,/perform pg_advisory_xact_lock\(hashtextextended\(p_owner::text,0\)\)/);
+  assert.deepEqual(result.rows[0].proconfig,['search_path=public']);
  }
 });
 test.after(()=>db.close());
