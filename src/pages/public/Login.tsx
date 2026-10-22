@@ -1,3 +1,4 @@
+import { completeRegistration } from '../../lib/completeRegistration'
 ﻿import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -26,6 +27,7 @@ export default function Login() {
         return
       }
 
+      await completeRegistration()
       const userEmail = data.user?.email || email
       const fullName =
         data.user?.user_metadata?.full_name ||
