@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build --config vite.config.mjs --configLoader native",
+    "build": "node scripts/build-buyermatch-s2-attestation.mjs && tsc -b && vite build --config vite.config.mjs --configLoader native",
     "preview": "vite preview",
     "lint": "eslint .",
     "seed": "echo 'Seed data is baked into the app on first load'",

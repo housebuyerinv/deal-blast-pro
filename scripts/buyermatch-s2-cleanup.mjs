@@ -20,8 +20,12 @@ const receiptSchema = z
     alias: z.literal(new URL(S2.origin).hostname),
   })
   .strict();
-function receipt(input) {
-  const p = receiptSchema.safeParse(input);
+function receipt(input, approvedSource = S2.source) {
+  if (!/^[a-f0-9]{40}$/.test(approvedSource || ''))
+    throw Error('Reviewed cleanup source pin required; no operations');
+  const p = receiptSchema
+    .extend({ source: z.literal(approvedSource) })
+    .safeParse(input);
   if (
     !p.success ||
     p.data.preexistingDeploymentIds.includes(p.data.deploymentId) ||
@@ -76,9 +80,13 @@ async function bounded(fn, ms) {
 export async function closeS2Run(
   input,
   adapter,
-  { timeoutMs = 10000, journal = async () => {} } = {},
+  {
+    timeoutMs = 10000,
+    journal = async () => {},
+    approvedSource = S2.source,
+  } = {},
 ) {
-  const r = receipt(input);
+  const r = receipt(input, approvedSource);
   if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 30000)
     throw Error('Cleanup deadline invalid');
   for (const k of [
@@ -241,7 +249,7 @@ export function armS2Cleanup(
   adapter,
   { deadlineMs = 900000, ...options } = {},
 ) {
-  receipt(input);
+  receipt(input, options.approvedSource);
   if (!Number.isInteger(deadlineMs) || deadlineMs < 1 || deadlineMs > 900000)
     throw Error('Watchdog deadline invalid');
   let finish;

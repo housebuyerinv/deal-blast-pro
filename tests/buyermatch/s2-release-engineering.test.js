@@ -589,3 +589,31 @@ test('actual watchdog child termination leaves incomplete durable evidence, neve
     rmSync(dir, { recursive: true, force: true });
   }
 });
+test('reviewed attestation source pin works through deployment verification without accepting other sources', () => {
+  const source = '1'.repeat(40),
+    e = evidence();
+  e.deployment.meta.githubCommitSha = source;
+  const manifest = pausedS2Manifest(source);
+  assert.throws(() => verifyS2Deployment(manifest, e));
+  assert.equal(
+    verifyS2Deployment(manifest, e, { approvedSource: source }).verified,
+    true,
+  );
+  assert.throws(() =>
+    verifyS2Deployment(manifest, e, { approvedSource: '2'.repeat(40) }),
+  );
+});
+test('watchdog removal remains exact-source bound for an explicitly reviewed new candidate', async () => {
+  const f = cleanupFixture(),
+    source = '1'.repeat(40);
+  f.r.source = source;
+  f.state.meta = { ...f.state.meta, githubCommitSha: source };
+  await assert.rejects(closeS2Run(f.r, f.adapter, f.options));
+  assert.deepEqual(f.calls, []);
+  const result = await closeS2Run(f.r, f.adapter, {
+    ...f.options,
+    approvedSource: source,
+  });
+  assert.equal(result.verified, true);
+  assert.equal(result.temporaryDeploymentGone, true);
+});

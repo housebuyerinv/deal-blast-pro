@@ -69,10 +69,10 @@ const manifestSchema = z
     build: envSchema,
   })
   .strict();
-export function pausedS2Manifest() {
+export function pausedS2Manifest(approvedSource = S2_RELEASE.source) {
   return {
     schema: 1,
-    source: S2_RELEASE.source,
+    source: approvedSource,
     project: S2_RELEASE.project,
     team: S2_RELEASE.team,
     target: 'preview',
@@ -80,8 +80,15 @@ export function pausedS2Manifest() {
     build: { ...REQUIRED_S2_ENV },
   };
 }
-export function validateS2Manifest(input) {
-  const parsed = manifestSchema.safeParse(input);
+export function validateS2Manifest(
+  input,
+  { approvedSource = S2_RELEASE.source } = {},
+) {
+  if (!/^[a-f0-9]{40}$/.test(approvedSource || ''))
+    throw Error('Reviewed source pin required');
+  const parsed = manifestSchema
+    .extend({ source: z.literal(approvedSource) })
+    .safeParse(input);
   if (!parsed.success)
     throw Error(
       'Invalid S2 manifest; missing, unknown, conflicting or unsafe configuration',
@@ -89,8 +96,8 @@ export function validateS2Manifest(input) {
   return parsed.data;
 }
 // Returns argv, never a shell command and never invokes deployment. Initial Checkout must be false.
-export function s2DeploymentArgs(input, sourceDirectory, runId) {
-  const m = validateS2Manifest(input);
+export function s2DeploymentArgs(input, sourceDirectory, runId, options = {}) {
+  const m = validateS2Manifest(input, options);
   if (
     typeof sourceDirectory !== 'string' ||
     !sourceDirectory ||
@@ -124,6 +131,31 @@ export function s2DeploymentArgs(input, sourceDirectory, runId) {
       ]),
   ];
 }
+
+// New attestation candidates use an explicit reviewed source pin; never infer HEAD.
+// The original base-source helper remains unchanged for existing review evidence.
+export function s2AttestationDeploymentArgs(
+  sourceDirectory,
+  runId,
+  reviewedSourceSha,
+) {
+  if (!/^[a-f0-9]{40}$/.test(reviewedSourceSha || ''))
+    throw Error('Reviewed attestation source pin required');
+  const args = s2DeploymentArgs(
+    pausedS2Manifest(reviewedSourceSha),
+    sourceDirectory,
+    runId,
+    { approvedSource: reviewedSourceSha },
+  );
+  const metadata = {
+    BM_S2_ATTESTATION_ENABLED: 'true',
+    BM_S2_ATTESTATION_SOURCE_SHA: reviewedSourceSha,
+    BM_S2_ATTESTATION_RUN_ID: runId,
+  };
+  for (const [k, v] of Object.entries(metadata))
+    args.push('--env', `${k}=${v}`, '--build-env', `${k}=${v}`);
+  return args;
+}
 export function verifyQAAgreements(payload) {
   if (
     payload?.required !== true ||
@@ -145,8 +177,8 @@ export function verifyQAAgreements(payload) {
   return true;
 }
 // Adapter evidence must come from the actual deployment, not env-run/project defaults.
-export function verifyS2Deployment(input, evidence) {
-  const m = validateS2Manifest(input),
+export function verifyS2Deployment(input, evidence, options = {}) {
+  const m = validateS2Manifest(input, options),
     d = evidence?.deployment,
     p = evidence?.project;
   if (
