@@ -4,6 +4,10 @@ Planning only under PR #2 review 6369522557. No draft contract is published or
 accepted by this packet. Owner/appropriate counsel must determine applicable law,
 markets and approved language. QA approval flags are not legal approval.
 
+Review 6369788952 now has [editable review-v0.1 drafts](legal/buyermatch-review-v0.1/README.md)
+with exact review-file hashes, approved=false and publicationAllowed=false.
+Resolve every bracketed decision and obtain approval before final versioning/publication.
+
 ## Existing artifacts and verified product behavior
 
 Public src/pages/public/Terms.tsx, Privacy.tsx, RefundPolicy.tsx and AcceptableUse.tsx

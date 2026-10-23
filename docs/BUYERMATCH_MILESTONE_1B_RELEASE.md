@@ -46,6 +46,10 @@ released as the separate security-only hotfix.
 See [exact hosted/local matrix and Pro access plan](BUYERMATCH_REMAINING_RELEASE_GATES.md),
 [legal decisions](BUYERMATCH_LEGAL_REVIEW_PACKET.md), and
 [staging recovery rehearsal runbook](R2_STAGING_RECOVERY_RUNBOOK.md).
+New review 6369788952 adds 19 targeted local delta checks (all PASS), a
+[bounded test sequence and cleanup-helper limits](BUYERMATCH_HOSTED_TEST_SEQUENCE.md),
+and [four versioned review-only legal drafts](legal/buyermatch-review-v0.1/README.md).
+No application/hosted outcome or legal approval is implied by these additions.
 Historical evidence is retained in BUYERMATCH_BILLING_FIX_REVIEW.md and the dated
 BUYERMATCH_LOCAL_LIFECYCLE_REVIEW_2026-10-23.md; their statuses describe those dates,
 not pending work already completed in later PR checkpoints.

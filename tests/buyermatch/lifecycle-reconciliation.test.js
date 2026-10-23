@@ -1,4 +1,5 @@
 // LOCAL ONLY: actual signed webhook + real migration SQL in disposable PGlite.
+/* global structuredClone */
 // Every HTTP request is intercepted. No provider credentials or hosted writes.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -274,6 +275,36 @@ test('LIVE fixture reconciles both equal-second directions and preserves current
     current.latest_invoice.status='open';current.latest_invoice.amount_paid=0;
     assert.equal((await send('invoice.paid',200)).status,200);assert.equal((await entitlement(f)).status,'inactive');
   } finally {for(const key of Object.keys(values))delete values[key];Object.assign(values,previous);}
+});
+
+test('release delta: injected entitlement failure rolls back ledger and permits exact retry',async()=>{
+  const f=await fixture(), id='evt_retry_'+randomUUID();
+  await db.exec(`create function local_reject_entitlement() returns trigger language plpgsql as $$ begin raise exception 'synthetic failure'; end $$;
+    create trigger local_reject before insert or update on bm_entitlements for each row execute function local_reject_entitlement();`);
+  try {
+    assert.equal((await emit(f,'invoice.paid',300,{id})).status,503);
+    assert.equal(await ledgerCount(f),0);assert.equal(await entitlement(f),undefined);
+  } finally {await db.exec('drop trigger local_reject on bm_entitlements;drop function local_reject_entitlement();');}
+  assert.equal((await emit(f,'invoice.paid',300,{id})).status,200);
+  assert.equal(await ledgerCount(f),1);assert.equal((await entitlement(f)).status,'active');
+});
+
+test('release delta: signed Checkout with substituted session cannot complete pending reservation',async()=>{
+  const f=await fixture({state:'pending'});
+  const before=(await db.query('select * from bm_checkouts where id=$1',[f.checkout])).rows;
+  const result=await emit(f,'checkout.session.completed',300,{object:{id:'cs_foreign',payment_status:'paid',subscription:f.sub,
+    metadata:{dbpProduct:'buyermatch',dealBlastUserId:f.owner,dbpCheckoutId:f.checkout}}});
+  assert.equal(result.status,503);assert.deepEqual((await db.query('select * from bm_checkouts where id=$1',[f.checkout])).rows,before);
+  assert.equal(await ledgerCount(f),0);assert.equal(await entitlement(f),undefined);
+});
+
+test('release delta: foreign Checkout completion leaves both owners and ledgers unchanged',async()=>{
+  const f=await fixture({state:'pending'}), other=await fixture({state:'pending'});
+  const before=(await db.query('select * from bm_checkouts where id in ($1,$2) order by id',[f.checkout,other.checkout])).rows;
+  const result=await emit(f,'checkout.session.completed',300,{object:{id:'cs_'+f.checkout,payment_status:'paid',subscription:other.sub,
+    metadata:{dbpProduct:'buyermatch',dealBlastUserId:other.owner,dbpCheckoutId:f.checkout}}});
+  assert.equal(result.status,503);assert.deepEqual((await db.query('select * from bm_checkouts where id in ($1,$2) order by id',[f.checkout,other.checkout])).rows,before);
+  assert.equal(await ledgerCount(f),0);assert.equal(await ledgerCount(other),0);
 });
 
 test.after(async()=>{globalThis.fetch=realFetch;if(oldDeno===undefined)delete globalThis.Deno;else globalThis.Deno=oldDeno;await db.close();});
