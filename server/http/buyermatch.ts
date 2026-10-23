@@ -11,8 +11,6 @@ import { analyzeDeal, ENGINE_VERSION } from "../buyermatch/matching.js";
 import { calculateFee } from "../buyermatch/workflow.js";
 import {
   createCheckout,
-  checkoutStripe,
-  isTestPlanPrice,
 } from "../buyermatch/checkout.js";
 import { assertStaging, stagingOrigin } from "../buyermatch/staging.js";
 import { findDuplicates } from "../buyermatch/deduplication.js";
@@ -24,7 +22,7 @@ import { deliveryAvailability } from "../buyermatch/availability.js";
 import { verifyProductionResend } from "../buyermatch/provider-verification.js";
 import { hasBuyerMatchAccess } from "../../src/lib/buyerMatchAccess.js";
 import { safeConversationText } from '../buyermatch/conversation.js';
-import { billingConfig, isSoftwarePrice } from "../buyermatch/billing-config.js";
+import { subscriptionCatalog, catalogDiagnosticEnabled } from "../buyermatch/catalog.js";
 import { commercialPlans, simulatePlans } from '../buyermatch/usage.js';
 import {
   dealSchema,
@@ -685,40 +683,11 @@ export default async function handler(req: any, res: any) {
       let catalog: any[] = [];
       let checkoutEnabled = false;
       let checkoutLive = false;
-      if (process.env.BM_CHECKOUT_ENABLED === "true") {
-        try {
-          const { live } = billingConfig();
-          checkoutLive = live;
-          if (live) {
-            const gate = checked(await db.from('bm_live_billing_config').select('enabled,verified').eq('id',true).single());
-            if (!gate?.enabled || !gate?.verified) throw new Error('Billing disabled');
-          }
-          const stripe = checkoutStripe();
-          const approved = checked(
-            await db
-              .from("bm_plans")
-              .select("version,product,label,allowance,stripe_price_id")
-              .eq("approved", true),
-          );
-          for (const plan of approved) {
-            if (!plan.stripe_price_id) continue;
-            const price = await stripe.prices.retrieve(plan.stripe_price_id);
-            if (price.recurring && (plan.product === 'buyermatch' ? isSoftwarePrice(price, plan, live) && plan.allowance > 0 : !live && isTestPlanPrice(price)))
-              catalog.push({
-                version: plan.version,
-                product: plan.product,
-                label: plan.label,
-                allowance: plan.allowance,
-                amount: price.unit_amount,
-                currency: price.currency,
-                interval: price.recurring.interval,
-                intervalCount: price.recurring.interval_count,
-              });
-          }
-          checkoutEnabled = true;
-        } catch {
-          catalog = [];
-        }
+      if (process.env.BM_CHECKOUT_ENABLED === "true" || catalogDiagnosticEnabled()) {
+        const result = await subscriptionCatalog(db);
+        catalog = result.catalog;
+        checkoutEnabled = process.env.BM_CHECKOUT_ENABLED === "true" && result.available;
+        checkoutLive = result.live;
       }
       return emit({
         catalog,
