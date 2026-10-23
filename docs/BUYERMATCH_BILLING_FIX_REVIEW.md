@@ -1,5 +1,10 @@
 # BuyerMatch billing correction — local verification only
 
+> Historical local checkpoint. Subsequent approved S2 migration, paused deployment
+> and one signed Starter replay completed successfully. For CURRENT status use
+> [release gates](BUYERMATCH_REMAINING_RELEASE_GATES.md); this report's original
+> not-yet-applied/hosted-pending statements record its pre-deployment date.
+
 Authorization: PR #2 comment 6368527401. Both regressions were reproduced red
 before the correction. This checkpoint supersedes the unresolved-defect status in
 the October 23 local lifecycle audit without deleting that historical evidence.

@@ -1,5 +1,10 @@
 # R2 replacement recovery: $0 native Linux plan only
 
+Current detailed acceptance and staged authorizations are in
+[R2_STAGING_RECOVERY_RUNBOOK.md](R2_STAGING_RECOVERY_RUNBOOK.md).
+October 23 read-only local discovery found no working WSL installation; that is
+not evidence of a native Linux resource. No installation or Windows repair followed.
+
 The Windows VeraCrypt/AppContainer investigation is CLOSED. Preserve all encrypted
 artifacts, private keys, original fingerprints and forensic journals unchanged.
 No more Windows probes, mounts, ACL changes or SDK development are proposed.
