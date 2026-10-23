@@ -1,5 +1,13 @@
 # BuyerMatch Milestone 1B: integration and release checklist
 
+> Current checkpoint (October 23, 2026): see
+> [local lifecycle/release-gap review](BUYERMATCH_LOCAL_LIFECYCLE_REVIEW_2026-10-23.md).
+> Sandbox/catalog/credential setup and the hosted Starter purchase have advanced
+> beyond the historical setup notes below. Pro hosted payment is parked. The two
+> audit failures now have a [locally verified correction](BUYERMATCH_BILLING_FIX_REVIEW.md)
+> with 72 focused checks PASS and a NEW unapplied migration. Hosted validation,
+> recovery and final legal approval remain release blockers.
+
 ## Scope and provenance
 
 Integration branch: `codex/buyermatch-1b-integration`, based on public discovery

@@ -21,6 +21,11 @@ insert into bm_plans values('buyermatch-starter-v1','buyermatch','price_starter'
 insert into bm_live_billing_config values(true,true,true);`);
 await db.query('insert into bm_checkouts values($1,$2,$3,$4)',[checkout,owner,'buyermatch','buyermatch-starter-v1']);
 await db.exec(await readFile('supabase/migrations/20261022141326_buyermatch_owned_subscription_plan_changes.sql','utf8'));
+const identities=async()=> (await db.query("select proname,proacl::text as acl,pg_get_userbyid(proowner) as owner,prosecdef,proconfig from pg_proc where proname in ('bm_apply_test_billing','bm_apply_live_billing') order by proname")).rows;
+const originalIdentities=await identities();
+const rollbackDefinitions=(await db.query("select pg_get_functiondef(oid) as definition from pg_proc where proname in ('bm_apply_test_billing','bm_apply_live_billing') order by proname")).rows.map(r=>r.definition+';').join('\n');
+const correctedMigration=await readFile('supabase/migrations/20261023153356_buyermatch_completed_checkout_guards.sql','utf8');
+await db.exec(correctedMigration);
 const apply=(mode,overrides={})=>db.query(`select bm_apply_${mode}_billing($1,'evt',1,$2,$3,$4,$5,'active',now(),now()+interval '1 month')`,[checkout,owner,'buyermatch','price_pro','sub_owned'].map((v,i)=>overrides[i]??v));
 test('new subscription cannot use a price different from its checkout',async()=>{await assert.rejects(apply('test'));await assert.rejects(apply('live'));});
 test('approved upgrade/downgrade stays on same owned subscription; foreign and unapproved mappings fail',async()=>{
@@ -58,5 +63,57 @@ test('both billing entrypoints retain owner serialization and fixed search path'
   assert.match(result.rows[0].prosrc,/perform pg_advisory_xact_lock\(hashtextextended\(p_owner::text,0\)\)/);
   assert.deepEqual(result.rows[0].proconfig,['search_path=public']);
  }
+});
+
+test('new migration preserves exact function owners, ACLs, security-definer and search paths',async()=>{
+ assert.deepEqual(await identities(),originalIdentities);
+});
+
+test('corrected initial and tier-change guards reject pending, null and blank sessions in both modes',async()=>{
+ for(const mode of ['test','live'])for(const price of ['price_starter','price_pro']){
+  for(const [state,session] of [['pending','cs_fixture'],['completed',null],['completed',''],['completed','   ']]){
+   await db.query('update bm_checkouts set state=$1,session_id=$2',[state,session]);
+   await assert.rejects(apply(mode,{3:price}),/mapping/);
+  }
+ }
+ await db.exec("update bm_checkouts set state='completed',session_id='cs_fixture'");
+});
+
+test('service role can execute valid billing while browser roles are denied by PostgreSQL',async()=>{
+ for(const role of ['anon','authenticated'])await assert.rejects(db.transaction(async tx=>{
+  await tx.exec('set local role '+role);
+  await tx.query("select bm_apply_test_billing($1,'evt_denied',1,$2,'buyermatch','price_starter','sub_owned','active',now(),now()+interval '1 month')",[checkout,owner]);
+ }),/permission denied/);
+ await db.transaction(async tx=>{
+  await tx.exec('set local role service_role');
+  await tx.query("select bm_apply_test_billing($1,'evt_service',1,$2,'buyermatch','price_starter','sub_owned','active',now(),now()+interval '1 month')",[checkout,owner]);
+ });
+});
+
+test('paused rollback/roll-forward rehearsal preserves all local rows and grants',async()=>{
+ const before=(await db.query('select * from applied order by price,subscription')).rows;
+ await db.exec('begin;'+rollbackDefinitions+'commit;');
+ assert.deepEqual(await identities(),originalIdentities);
+ await db.exec(correctedMigration);
+ assert.deepEqual(await identities(),originalIdentities);
+ assert.deepEqual((await db.query('select * from applied order by price,subscription')).rows,before);
+});
+
+test('migration refuses a widened browser EXECUTE grant before replacing functions',async()=>{
+ await db.exec('grant execute on function bm_apply_test_billing(uuid,text,bigint,uuid,text,text,text,text,timestamptz,timestamptz) to authenticated');
+ try {await assert.rejects(db.exec(correctedMigration),/service-only/);} finally {
+  await db.exec('rollback');
+  await db.exec('revoke execute on function bm_apply_test_billing(uuid,text,bigint,uuid,text,text,text,text,timestamptz,timestamptz) from authenticated');
+ }
+ assert.deepEqual(await identities(),originalIdentities);
+});
+
+test('migration also refuses non-browser custom EXECUTE grantees instead of repairing unknown privileges',async()=>{
+ await db.exec('create role local_unexpected_role; grant execute on function bm_apply_live_billing(uuid,text,bigint,uuid,text,text,text,text,timestamptz,timestamptz) to local_unexpected_role');
+ try {await assert.rejects(db.exec(correctedMigration),/service-only/);} finally {
+  await db.exec('rollback');
+  await db.exec('revoke execute on function bm_apply_live_billing(uuid,text,bigint,uuid,text,text,text,text,timestamptz,timestamptz) from local_unexpected_role');
+ }
+ assert.deepEqual(await identities(),originalIdentities);
 });
 test.after(()=>db.close());
