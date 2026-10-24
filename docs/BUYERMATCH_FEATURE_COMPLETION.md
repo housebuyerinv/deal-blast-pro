@@ -212,6 +212,37 @@ proof data, consent, keys or existing billing protections.
 
 ## One coordinated prelaunch verification phase
 
+### Consolidated evidence matrix
+
+| Status | Scope / evidence | Remaining action |
+| --- | --- | --- |
+| VERIFIED HOSTED | Production table-only containment: unsafe client privileges removed, server access preserved; approved outage active | Retain protection until separately authorized safe restoration |
+| VERIFIED HOSTED | S2 intake at migration 20261024000845: 28 assertions, real concurrent receipt calls, privacy/proof boundaries, rollback and 7 cleanup checks; independently confirmed fixture removal | Preserve evidence; do not rerun this database batch for unrelated UI edits |
+| VERIFIED HOSTED (historical) | Starter $59 TEST purchase/activation and corrected signed webhook invoice/replay/idempotency | Retain exact historical scope; not a claim that every newer source has hosted billing coverage |
+| VERIFIED LOCAL | Latest intake form + real receipt-client interaction batch: 17/17 checks, TypeScript/build passed; scoped lint no errors, one existing warning | Actual browser/native keyboard/screen-reader/layout testing remains separate |
+| VERIFIED LOCAL (retained) | Existing server-authoritative Starter 20/10/25 and Pro 50/25/50 allowance, billing reconciliation, routing and privacy results | No quota/model/billing change in the UI batch; retain existing tests instead of repeating suites |
+| BLOCKED OWNER | Qualified S2 platform-owner positive review/private login: owner Auth identity is absent | Complete the existing owner-controlled verification workflow when this external gate is addressed; no policy bypass or new email setup loop |
+| NOT RUN BROWSER / PRO | Protected deployed-candidate intake/review, native keyboard and actual narrow-screen layout; Pro $119 purchase and full hosted subscription lifecycle | Candidate deployment/browser access and bounded TEST windows need their release safeguards; no new deployment/payment in this phase |
+| FINAL EXTERNAL GATES | Exact legal approval; independent recovery keys and complete DB/Auth/roles/Storage restore; remaining protected configuration/cleanup and end-to-end distribution gates | Complete the single coordinated release sequence below; do not resume custom Windows recovery |
+| FINAL EXTERNAL GATES | Production restoration, minimal registration-security release, public signup/live payments | Separate explicit release approvals after mandatory verification; full integration is not a security-only hotfix |
+
+Latest independent UI work is local only. It fixes dropped outage feedback, missing
+label/control associations and selected-state semantics, false proof-submission
+success copy, missing conditional/range validation and edit/duplicate-submit
+handling while requests/uploads are pending. Only allowlisted public error copy
+is shown. Required criteria and optional invitations remain distinct; prices,
+matching, billing and allowances are unchanged. Long proof filenames can wrap;
+mobile-first layout classes are retained. These are semantic/declarative checks,
+not computed contrast, screen-reader, keyboard-event or pixel-width proof.
+
+Tests use pinned development-only `react-test-renderer` 18.3.1 matching React,
+actual component/hooks and receipt-client code with non-delivering provider mocks.
+No credentials, provider requests or browser session are needed. This is NOT a
+browser replacement. The existing `net::ERR_CONNECTION_TIMED_OUT` loopback blocker
+is recorded once; no new connection attempt or owner-email/provider work occurred.
+The frozen S2 migration hash remains unchanged. App build has existing dynamic
+import/chunk-size warnings; scoped lint retains one legacy empty-catch warning.
+
 0. **Immediate security exception COMPLETE:** narrowly scoped Production
    containment applied and metadata-verified. Preserve the recorded outage and
    evidence; never restore public reads/updates as an automatic rollback. Safe

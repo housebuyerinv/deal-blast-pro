@@ -1,9 +1,10 @@
-import React, { useMemo, useRef, useState } from 'react'
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Upload, CheckCircle, AlertCircle, FileText, ShieldCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import { uploadBuyerProofBatch, type BuyerProofFileMeta } from '../../lib/buyerProofStorage'
 import { createBuyerPortalSubmission } from '../../lib/buyerPortalSubmissionStorage'
+import { buyerIntakeFeedback } from '../../lib/buyerIntakeFeedback'
 import { useAppStore } from '../../store/useAppStore'
 import PublicFooter from '../../components/layout/PublicFooter'
 import PublicNav from '../../components/layout/PublicNav'
@@ -135,6 +136,7 @@ function Chip({
   return (
     <button
       type="button"
+      aria-pressed={active}
       onClick={onClick}
       className={`px-3 py-1.5 rounded-full border text-xs transition ${
         active
@@ -153,6 +155,10 @@ const UNIT_REQUIREMENT_OPTIONS = ['Any', '1+', '2+', '3+', '4+', '5+', '10+', '2
 const FILE_UPLOAD_WARNING = 'Proof upload did not complete. Supporting documents still need secure follow-up.'
 
 export default function BuyerPortal({ product = 'crm' }: { product?: 'crm' | 'buyermatch' }) {
+  const formId = useId()
+  const fieldId = (name: string) => `${formId}-${name}`
+  const feedbackRef = useRef<HTMLDivElement>(null)
+  const successRef = useRef<HTMLHeadingElement>(null)
   const independent = product === 'buyermatch'
   const submitting = useRef(false)
   const uploading = useRef(false)
@@ -183,6 +189,14 @@ const [submitted, setSubmitted] = useState(false)
   const [fileUploadWarning, setFileUploadWarning] = useState('')
   const [submissionWarning, setSubmissionWarning] = useState('')
   const [errors, setErrors] = useState<string[]>([])
+  const [submissionError, setSubmissionError] = useState('')
+
+  useEffect(() => {
+    if (errors.length || submissionError) feedbackRef.current?.focus()
+  }, [errors, submissionError])
+  useEffect(() => {
+    if (submitted) successRef.current?.focus()
+  }, [submitted])
 
   const proofSummary = useMemo(() => {
     if (!proofFiles.length) return 'No proof uploaded yet'
@@ -206,8 +220,11 @@ const [submitted, setSubmitted] = useState(false)
     if (markets.includes('Other') && !form.marketsOther.trim()) nextErrors.push('Describe the Other target market.')
     if (assetTypes.length === 0) nextErrors.push('Select at least one asset type.')
     if (assetTypes.includes('Other') && !form.assetTypeOther.trim()) nextErrors.push('Describe the Other asset type.')
+    if (exitStrategies.includes('Other') && !form.exitStrategyOther.trim()) nextErrors.push('Describe the Other exit strategy.')
+    if (form.website.trim() && !/^https?:\/\/[^\s]+$/.test(form.website.trim())) nextErrors.push('Use a full http or https link for your website or profile.')
     if (!independent && proofFiles.length === 0 && !fileUploadWarning) nextErrors.push('Upload at least one proof document.')
     if (Number(form.priceMin) < 0 || Number(form.priceMax) < 0 || (form.priceMin && form.priceMax && Number(form.priceMin) > Number(form.priceMax))) nextErrors.push('Enter a valid minimum and maximum budget.')
+    if ([form.unitsMin, form.unitsMax].some(value => value !== '' && (!Number.isInteger(Number(value)) || Number(value) < 0)) || (form.unitsMin && form.unitsMax && Number(form.unitsMin) > Number(form.unitsMax))) nextErrors.push('Enter a valid whole-number minimum and maximum unit count.')
     if (!form.consent) nextErrors.push('Consent confirmation is required.')
 
     setErrors(nextErrors)
@@ -247,12 +264,14 @@ const [submitted, setSubmitted] = useState(false)
   }
 
   const removeProofFile = (id: string) => {
+    if (submitting.current || uploading.current) return
     setProofFiles(prev => prev.filter(f => f.id !== id))
   }
 
   const submitBuyer = async (e: React.FormEvent) => {
     e.preventDefault()
     if (submitting.current || uploading.current) return
+    setSubmissionError('')
 
     if (publicSignupBlocked) {
       toast.error(publicSignupBlockedMessage)
@@ -352,8 +371,10 @@ const [submitted, setSubmitted] = useState(false)
       setSubmissionWarning(fileUploadWarning)
       toast.success(fileUploadWarning ? `Buyer verification submitted for review. ${fileUploadWarning}` : 'Buyer verification submitted for review.')
       setSubmitted(true)
-    } catch {
-      toast.error('We could not confirm your submission. Retry with the same details, or contact support before starting again.')
+    } catch (error) {
+      const message = buyerIntakeFeedback(error)
+      setSubmissionError(message)
+      toast.error(message)
     } finally {
       submitting.current = false
       setIsSubmitting(false)
@@ -367,9 +388,9 @@ const [submitted, setSubmitted] = useState(false)
         <div className="max-w-3xl mx-auto px-4 py-10">
           <div className="card p-8 text-center">
             <CheckCircle className="mx-auto mb-4 text-[#22C55E]" size={48} />
-            <h1 className="text-3xl font-bold mb-3">Buyer profile received</h1>
+            <h1 ref={successRef} tabIndex={-1} className="text-3xl font-bold mb-3">Buyer profile received</h1>
             <p className="text-[#C5CAD6] mb-6">
-              Thanks — your buyer profile and proof documents were submitted. Our team will review your verification details and match you with off-market opportunities that fit your buy box.
+              Your buying criteria were submitted for review. {proofFiles.length ? 'Attached proof documents are also pending review.' : 'No proof documents were attached; they can be supplied through secure follow-up.'} Submission does not automatically verify you or guarantee an invitation.
             </p>
             {submissionWarning && (
               <div className="mb-5 rounded border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-200">
@@ -410,15 +431,16 @@ const [submitted, setSubmitted] = useState(false)
           </p>
         </div>
 
-        {errors.length > 0 && (
-          <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-4 mb-6">
+        {(errors.length > 0 || submissionError) && (
+          <div ref={feedbackRef} tabIndex={-1} role="alert" className="rounded-xl border border-red-500/40 bg-red-500/10 p-4 mb-6">
             <div className="flex items-center gap-2 text-red-300 font-semibold mb-2">
               <AlertCircle size={18} />
-              Please fix these items
+              {submissionError ? 'Submission not confirmed' : 'Please fix these items'}
             </div>
-            <ul className="text-sm text-red-200 list-disc pl-5 space-y-1">
+            {errors.length > 0 && <ul className="text-sm text-red-200 list-disc pl-5 space-y-1">
               {errors.map(err => <li key={err}>{err}</li>)}
-            </ul>
+            </ul>}
+            {submissionError && <p className="text-sm text-red-200">{submissionError}</p>}
           </div>
         )}
 
@@ -428,44 +450,46 @@ const [submitted, setSubmitted] = useState(false)
           </div>
         )}
 
-        <form onSubmit={submitBuyer} className="space-y-6">
+        <form onSubmit={submitBuyer} noValidate aria-busy={isSubmitting || isUploading} className="space-y-6">
+          <fieldset disabled={isSubmitting || isUploading} className="space-y-6 min-w-0">
+            <legend className="sr-only">Buyer criteria and consent</legend>
           <div className="card p-6">
             <h2 className="text-xl font-semibold mb-4">Buyer Information</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="text-xs text-[#8B92A3]">Full Name *</label>
-                <input className="input" value={form.name} onChange={e => updateForm('name', e.target.value)} />
+                <label htmlFor={fieldId('name')} className="text-xs text-[#8B92A3]">Full Name *</label>
+                <input id={fieldId('name')} required autoComplete="name" className="input" value={form.name} onChange={e => updateForm('name', e.target.value)} />
               </div>
               <div>
-                <label className="text-xs text-[#8B92A3]">Email *</label>
-                <input className="input" type="email" value={form.email} onChange={e => updateForm('email', e.target.value)} />
+                <label htmlFor={fieldId('email')} className="text-xs text-[#8B92A3]">Email *</label>
+                <input id={fieldId('email')} required autoComplete="email" className="input" type="email" value={form.email} onChange={e => updateForm('email', e.target.value)} />
               </div>
               <div>
-                <label className="text-xs text-[#8B92A3]">Phone *</label>
-                <input className="input" value={form.phone} onChange={e => updateForm('phone', e.target.value)} />
+                <label htmlFor={fieldId('phone')} className="text-xs text-[#8B92A3]">Phone *</label>
+                <input id={fieldId('phone')} required autoComplete="tel" type="tel" className="input" value={form.phone} onChange={e => updateForm('phone', e.target.value)} />
               </div>
               <div>
-                <label className="text-xs text-[#8B92A3]">Company / Entity *</label>
-                <input className="input" value={form.company} onChange={e => updateForm('company', e.target.value)} />
+                <label htmlFor={fieldId('company')} className="text-xs text-[#8B92A3]">Company / Entity *</label>
+                <input id={fieldId('company')} required autoComplete="organization" className="input" value={form.company} onChange={e => updateForm('company', e.target.value)} />
               </div>
               <div className="md:col-span-2">
-                <label className="text-xs text-[#8B92A3]">Website / LinkedIn / Company Profile</label>
-                <input className="input" value={form.website} onChange={e => updateForm('website', e.target.value)} />
+                <label htmlFor={fieldId('website')} className="text-xs text-[#8B92A3]">Website / LinkedIn / Company Profile</label>
+                <input id={fieldId('website')} autoComplete="url" className="input" value={form.website} onChange={e => updateForm('website', e.target.value)} />
               </div>
             </div>
           </div>
 
           <div className="card p-6">
             <h2 className="text-xl font-semibold mb-4">Buyer Type *</h2>
-            <div className="flex flex-wrap gap-2">
+            <div role="group" aria-label="Buyer types" className="flex flex-wrap gap-2">
               {BUYER_TYPES.map(type => (
                 <Chip key={type} label={type} active={buyerTypes.includes(type)} onClick={() => setBuyerTypes(prev => toggleValue(prev, type))} />
               ))}
             </div>
             {buyerTypes.includes('Other') && (
               <div className="mt-3">
-                <label className="text-xs text-[#8B92A3]">Describe Other Buyer Type *</label>
-                <input className="input" value={form.buyerTypeOther} onChange={e => updateForm('buyerTypeOther', e.target.value)} />
+                <label htmlFor={fieldId('buyerTypeOther')} className="text-xs text-[#8B92A3]">Describe Other Buyer Type *</label>
+                <input id={fieldId('buyerTypeOther')} required className="input" value={form.buyerTypeOther} onChange={e => updateForm('buyerTypeOther', e.target.value)} />
               </div>
             )}
           </div>
@@ -475,70 +499,70 @@ const [submitted, setSubmitted] = useState(false)
 
             <div className="mb-5">
               <div className="font-semibold mb-2">Target States / Markets *</div>
-              <div className="flex flex-wrap gap-2">
+              <div role="group" aria-label="Target markets" className="flex flex-wrap gap-2">
                 {STATES.map(state => (
                   <Chip key={state} label={state} active={markets.includes(state)} onClick={() => setMarkets(prev => toggleValue(prev, state))} />
                 ))}
               </div>
               {markets.includes('Other') && (
                 <div className="mt-3">
-                  <label className="text-xs text-[#8B92A3]">Describe Other Target Market *</label>
-                  <input className="input" value={form.marketsOther} onChange={e => updateForm('marketsOther', e.target.value)} />
+                  <label htmlFor={fieldId('marketsOther')} className="text-xs text-[#8B92A3]">Describe Other Target Market *</label>
+                  <input id={fieldId('marketsOther')} required className="input" value={form.marketsOther} onChange={e => updateForm('marketsOther', e.target.value)} />
                 </div>
               )}
             </div>
 
             <div className="mb-5">
-              <label className="text-xs text-[#8B92A3]">Target Cities / Counties</label>
-              <textarea className="input h-20" value={form.cities} onChange={e => updateForm('cities', e.target.value)} placeholder="Example: Memphis, Birmingham, Pittsburgh, Charlotte..." />
+              <label htmlFor={fieldId('cities')} className="text-xs text-[#8B92A3]">Target Cities / Counties</label>
+              <textarea id={fieldId('cities')} className="input h-20" value={form.cities} onChange={e => updateForm('cities', e.target.value)} placeholder="Example: Memphis, Birmingham, Pittsburgh, Charlotte..." />
             </div>
 
             <div className="mb-5">
               <div className="font-semibold mb-2">Asset Types *</div>
-              <div className="flex flex-wrap gap-2">
+              <div role="group" aria-label="Asset types" className="flex flex-wrap gap-2">
                 {ASSET_TYPES.map(type => (
                   <Chip key={type} label={type} active={assetTypes.includes(type)} onClick={() => setAssetTypes(prev => toggleValue(prev, type))} />
                 ))}
               </div>
               {assetTypes.includes('Other') && (
                 <div className="mt-3">
-                  <label className="text-xs text-[#8B92A3]">Describe Other Asset Type *</label>
-                  <input className="input" value={form.assetTypeOther} onChange={e => updateForm('assetTypeOther', e.target.value)} />
+                  <label htmlFor={fieldId('assetTypeOther')} className="text-xs text-[#8B92A3]">Describe Other Asset Type *</label>
+                  <input id={fieldId('assetTypeOther')} required className="input" value={form.assetTypeOther} onChange={e => updateForm('assetTypeOther', e.target.value)} />
                 </div>
               )}
             </div>
 
             <div className="mb-5">
-              <div className="font-semibold mb-2">Exit Strategy *</div>
-              <div className="flex flex-wrap gap-2">
+              <div className="font-semibold mb-2">Exit Strategy (optional)</div>
+              <div role="group" aria-label="Exit strategies" className="flex flex-wrap gap-2">
                 {EXIT_STRATEGIES.map(type => (
                   <Chip key={type} label={type} active={exitStrategies.includes(type)} onClick={() => setExitStrategies(prev => toggleValue(prev, type))} />
                 ))}
               </div>
               {exitStrategies.includes('Other') && (
                 <div className="mt-3">
-                  <label className="text-xs text-[#8B92A3]">Describe Other Exit Strategy *</label>
-                  <input className="input" value={form.exitStrategyOther} onChange={e => updateForm('exitStrategyOther', e.target.value)} />
+                  <label htmlFor={fieldId('exitStrategyOther')} className="text-xs text-[#8B92A3]">Describe Other Exit Strategy *</label>
+                  <input id={fieldId('exitStrategyOther')} required className="input" value={form.exitStrategyOther} onChange={e => updateForm('exitStrategyOther', e.target.value)} />
                 </div>
               )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
-                <label className="text-xs text-[#8B92A3]">Min Price *</label>
-                <input className="input" type="number" value={form.priceMin} onChange={e => updateForm('priceMin', e.target.value)} />
+                <label htmlFor={fieldId('priceMin')} className="text-xs text-[#8B92A3]">Min Price (optional)</label>
+                <input id={fieldId('priceMin')} className="input" type="number" min="0" value={form.priceMin} onChange={e => updateForm('priceMin', e.target.value)} />
               </div>
               <div>
-                <label className="text-xs text-[#8B92A3]">Max Price *</label>
-                <input className="input" type="number" value={form.priceMax} onChange={e => updateForm('priceMax', e.target.value)} />
+                <label htmlFor={fieldId('priceMax')} className="text-xs text-[#8B92A3]">Max Price (optional)</label>
+                <input id={fieldId('priceMax')} className="input" type="number" min="0" value={form.priceMax} onChange={e => updateForm('priceMax', e.target.value)} />
               </div>
               <div>
-                <label className="text-xs text-[#8B92A3]">Min Units</label>
-                <input className="input" type="number" value={form.unitsMin} onChange={e => updateForm('unitsMin', e.target.value)} />
+                <label htmlFor={fieldId('unitsMin')} className="text-xs text-[#8B92A3]">Min Units</label>
+                <input id={fieldId('unitsMin')} className="input" type="number" min="0" step="1" value={form.unitsMin} onChange={e => updateForm('unitsMin', e.target.value)} />
               </div>
               <div>
-                <label className="text-xs text-[#8B92A3]">Max Units</label>
-                <input className="input" type="number" value={form.unitsMax} onChange={e => updateForm('unitsMax', e.target.value)} />
+                <label htmlFor={fieldId('unitsMax')} className="text-xs text-[#8B92A3]">Max Units</label>
+                <input id={fieldId('unitsMax')} className="input" type="number" min="0" step="1" value={form.unitsMax} onChange={e => updateForm('unitsMax', e.target.value)} />
               </div>
             </div>
 
@@ -554,8 +578,9 @@ const [submitted, setSubmitted] = useState(false)
             <div className="font-semibold mb-2">Bed / Bath / Unit Requirements</div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
-                <label className="text-xs text-[#8B92A3]">Beds</label>
+                <label htmlFor={fieldId('bedRequirement')} className="text-xs text-[#8B92A3]">Beds</label>
                 <select
+                  id={fieldId('bedRequirement')}
                   className="input w-full mt-1"
                   value={form.bedRequirement || 'Any'}
                   onChange={e => setForm({ ...form, bedRequirement: e.target.value })}
@@ -567,8 +592,9 @@ const [submitted, setSubmitted] = useState(false)
               </div>
 
               <div>
-                <label className="text-xs text-[#8B92A3]">Baths</label>
+                <label htmlFor={fieldId('bathRequirement')} className="text-xs text-[#8B92A3]">Baths</label>
                 <select
+                  id={fieldId('bathRequirement')}
                   className="input w-full mt-1"
                   value={form.bathRequirement || 'Any'}
                   onChange={e => setForm({ ...form, bathRequirement: e.target.value })}
@@ -580,8 +606,9 @@ const [submitted, setSubmitted] = useState(false)
               </div>
 
               <div>
-                <label className="text-xs text-[#8B92A3]">Units</label>
+                <label htmlFor={fieldId('unitRequirement')} className="text-xs text-[#8B92A3]">Units</label>
                 <select
+                  id={fieldId('unitRequirement')}
                   className="input w-full mt-1"
                   value={form.unitRequirement || 'Any'}
                   onChange={e => setForm({ ...form, unitRequirement: e.target.value })}
@@ -601,61 +628,63 @@ const [submitted, setSubmitted] = useState(false)
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
-                <label className="text-xs text-[#8B92A3]">Down Payment Max</label>
-                <input className="input w-full" value={form.downPaymentMax || ''} onChange={e => updateForm('downPaymentMax', e.target.value)} placeholder="$10K" />
+                <label htmlFor={fieldId('downPaymentMax')} className="text-xs text-[#8B92A3]">Down Payment Max</label>
+                <input id={fieldId('downPaymentMax')} className="input w-full" value={form.downPaymentMax || ''} onChange={e => updateForm('downPaymentMax', e.target.value)} placeholder="$10K" />
               </div>
 
               <div>
-                <label className="text-xs text-[#8B92A3]">Monthly Payment Max</label>
-                <input className="input w-full" value={form.monthlyPaymentMax || ''} onChange={e => updateForm('monthlyPaymentMax', e.target.value)} placeholder="$1,000/mo" />
+                <label htmlFor={fieldId('monthlyPaymentMax')} className="text-xs text-[#8B92A3]">Monthly Payment Max</label>
+                <input id={fieldId('monthlyPaymentMax')} className="input w-full" value={form.monthlyPaymentMax || ''} onChange={e => updateForm('monthlyPaymentMax', e.target.value)} placeholder="$1,000/mo" />
               </div>
 
               <div>
-                <label className="text-xs text-[#8B92A3]">Interest Rate Max</label>
-                <input className="input w-full" value={form.interestRateMax || ''} onChange={e => updateForm('interestRateMax', e.target.value)} placeholder="7%" />
+                <label htmlFor={fieldId('interestRateMax')} className="text-xs text-[#8B92A3]">Interest Rate Max</label>
+                <input id={fieldId('interestRateMax')} className="input w-full" value={form.interestRateMax || ''} onChange={e => updateForm('interestRateMax', e.target.value)} placeholder="7%" />
               </div>
 
               <div>
-                <label className="text-xs text-[#8B92A3]">Balloon Term</label>
-                <input className="input w-full" value={form.balloonTerm || ''} onChange={e => updateForm('balloonTerm', e.target.value)} placeholder="5 years" />
+                <label htmlFor={fieldId('balloonTerm')} className="text-xs text-[#8B92A3]">Balloon Term</label>
+                <input id={fieldId('balloonTerm')} className="input w-full" value={form.balloonTerm || ''} onChange={e => updateForm('balloonTerm', e.target.value)} placeholder="5 years" />
               </div>
 
               <div>
-                <label className="text-xs text-[#8B92A3]">Cap Rate Target</label>
-                <input className="input w-full" value={form.capRateTarget || ''} onChange={e => updateForm('capRateTarget', e.target.value)} placeholder="8% cap" />
+                <label htmlFor={fieldId('capRateTarget')} className="text-xs text-[#8B92A3]">Cap Rate Target</label>
+                <input id={fieldId('capRateTarget')} className="input w-full" value={form.capRateTarget || ''} onChange={e => updateForm('capRateTarget', e.target.value)} placeholder="8% cap" />
               </div>
 
               <div>
-                <label className="text-xs text-[#8B92A3]">Creative Structure</label>
-                <input className="input w-full" value={form.creativeStructure || ''} onChange={e => updateForm('creativeStructure', e.target.value)} placeholder="Seller Finance, Subto, Wrap, RTO" />
+                <label htmlFor={fieldId('creativeStructure')} className="text-xs text-[#8B92A3]">Creative Structure</label>
+                <input id={fieldId('creativeStructure')} className="input w-full" value={form.creativeStructure || ''} onChange={e => updateForm('creativeStructure', e.target.value)} placeholder="Seller Finance, Subto, Wrap, RTO" />
               </div>
             </div>
           </div>
 
           <div className="card p-6">
-            <h2 className="text-xl font-semibold mb-2">Verification Documents *</h2>
+            <h2 className="text-xl font-semibold mb-2">Verification Documents{independent ? ' (optional)' : ' *'}</h2>
             <p className="text-sm text-[#8B92A3] mb-4">
               {independent ? 'Proof can be supplied through a secure signed-in upload or during review. Do not paste financial records into the notes.' : 'Upload at least one proof document. Select what the file is before attaching it.'}
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
               <div>
-                <label className="text-xs text-[#8B92A3]">Document Type *</label>
-                <select className="select" value={currentProofType} onChange={e => setCurrentProofType(e.target.value)}>
+                <label htmlFor={fieldId('proofType')} className="text-xs text-[#8B92A3]">Document Type</label>
+                <select id={fieldId('proofType')} className="select" value={currentProofType} onChange={e => setCurrentProofType(e.target.value)}>
                   {PROOF_TYPES.map(type => <option key={type}>{type}</option>)}
                 </select>
               </div>
 
               {currentProofType === 'Other' && (
                 <div>
-                  <label className="text-xs text-[#8B92A3]">Describe Document *</label>
-                  <input className="input" value={currentOtherLabel} onChange={e => setCurrentOtherLabel(e.target.value)} />
+                  <label htmlFor={fieldId('proofOther')} className="text-xs text-[#8B92A3]">Describe Document *</label>
+                  <input id={fieldId('proofOther')} className="input" value={currentOtherLabel} onChange={e => setCurrentOtherLabel(e.target.value)} />
                 </div>
               )}
 
               <div className={currentProofType === 'Other' ? '' : 'md:col-span-2'}>
-                <label className="text-xs text-[#8B92A3]">Attach File *</label>
+                <label htmlFor={fieldId('proofFile')} className="text-xs text-[#8B92A3]">Attach File{independent ? ' (optional)' : ' *'}</label>
                 <input
+                  id={fieldId('proofFile')}
+                  aria-describedby={fieldId('proofFeedback')}
                   className="input"
                   type="file"
                   multiple
@@ -669,6 +698,9 @@ const [submitted, setSubmitted] = useState(false)
               </div>
             </div>
 
+            <p id={fieldId('proofFeedback')} role="status" className="text-sm text-[#C5CAD6] mb-3">
+              {isUploading ? 'Uploading proof…' : fileUploadWarning || `${proofFiles.length} proof files attached.`}
+            </p>
             <div className="rounded-xl border border-[#252A38] bg-[#0B1020] p-4">
               <div className="flex items-center gap-2 font-semibold mb-3">
                 <Upload size={18} />
@@ -681,16 +713,16 @@ const [submitted, setSubmitted] = useState(false)
                 <div className="space-y-2">
                   {proofFiles.map(file => (
                     <div key={file.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-[#111623] border border-[#252A38] px-3 py-2">
-                      <div className="flex items-start gap-2">
+                      <div className="flex items-start gap-2 min-w-0 flex-1">
                         <FileText size={16} className="text-[#3B82F6] mt-0.5" />
-                        <div>
-                          <div className="text-sm">{file.fileName}</div>
+                        <div className="min-w-0">
+                          <div className="text-sm break-all">{file.fileName}</div>
                           <div className="text-xs text-[#8B92A3]">
                             {file.proofType === 'Other' ? file.otherLabel : file.proofType}
                           </div>
                         </div>
                       </div>
-                      <button type="button" onClick={() => removeProofFile(file.id)} className="text-xs text-red-400 hover:text-red-300">
+                      <button type="button" aria-label={`Remove ${file.fileName}`} disabled={isSubmitting || isUploading} onClick={() => removeProofFile(file.id)} className="text-xs text-red-400 hover:text-red-300">
                         Remove
                       </button>
                     </div>
@@ -701,8 +733,9 @@ const [submitted, setSubmitted] = useState(false)
           </div>
 
           <div className="card p-6">
-            <h2 className="text-xl font-semibold mb-4">Additional Notes</h2>
+            <h2 className="text-xl font-semibold mb-4"><label htmlFor={fieldId('notes')}>Additional Notes</label></h2>
             <textarea
+              id={fieldId('notes')}
               className="input h-28"
               value={form.notes}
               onChange={e => updateForm('notes', e.target.value)}
@@ -712,6 +745,7 @@ const [submitted, setSubmitted] = useState(false)
             <label className="flex items-start gap-3 mt-5 text-sm">
               <input
                 type="checkbox"
+                required
                 className="mt-1"
                 checked={form.consent}
                 onChange={e => updateForm('consent', e.target.checked)}
@@ -728,6 +762,7 @@ const [submitted, setSubmitted] = useState(false)
               {publicSignupBlocked ? 'Buyer Signup Paused' : isUploading ? 'Uploading proof…' : isSubmitting ? 'Submitting…' : 'Submit Buyer Verification'}
             </button>
           </div>
+          </fieldset>
         </form>
 
       </div>

@@ -1,4 +1,5 @@
 import { notifySubmission } from './submissionNotifications'
+import { INTAKE_UNAVAILABLE_MESSAGE } from './buyerIntakeFeedback'
 
 function notifyBuyerPortalQueueChanged() {
   try {
@@ -110,7 +111,7 @@ export const createBuyerPortalSubmission = async (buyerData: any, options: { ope
   })
 
   if (error) {
-    if (intakeUnavailable(error)) throw new Error('Buyer intake is temporarily unavailable. No submission was confirmed. Please contact support before retrying.')
+    if (intakeUnavailable(error)) throw new Error(INTAKE_UNAVAILABLE_MESSAGE)
     throw new Error('Buyer submission could not be confirmed. Retry the same details or contact support.')
   }
   if (data?.recorded !== true || !data?.id) throw new Error('Buyer submission receipt is unavailable. Please contact support before submitting again.')
