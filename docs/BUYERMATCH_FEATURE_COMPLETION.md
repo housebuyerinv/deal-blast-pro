@@ -4,13 +4,14 @@ Current direction: PR #2 review **6377236755**, October 23, 2026 (owner timezone
 Feature work is local/synthetic/non-delivering. External readiness no longer stops
 local implementation. PR stays draft; public release remains **NO-GO**.
 
-**Security stop:** a narrow read-only Production metadata check now confirms
-unrestricted `anon` and `authenticated` SELECT/UPDATE authorization on
-`public.buyer_portal_submissions` through permissive `true` policies. No buyer
-records were read or changed; data presence and exploitation were not assessed.
-The local repair below is not deployed. Separate urgent security-only containment
-authorization is required; the registration POST pause does not protect this
-direct table pathway. See PR checkpoint 6377610493.
+**Security containment update:** the direct-table Production exposure on
+`public.buyer_portal_submissions` was contained and independently metadata-verified
+at 2026-10-24 02:00:02 UTC after owner approval and separate AI review. All public
+client table/column rights were revoked; server access was preserved. Public buyer
+intake and browser review are temporarily unavailable as approved. No buyer rows
+were read or changed; historical exploitation remains unassessed. The broader
+feature migration below is still not deployed. See
+[execution and recovery details](BUYER_INTAKE_EMERGENCY_CONTAINMENT.md).
 
 ## Implemented MVP inventory
 
@@ -78,11 +79,10 @@ workflow, or external provider behavior is complete or independently certified.
   or deployment occurred. The separate Production metadata inspection read only
   privileges and policies for this one table, never buyer records.
 
-The changed local paths pass their checks, but the newly confirmed Production
-authorization defect remains **unmitigated** under the current no-Production-write
-instruction. This report does not certify whole-application correctness or claim
-100% feature/release completion. Feature work stopped on the critical security
-finding rather than an external staging setup dependency.
+The changed local paths pass their checks. The later, separately authorized
+Production permissions-only containment is recorded above; the local feature
+test results do not themselves establish it. This report does not certify
+whole-application correctness or claim 100% feature/release completion.
 
 ## Migration / operational compatibility
 
@@ -108,11 +108,11 @@ proof data, consent, keys or existing billing protections.
 
 ## One coordinated prelaunch verification phase
 
-0. **Immediate security exception:** prepare and separately authorize narrowly
-   scoped Production containment for buyer-intake data. Preserve policy/grant
-   evidence, explain intake/review impact, and never restore public reads/updates
-   as an automatic rollback. Do not apply the full feature migration without
-   reviewing the currently deployed frontend's direct insert/readback dependency.
+0. **Immediate security exception COMPLETE:** narrowly scoped Production
+   containment applied and metadata-verified. Preserve the recorded outage and
+   evidence; never restore public reads/updates as an automatic rollback. Safe
+   intake/review restoration remains a separately reviewed release gate. Do not
+   apply the full feature migration merely to make the old frontend work.
 1. **Source/schema/security review:** independently review the final draft PR,
    current schema prerequisites and the new intake migration. Rehearse complete
    migration ordering locally, then separately approve staging application. Check

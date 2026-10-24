@@ -1,6 +1,18 @@
 # Buyer-intake security-only containment candidate
 
-Status: PREPARED, NOT APPLIED. Explicit Production approval and independent review required.
+Status: APPLIED AND VERIFIED at 2026-10-24 02:00:02 UTC (October 23, owner timezone).
+
+## Execution result
+
+Owner approvals: PR #2 comments 6377727711 and 6378367998. Separate AI reviewer approved the pinned artifact in 6377893294; this was not a human external audit. Exact source commit `1c7e9a74848842e077606106f478702a235b6b01`, SHA-256 `A0D620D5278491B7ED36E6F85E529DA1863BAC07E751265721B89E7CB0BF79DB`.
+
+Supabase migration connector returned requestState transport errors without applying changes. The existing authenticated owner-controlled Supabase CLI 2.109.0 verified project `aigvnbxiydbzzqbetlhl` / deal-blast-pro and passed a read-only transaction. A separate local CLI directory prevented integration migration coupling. After an unchanged metadata gate, `db query --linked --file` executed ONLY the exact approved SQL through the Management API, exit code 0. This is a **direct schema change, with no migration history entry**; do not invent a migration version or bulk-push feature migrations to reconcile it.
+
+Separate post-execution MCP reads verified all 11 recorded postconditions: no effective client table rights (including TRUNCATE/MAINTAIN), no effective client column rights or PUBLIC table grants, no explicit column ACLs, exactly the restrictive deny policy, removed legacy policies, preserved postgres/service_role grants and server BYPASSRLS, unchanged table identity/RLS and unchanged unrelated public relation/policy fingerprints. No buyer rows were read or written; row-content checksums were deliberately not collected. Existing contents were preserved by the permissions-only DDL, not established through a private-data export.
+
+**Public intake and browser review are now unavailable as approved**, including owner browser review. Server service-role access remains authorized. Registration containment, paused S2 billing and MoneyMap were not changed; no application deployment occurred. Direct-table exposure is contained; historical exploitation and other privileged API/function paths are not assessed. Release remains NO-GO.
+
+Sanitized local evidence: `artifacts/buyermatch-1b/containment-production-cli-verified.json`. The following sections retain the original baseline, rationale and recovery plan.
 
 ## Confirmed metadata and scope
 
@@ -42,9 +54,9 @@ Login, registration containment, matching, CRM billing and other tables are not 
 5. Unexpected inherited SELECT causes transaction failure; rollback leaves original grants/policies intact.
 6. Missing expected service BYPASSRLS causes preflight failure without partial changes.
 
-These are local tests. Production execution and post-change metadata/denial verification remain NOT RUN. No previously completed feature/matching suite was repeated. No independent second reviewer has yet approved this candidate.
+These are local tests. The separate AI reviewer independently reran 6/6 and checked service INSERT preservation and PostgreSQL 17 MAINTAIN revocation. Production metadata verification is recorded above; no row-level Production probes were performed. No completed feature/matching suite was repeated.
 
-## Activation checkpoints (NOT authorized yet)
+## Original activation checkpoints (completed as recorded above)
 
 1. Independent reviewer inspects exact SQL/hash and accepts temporary intake/review downtime. Owner explicitly authorizes this table-only Production correction. Preserve current schema/grant/policy metadata as evidence; no buyer-data export.
 2. Reconfirm project identity, table owner/columns, all grants/policies including PUBLIC/column/inherited access, service authority, dependencies and absence of unexpected drift. Use metadata only. Stop on unexpected exposure/dependencies; do not expand scope silently.
@@ -56,6 +68,6 @@ These are local tests. Production execution and post-change metadata/denial veri
 
 Before commit, failure aborts all DDL; preserve the error and re-evaluate promptly because prior exposure persists. After commit, never automatically restore old grants/policies. If intake downtime is unacceptable, keep containment and prepare an explicitly approved authenticated review + create-only receipt solution, or use a separately approved operator/server workflow. Correct a failed containment with reviewed forward SQL; do not restore public SELECT/UPDATE/TRUNCATE. No customer row rollback is required because this candidate performs no row writes.
 
-Security containment candidate: ready for independent review and explicit approval. Public release: NO-GO. Production remains unchanged and the reported permissions remain unmitigated until authorized execution succeeds.
+Security-only direct-table containment: applied and metadata-verified. Public release: NO-GO. Keep containment until a separately reviewed receipt/reviewer release safely restores intake; never restore the vulnerable permissions for compatibility.
 
 Reference: [Supabase RLS/grant documentation](https://supabase.com/docs/guides/database/postgres/row-level-security). The changelog markdown fetch was attempted but unsupported by the browsing transport; no changing CLI syntax is relied on here.
