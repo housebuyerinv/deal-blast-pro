@@ -1,6 +1,7 @@
 # BuyerMatch feature completion and consolidated prelaunch gates
 
-Current direction: PR #2 review **6377236755**, October 23, 2026 (owner timezone).
+Current direction: PR #2 final application audit **6379091744**, completed
+October 24, 2026 (owner timezone).
 Feature work is local/S2 synthetic and non-delivering. External readiness no longer stops
 local implementation. PR stays draft; public release remains **NO-GO**.
 
@@ -10,7 +11,7 @@ at 2026-10-24 02:00:02 UTC after owner approval and separate AI review. All publ
 client table/column rights were revoked; server access was preserved. Public buyer
 intake and browser review are temporarily unavailable as approved. No buyer rows
 were read or changed; historical exploitation remains unassessed. The broader
-feature migration below is still not deployed. See
+feature migration below is applied and recorded in S2 only, not Production. See
 [execution and recovery details](BUYER_INTAKE_EMERGENCY_CONTAINMENT.md).
 
 ## Implemented MVP inventory
@@ -21,9 +22,9 @@ feature migration below is still not deployed. See
 | Subscriber signup/login | Signed product/tier intent; confirmed completion; direct BuyerMatch routing; CRM Free registration; existing CRM access retained | Existing registration/security results retained; affected routing checks pass; owner identity setup is deferred |
 | Subscriber onboarding | Exact approved agreement versions/hashes, signature evidence, plans/allowances, payment-return and cancellation feedback | Current local consent checks pass; QA terms are not legal approval |
 | Buyer portal | `/buyermatch/buyers`, independent of visitor CRM billing; criteria intake, optional private proof follow-up, pending review receipt | Actual component SSR and receipt-client tests pass; no paid subscriber account is required to submit criteria |
-| Intake privacy/retries | New validated create-only RPC; stable submission keys; receipt-only public output; restricted owner review; no anonymous row read/update | Real local PGlite roles/RLS exercise reproduces legacy bootstrap exposure and verifies closure plus preservation of existing rows |
+| Intake privacy/retries | Validated create-only RPC; stable submission keys; receipt-only public output; restricted owner review; no anonymous row read/update | 28 hosted S2 assertions, rollback and 7 cleanup checks passed; qualified-owner positive and actual browser checks remain pending |
 | Buyer consent | Separate optional invitation opt-in; server-recorded version/time; approval cannot invent consent; legacy unrecorded consent cannot activate network membership | Real API denial before sync and focused positive/negative consent checks pass |
-| Proof files | Extension and MIME checks, size/count bounds, signed-in owner-scoped proof metadata, prevalidation of a batch, retention of partial successes | Local file and batch tests pass; private Storage integration is a final hosted gate |
+| Proof files | Extension and MIME checks, size/count bounds, signed-in owner-scoped proof metadata, prevalidation of a batch, retention of partial successes | Local checks and S2 private upload/checksum/download denial/cross-identity checks passed; actual deployed browser remains unverified |
 | Matching/eligibility | Existing private matching engine and financial/jurisdiction/privacy rules retained | No engine/model change; previous completed results retained rather than repeated |
 | Distribution/response | Existing reviewed eligibility, quotas, private exposure, provider reconciliation, scoped response, messages and unsubscribe; BuyerMatch response branding | Core rules unchanged; current API ownership/privacy regression subset passes; live delivery remains disabled |
 | Independent billing | Existing Checkout, signed subscription reconciliation, authoritative entitlements, independent portal and tier changes | Hosted Starter/signed replay evidence retained; portal now additionally requires exact completed subscription Checkout and owner/product metadata; Pro/lifecycle signed hosted cases deferred |
@@ -35,10 +36,14 @@ criteria/proof intake, review, and invitation-scoped responses/conversations.
 It is not a claim that every possible future buyer-account feature, business
 workflow, or external provider behavior is complete or independently certified.
 
-## Changes and security findings in this batch
+## Historical initial feature batch
+
+The following records the initial discovery and local implementation. Later
+containment and S2 checkpoints below supersede its operational status.
 
 1. Replaced public `.insert().select()` intake with `bm_submit_buyer_intake`.
-   New pending migration: `20261024000845_buyermatch_private_buyer_intake.sql`.
+   Migration: `20261024000845_buyermatch_private_buyer_intake.sql`
+   (subsequently applied and recorded in S2 only).
    It preserves existing rows, grants only the bounded public receipt RPC, and
    intersects old permissive review policies with restrictive owner policies.
    Direct anon table access is revoked. Normal authenticated workspace Admins
@@ -47,9 +52,9 @@ workflow, or external provider behavior is complete or independently certified.
    disposable local reproduction. A subsequent targeted Production metadata check
    confirmed effective SELECT/UPDATE privileges and unrestricted policies for both
    public API roles. RLS is enabled but these policies do not restrict those actions.
-   No record-level read, public API test, exploitation finding or policy change
-   was performed. This is a confirmed live authorization defect, not merely a
-   future launch improvement.
+   That initial inspection performed no record-level read, public API test or
+   policy change and established no exploitation. The confirmed authorization
+   defect was subsequently contained in Production as recorded above.
 3. Captured accuracy and invitation consent separately. Server activation reads
    saved consent for the exact source identity, not an admin-supplied assertion.
    Existing suppressed network buyers remain suppressed under the existing RPC.
@@ -86,7 +91,7 @@ whole-application correctness or claim 100% feature/release completion.
 
 ## Migration / operational compatibility
 
-### Post-containment forward migration (draft only)
+### Post-containment forward migration (S2 applied; Production pending)
 
 `20261024000845_buyermatch_private_buyer_intake.sql` reconciles both the legacy
 baseline and actual untracked emergency deny. It is now APPLIED IN S2 ONLY,
@@ -126,9 +131,9 @@ allowlist/ordering for the release candidate, and apply the forward migration
 through supported migration tooling so THAT migration receives its real history
 entry. Its inline source reference documents the untracked containment baseline.
 Do not execute this migration merely as bookkeeping: it restores functionality
-and therefore requires separate scoped release authorization. S2 must first
-rehearse containment -> restoration -> replay and failure recovery with synthetic
-records, followed by actual protected client owner/customer/anonymous checks.
+and therefore requires separate scoped release authorization. S2 receipt,
+ordinary-account, proof, concurrency and rollback checks below passed. Qualified
+owner-positive and actual protected-browser checks remain pending.
 
 Actual local post-containment checks: **23/23 database checks and 9/9 receipt/UI
 checks passed**, frontend typecheck passed, scoped TS lint zero errors with one
@@ -190,7 +195,8 @@ and the S2 snapshot/permission/cleanup journals. Repeatable authorized harnesses
 blocked). Full owner/browser verification is still a prerequisite to recommending
 Production restoration; no public-release approval is implied.
 
-The new intake client **fails closed** until its pending RPC migration is installed.
+The new intake client **fails closed** where its RPC migration is not installed,
+including the currently contained Production environment.
 There is no fallback that restores public table reads or updates. Both the existing
 DBP intake and the new BuyerMatch intake use the protected receipt contract.
 Review-console access uses the currently fixed platform-owner email, confirmed
@@ -211,6 +217,47 @@ anonymous SELECT/UPDATE to make an older frontend work. Do not drop receipts,
 proof data, consent, keys or existing billing protections.
 
 ## One coordinated prelaunch verification phase
+
+### Final application-code audit
+
+**Code-complete candidate for the defined standalone subscriber MVP: YES. Public
+release: NO-GO pending the external acceptance gates below.** This is a code-scope
+assessment, not certification of whole-application correctness or hosted acceptance.
+Buyer participation in this MVP means criteria/proof intake, restricted review and
+invitation-scoped responses/conversations, not a new general buyer-account dashboard.
+
+The audit traced subscriber agreements, product/tier routing and CRM separation,
+Checkout/portal ownership, account/usage queries, buyer criteria/proof/consent,
+private matching projections, distribution gates, response/conversation scope and
+admin review against the inventory. A distinct authorization/privacy pass checked
+server-derived identity, owner-filtered private access, non-admin denial, consent
+source binding and public output projection. This was the implementation agent's
+review, not an independent external security audit.
+
+Two confirmed local defects were corrected without migrations or new dependencies:
+
+- Network criteria now reject inverted price, square-footage and unit ranges.
+  Equal, zero and open bounds stay valid; engine 1.0.1 and allowances are unchanged.
+- Private response fields lock while requests are pending, synchronous duplicate
+  submit/conversation calls are blocked and success copy describes the submitted
+  operation. Invitation changes discard stale results without unlocking a newer
+  pending request; failed attempts retain their retry key.
+
+Seven new deterministic checks pass: three criteria-range cases and four actual
+React component interaction cases. Together with relevant existing API/security/
+response checks, this delta passes **39/39**. The existing local HTTP fixture was
+initially denied loopback access by the sandbox (EACCES), then passed with authorized
+local-loopback access. No provider or hosted test was run. Frontend TypeScript and
+the application build passed; TSX and explicit JavaScript scoped lint both passed
+with zero errors/warnings. Existing build warnings concern mixed static/dynamic
+imports and a large bundle. The frozen S2
+migration retains its recorded SHA-256. Prior 17/17 intake interaction checks and
+28/28 hosted S2 assertions remain retained evidence, not repeated tests.
+
+No further required MVP feature gap was identified in this targeted audit. Actual
+browser UX, qualified-owner review, Pro/lifecycle billing and complete recovery
+remain unverified release requirements. Use the single ordered sequence below;
+do not add another planning cycle, speculative features or infrastructure workaround.
 
 ### Consolidated evidence matrix
 

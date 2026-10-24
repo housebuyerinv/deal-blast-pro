@@ -1,20 +1,23 @@
 # BuyerMatch Milestone 1B release checklist
 
-Current engineering direction: **feature completion first**, PR review 6377236755.
+Current engineering direction: **final application-code audit**, PR review 6379091744.
 See [implemented feature inventory, local evidence and the consolidated prelaunch
 checklist](BUYERMATCH_FEATURE_COMPLETION.md). External owner/provider/legal/recovery
 gates below remain release requirements and do not stop local feature work. The
-new private buyer-intake migration is pending and has not been applied remotely.
+private buyer-intake migration is applied and recorded in S2 only. Production
+restoration remains unapplied and requires separate authorization.
 
-Current review: October 23, 2026, PR #2 direction 6369522557.
+Current review: October 24, 2026, PR #2 direction 6379091744.
 **PR DRAFT; Production/public launch NO-GO.** This checklist replaces stale
 infrastructure prerequisites and rollback instructions from initial PR creation.
 
 ## Current evidence and provenance
 
-Application candidate: 6a98cff667a452563a336b8ba175762029038ef5, integration branch
-codex/buyermatch-1b-integration. Documentation-only changes after this SHA do not
-mean a new application/receiver was deployed.
+Current source: integration branch codex/buyermatch-1b-integration, including the
+final audit corrections following 3426b88. The accompanying PR checkpoint records
+the exact published SHA. Historical hosted billing source:
+6a98cff667a452563a336b8ba175762029038ef5. Later intake/UI/code changes have NOT been
+deployed; a source commit is not evidence of a new hosted application/receiver.
 Base: codex/buyermatch-network at 501cb6a4566211f6828633f862163420fed9c016.
 Milestone 1A and registration repair are integrated here; this branch must NOT be
 released as the separate security-only hotfix.
@@ -94,4 +97,5 @@ deleted or weakened to make a release pass.
 
 Existing starter evidence, security-only candidate and recovery forensic artifacts
 remain preserved. No Production, customer, billing or MoneyMap mutation is authorized
-by this checklist. Current direction is planning/read-only/local work only.
+by this checklist. Current scope is local code verification and publication to
+the draft PR only; hosted execution and release require their explicit gates.
