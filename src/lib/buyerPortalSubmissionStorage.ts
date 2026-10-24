@@ -84,7 +84,7 @@ const requireSupabase = () => {
   return supabase
 }
 
-export const createBuyerPortalSubmission = async (buyerData: any) => {
+export const createBuyerPortalSubmission = async (buyerData: any, options: { operationKey?: string; notify?: boolean } = {}) => {
   const client = requireSupabase()
   const payload = {
     ...buyerData,
@@ -93,20 +93,18 @@ export const createBuyerPortalSubmission = async (buyerData: any) => {
     status: buyerData?.status || 'Submitted / Pending Review',
   }
 
-  const { data, error } = await client
-    .from(BUYER_PORTAL_SUBMISSIONS_TABLE)
-    .insert({
-      status: 'pending_review',
-      buyer_data: payload,
-    })
-    .select('id')
-    .single()
+  // A receipt RPC avoids granting public SELECT/UPDATE access to private intake.
+  // Never fall back to the historical direct table insert if migration is missing.
+  const { data, error } = await client.rpc('bm_submit_buyer_intake', {
+    p_key: options.operationKey || crypto.randomUUID(), p_value: payload,
+  })
 
   if (error) {
-    throw error
+    throw new Error('Buyer submission could not be confirmed. Retry the same details or contact support.')
   }
+  if (data?.recorded !== true || !data?.id) throw new Error('Buyer submission receipt is unavailable. Please contact support before submitting again.')
 
-  const notification = await notifySubmission('buyer', { ...payload, id: data?.id }, {
+  const notification = options.notify === false ? { ok: true, skipped: true } : await notifySubmission('buyer', { ...payload, id: data?.id }, {
     eventType: 'new_buyer',
     workspaceId: 'default',
     relatedRecordId: data?.id,

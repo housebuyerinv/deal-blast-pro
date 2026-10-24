@@ -311,6 +311,7 @@ function App() {
         <Route path="/" element={<Landing />} />
         <Route path="/buyermatch" element={<BuyerMatchLanding />} />
         <Route path="/buyermatch/pricing" element={<BuyerMatchLanding />} />
+        <Route path="/buyermatch/buyers" element={<BuyerPortal product="buyermatch" />} />
         <Route path="/buyermatch/*" element={<Navigate to={location.pathname.replace(/^\/buyermatch/, '/app/buyermatch')} replace />} />
         <Route path="/buyer-response" element={<BuyerMatchResponse />} />
         <Route path="/pricing" element={<Pricing />} />

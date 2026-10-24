@@ -432,6 +432,15 @@ test('owner-admin provider preflight fails closed outside Production without Buy
   finally {email='regular@example.invalid';}
 });
 
+test('network approval requires recorded buyer invitation consent before any sync write',async()=>{
+ calls.length=0;process.env.DEALBLAST_OWNER_ADMIN_EMAILS=email;
+ try{
+  const response=await invoke('admin-sync-buyer',{identity:{name:'Synthetic',email:'buyer@example.invalid'},criteria:{markets:[{state:'AL'}],assetTypes:['sfh']},sourceId:dealId,consentEvidence:'Approved by an admin'});
+  assert.equal(response.statusCode,409);
+  assert.equal(calls.some(c=>c.rpc==='bm_sync_portal_buyer'),false);
+ }finally{delete process.env.DEALBLAST_OWNER_ADMIN_EMAILS}
+});
+
 test('unsubscribed BuyerMatch user can review and sign only current platform agreements',async()=>{
  const previous=records.bm_entitlements;records.bm_entitlements=[];
  const doc={id:'33333333-3333-4333-8333-333333333333',kind:'platform_terms',version:'1',approved:true,current:true,content:'Synthetic terms'};

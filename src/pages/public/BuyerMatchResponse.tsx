@@ -84,7 +84,8 @@ export default function BuyerMatchResponse() {
   return (
     <main className="min-h-screen bg-slate-950 text-white p-8">
       <div className="max-w-lg mx-auto space-y-5">
-        <h1 className="text-2xl">DBP Private Network response</h1>
+        <h1 className="text-2xl">BuyerMatch private deal response</h1>
+        <p className="text-sm text-slate-400">Powered by Deal Blast Pro. No subscriber plan is required to respond to your invitation.</p>
         <p>
           This private link is limited to the deal you received. Do not forward
           it.

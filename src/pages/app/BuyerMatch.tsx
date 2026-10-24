@@ -85,6 +85,12 @@ function Analysis({ value }: { value: RecordData }) {
   );
 }
 export default function BuyerMatch() {
+  const ownerId = useAppStore(s => s.user?.id);
+  const location = useLocation();
+  // Never reuse drafts/private results when the account or deal route changes.
+  return <BuyerMatchScreen key={`${ownerId || 'signed-out'}:${location.pathname}`} />;
+}
+function BuyerMatchScreen() {
   const { id } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -225,7 +231,7 @@ export default function BuyerMatch() {
               ? "BuyerMatch access"
               : "DBP BuyerMatch"}
         </h1>
-        <nav className="flex gap-5 text-sm">
+        <nav aria-label="BuyerMatch workspace" className="flex flex-wrap gap-5 text-sm">
           <Link to="/app/buyermatch">My deals</Link>
           <Link to="/app/buyermatch/plans">Plans & allowances</Link>
           {plans.isNetworkAdmin && (

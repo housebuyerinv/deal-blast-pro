@@ -1,4 +1,5 @@
 import { subscriberPortal } from '../buyermatch/portal.js';
+import { portalConsentEvidence } from '../buyermatch/portal-consent.js';
 import { subscriberAgreements, requireSubscriberAgreements } from '../buyermatch/onboarding.js';
 import { randomUUID, createHash } from "node:crypto";
 import { z } from "zod";
@@ -423,6 +424,7 @@ export default async function handler(req: any, res: any) {
         const criteria = criteriaSchema.parse(body.criteria || {});
         if (!criteria.markets.length || !criteria.assetTypes.length)
           fail("BuyerMatch requires at least one supported market and property type");
+        const consentEvidence = await portalConsentEvidence(db, body.sourceId, identity.email);
         const hash = identityHash(identity.email);
         const payload = {
           identity_hash: hash,
@@ -431,7 +433,7 @@ export default async function handler(req: any, res: any) {
           status: "active",
           criteria_verified_at: new Date().toISOString(),
           synthetic: process.env.BM_ENVIRONMENT === 'staging' && identity.email.endsWith('@example.invalid'),
-          consent_evidence: String(body.consentEvidence || "Approved Buyer Portal submission").slice(0, 2000),
+          consent_evidence: consentEvidence,
           source_ciphertext: encryptIdentity({
             source: "buyer_portal",
             sourceId: String(body.sourceId || ""),

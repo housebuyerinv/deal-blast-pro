@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Upload, CheckCircle, AlertCircle, FileText, ShieldCheck } from 'lucide-react'
 import { toast } from 'sonner'
-import { uploadBuyerProofFile, type BuyerProofFileMeta } from '../../lib/buyerProofStorage'
+import { uploadBuyerProofBatch, type BuyerProofFileMeta } from '../../lib/buyerProofStorage'
 import { createBuyerPortalSubmission } from '../../lib/buyerPortalSubmissionStorage'
 import { useAppStore } from '../../store/useAppStore'
 import PublicFooter from '../../components/layout/PublicFooter'
@@ -109,6 +110,7 @@ const emptyForm = {
     bathRequirement: 'Any',
     unitRequirement: 'Any',
   consent: false,
+  dealConsent: false,
 }
 
 function money(value: string) {
@@ -148,14 +150,20 @@ function Chip({
 const BED_REQUIREMENT_OPTIONS = ['Any', 'Studio', '1+', '2+', '3+', '4+', '5+']
 const BATH_REQUIREMENT_OPTIONS = ['Any', '1+', '1.5+', '2+', '2.5+', '3+', '4+']
 const UNIT_REQUIREMENT_OPTIONS = ['Any', '1+', '2+', '3+', '4+', '5+', '10+', '20+', '50+', '100+']
-const FILE_UPLOAD_WARNING = 'Submission received, but file upload could not be completed. Please email files separately.'
+const FILE_UPLOAD_WARNING = 'Proof upload did not complete. Supporting documents still need secure follow-up.'
 
-export default function BuyerPortal() {
+export default function BuyerPortal({ product = 'crm' }: { product?: 'crm' | 'buyermatch' }) {
+  const independent = product === 'buyermatch'
+  const submitting = useRef(false)
+  const uploading = useRef(false)
+  const submissionKey = useRef(crypto.randomUUID())
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
   const trial = useAppStore(s => s.trial)
   const plan = trial.plan === 'Free Demo' ? 'Free' : trial.plan || 'Free'
   const billingStatus = trial.billingStatus || (trial.isPaid ? 'Paid Active' : plan === 'Free' ? 'Free Active' : 'Trial Active')
   const billingAccessBlocked = billingStatus === 'Past Due' || billingStatus === 'Cancelled' || billingStatus === 'Payment Pending'
-  const publicSignupBlocked = billingAccessBlocked
+  const publicSignupBlocked = !independent && billingAccessBlocked
   const publicSignupBlockedMessage = billingAccessBlocked
     ? billingStatus === 'Payment Pending'
       ? 'Buyer signup is paused while payment is pending. Please wait for admin confirmation or contact admin if payment has already been completed.'
@@ -189,7 +197,7 @@ const [submitted, setSubmitted] = useState(false)
     const nextErrors: string[] = []
 
     if (!form.name.trim()) nextErrors.push('Buyer name is required.')
-    if (!form.email.trim()) nextErrors.push('Email is required.')
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) nextErrors.push('A valid email is required.')
     if (!form.phone.trim()) nextErrors.push('Phone is required.')
     if (!form.company.trim()) nextErrors.push('Company / entity is required.')
     if (buyerTypes.length === 0) nextErrors.push('Select at least one buyer type.')
@@ -198,7 +206,8 @@ const [submitted, setSubmitted] = useState(false)
     if (markets.includes('Other') && !form.marketsOther.trim()) nextErrors.push('Describe the Other target market.')
     if (assetTypes.length === 0) nextErrors.push('Select at least one asset type.')
     if (assetTypes.includes('Other') && !form.assetTypeOther.trim()) nextErrors.push('Describe the Other asset type.')
-    if (proofFiles.length === 0 && !fileUploadWarning) nextErrors.push('Upload at least one proof document.')
+    if (!independent && proofFiles.length === 0 && !fileUploadWarning) nextErrors.push('Upload at least one proof document.')
+    if (Number(form.priceMin) < 0 || Number(form.priceMax) < 0 || (form.priceMin && form.priceMax && Number(form.priceMin) > Number(form.priceMax))) nextErrors.push('Enter a valid minimum and maximum budget.')
     if (!form.consent) nextErrors.push('Consent confirmation is required.')
 
     setErrors(nextErrors)
@@ -207,28 +216,33 @@ const [submitted, setSubmitted] = useState(false)
 
   const handleProofUpload = async (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return
+    if (submitting.current || uploading.current) return
+    if (proofFiles.length + fileList.length > 10) { toast.error('Attach no more than 10 proof documents.'); return }
 
     if (currentProofType === 'Other' && !currentOtherLabel.trim()) {
       toast.error('Describe the Other document type before uploading.')
       return
     }
 
+    uploading.current = true
+    setIsUploading(true)
     try {
-      const rows: ProofFileRow[] = await Promise.all(Array.from(fileList).map(file =>
-        uploadBuyerProofFile(
-          file,
-          currentProofType,
-          currentProofType === 'Other' ? currentOtherLabel.trim() : ''
-        )
-      ))
-
+      const result = await uploadBuyerProofBatch(Array.from(fileList), currentProofType, currentProofType === 'Other' ? currentOtherLabel.trim() : '')
+      const rows = result.uploaded.filter(row => !independent || row.storageProvider === 'supabase')
       setProofFiles(prev => [...prev, ...rows])
-      setFileUploadWarning('')
-      toast.success(`${rows.length} proof file${rows.length === 1 ? '' : 's'} attached`)
-    } catch (error) {
-      console.error('Proof file upload failed:', error)
+      if (result.failedCount || rows.length !== result.uploaded.length) {
+        setFileUploadWarning(FILE_UPLOAD_WARNING)
+        toast.error(`${rows.length} proof files attached. ${FILE_UPLOAD_WARNING}`)
+      } else {
+        setFileUploadWarning('')
+        toast.success(`${rows.length} proof file${rows.length === 1 ? '' : 's'} attached`)
+      }
+    } catch {
       setFileUploadWarning(FILE_UPLOAD_WARNING)
       toast.error(FILE_UPLOAD_WARNING)
+    } finally {
+      uploading.current = false
+      setIsUploading(false)
     }
   }
 
@@ -238,6 +252,7 @@ const [submitted, setSubmitted] = useState(false)
 
   const submitBuyer = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (submitting.current || uploading.current) return
 
     if (publicSignupBlocked) {
       toast.error(publicSignupBlockedMessage)
@@ -248,6 +263,8 @@ const [submitted, setSubmitted] = useState(false)
       toast.error('Please complete the required buyer verification fields.')
       return
     }
+    submitting.current = true
+    setIsSubmitting(true)
 
     const cleanBuyerTypes = buyerTypes.map(t => t === 'Other' ? `Other: ${form.buyerTypeOther.trim()}` : t)
     const cleanMarkets = markets.map(t => t === 'Other' ? `Other: ${form.marketsOther.trim()}` : t)
@@ -331,13 +348,15 @@ const [submitted, setSubmitted] = useState(false)
     } as any
 
     try {
-      await createBuyerPortalSubmission(buyerSubmission)
+      await createBuyerPortalSubmission(buyerSubmission, { operationKey: submissionKey.current, notify: !independent })
       setSubmissionWarning(fileUploadWarning)
       toast.success(fileUploadWarning ? `Buyer verification submitted for review. ${fileUploadWarning}` : 'Buyer verification submitted for review.')
       setSubmitted(true)
-    } catch (error) {
-      console.error('Buyer portal submission failed:', error)
-      toast.error('Could not submit buyer profile. Check Supabase table policies and try again.')
+    } catch {
+      toast.error('We could not confirm your submission. Retry with the same details, or contact support before starting again.')
+    } finally {
+      submitting.current = false
+      setIsSubmitting(false)
     }
   }
 
@@ -384,7 +403,8 @@ const [submitted, setSubmitted] = useState(false)
             <ShieldCheck size={14} />
             Verified Buyer Intake
           </div>
-          <h1 className="text-4xl font-bold mb-3">Join Our Private Buyer Network</h1>
+          <h1 className="text-4xl font-bold mb-3">{independent ? 'Join the BuyerMatch buyer network' : 'Join Our Private Buyer Network'}</h1>
+          {independent && <div className="mb-4 space-y-2"><p>Powered by Deal Blast Pro. Submit buying criteria without purchasing a CRM or BuyerMatch subscriber plan.</p><p>Your submission stays private and requires review. It does not automatically verify you, activate distribution, or guarantee an invitation.</p><Link className="underline" to="/buyermatch">Looking for deal-matching software? Compare BuyerMatch plans</Link></div>}
           <p className="text-[#C5CAD6] max-w-3xl">
             Submit your buying criteria and proof documents so we can confirm your purchasing ability and match you with off-market opportunities.
           </p>
@@ -615,7 +635,7 @@ const [submitted, setSubmitted] = useState(false)
           <div className="card p-6">
             <h2 className="text-xl font-semibold mb-2">Verification Documents *</h2>
             <p className="text-sm text-[#8B92A3] mb-4">
-              Upload at least one proof document. Select what the file is before attaching it.
+              {independent ? 'Proof can be supplied through a secure signed-in upload or during review. Do not paste financial records into the notes.' : 'Upload at least one proof document. Select what the file is before attaching it.'}
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
@@ -639,6 +659,8 @@ const [submitted, setSubmitted] = useState(false)
                   className="input"
                   type="file"
                   multiple
+                  disabled={isSubmitting || isUploading}
+                  accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.txt,.csv"
                   onChange={e => {
                     void handleProofUpload(e.target.files)
                     e.currentTarget.value = ''
@@ -698,11 +720,12 @@ const [submitted, setSubmitted] = useState(false)
                 I confirm the information submitted is accurate. Verification badges require review of supporting evidence; joining the private network does not automatically verify me.
               </span>
             </label>
+            <label className="flex items-start gap-3 mt-4 text-sm"><input type="checkbox" checked={form.dealConsent} onChange={e => updateForm('dealConsent', e.target.checked)} /><span>I also consent to receive relevant private deal invitations. This is optional; I can unsubscribe from an invitation. My criteria submission alone does not authorize distribution.</span></label>
           </div>
 
           <div className="flex flex-col md:flex-row gap-3">
-            <button type="submit" disabled={publicSignupBlocked} className="btn btn-primary flex-1 py-3 disabled:opacity-60 disabled:cursor-not-allowed">
-              {publicSignupBlocked ? 'Buyer Signup Paused' : 'Submit Buyer Verification'}
+            <button type="submit" disabled={publicSignupBlocked || isSubmitting || isUploading} className="btn btn-primary flex-1 py-3 disabled:opacity-60 disabled:cursor-not-allowed">
+              {publicSignupBlocked ? 'Buyer Signup Paused' : isUploading ? 'Uploading proof…' : isSubmitting ? 'Submitting…' : 'Submit Buyer Verification'}
             </button>
           </div>
         </form>

@@ -132,6 +132,7 @@ export default function BuyerMatchLanding() {
             ))}
           </div>
           <p className="mt-4 text-center"><Link to="/admin-login?product=buyermatch&tier=starter">Already use DBP? Sign in to add BuyerMatch</Link></p>
+          <p className="mt-4 text-center"><Link className="underline" to="/buyermatch/buyers">Buying properties? Submit your criteria to the private buyer network</Link></p>
           <p className="mx-auto mt-6 max-w-4xl text-sm text-[#AAB2C2]">Creating an account does not start billing. Subscription access begins only after payment is verified. Allowances apply per billing period; match counts and responses are not guaranteed. Distribution remains subject to review, eligibility, consent, and required agreements.</p>
           <div className="mx-auto mt-6 max-w-4xl rounded-2xl border border-[#22C55E]/30 bg-[#22C55E]/5 p-6">
             <h3 className="text-xl font-semibold">Managed disposition  -  separately arranged service</h3>
