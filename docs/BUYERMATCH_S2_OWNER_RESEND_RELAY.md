@@ -1,10 +1,33 @@
-# S2 owner confirmation relay — blocked on provider event routing
+# S2 owner confirmation relay — isolated sender prepared; execution locked
 
 Scope: one owner-approved signup confirmation to `housebuyerinv@gmail.com`,
-using `housebuyerinvestments.com`. No deployment, public registration unpause,
+using `s2.housebuyerinvestments.com`. No deployment, public registration unpause,
 paid subscription, owner role assignment, or changes to an existing subscriber.
 
-## Independently observed provider state
+## Current provider state and approved key specification
+
+- Separate owner-controlled Resend account, inspected in the authenticated browser.
+  Free, 0/3,000 monthly and 0/100 daily used at inspection; pay-as-you-go off.
+- `s2.housebuyerinvestments.com` is Verified; domain ID
+  `0c6e05ac-02c7-4864-ba06-7a171f3e610c`. DNS and 14 preserved original records
+  are frozen evidence in PR checkpoint 6388818651; do not repeat that work.
+- Zero webhook destinations in the isolated account. The existing connector
+  still accesses the shared account and must not be used to create this S2 key.
+- Actual key-creation UI supports **Sending access** and exact domain selection
+  `s2.housebuyerinvestments.com`. Those settings were inspected, then cancelled.
+  No API key exists yet in that account; no key was created or exposed.
+- Proposed key name: `BM-S2-Owner-Verification-Isolated`; Sending access only,
+  restricted to the exact domain above. No Full access, All domains, SMTP setup,
+  application runtime installation or shared/Production key reuse is needed.
+
+Sending-only credentials do not provide general administrative introspection.
+Do not add Full access merely to list webhooks or inspect keys. Verify scope in
+the correct authenticated provider account before the owner privately creates
+and retains the key; a `re_` prefix alone does not prove account/domain provenance.
+Keep browser observation stopped while a newly created key or private login link
+is visible. The owner closes that secret view before metadata inspection resumes.
+
+### Historical shared-account blocker (preserved evidence)
 
 - Resend domain `housebuyerinvestments.com`: verified, sending enabled; open and
   click tracking disabled. MoneyMap uses a different verified domain.
@@ -17,9 +40,9 @@ paid subscription, owner role assignment, or changes to an existing subscriber.
   schema is not a claim that every provider product lacks the capability.
 
 **Do not run the owner helper or enter credentials yet.** Both executable entry
-points stop before private input or provider operations. The earlier request to
-prepare a private key is superseded by this routing gate; any already-created
-dedicated key should remain unused and private. Do not modify shared webhooks.
+points still stop before private input or provider operations, now because the
+new isolated key and one-email execution lack explicit authorization. The old
+shared-account key remains unused. Do not modify shared webhooks.
 
 ## Implemented local draft
 
@@ -33,6 +56,13 @@ login, auto-confirms, assigns roles/workspaces, or changes the existing email ho
 The existing capture-only hook can remain byte-for-byte unchanged. No SMTP or
 Supabase hook switch is needed for this relay design. Confirmation, private normal
 login, and later authorized profile/workspace provisioning remain separate gates.
+The sender is fixed to `s2-verification@s2.housebuyerinvestments.com`; recipient
+remains only `housebuyerinv@gmail.com`, not the new Resend account's login address.
+The real transport permits only the exact staging inventory read, staging signup
+link generation, UUID user readback and one fixed-recipient Resend send. It denies
+Production origins, Auth updates/deletes, other recipients, CC/BCC, alternate
+senders, recovery/magic-link generation and unrelated routes. Tests exercise that
+same transport policy with dummy requests.
 
 `scripts/owner-confirm-buyermatch-s2.ps1` prepares masked SecureString input and
 an stdin pipe to a pinned Node executable/implementation. No secrets are placed in
@@ -54,28 +84,59 @@ negative tests. Seven PowerShell 5 dummy checks passed, including an actual loca
 stdin pipe. No network send, real user creation, real password, or real owner
 handoff is covered by these tests. Scoped JavaScript lint: zero errors/warnings.
 
+Updated isolated-sender preparation: **33 Node checks and 7 PowerShell 5 checks
+PASS**, using dummy credentials only. Includes changed sender/domain prompt,
+exact launcher/core pin, restricted real-request policy and actual blocked child
+execution even with forged environment authorization flags. These supersede the
+affected historical 31-check subset; no hosted or application suite was repeated.
+
 PowerShell initially failed under the restricted sandbox; the synthetic tests
 passed outside that restriction without elevation, execution-policy changes or
 security bypass. One dummy pipe test initially had incorrect quoting; that fixture
 was corrected and the actual dummy pipe then passed.
 
-## Next gate and rollback
+## Precise next approval and private owner step
 
-Establish verified provider-side event isolation, or independently verify the
-actual deployed receivers' no-write handling of this exact unrelated message and
-obtain approval for any Production-directed event traffic required. Do not infer
-either result from local source tests. Do not send as a diagnostic experiment.
+Authorize only: one new domain-restricted Sending-access key in the verified S2
+account; reviewed activation of the blocked local entrypoints; one NEW unconfirmed
+Supabase Auth identity for the fixed owner if none exists; and one signup-confirmation
+email to that owner through the isolated sender. Freshly verify provider scope,
+quota, zero webhooks, staging Auth binding and protected callback before execution.
+No other messages, recipient, auto-confirmation, account repair or retry are allowed.
 
-After routing clearance, review the gated entry points before enabling them;
-privately obtain a sending-only domain-scoped S2 key and complete one owner session.
-Do not reuse MoneyMap or Production keys. The current helpers are deliberately
-not a runnable owner handoff. No new provider resources or keys were created.
+One consolidated private owner session is necessary: personally create/save the
+key without agent browser observation, close the secret display, then enter that
+key and the new S2 password twice into the masked, hash-verified local launcher.
+Private data travels through stdin, not argv/environment/files. The owner then
+opens the confirmation email privately in an authorized protected browser; never
+paste links/codes/passwords in chat. No executable command is handed off while
+the current reviewed-code locks remain closed. Activation must refresh the core
+and wrapper fingerprints before the real run; no environment flag unlocks them.
+
+**Email confirmation alone is not application-owner readiness.** This helper
+does not create a DBP signed registration intent, record agreement acceptance,
+assign an Admin profile or create a workspace. `completeRegistration()` attempts
+POST completion for a new identity; registration pause still blocks that POST.
+After genuine confirmation, existing approved staging-owner provisioning must
+follow its verified-identity/intent/agreement rules, then independently verify
+normal login, Active Admin profile and owned workspace before attestation.
+Do not disable the pause, fabricate consent/intent, or call this email step proof
+of owner-positive application access. Profile/workspace mutation is not part of
+this preparation or the proposed one-message relay scope.
+
+## Failure and rollback
 
 If a later approved relay partially creates an identity, preserve its exact ID and
 receipt, review its current state, and disable/revoke only that new identity using
 supported Auth administration if needed. Deletion requires dependency review and
 must never select rows by an email pattern. Preserve existing users and evidence.
 This batch has no remote mutations to roll back.
+Provider 429, timeout or uncertain send stops with a sanitized partial-state
+receipt; no automatic retries or rate-limit changes. The message cannot be unsent.
+Preserve the exact newly created identity for read-only review; cleanup must be
+separately authorized and dependency-scoped. Never delete an existing owner or
+reuse a possibly consumed confirmation link. Revoke only the newly owned S2 key
+when authorized; do not rotate/revoke shared, Production or MoneyMap credentials.
 
 References: [Supabase generateLink](https://supabase.com/docs/reference/javascript/auth-admin-generatelink),
 [Resend send](https://resend.com/docs/api-reference/emails/send-email),

@@ -7,12 +7,34 @@ import { pathToFileURL } from 'node:url';
 export const OWNER = 'housebuyerinv@gmail.com';
 export const REF = 'qxhhlprentrufobpcgna';
 export const CALLBACK = 'https://dbp-registration-s2-preview-housebuyerinv.vercel.app/auth/callback';
+export const SENDER = 'BuyerMatch S2 <s2-verification@s2.housebuyerinvestments.com>';
+export const SENDER_DOMAIN_ID = '0c6e05ac-02c7-4864-ba06-7a171f3e610c';
+const subject = 'Verify your BuyerMatch S2 staging-owner account';
 const origin = `https://${REF}.supabase.co`;
 const cli = 'C:/Users/CTL Katastrophic/AppData/Roaming/npm/node_modules/supabase/dist/supabase.js';
 const cliHash = '253caa8c31ee5976322d04a8bd7752622c0915e7943de3f74e2b73395c54a240';
-// Current shared Resend team has Production webhook destinations. This is a
-// reviewed-code gate, deliberately not a runtime flag or owner override.
-const providerRoutingVerified = false;
+// The new isolated domain is verified. Key creation/provenance and this one
+// identity/email run still need explicit authorization and fresh provider checks.
+// A reviewed-code lock, not an environment flag or owner-input override.
+const ownerSendAuthorized = false;
+
+export function assertOwnerRelayRequest(method, url, body) {
+  const u = new URL(url);
+  if (u.username || u.password || u.hash) throw Error('Relay request denied');
+  if (method === 'GET' && body === undefined &&
+      (u.href === `${origin}/auth/v1/admin/users?page=1&per_page=1000` ||
+       (u.origin === origin && !u.search && /^\/auth\/v1\/admin\/users\/[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(u.pathname)))) return;
+  if (method === 'POST' && u.origin === origin && u.pathname === '/auth/v1/admin/generate_link' &&
+      [...u.searchParams.keys()].join(',') === 'redirect_to' && u.searchParams.get('redirect_to') === CALLBACK &&
+      body && Object.keys(body).sort().join(',') === 'email,password,redirect_to,type' &&
+      body.email === OWNER && body.type === 'signup' && body.redirect_to === CALLBACK &&
+      typeof body.password === 'string' && body.password.length >= 16 && body.password.length <= 1024) return;
+  if (method === 'POST' && u.href === 'https://api.resend.com/emails' && body &&
+      Object.keys(body).sort().join(',') === 'from,subject,text,to' && body.from === SENDER &&
+      Array.isArray(body.to) && body.to.length === 1 && body.to[0] === OWNER &&
+      body.subject === subject && typeof body.text === 'string') return;
+  throw Error('Relay request denied');
+}
 
 export async function relayOwnerConfirmation(input, io) {
   const receipt = { stage: 'preflight', accountMayExist: false, emailAccepted: false, userId: null };
@@ -47,8 +69,8 @@ export async function relayOwnerConfirmation(input, io) {
     if (user.id !== generated.id || user.email !== OWNER || user.email_confirmed_at || user.is_anonymous || user.banned_until) throw Error();
     receipt.stage = 'send-owner-confirmation';
     const sent = await io.request('POST', 'https://api.resend.com/emails', input.resendKey, {
-      from: 'BuyerMatch S2 <s2-verification@housebuyerinvestments.com>',
-      to: [OWNER], subject: 'Verify your BuyerMatch S2 staging-owner account',
+      from: SENDER,
+      to: [OWNER], subject,
       text: `You authorized this isolated staging-owner setup. This does not activate billing or public registration. Open the following private verification link yourself, then sign in normally using the password you entered locally. Do not share this link or password.\n\n${link.href}\n\nIf you did not initiate this exact setup, do not open the link.`,
     }, { 'Idempotency-Key': `buyermatch-s2-owner-confirmation:${generated.id}:v1` });
     if (typeof sent.id !== 'string' || !/^[a-f0-9-]{36}$/i.test(sent.id)) throw Error();
@@ -63,8 +85,7 @@ export async function relayOwnerConfirmation(input, io) {
 
 async function realRequest(method, url, key, body, extra = {}) {
   const u = new URL(url);
-  if (!((u.origin === origin && u.pathname.startsWith('/auth/v1/admin/')) ||
-        (method === 'POST' && u.href === 'https://api.resend.com/emails'))) throw Error();
+  assertOwnerRelayRequest(method, url, body);
   const response = await fetch(u, {
     method, redirect: 'error', signal: AbortSignal.timeout(30000),
     headers: { Authorization: `Bearer ${key}`, ...(u.origin === origin ? { apikey: key } : {}),
@@ -83,8 +104,8 @@ async function realRequest(method, url, key, body, extra = {}) {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   let result = { ok: false, stage: 'private-input', accountMayExist: false, requiresReview: true };
   try {
-    if (!providerRoutingVerified) {
-      result.stage = 'provider-routing-unverified';
+    if (!ownerSendAuthorized) {
+      result.stage = 'owner-send-not-authorized';
       throw Error();
     }
     if (process.argv.length !== 2 || ['RESEND_API_KEY', 'STRIPE_API_KEY', 'SUPABASE_SERVICE_ROLE_KEY'].some(k => process.env[k])) throw Error();

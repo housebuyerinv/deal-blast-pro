@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { relayOwnerConfirmation, OWNER, REF, CALLBACK } from '../scripts/testing/s2-owner-confirmation.mjs';
+import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { relayOwnerConfirmation, assertOwnerRelayRequest, OWNER, REF, CALLBACK, SENDER, SENDER_DOMAIN_ID } from '../scripts/testing/s2-owner-confirmation.mjs';
 const id = 'd06b3f41-72fa-4517-a36a-f14d83b0a6e2';
 const password = 'DUMMY_PRIVATE_PASSWORD_123';
 const resendKey = 're_DUMMY_PRIVATE_KEY_123456789';
@@ -11,6 +13,7 @@ function fixture(change={}) {
   const user={id,email:OWNER,email_confirmed_at:null};
   const generated={...user,verification_type:'signup',action_link:`https://${REF}.supabase.co/auth/v1/verify?token=DUMMY_PRIVATE_TOKEN&type=signup&redirect_to=${encodeURIComponent(CALLBACK)}`,...change.generated};
   const io={getServiceKey:()=>change.key||key,request:async(method,url,credential,body,headers)=>{
+    assertOwnerRelayRequest(method,url,body);
     calls.push({method,url,credential,body,headers});
     if(change.fail===calls.length)throw Error('DUMMY_PRIVATE_TOKEN '+password+' '+resendKey);
     if(calls.length===1)return {users:change.users||[],total:change.total===undefined?(change.users||[]).length:change.total};
@@ -33,7 +36,9 @@ test('supported signup relay sends exactly one owner-only message and never conf
   assert.equal(f.calls[3].url,'https://api.resend.com/emails');
   assert.equal(f.calls[3].credential,resendKey);
   assert.deepEqual(f.calls[3].body.to,[OWNER]);
-  assert.equal(f.calls[3].body.from,'BuyerMatch S2 <s2-verification@housebuyerinvestments.com>');
+  assert.equal(f.calls[3].body.from,SENDER);
+  assert.equal(SENDER,'BuyerMatch S2 <s2-verification@s2.housebuyerinvestments.com>');
+  assert.equal(SENDER_DOMAIN_ID,'0c6e05ac-02c7-4864-ba06-7a171f3e610c');
   assert.equal(f.calls[3].headers['Idempotency-Key'],`buyermatch-s2-owner-confirmation:${id}:v1`);
   assert.ok(!JSON.stringify(f.calls).includes('email_confirm":true'));
   const output=JSON.stringify(r);
@@ -91,9 +96,39 @@ test('actual child process invalid input exits sanitized before provider calls',
   assert.equal(JSON.parse(r.stdout).accountMayExist,false);
 });
 test('real entry remains blocked even with valid synthetic private input',()=>{
-  const r=spawnSync(process.execPath,['scripts/testing/s2-owner-confirmation.mjs'],{input:JSON.stringify(input()),encoding:'utf8'});
+  const r=spawnSync(process.execPath,['scripts/testing/s2-owner-confirmation.mjs'],{input:JSON.stringify(input()),encoding:'utf8',
+    env:{...process.env,OWNER_SEND_AUTHORIZED:'true',BM_S2_OWNER_SEND_AUTHORIZED:'true'}});
   assert.equal(r.status,1);assert.equal(r.stderr,'');
   const result=JSON.parse(r.stdout);
-  assert.equal(result.stage,'provider-routing-unverified');assert.equal(result.accountMayExist,false);
+  assert.equal(result.stage,'owner-send-not-authorized');assert.equal(result.accountMayExist,false);
   assert.ok(!r.stdout.includes(password));assert.ok(!r.stdout.includes(resendKey));
+});
+
+test('real request policy rejects unauthorized destinations and mutations without reflecting inputs',()=>{
+  const message={from:SENDER,to:[OWNER],subject:'Verify your BuyerMatch S2 staging-owner account',text:'DUMMY_PRIVATE_TOKEN'};
+  assert.doesNotThrow(()=>assertOwnerRelayRequest('POST','https://api.resend.com/emails',message));
+  for(const [method,url,body] of [
+    ['POST',`https://${REF}.supabase.co/auth/v1/admin/users`,{email:OWNER,email_confirm:true}],
+    ['PUT',`https://${REF}.supabase.co/auth/v1/admin/users/${id}`,{password}],
+    ['DELETE',`https://${REF}.supabase.co/auth/v1/admin/users/${id}`],
+    ['GET',`https://${REF}.supabase.co/auth/v1/admin/users?page=2&per_page=1000`],
+    ['GET',`https://aigvnbxiydbzzqbetlhl.supabase.co/auth/v1/admin/users/${id}`],
+    ['POST','https://api.resend.com/emails',{...message,from:'BuyerMatch <owner@housebuyerinvestments.com>'}],
+    ['POST','https://api.resend.com/emails',{...message,to:['different@example.invalid']}],
+    ['POST','https://api.resend.com/emails',{...message,to:[OWNER,'different@example.invalid']}],
+    ['POST','https://api.resend.com/emails',{...message,bcc:['different@example.invalid']}],
+    ['POST','https://api.resend.com/emails?token=DUMMY_PRIVATE_TOKEN',message],
+    ['POST','http://api.resend.com/emails',message],
+    ['POST',`https://${REF}.supabase.co/auth/v1/admin/generate_link?redirect_to=${encodeURIComponent(CALLBACK)}`,{email:OWNER,type:'recovery',password,redirect_to:CALLBACK}],
+    ['POST',`https://${REF}.supabase.co/auth/v1/admin/generate_link?redirect_to=${encodeURIComponent(CALLBACK)}`,{email:'other@example.invalid',type:'signup',password,redirect_to:CALLBACK}],
+    ['POST',`https://${REF}.supabase.co/auth/v1/admin/generate_link?redirect_to=${encodeURIComponent(CALLBACK)}`,{email:OWNER,type:'signup',password,redirect_to:'https://example.invalid'}],
+  ])assert.throws(()=>assertOwnerRelayRequest(method,url,body),e=>e.message==='Relay request denied');
+});
+
+test('private launcher pins the exact reviewed relay and names only the isolated sender',()=>{
+  const wrapper=readFileSync('scripts/owner-confirm-buyermatch-s2.ps1','utf8');
+  const coreHash=createHash('sha256').update(readFileSync('scripts/testing/s2-owner-confirmation.mjs')).digest('hex').toUpperCase();
+  assert.equal(wrapper.match(/\$pin='([A-F0-9]+)'/)[1],coreHash);
+  assert.match(wrapper,/restricted to s2\.housebuyerinvestments\.com/);
+  assert.doesNotMatch(wrapper,/restricted to housebuyerinvestments\.com/);
 });

@@ -9,7 +9,7 @@ function Invoke-S2OwnerPrivateEntry {
  param([scriptblock]$ReadPrivate,[scriptblock]$RunPrivate)
  $first=$null;$second=$null;$key=$null;$payload=$null
  try {
-  $key=& $ReadPrivate 'Dedicated Resend sending-only key for housebuyerinvestments.com (private)'
+  $key=& $ReadPrivate 'Isolated S2 Resend sending-only key restricted to s2.housebuyerinvestments.com (private)'
   $first=& $ReadPrivate 'New S2 owner password (private; minimum 16 characters)'
   $second=& $ReadPrivate 'Confirm S2 owner password (private)'
   if($key -isnot [Security.SecureString] -or $first -isnot [Security.SecureString] -or $second -isnot [Security.SecureString]){throw 'Private entry unavailable'}
@@ -24,18 +24,18 @@ function Invoke-S2OwnerPrivateEntry {
 if($MyInvocation.InvocationName -ne '.') {
  $child=$null
  try {
-  # Current shared-team event routing is unverified. Fail before secret entry.
-  throw 'Provider routing isolation is not approved. No private entry or provider operation is permitted.'
+  # Domain isolation is verified; explicit key/send-run authorization is pending.
+  throw 'Isolated owner-confirmation execution is not authorized. No private entry or provider operation is permitted.'
   $node='C:\Program Files\nodejs\node.exe'
   $core=Join-Path $PSScriptRoot 'testing\s2-owner-confirmation.mjs'
-  $pin='2D5924FC295081B14009315D3C9F5110FFB09BE4445A33E3B57615AB76DDAD14'
+  $pin='B5DAB415BBB4F162690A926021B29F4093320F2506879DA219B4F44CDF173FA1'
   if(!(Test-Path -LiteralPath $core -PathType Leaf) -or !(Test-Path -LiteralPath $node -PathType Leaf)){throw 'Verified dependency missing'}
   if((Get-FileHash -LiteralPath $core -Algorithm SHA256).Hash -cne $pin){throw 'Confirmation implementation changed'}
   if((Get-FileHash -LiteralPath $node -Algorithm SHA256).Hash -cne 'B3094D0B49F9AD602262A9921551737BB97637C05DD357A06AE98188D7290AA3'){throw 'Node fingerprint changed'}
   $cli='C:\Users\CTL Katastrophic\AppData\Roaming\npm\node_modules\supabase\dist\supabase.js'
   if(!(Test-Path -LiteralPath $cli -PathType Leaf) -or (Get-FileHash -LiteralPath $cli -Algorithm SHA256).Hash -cne '253CAA8C31EE5976322D04A8BD7752622C0915E7943DE3F74E2B73395C54A240'){throw 'Staging CLI dependency changed'}
   Write-Host 'One S2 owner confirmation only. This does not activate registration, billing or an owner role.'
-  Write-Host 'Use only a dedicated sending-only Resend key restricted to housebuyerinvestments.com. No MoneyMap/Production key.'
+  Write-Host 'Use only the NEW isolated-account sending-only key restricted to s2.housebuyerinvestments.com. Never use the old shared key.'
   $run={param($privateJson)
    if((Get-FileHash -LiteralPath $core -Algorithm SHA256).Hash -cne $pin -or (Get-FileHash -LiteralPath $node -Algorithm SHA256).Hash -cne 'B3094D0B49F9AD602262A9921551737BB97637C05DD357A06AE98188D7290AA3' -or (Get-FileHash -LiteralPath $cli -Algorithm SHA256).Hash -cne '253CAA8C31EE5976322D04A8BD7752622C0915E7943DE3F74E2B73395C54A240'){throw 'Verified dependency changed during private entry'}
    $psi=New-Object Diagnostics.ProcessStartInfo

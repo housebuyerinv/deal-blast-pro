@@ -5,6 +5,7 @@ foreach($case in @('success','mismatch','short','invalid-key','plaintext-input',
  $script:prompts=0;$script:calls=0;$failed=$false
  $read={param($label)
   $script:prompts++
+  if($script:prompts -eq 1 -and $label -cnotmatch 'restricted to s2\.housebuyerinvestments\.com'){throw 'Isolated sender prompt missing'}
   if($case -eq 'plaintext-input'){return 'DUMMY_PRIVATE_STRING'}
   $s=if($script:prompts -eq 1){'re_DUMMY_PRIVATE_KEY_123456789'}else{'DUMMY_PRIVATE_PASSWORD_123'}
   if($case -eq 'mismatch' -and $script:prompts -eq 3){$s='DUMMY_DIFFERENT_PASSWORD'}
