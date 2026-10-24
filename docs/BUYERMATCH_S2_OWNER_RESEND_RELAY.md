@@ -1,4 +1,4 @@
-# S2 owner confirmation relay — isolated sender prepared; execution locked
+# S2 owner confirmation relay — one-message execution authorized
 
 Scope: one owner-approved signup confirmation to `housebuyerinv@gmail.com`,
 using `s2.housebuyerinvestments.com`. No deployment, public registration unpause,
@@ -39,10 +39,12 @@ is visible. The owner closes that secret view before metadata inspection resumes
   no sender-domain filter was found in that documentation. Absence from this
   schema is not a claim that every provider product lacks the capability.
 
-**Do not run the owner helper or enter credentials yet.** Both executable entry
-points still stop before private input or provider operations, now because the
-new isolated key and one-email execution lack explicit authorization. The old
-shared-account key remains unused. Do not modify shared webhooks.
+**Current authorization:** PR #2 comment `6389716524` explicitly permits one
+domain-restricted key, reviewed relay activation, at most one absent unconfirmed
+S2 owner identity, and one genuine confirmation email. Both entrypoints are now
+activated for that exact scope. Fresh provider preflight and owner-private key
+creation/entry remain mandatory before a real run. The old shared-account key
+remains unused. Do not modify shared webhooks.
 
 ## Implemented local draft
 
@@ -95,9 +97,9 @@ passed outside that restriction without elevation, execution-policy changes or
 security bypass. One dummy pipe test initially had incorrect quoting; that fixture
 was corrected and the actual dummy pipe then passed.
 
-## Precise next approval and private owner step
+## Approved execution and private owner step
 
-Authorize only: one new domain-restricted Sending-access key in the verified S2
+Approval `6389716524` covers only: one new domain-restricted Sending-access key in the verified S2
 account; reviewed activation of the blocked local entrypoints; one NEW unconfirmed
 Supabase Auth identity for the fixed owner if none exists; and one signup-confirmation
 email to that owner through the isolated sender. Freshly verify provider scope,
@@ -109,9 +111,33 @@ key without agent browser observation, close the secret display, then enter that
 key and the new S2 password twice into the masked, hash-verified local launcher.
 Private data travels through stdin, not argv/environment/files. The owner then
 opens the confirmation email privately in an authorized protected browser; never
-paste links/codes/passwords in chat. No executable command is handed off while
-the current reviewed-code locks remain closed. Activation must refresh the core
-and wrapper fingerprints before the real run; no environment flag unlocks them.
+paste links/codes/passwords in chat. The activated helper/core fingerprints must
+match the published checkpoint before the real run. No environment flag widens
+the fixed recipient, provider origin or operation allowlist.
+
+Activation validation retained 33 Node dummy checks and 7 actual PowerShell 5
+dummy checks, plus scoped lint. The real-entry negative test now verifies ambient
+service credentials fail before provider access rather than asserting the former
+authorization lock. Neither successful dummy tests nor activated source proves
+an actual owner-profile credential handoff or email delivery.
+
+Fresh read-only preflight verified the dedicated protected READY paused fallback,
+zero bypass secrets, the unchanged live containment alias, receiver-pause digest,
+complete authenticated Auth inventory with the owner absent, email enabled and
+auto-confirm disabled. Encrypted Vercel metadata was inconclusive; the reviewed
+empty-cwd environment child independently confirmed registration/Checkout/live
+billing/delivery pause values and staging URLs. Other inherited defaults are not
+changed: later deployments still require the reviewed explicit configuration.
+The exact stable callback is allowlisted in the staging dashboard. The enabled
+capture hook retains fingerprint `aa56710451277e5c8d2be79193ea554b`, the stable
+callback, and no HTTP delivery code. No SMTP/hook/permission setting was changed.
+
+The isolated Resend account was freshly observed Free, 0/100 daily, 0/3000 monthly,
+pay-as-you-go off, zero webhooks, exact domain Verified and no existing key.
+The approved form is prepared for owner-private final creation; no key value is
+captured by the agent. Actual key creation, send acceptance, delivery and confirmed
+Auth state remain pending the private handoff. Do not repeat the relay after a
+failure, unclear result or closed terminal; read back state first.
 
 **Email confirmation alone is not application-owner readiness.** This helper
 does not create a DBP signed registration intent, record agreement acceptance,

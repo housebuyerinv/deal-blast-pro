@@ -13,10 +13,10 @@ const subject = 'Verify your BuyerMatch S2 staging-owner account';
 const origin = `https://${REF}.supabase.co`;
 const cli = 'C:/Users/CTL Katastrophic/AppData/Roaming/npm/node_modules/supabase/dist/supabase.js';
 const cliHash = '253caa8c31ee5976322d04a8bd7752622c0915e7943de3f74e2b73395c54a240';
-// The new isolated domain is verified. Key creation/provenance and this one
-// identity/email run still need explicit authorization and fresh provider checks.
-// A reviewed-code lock, not an environment flag or owner-input override.
-const ownerSendAuthorized = false;
+// Exact one-owner/one-email authorization; fresh provider preflights and private
+// owner key creation/entry remain required. No environment override widens scope.
+export const OWNER_SEND_APPROVAL = '6389716524';
+const ownerSendAuthorized = OWNER_SEND_APPROVAL === '6389716524';
 
 export function assertOwnerRelayRequest(method, url, body) {
   const u = new URL(url);

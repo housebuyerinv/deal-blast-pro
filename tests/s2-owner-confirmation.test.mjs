@@ -95,12 +95,12 @@ test('actual child process invalid input exits sanitized before provider calls',
   assert.equal(r.status,1);assert.equal(r.stderr,'');assert.ok(!r.stdout.includes(password));
   assert.equal(JSON.parse(r.stdout).accountMayExist,false);
 });
-test('real entry remains blocked even with valid synthetic private input',()=>{
+test('authorized real entry rejects ambient service credentials before any provider access',()=>{
   const r=spawnSync(process.execPath,['scripts/testing/s2-owner-confirmation.mjs'],{input:JSON.stringify(input()),encoding:'utf8',
-    env:{...process.env,OWNER_SEND_AUTHORIZED:'true',BM_S2_OWNER_SEND_AUTHORIZED:'true'}});
+    env:{...process.env,SUPABASE_SERVICE_ROLE_KEY:'DUMMY_FORBIDDEN_AMBIENT_KEY',OWNER_SEND_AUTHORIZED:'true',BM_S2_OWNER_SEND_AUTHORIZED:'true'}});
   assert.equal(r.status,1);assert.equal(r.stderr,'');
   const result=JSON.parse(r.stdout);
-  assert.equal(result.stage,'owner-send-not-authorized');assert.equal(result.accountMayExist,false);
+  assert.equal(result.stage,'private-input');assert.equal(result.accountMayExist,false);
   assert.ok(!r.stdout.includes(password));assert.ok(!r.stdout.includes(resendKey));
 });
 

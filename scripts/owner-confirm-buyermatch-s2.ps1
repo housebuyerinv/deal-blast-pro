@@ -24,11 +24,11 @@ function Invoke-S2OwnerPrivateEntry {
 if($MyInvocation.InvocationName -ne '.') {
  $child=$null
  try {
-  # Domain isolation is verified; explicit key/send-run authorization is pending.
-  throw 'Isolated owner-confirmation execution is not authorized. No private entry or provider operation is permitted.'
+  # One-owner/one-message scope authorized in PR #2 comment 6389716524.
+  # Operator must complete the fresh isolated-account preflight before this run.
   $node='C:\Program Files\nodejs\node.exe'
   $core=Join-Path $PSScriptRoot 'testing\s2-owner-confirmation.mjs'
-  $pin='B5DAB415BBB4F162690A926021B29F4093320F2506879DA219B4F44CDF173FA1'
+  $pin='2EC6EBF9D360997D04986C2116659CC7D84ECF2B2E065266ECD2FEAEBD2294BF'
   if(!(Test-Path -LiteralPath $core -PathType Leaf) -or !(Test-Path -LiteralPath $node -PathType Leaf)){throw 'Verified dependency missing'}
   if((Get-FileHash -LiteralPath $core -Algorithm SHA256).Hash -cne $pin){throw 'Confirmation implementation changed'}
   if((Get-FileHash -LiteralPath $node -Algorithm SHA256).Hash -cne 'B3094D0B49F9AD602262A9921551737BB97637C05DD357A06AE98188D7290AA3'){throw 'Node fingerprint changed'}
