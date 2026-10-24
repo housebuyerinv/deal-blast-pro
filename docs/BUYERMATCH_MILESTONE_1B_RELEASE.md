@@ -1,5 +1,11 @@
 # BuyerMatch Milestone 1B release checklist
 
+Current engineering direction: **feature completion first**, PR review 6377236755.
+See [implemented feature inventory, local evidence and the consolidated prelaunch
+checklist](BUYERMATCH_FEATURE_COMPLETION.md). External owner/provider/legal/recovery
+gates below remain release requirements and do not stop local feature work. The
+new private buyer-intake migration is pending and has not been applied remotely.
+
 Current review: October 23, 2026, PR #2 direction 6369522557.
 **PR DRAFT; Production/public launch NO-GO.** This checklist replaces stale
 infrastructure prerequisites and rollback instructions from initial PR creation.
