@@ -674,8 +674,21 @@ const saveBillingEvent = async (
 Deno.serve(async req => {
   if (req.method !== 'POST') return json({ ok: false, error: 'Method not allowed' }, 405)
 
-  const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET') || ''
+  // S2 provisioning must not process either old shared-account or new sandbox
+  // deliveries while credentials are being switched. No request can opt in.
+  const s2Ref = 'qxhhlprentrufobpcgna'
   const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
+  const environment = Deno.env.get('BM_ENVIRONMENT')
+  const stagingRef = Deno.env.get('BM_STAGING_PROJECT_REF')
+  if (environment === 'staging' || supabaseUrl === `https://${s2Ref}.supabase.co`) {
+    if (environment !== 'staging' || stagingRef !== s2Ref ||
+        supabaseUrl !== `https://${s2Ref}.supabase.co` ||
+        Deno.env.get('BM_S2_STRIPE_WEBHOOK_ENABLED') !== 'true') {
+      return json({ ok: false, error: 'Staging webhook processing paused' }, 503)
+    }
+  }
+
+  const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET') || ''
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
   const payload = await req.text()
   const signature = req.headers.get('stripe-signature')

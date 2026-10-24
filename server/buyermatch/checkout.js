@@ -1,7 +1,7 @@
 import process from "node:process";
 import Stripe from "stripe";
 import { stagingOrigin } from "./staging.js";
-import { billingConfig, isPlanPrice, isLiveSoftwarePrice } from "./billing-config.js";
+import { billingConfig, isPlanPrice, isLiveSoftwarePrice, isSoftwarePrice } from "./billing-config.js";
 const conflict = (message) => {
   throw Object.assign(new Error(message), { status: 409 });
 };
@@ -56,7 +56,7 @@ export async function createCheckout(
   if (error || !plan?.stripe_price_id)
     throw new Error("Approved plan required");
   const price = await stripe.prices.retrieve(plan.stripe_price_id);
-  if (!isPlanPrice(price, live) || (live && (!isLiveSoftwarePrice(price, plan) || !(plan.allowance > 0))))
+  if ((plan.product === 'buyermatch' && ['buyermatch-starter-v1', 'buyermatch-pro-v1'].includes(plan.version) && !isSoftwarePrice(price, plan, live)) || !isPlanPrice(price, live) || (live && (!isLiveSoftwarePrice(price, plan) || !(plan.allowance > 0))))
     throw new Error("Active fixed USD recurring TEST price required");
   const reservation = await db.rpc("bm_begin_checkout", {
     p_owner: user.id,

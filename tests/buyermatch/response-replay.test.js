@@ -177,6 +177,21 @@ test("public response handler refuses Production before any response transaction
   }
 });
 
+test('release delta: conversation response strips private fields and caps/redacts messages',async()=>{
+  const previous=globalThis.__responseFixture.rpc;
+  globalThis.__responseFixture.rpc=async()=>({data:{address:'123 QA Street',city:'Test',state:'TN',
+    buyerEmail:'secret@example.invalid',buyerId:'private-buyer',identityCipher:'private-cipher',
+    messages:Array.from({length:105},()=>({sender:'admin',body:'Contact secret@example.invalid or 212-555-0199',createdAt:'2026-10-23',privateIdentity:'private-buyer'}))}});
+  try {
+    const r=await invoke({...input,kind:'conversation',operationKey:randomUUID()});
+    assert.equal(r.status,200);assert.equal(r.body.messages.length,100);
+    assert.deepEqual(Object.keys(r.body).sort(),['address','city','messages','state']);
+    assert.deepEqual(Object.keys(r.body.messages[0]).sort(),['body','createdAt','sender']);
+    assert.equal(r.body.messages[0].sender,'Deal team');
+    for(const privateValue of ['secret@example.invalid','212-555-0199','private-buyer','private-cipher'])assert.equal(JSON.stringify(r.body).includes(privateValue),false);
+  }finally{globalThis.__responseFixture.rpc=previous;}
+});
+
 test("Production-mode HTTP acknowledgement works only with explicit safe configuration", async () => {
   const config = {
     VERCEL_ENV: "production",

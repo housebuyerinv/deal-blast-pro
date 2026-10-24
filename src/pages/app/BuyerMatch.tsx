@@ -85,6 +85,12 @@ function Analysis({ value }: { value: RecordData }) {
   );
 }
 export default function BuyerMatch() {
+  const ownerId = useAppStore(s => s.user?.id);
+  const location = useLocation();
+  // Never reuse drafts/private results when the account or deal route changes.
+  return <BuyerMatchScreen key={`${ownerId || 'signed-out'}:${location.pathname}`} />;
+}
+function BuyerMatchScreen() {
   const { id } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -127,7 +133,10 @@ export default function BuyerMatch() {
   const reload = useCallback(async () => {
     const plan = await request("plans", {}, true);
     setPlans(plan);
-    if (isPlans) return;
+    if (isPlans) {
+      setDocuments((await request('onboarding', {}, true)).documents);
+      return;
+    }
     if (isAdmin) {
       if (!plan.isNetworkAdmin)
         throw new Error("Network administrator required");
@@ -222,7 +231,7 @@ export default function BuyerMatch() {
               ? "BuyerMatch access"
               : "DBP BuyerMatch"}
         </h1>
-        <nav className="flex gap-5 text-sm">
+        <nav aria-label="BuyerMatch workspace" className="flex flex-wrap gap-5 text-sm">
           <Link to="/app/buyermatch">My deals</Link>
           <Link to="/app/buyermatch/plans">Plans & allowances</Link>
           {plans.isNetworkAdmin && (
@@ -246,6 +255,19 @@ export default function BuyerMatch() {
       )}
       {isPlans ? (
         <section className="space-y-5">
+          <div className="rounded-xl border border-slate-700 p-5 space-y-3">
+            <h2 className="text-xl font-semibold">Get started with BuyerMatch</h2>
+            <p>Review the agreements, subscribe, then add a property to see private matches. Analysis does not contact buyers. Distribution requires eligibility, consent and review. Managed disposition is arranged separately.</p>
+            <p>No paid CRM plan is required. Your existing CRM subscription stays separate.</p>
+            {new URLSearchParams(location.search).has('checkout') && <p role="status">{new URLSearchParams(location.search).get('checkout') === 'canceled' ? 'Checkout canceled. No subscription is activated by this page. You can retry below.' : 'Payment returned. Access updates only after server verification. Refresh subscription status if payment is still processing.'}</p>}
+            {button('Refresh subscription status', async () => { await reload(); })}
+            {documents.map(doc => <div key={doc.id} className="space-y-2">
+              <details><summary>{doc.kind} · {doc.version} · {doc.accepted ? 'Accepted' : 'Review required'}</summary><p className="whitespace-pre-wrap max-h-60 overflow-auto text-sm">{doc.content}</p></details>
+              {!doc.accepted && button(`Accept ${doc.kind}`, async () => { await request('onboarding-accept', { documentId: doc.id, hash: doc.document_hash, signature }); await reload(); }, signature.trim().length < 2)}
+            </div>)}
+            {documents.some(doc => !doc.accepted) && <label className="block">Electronic signature (full name)<input className={inputClass} value={signature} maxLength={200} onChange={e => setSignature(e.target.value)} /><span className="text-sm text-slate-400">Selecting Accept records your signature for that exact document version.</span></label>}
+            <Link className="btn btn-primary inline-block" to="/app/buyermatch">Open BuyerMatch workspace</Link>
+          </div>
           <UsageCards usage={plans.usage} />
           <CommercialPlans plans={plans.commercialPlans} />
           <p>
@@ -280,6 +302,11 @@ export default function BuyerMatch() {
                       ? plans.checkoutMode === 'live' ? 'Secure Stripe subscription checkout' : "Stripe test mode · no live billing"
                       : "Checkout is unavailable. No payment will be taken."}
                   </p>
+                  {product === 'buyermatch' && p?.billingManaged && <div className="mt-3 space-y-2">
+                    {button('Update BuyerMatch payment method', async () => { const result = await request('billing-portal', { operation: 'payment' }); window.location.assign(result.url); })}
+                    {button('Cancel BuyerMatch subscription', async () => { const result = await request('billing-portal', { operation: 'cancel' }); window.location.assign(result.url); })}
+                    <p className="text-sm">Stripe shows the cancellation date, payment details and any price adjustment before confirmation. Access follows verified subscription status. An already-ended subscription requires support review before restarting; this prevents duplicate subscriptions.</p>
+                  </div>}
                   {plans.catalog
                     ?.filter((item: RecordData) => item.product === product)
                     .map((item: RecordData) => (
@@ -296,21 +323,20 @@ export default function BuyerMatch() {
                             : item.interval}
                         </p>
                         {plans.checkoutEnabled &&
-                          button(plans.checkoutMode === 'live' ? 'Open secure checkout' : "Open Stripe test checkout", async () => {
+                          button(product === 'buyermatch' && p?.billingManaged ? 'Review plan change in Stripe' : plans.checkoutMode === 'live' ? 'Open secure checkout' : "Open Stripe test checkout", async () => {
                             const key = (checkoutKeys.current[item.version] ??=
                               crypto.randomUUID());
                             try {
-                              const result = await request("checkout", {
-                                planVersion: item.version,
-                                operationKey: key,
-                              });
+                              const result = product === 'buyermatch' && p?.billingManaged
+                                ? await request('billing-portal', { operation: 'change', planVersion: item.version })
+                                : await request("checkout", { planVersion: item.version, operationKey: key });
                               window.location.assign(result.url);
                             } catch (error: any) {
                               if (error.status === 409)
                                 delete checkoutKeys.current[item.version];
                               throw error;
                             }
-                          })}
+                          }, documents.length !== 2 || documents.some(doc => !doc.accepted))}
                       </div>
                     ))}
                 </article>

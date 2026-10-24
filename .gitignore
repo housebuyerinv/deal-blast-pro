@@ -46,6 +46,9 @@ verification-screenshots/
 *.before-*
 *.backup-before-*
 
+# Server-only generated S2 diagnostic snapshot
+server/generated/s2-build-attestation.json
+
 # TypeScript build cache
 *.tsbuildinfo
 

@@ -1,3 +1,5 @@
+import { subscriberDestination } from '../../lib/subscriberDestination'
+import { completeRegistration } from '../../lib/completeRegistration'
 import React, { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -22,6 +24,8 @@ export default function Register() {
   const login = useAppStore(s => s.login)
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const isBuyerMatch = searchParams.get('product') === 'buyermatch'
+  const tier = searchParams.get('tier') === 'pro' ? 'pro' : 'starter'
   const requestedPlan = (() => {
     const plan = String(searchParams.get('plan') || '').toLowerCase()
     if (plan === 'starter') return 'Starter'
@@ -51,7 +55,9 @@ export default function Register() {
           password: form.password,
           company: form.company,
           role: form.role,
-          plan: requestedPlan,
+          product: isBuyerMatch ? 'buyermatch' : 'crm',
+          ...(isBuyerMatch ? { tier } : {}),
+          plan: isBuyerMatch ? 'Free' : requestedPlan,
           agreementsAccepted,
           platformAgreements:agreements.map(doc=>({id:doc.id,hash:doc.document_hash})),
         }),
@@ -73,13 +79,14 @@ export default function Register() {
       }
 
       if (result.session) {
-        login(form.email, form.name || form.email.split('@')[0], { id: result.user?.id, newWorkspace: true })
+        const destination = await completeRegistration()
+        login(form.email, form.name || form.email.split('@')[0], { id: result.session.user?.id, newWorkspace: true })
         window.sessionStorage.removeItem('dealblastpro:start-new-account')
         toast.success('Account created and signed in')
-        navigate('/app/dashboard')
+        navigate(subscriberDestination(window.location.search, destination))
       } else {
         window.sessionStorage.setItem('dealblastpro:pending-verification-email', form.email.trim().toLowerCase())
-        toast.success('Account created. Check your email to confirm before signing in.')
+        toast.success('Check your email to continue, or sign in if you already have an account.')
         navigate('/verify-email')
       }
     } catch (err: any) {
@@ -101,34 +108,34 @@ export default function Register() {
         </div>
 
         <div className="card p-8">
-          <div className="text-2xl font-semibold mb-1">Create your account</div>
-          <div className="text-[#8B92A3] mb-6">Create a real cloud login for Deal Blast Pro</div>
+          <div className="text-2xl font-semibold mb-1">{isBuyerMatch ? 'Create your BuyerMatch account' : 'Create your account'}</div>
+          <div className="text-[#8B92A3] mb-6">{isBuyerMatch ? 'Powered by Deal Blast Pro. Confirm your email, then subscribe securely. No paid CRM subscription is added.' : 'Create a cloud login for Deal Blast Pro'}</div>
           <div className="mb-5 rounded border border-[#252A38] bg-[#0A0C12] px-3 py-2 text-sm text-[#C5CAD6]">
-            Selected plan: <span className="font-semibold text-white">{requestedPlan}</span>
+            Selected plan: <span className="font-semibold text-white">{isBuyerMatch ? `BuyerMatch ${tier === 'pro' ? 'Pro · $119/month' : 'Starter · $59/month'}` : requestedPlan}</span>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <div className="text-xs text-[#8B92A3] mb-1.5">FULL NAME</div>
-              <input className="input" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Your name" required />
+              <label htmlFor="register-name" className="block text-xs text-[#8B92A3] mb-1.5">FULL NAME</label>
+              <input id="register-name" className="input" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Your name" required />
             </div>
 
             <div>
-              <div className="text-xs text-[#8B92A3] mb-1.5">EMAIL</div>
-              <input className="input" type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="you@company.com" required />
+              <label htmlFor="register-email" className="block text-xs text-[#8B92A3] mb-1.5">EMAIL</label>
+              <input id="register-email" className="input" type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="you@company.com" required />
             </div>
 
             <div>
-              <div className="text-xs text-[#8B92A3] mb-1.5">PASSWORD</div>
-              <input className="input" type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} placeholder="Minimum 6 characters" required />
+              <label htmlFor="register-password" className="block text-xs text-[#8B92A3] mb-1.5">PASSWORD</label>
+              <input id="register-password" className="input" type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} placeholder="Minimum 6 characters" required />
             </div>
 
             <div>
-              <div className="text-xs text-[#8B92A3] mb-1.5">COMPANY</div>
-              <input className="input" value={form.company} onChange={e => setForm({ ...form, company: e.target.value })} placeholder="Company name" />
+              <label htmlFor="register-company" className="block text-xs text-[#8B92A3] mb-1.5">COMPANY</label>
+              <input id="register-company" className="input" value={form.company} onChange={e => setForm({ ...form, company: e.target.value })} placeholder="Company name" />
             </div>
 
-            <div>
+            {!isBuyerMatch && <div>
               <div className="text-xs text-[#8B92A3] mb-1.5">YOUR ROLE</div>
               <select className="select w-full" value={form.role} onChange={e => setForm({ ...form, role: e.target.value as any })}>
                 <option>Admin</option>
@@ -136,21 +143,21 @@ export default function Register() {
                 <option>Buyer</option>
                 <option>Seller / Submitter</option>
               </select>
-            </div>
+            </div>}
 
             {agreementError&&<p role="status" className="text-sm text-amber-400">{agreementError}</p>}
             {agreements.map(doc=><details key={doc.id}><summary>{doc.kind} · {doc.version}</summary><div className="whitespace-pre-wrap max-h-60 overflow-auto text-sm">{doc.content}</div></details>)}
             {agreements.length>0&&<label className="flex gap-2 text-sm"><input type="checkbox" required checked={agreementsAccepted} onChange={e=>setAgreementsAccepted(e.target.checked)}/>I accept these document versions. My full name above is my electronic signature.</label>}
-            <button disabled={loading} type="submit" className="btn btn-green w-full py-3">
+            <button disabled={loading || Boolean(agreementError)} type="submit" className="btn btn-green w-full py-3">
               {loading ? 'Creating Account...' : 'Create Account'}
             </button>
           </form>
         </div>
 
         <div className="text-center text-sm mt-4">
-          Already have an account? <Link to="/admin-login" className="text-[#3B82F6]">Sign in</Link>
+          Already have an account? <Link to={isBuyerMatch ? `/admin-login?product=buyermatch&tier=${tier}` : '/admin-login'} className="text-[#3B82F6]">Sign in</Link>
           <span className="mx-2 text-[#8B92A3]">-</span>
-          <Link to="/pricing" className="text-[#3B82F6]">Pricing</Link>
+          <Link to={isBuyerMatch ? '/buyermatch' : '/pricing'} className="text-[#3B82F6]">Pricing</Link>
         </div>
 
         <PublicFooter />

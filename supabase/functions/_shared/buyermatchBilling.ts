@@ -132,19 +132,33 @@ export async function handleBuyerMatchBilling(
       return { status: 503, body: { error: 'Live software price verification failed' } };
   }
   let paidInvoice = !live;
-  if (live && current.status === 'active') {
-    const invoice = typeof current.latest_invoice === 'string'
-      ? await stripeGet(`/v1/invoices/${current.latest_invoice}`) : current.latest_invoice;
-    paidInvoice = invoice?.status === 'paid' && invoice?.amount_paid > 0 && invoice?.livemode === true;
+  if ((live || product === 'buyermatch') && current.status === 'active') {
+    // Resolve today's invoice, not the potentially stale invoice event snapshot.
+    // Unknown evidence must retry without changing an existing entitlement.
+    let invoice;
+    try {
+      invoice = typeof current.latest_invoice === 'string'
+        ? await stripeGet(`/v1/invoices/${current.latest_invoice}`) : current.latest_invoice;
+    } catch {
+      return { status: 503, body: { error: 'Current invoice verification unavailable' } };
+    }
+    const reference = typeof current.latest_invoice === 'string'
+      ? current.latest_invoice : current.latest_invoice?.id;
+    const invoiceSubscription = invoice?.subscription || invoice?.parent?.subscription_details?.subscription;
+    const invoiceSubscriptionId = typeof invoiceSubscription === 'string' ? invoiceSubscription : invoiceSubscription?.id;
+    if (!reference || invoice?.id !== reference || invoice.livemode !== live ||
+        invoiceSubscriptionId !== current.id || !['draft','open','paid','uncollectible','void'].includes(invoice.status) ||
+        !Number.isSafeInteger(invoice.amount_paid) || invoice.amount_paid < 0) {
+      return { status: 503, body: { error: 'Current invoice verification unavailable' } };
+    }
+    paidInvoice = invoice.status === 'paid' && invoice.amount_paid > 0;
   }
+  const failureEvent = ['invoice.payment_failed','invoice.payment_action_required'].includes(type);
+  const blocksAccess = ['charge.refunded','customer.subscription.deleted'].includes(type) ||
+    (failureEvent && !(product === 'buyermatch' && current.status === 'active' && paidInvoice));
   const active = paidInvoice &&
     (live ? current.status === 'active' : ["active", "trialing"].includes(current.status)) &&
-    ![
-      "invoice.payment_failed",
-      "invoice.payment_action_required",
-      "charge.refunded",
-      "customer.subscription.deleted",
-    ].includes(type);
+    !blocksAccess;
   const response = await fetch(`${url}/rest/v1/rpc/${live ? 'bm_apply_live_billing' : 'bm_apply_test_billing'}`, {
     method: "POST",
     headers: {

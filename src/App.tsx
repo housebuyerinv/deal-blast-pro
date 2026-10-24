@@ -39,6 +39,7 @@ import Resources from './pages/app/Resources'
 import Blast from './pages/app/Blast'
 import DealCalculator from './pages/app/DealCalculator'
 import Settings from './pages/app/Settings'
+import S2Attestation from './pages/app/S2Attestation'
 import ManualIntake from './pages/app/ManualIntake'
 import FollowUps from './pages/app/FollowUps'
 import Analytics from './pages/app/Analytics'
@@ -310,6 +311,7 @@ function App() {
         <Route path="/" element={<Landing />} />
         <Route path="/buyermatch" element={<BuyerMatchLanding />} />
         <Route path="/buyermatch/pricing" element={<BuyerMatchLanding />} />
+        <Route path="/buyermatch/buyers" element={<BuyerPortal product="buyermatch" />} />
         <Route path="/buyermatch/*" element={<Navigate to={location.pathname.replace(/^\/buyermatch/, '/app/buyermatch')} replace />} />
         <Route path="/buyer-response" element={<BuyerMatchResponse />} />
         <Route path="/pricing" element={<Pricing />} />
@@ -352,6 +354,7 @@ function App() {
                   <Route path="blast" element={<Blast />} />
                   <Route path="calculator" element={<DealCalculator />} />
                   <Route path="settings" element={<Settings />} />
+                  <Route path="s2-attestation" element={<S2Attestation />} />
                   <Route path="upgrade" element={<Upgrade />} />
                   <Route path="intake" element={<ManualIntake />} />
                   <Route path="followups" element={<FollowUps />} />
