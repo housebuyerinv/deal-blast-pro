@@ -1,7 +1,7 @@
 # BuyerMatch feature completion and consolidated prelaunch gates
 
 Current direction: PR #2 review **6377236755**, October 23, 2026 (owner timezone).
-Feature work is local/synthetic/non-delivering. External readiness no longer stops
+Feature work is local/S2 synthetic and non-delivering. External readiness no longer stops
 local implementation. PR stays draft; public release remains **NO-GO**.
 
 **Security containment update:** the direct-table Production exposure on
@@ -88,9 +88,13 @@ whole-application correctness or claim 100% feature/release completion.
 
 ### Post-containment forward migration (draft only)
 
-`20261024000845_buyermatch_private_buyer_intake.sql` now reconciles both the
-legacy baseline and the actual untracked emergency deny. It remains UNAPPLIED:
-this development checkpoint performed no S2/Production DDL or deployments.
+`20261024000845_buyermatch_private_buyer_intake.sql` reconciles both the legacy
+baseline and actual untracked emergency deny. It is now APPLIED IN S2 ONLY,
+source `55edad97751579abe2f8ea10d79ddd4e4e802701`, SHA-256
+`FEC2E79A02CA93E1CB3A360A03BFB1EB1E9AE627C5380FDC45B7316655F8A811`.
+Production restoration remains unapplied/unauthorized. The S2 schema compatibility
+fix adds nullable imported_at where older staging had only updated_at, and rejects
+incompatible review-column types or required insert fields without defaults.
 
 - Repeatable column/index creation verifies the expected UUID key and unique
   index, rather than silently accepting an incompatible existing definition.
@@ -132,12 +136,59 @@ existing warning. These replace the relevant historical subset; the full 89-test
 batch, hosted billing and matching tests were not rerun. Local PGlite tests do not
 prove hosted multiconnection lock timing or browser/Storage integration.
 
-Live outage handling: public intake and browser review remain unavailable today.
+Live Production outage handling: public intake and browser review remain unavailable today.
 The draft client now explains missing/denied intake/review without private provider
 details, automatic notification, direct-table fallback or a false success claim.
 Those UI changes are NOT deployed. Operators must not retry through public grants
 or infer data loss from an unavailable queue. Keep records/evidence; restoration
 and any public outage notice are separately authorized release activities.
+
+### Actual S2 verification checkpoint
+
+- Separate AI reviewer approved the corrected exact bytes after independently
+  reproducing the missing-imported_at failure and rollback. This is not a human
+  external audit. Relevant local database checks: 24/24 PASS.
+- Snapshotted S2 schema/grants/policies/dependencies/history before application.
+  Verified protected, Git-unlinked S2 project and configured staging-only URLs,
+  registration/Checkout/live billing/delivery pauses. Stripe TEST endpoint stayed
+  disabled; receiver returned paused HTTP 503 before and after testing.
+- Migration MCP still failed with expired requestState without applying changes.
+  Supported owner CLI executed only the hash-pinned SQL in an isolated S2 workdir.
+  After independent postconditions and hosted behavior passed, supported CLI
+  `migration repair 20261024000845 --status applied --linked` recorded that exact
+  already-executed migration. All prior S2 history entries remain unchanged.
+  This is transparent history reconciliation, not a claim the failed MCP applied
+  anything. Production's historical containment still has NO history entry.
+  Freeze this now-applied source; future SQL corrections require a new migration.
+- 28 hosted assertions PASS: four actual concurrent anonymous calls return one
+  receipt/row; conflicting retries cannot overwrite data; pending/unverified and
+  optional invitation consent preserved; actual anon and ordinary Admin denial;
+  forged user metadata cannot confer owner authority; private proof upload,
+  checksum download, anonymous download denial, cross-identity upload/receipt
+  rejection, and server-normalized proof identity. No tokens/passwords were logged.
+- Hosted PostgreSQL transaction rollback PASS: receipt creation followed by an
+  injected division-by-zero left zero owned rows. This tests real transaction
+  rollback, not an injected failure inside the receipt function itself.
+- Seven runner cleanup/safety checks PASS. Independent read verified zero owned
+  Auth users, profiles, receipts and proof objects remaining. No pre-existing buyer rows
+  were inspected/changed. No confirmation email or notification API was invoked.
+- Metadata confirms no anon table rights, no dangerous authenticated table rights
+  including TRUNCATE/MAINTAIN, exactly five review UPDATE columns, no evidence
+  update right, no PUBLIC function EXECUTE, preserved service access and unchanged
+  unrelated relations/policies (excluding the intended new receipt index).
+- NOT RUN: qualified-owner positive hosted access, because the staging owner Auth
+  identity is absent. Do not fabricate an identity/token or restart Resend setup.
+  NOT RUN: new hosted application UI, because this source was not deployed.
+  Local synthetic browser fixture attempt timed out on loopback; the owned server
+  was stopped without retry. Prior nine rendered receipt/UI checks are retained,
+  not misrepresented as browser proof. No aliases/deployments or Production access.
+
+Sanitized evidence remains in ignored `artifacts/buyermatch-1b/intake-s2-hosted.json`
+and the S2 snapshot/permission/cleanup journals. Repeatable authorized harnesses:
+`scripts/testing/buyer-intake-s2.mjs` (`--preflight` for no fixture creation) and
+`scripts/testing/buyer-intake-browser-fixture.mjs` (local mocks, external network
+blocked). Full owner/browser verification is still a prerequisite to recommending
+Production restoration; no public-release approval is implied.
 
 The new intake client **fails closed** until its pending RPC migration is installed.
 There is no fallback that restores public table reads or updates. Both the existing
@@ -166,11 +217,12 @@ proof data, consent, keys or existing billing protections.
    evidence; never restore public reads/updates as an automatic rollback. Safe
    intake/review restoration remains a separately reviewed release gate. Do not
    apply the full feature migration merely to make the old frontend work.
-1. **Source/schema/security review:** independently review the final draft PR,
-   current schema prerequisites and the new intake migration. Rehearse complete
-   migration ordering locally, then separately approve staging application. Check
+1. **Source/schema/security review:** corrected intake migration independently
+   reviewed, applied and recorded in S2; receipt/privacy/concurrency/rollback
+   checks above passed. Still verify qualified-owner and actual protected-browser
+   behavior, then review the final release allowlist and Production prerequisites. Check
    actual grants/RLS, intended reviewers, receipt retries, proof ownership, buyer
-   opt-out, existing CRM and subscriber preservation. No migration is applied now.
+   opt-out, existing CRM and subscriber preservation. No Production restoration is authorized.
 2. **Protected release configuration:** finish legitimate owner verification and
    normal private login, Resend event-consumer isolation, build/runtime attestation,
    exact-source protection, callback routing and detached cleanup/removal. Existing
