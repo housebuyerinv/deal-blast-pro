@@ -86,6 +86,59 @@ whole-application correctness or claim 100% feature/release completion.
 
 ## Migration / operational compatibility
 
+### Post-containment forward migration (draft only)
+
+`20261024000845_buyermatch_private_buyer_intake.sql` now reconciles both the
+legacy baseline and the actual untracked emergency deny. It remains UNAPPLIED:
+this development checkpoint performed no S2/Production DDL or deployments.
+
+- Repeatable column/index creation verifies the expected UUID key and unique
+  index, rather than silently accepting an incompatible existing definition.
+  Function replacement and owned-policy recreation are repeatable. Existing
+  records, keys and receipts survive a replay.
+- Revoke client table AND independent column rights first. Anonymous DML remains
+  permanently denied by RLS as defense in depth. Authenticated direct INSERT and
+  DELETE are denied; review is constrained to the confirmed, unbanned, Active
+  platform Admin owner. Review grants allow only SELECT and UPDATE of status,
+  imported_at, approved_at, approved_by and created_buyer_id. Submitted identity,
+  proof and consent JSON, receipt keys and creation fields cannot be rewritten.
+- Receipt RPC is deliberately callable by anon/authenticated; it validates and
+  creates pending/unverified data and returns only id/recorded. The owner-check
+  helper is authenticated-only. PUBLIC EXECUTE is revoked; both SECURITY DEFINER
+  functions have a fixed empty search_path and qualified private table lookups.
+  No client/user-metadata role claim authorizes review.
+- Final effective privilege assertions reject inherited table/column access.
+  Only after all replacement protections exist is the temporary emergency deny
+  removed, within the SAME transaction. Injected failure before that step rolls
+  back to the denied baseline. Permanent denies also block accidental ordinary
+  DML regrants, but **RLS cannot protect TRUNCATE/MAINTAIN**: never replay old grants.
+
+Migration-history reconciliation is forward-only: the historical correction was
+direct CLI SQL and has no version to repair/mark as applied. Preserve its source
+commit/hash and checkpoint. Do not fabricate a historical entry, execute bootstrap
+again, bulk-push the directory, or reapply legacy public grants. For release,
+inventory actual remote versions and definition hashes, use an explicit reviewed
+allowlist/ordering for the release candidate, and apply the forward migration
+through supported migration tooling so THAT migration receives its real history
+entry. Its inline source reference documents the untracked containment baseline.
+Do not execute this migration merely as bookkeeping: it restores functionality
+and therefore requires separate scoped release authorization. S2 must first
+rehearse containment -> restoration -> replay and failure recovery with synthetic
+records, followed by actual protected client owner/customer/anonymous checks.
+
+Actual local post-containment checks: **23/23 database checks and 9/9 receipt/UI
+checks passed**, frontend typecheck passed, scoped TS lint zero errors with one
+existing warning. These replace the relevant historical subset; the full 89-test
+batch, hosted billing and matching tests were not rerun. Local PGlite tests do not
+prove hosted multiconnection lock timing or browser/Storage integration.
+
+Live outage handling: public intake and browser review remain unavailable today.
+The draft client now explains missing/denied intake/review without private provider
+details, automatic notification, direct-table fallback or a false success claim.
+Those UI changes are NOT deployed. Operators must not retry through public grants
+or infer data loss from an unavailable queue. Keep records/evidence; restoration
+and any public outage notice are separately authorized release activities.
+
 The new intake client **fails closed** until its pending RPC migration is installed.
 There is no fallback that restores public table reads or updates. Both the existing
 DBP intake and the new BuyerMatch intake use the protected receipt contract.

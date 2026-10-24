@@ -84,6 +84,16 @@ const requireSupabase = () => {
   return supabase
 }
 
+function intakeUnavailable(error: any) {
+  return ['42501', '42883', 'PGRST202'].includes(String(error?.code || ''))
+}
+
+function reviewError(error: any) {
+  return new Error(intakeUnavailable(error)
+    ? 'Buyer intake review is temporarily unavailable. Existing submissions are preserved. Contact the platform operator.'
+    : 'Buyer intake review could not be completed. Please contact support.')
+}
+
 export const createBuyerPortalSubmission = async (buyerData: any, options: { operationKey?: string; notify?: boolean } = {}) => {
   const client = requireSupabase()
   const payload = {
@@ -100,6 +110,7 @@ export const createBuyerPortalSubmission = async (buyerData: any, options: { ope
   })
 
   if (error) {
+    if (intakeUnavailable(error)) throw new Error('Buyer intake is temporarily unavailable. No submission was confirmed. Please contact support before retrying.')
     throw new Error('Buyer submission could not be confirmed. Retry the same details or contact support.')
   }
   if (data?.recorded !== true || !data?.id) throw new Error('Buyer submission receipt is unavailable. Please contact support before submitting again.')
@@ -124,7 +135,7 @@ export const listPendingBuyerPortalSubmissions = async () => {
     .order('created_at', { ascending: false })
 
   if (error) {
-    throw error
+    throw reviewError(error)
   }
 
   return (data || []).filter(isReviewableBuyerPortalSubmission)
@@ -137,7 +148,7 @@ export const countPendingBuyerPortalSubmissions = async () => {
     .select('id', { count: 'exact', head: true })
     .in('status', REVIEWABLE_BUYER_PORTAL_DB_STATUSES)
 
-  if (error) throw error
+  if (error) throw reviewError(error)
   return count || 0
 }
 
@@ -151,7 +162,7 @@ export const listRecentBuyerPortalSubmissionActivity = async (limit = 4) => {
     .order('created_at', { ascending: false })
     .limit(safeLimit)
 
-  if (error) throw error
+  if (error) throw reviewError(error)
   return data || []
 }
 
@@ -190,7 +201,7 @@ export const markBuyerPortalSubmissionsImported = async (ids: string[], metadata
   }
 
   if (error) {
-    throw error
+    throw reviewError(error)
   }
 
   notifyBuyerPortalQueueChanged()
@@ -215,7 +226,7 @@ export async function markBuyerPortalSubmissionsDismissed(ids: string[]) {
     .in('id', ids)
 
   if (error) {
-    throw error
+    throw reviewError(error)
   }
   notifyBuyerPortalQueueChanged()
 }

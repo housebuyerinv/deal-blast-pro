@@ -32,9 +32,9 @@ test('buyer accuracy and optional invitation consent are distinct, unchecked con
  assert.match(html,/private deal invitations/);assert.match(html,/secure signed-in upload/);
 });
 let rpcCalls=[],notifications=0,mode='ok';
-globalThis.__buyerIntake={rpc:async(name,args)=>{rpcCalls.push({name,args});return mode==='ok'?{data:{id:'receipt',recorded:true},error:null}:mode==='malformed'?{data:{id:'receipt'},error:null}:{data:null,error:{message:'PRIVATE_DATABASE_DETAIL'}}}};
+globalThis.__buyerIntake={rpc:async(name,args)=>{rpcCalls.push({name,args});return mode==='ok'?{data:{id:'receipt',recorded:true},error:null}:mode==='malformed'?{data:{id:'receipt'},error:null}:{data:null,error:{message:'PRIVATE_DATABASE_DETAIL',code:mode}}}};
 globalThis.__buyerNotify=async()=>{notifications++;return{ok:true}};
-const {createBuyerPortalSubmission}=await bundle({entryPoints:['src/lib/buyerPortalSubmissionStorage.ts'],plugins:[{name:'receipt-client',setup(b){
+const {createBuyerPortalSubmission,listPendingBuyerPortalSubmissions,countPendingBuyerPortalSubmissions}=await bundle({entryPoints:['src/lib/buyerPortalSubmissionStorage.ts'],plugins:[{name:'receipt-client',setup(b){
  b.onResolve({filter:/^\.\/supabaseClient$|^\.\/submissionNotifications$/},a=>({path:a.path,namespace:'client'}));
  b.onLoad({filter:/.*/,namespace:'client'},a=>({contents:a.path.endsWith('supabaseClient')?'export const supabase=globalThis.__buyerIntake;':'export const notifySubmission=globalThis.__buyerNotify;'}));
 }}]});
@@ -47,6 +47,23 @@ test('missing migration or malformed receipt fails without fallback/notification
  for(mode of ['error','malformed']){rpcCalls=[];notifications=0;
   await assert.rejects(createBuyerPortalSubmission({}, {operationKey:'dummy-key',notify:false}),e=>!e.message.includes('PRIVATE'));
   assert.equal(rpcCalls.length,1);assert.equal(notifications,0);
+ }
+});
+
+test('contained or not-yet-installed intake reports an outage without a fallback or confirmed-success claim',async()=>{
+ for(mode of ['42501','42883','PGRST202']){
+  rpcCalls=[];notifications=0;
+  await assert.rejects(createBuyerPortalSubmission({}, {operationKey:'dummy-key',notify:false}),e=>/temporarily unavailable/.test(e.message)&&/No submission was confirmed/.test(e.message)&&!e.message.includes('PRIVATE'));
+  assert.equal(rpcCalls.length,1);assert.equal(notifications,0);
+ }
+});
+
+test('contained owner review and queue counts report preserved submissions without private provider details',async()=>{
+ const result={data:null,error:{code:'42501',message:'PRIVATE_DATABASE_DETAIL'}};
+ const blocked={select(){return this},in(){return this},order(){return Promise.resolve(result)},then(resolve,reject){return Promise.resolve(result).then(resolve,reject)}};
+ globalThis.__buyerIntake.from=()=>blocked;
+ for(const read of [listPendingBuyerPortalSubmissions,countPendingBuyerPortalSubmissions]){
+  await assert.rejects(read(),e=>/temporarily unavailable/.test(e.message)&&/preserved/.test(e.message)&&!e.message.includes('PRIVATE'));
  }
 });
 const {hasRecordedBuyerInvitationConsent}=await bundle({entryPoints:['src/lib/buyerInvitationConsent.ts']});

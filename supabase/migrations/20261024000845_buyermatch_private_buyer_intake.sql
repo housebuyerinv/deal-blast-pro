@@ -2,11 +2,24 @@ begin;
 set local lock_timeout='5s';
 set local statement_timeout='30s';
 
-alter table public.buyer_portal_submissions add column submission_key uuid;
-create unique index buyer_portal_submission_key_unique on public.buyer_portal_submissions(submission_key);
+-- Forward reconciliation of direct Production containment (no history entry):
+-- pinned security SQL at 1c7e9a7, SHA256 A0D620D5278491B7ED36E6F85E529DA1863BAC07E751265721B89E7CB0BF79DB.
+-- Safe on both the legacy and contained baseline; NEVER replay bootstrap grants.
+alter table public.buyer_portal_submissions add column if not exists submission_key uuid;
+create unique index if not exists buyer_portal_submission_key_unique on public.buyer_portal_submissions(submission_key);
 alter table public.buyer_portal_submissions enable row level security;
+do $$
+begin
+ if not exists(select 1 from pg_attribute where attrelid='public.buyer_portal_submissions'::regclass
+  and attname='submission_key' and atttypid='uuid'::regtype and not attisdropped)
+ or not exists(select 1 from pg_index i join pg_attribute a on a.attrelid=i.indrelid and a.attname='submission_key'
+  where i.indexrelid='public.buyer_portal_submission_key_unique'::regclass
+  and i.indrelid='public.buyer_portal_submissions'::regclass and i.indisunique and i.indisvalid and i.indisready
+  and i.indnkeyatts=1 and i.indnatts=1 and i.indkey[0]=a.attnum and i.indpred is null and i.indexprs is null) then
+  raise exception 'Unexpected intake receipt schema/index; preserve containment'; end if;
+end $$;
 
-create function public.bm_can_review_buyer_intake() returns boolean
+create or replace function public.bm_can_review_buyer_intake() returns boolean
 language sql stable security definer set search_path='' as $$
  select exists(select 1 from auth.users u join public.account_profiles p on p.user_id=u.id
  where u.id=auth.uid() and lower(u.email)='housebuyerinv@gmail.com'
@@ -18,21 +31,44 @@ grant execute on function public.bm_can_review_buyer_intake() to authenticated;
 
 -- Restrictive policies intersect with any historical permissive policies.
 -- Preserve other protections; never assume dropping one known policy is enough.
+drop policy if exists bm_buyer_intake_anon_deny on public.buyer_portal_submissions;
+create policy bm_buyer_intake_anon_deny on public.buyer_portal_submissions as restrictive
+ for all to anon using(false) with check(false);
+drop policy if exists bm_buyer_intake_no_direct_insert on public.buyer_portal_submissions;
+create policy bm_buyer_intake_no_direct_insert on public.buyer_portal_submissions as restrictive
+ for insert to authenticated with check(false);
+drop policy if exists bm_buyer_intake_no_direct_delete on public.buyer_portal_submissions;
+create policy bm_buyer_intake_no_direct_delete on public.buyer_portal_submissions as restrictive
+ for delete to authenticated using(false);
 revoke all on public.buyer_portal_submissions from public,anon;
 revoke all on public.buyer_portal_submissions from authenticated;
-grant select,update on public.buyer_portal_submissions to authenticated;
+do $$
+declare columns text;
+begin
+ select string_agg(format('%I',attname),', ' order by attnum) into columns
+ from pg_attribute where attrelid='public.buyer_portal_submissions'::regclass and attnum>0 and not attisdropped;
+ execute format('revoke all privileges (%s) on public.buyer_portal_submissions from public,anon,authenticated',columns);
+end $$;
+grant select on public.buyer_portal_submissions to authenticated;
+-- Review may resolve a submission, never rewrite submitted identity/consent/proofs.
+grant update(status,imported_at,approved_at,approved_by,created_buyer_id)
+ on public.buyer_portal_submissions to authenticated;
+drop policy if exists bm_buyer_intake_owner_read on public.buyer_portal_submissions;
 create policy bm_buyer_intake_owner_read on public.buyer_portal_submissions
  for select to authenticated using ((select public.bm_can_review_buyer_intake()));
+drop policy if exists bm_buyer_intake_owner_update on public.buyer_portal_submissions;
 create policy bm_buyer_intake_owner_update on public.buyer_portal_submissions
  for update to authenticated using ((select public.bm_can_review_buyer_intake()))
  with check ((select public.bm_can_review_buyer_intake()));
+drop policy if exists bm_buyer_intake_restrict_read on public.buyer_portal_submissions;
 create policy bm_buyer_intake_restrict_read on public.buyer_portal_submissions as restrictive
  for select to authenticated using ((select public.bm_can_review_buyer_intake()));
+drop policy if exists bm_buyer_intake_restrict_update on public.buyer_portal_submissions;
 create policy bm_buyer_intake_restrict_update on public.buyer_portal_submissions as restrictive
  for update to authenticated using ((select public.bm_can_review_buyer_intake()))
  with check ((select public.bm_can_review_buyer_intake()));
 
-create function public.bm_submit_buyer_intake(p_key uuid,p_value jsonb) returns jsonb
+create or replace function public.bm_submit_buyer_intake(p_key uuid,p_value jsonb) returns jsonb
 language plpgsql security definer set search_path='' as $$
 declare existing public.buyer_portal_submissions; payload jsonb; portal_form jsonb; proof jsonb; proofs jsonb:='[]'; receipt uuid;
 begin
@@ -99,4 +135,30 @@ begin
 end $$;
 revoke all on function public.bm_submit_buyer_intake(uuid,jsonb) from public,anon,authenticated;
 grant execute on function public.bm_submit_buyer_intake(uuid,jsonb) to anon,authenticated;
+
+do $$
+declare p text; c record;
+begin
+ foreach p in array array['SELECT','INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER','MAINTAIN'] loop
+  if has_table_privilege('anon','public.buyer_portal_submissions',p)
+   or (p<>'SELECT' and has_table_privilege('authenticated','public.buyer_portal_submissions',p)) then
+   raise exception 'Unexpected residual intake table privilege'; end if;
+ end loop;
+ foreach p in array array['SELECT','INSERT','UPDATE','REFERENCES'] loop
+  if has_any_column_privilege('anon','public.buyer_portal_submissions',p) then
+   raise exception 'Unexpected anonymous intake column privilege'; end if;
+ end loop;
+ if has_any_column_privilege('authenticated','public.buyer_portal_submissions','INSERT')
+ or has_any_column_privilege('authenticated','public.buyer_portal_submissions','REFERENCES') then
+  raise exception 'Unexpected inherited review column privilege'; end if;
+ for c in select attname from pg_attribute where attrelid='public.buyer_portal_submissions'::regclass
+  and attnum>0 and not attisdropped and attname<>all(array['status','imported_at','approved_at','approved_by','created_buyer_id']) loop
+  if has_column_privilege('authenticated','public.buyer_portal_submissions',c.attname,'UPDATE') then
+   raise exception 'Unexpected review identity/consent mutation privilege'; end if;
+ end loop;
+end $$;
+
+-- Last restoration step, after receipt and owner-only review protections exist.
+-- All changes, including deny removal, commit atomically. A failure retains containment.
+drop policy if exists dbp_emergency_intake_deny on public.buyer_portal_submissions;
 commit;
