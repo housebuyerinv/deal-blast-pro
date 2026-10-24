@@ -75,7 +75,27 @@ test('authenticated proof metadata cannot point at another account or embed file
  for(const proof of [{storageProvider:'supabase',storageBucket:'buyer-proof-files',storagePath:`buyer-documents/${owner}/proof.pdf`},{storageProvider:'local',fileDataUrl:'data:private'}]){
   const p=payload();p.proofFiles=[proof];await assert.rejects(as('authenticated',customer,()=>submit(randomUUID(),p)));
  }
- const p=payload();p.proofFiles=[{storageProvider:'supabase',storageBucket:'buyer-proof-files',storagePath:`buyer-documents/${customer}/proof.pdf`}];
- assert.equal((await as('authenticated',customer,()=>submit(randomUUID(),p))).rows[0].receipt.recorded,true);
+ const p=payload();p.proofFiles=[{storageProvider:'supabase',storageBucket:'buyer-proof-files',storagePath:`buyer-documents/${customer}/proof.pdf`,verificationStatus:'Verified',uploadedBy:owner,isVerified:true}];
+ const key=randomUUID();assert.equal((await as('authenticated',customer,()=>submit(key,p))).rows[0].receipt.recorded,true);
+ const stored=(await db.query('select buyer_data from buyer_portal_submissions where submission_key=$1',[key])).rows[0].buyer_data.proofFiles[0];
+ assert.equal(stored.verificationStatus,'Pending Review');assert.equal(stored.uploadedBy,customer);assert.equal('isVerified' in stored,false);
+});
+test('crafted role/source/verification fields never enter review records',async()=>{
+ const key=randomUUID(),p={...payload(),role:'Admin',isVerified:true,consentStatus:'verified',workspace_id:owner,tags:['Verified Buyer'],fundingStatus:'Verified'};
+ p.portalForm.isVerified=true;p.portalForm.website='javascript:unsafe';
+ await as('anon',null,()=>submit(key,p));
+ const row=(await db.query('select buyer_data from buyer_portal_submissions where submission_key=$1',[key])).rows[0].buyer_data;
+ for(const field of ['role','isVerified','consentStatus','workspace_id'])assert.equal(field in row,false);
+ assert.deepEqual(row.tags,['Buyer Portal','Pending Review']);assert.equal(row.fundingStatus,'Proof needed');
+ assert.equal('isVerified' in row.portalForm,false);assert.equal(row.portalForm.website,'');
+});
+test('unsafe website and disguised owner-prefix traversal cannot be submitted',async()=>{
+ for(const website of ['javascript:unsafe','data:text/html,unsafe']){
+  await assert.rejects(as('anon',null,()=>submit(randomUUID(),{...payload(),website})));
+ }
+ for(const suffix of ['../../foreign/proof.pdf','%2e%2e/foreign.pdf','..\\foreign.pdf']){
+  const p=payload();p.proofFiles=[{storageProvider:'supabase',storageBucket:'buyer-proof-files',storagePath:`buyer-documents/${customer}/${suffix}`}];
+  await assert.rejects(as('authenticated',customer,()=>submit(randomUUID(),p)));
+ }
 });
 test.after(()=>db.close());

@@ -34,7 +34,7 @@ create policy bm_buyer_intake_restrict_update on public.buyer_portal_submissions
 
 create function public.bm_submit_buyer_intake(p_key uuid,p_value jsonb) returns jsonb
 language plpgsql security definer set search_path='' as $$
-declare existing public.buyer_portal_submissions; payload jsonb; proof jsonb; receipt uuid;
+declare existing public.buyer_portal_submissions; payload jsonb; portal_form jsonb; proof jsonb; proofs jsonb:='[]'; receipt uuid;
 begin
  if p_key is null or jsonb_typeof(p_value) is distinct from 'object' or octet_length(p_value::text)>131072
  or length(trim(coalesce(p_value->>'name',''))) not between 1 and 200
@@ -48,15 +48,38 @@ begin
  or jsonb_array_length(p_value->'assetTypes') not between 1 and 100
  or p_value#>'{portalForm,consent}' is distinct from 'true'::jsonb then
  raise exception 'Invalid buyer submission'; end if;
+ if length(coalesce(p_value->>'website',''))>2048
+ or (nullif(p_value->>'website','') is not null and p_value->>'website' !~ '^https?://[^[:space:]]+$')
+ or exists(select 1 from jsonb_array_elements(p_value->'markets') v where jsonb_typeof(v) is distinct from 'string')
+ or exists(select 1 from jsonb_array_elements(p_value->'assetTypes') v where jsonb_typeof(v) is distinct from 'string') then
+ raise exception 'Invalid buyer criteria'; end if;
  if jsonb_typeof(coalesce(p_value->'proofFiles','[]')) is distinct from 'array'
  or jsonb_array_length(coalesce(p_value->'proofFiles','[]'))>10 then raise exception 'Invalid proof metadata'; end if;
  for proof in select value from jsonb_array_elements(coalesce(p_value->'proofFiles','[]')) loop
   if auth.uid() is null or proof->>'storageProvider' is distinct from 'supabase'
    or proof->>'storageBucket' is distinct from 'buyer-proof-files'
    or coalesce(proof->>'storagePath','') not like 'buyer-documents/'||auth.uid()::text||'/%'
+   or coalesce(proof->>'storagePath','') !~ '^[A-Za-z0-9._/-]+$'
+   or '..'=any(string_to_array(proof->>'storagePath','/'))
    or proof ? 'fileDataUrl' or proof ? 'publicUrl' then raise exception 'Private proof upload required'; end if;
+  proofs:=proofs||jsonb_build_array((proof-array['verificationStatus','uploadedBy','isVerified'])||
+   jsonb_build_object('verificationStatus','Pending Review','uploadedBy',auth.uid()));
  end loop;
- payload:=p_value-ARRAY['submittedAt','status','submissionStatus','consent','uploadedFiles','blastEligible','verificationStatus','submissionPayload'];
+ -- Only intake data survives. Arbitrary client role/verification/source flags
+ -- must not reach the existing review/normalization tools.
+ select coalesce(jsonb_object_agg(key,value),'{}'::jsonb) into payload from jsonb_each(p_value)
+ where key=any(array['name','email','phone','company','website','type','markets','assetTypes','exitStrategies',
+ 'budgetMin','budgetMax','priceRange','strategy','downPaymentMax','monthlyPaymentMax','interestRateMax',
+ 'balloonTerm','capRateTarget','creativeStructure','bedRequirement','bathRequirement','unitRequirement',
+ 'cities','notes','proofFiles']);
+ select coalesce(jsonb_object_agg(key,value),'{}'::jsonb) into portal_form from jsonb_each(p_value->'portalForm')
+ where key=any(array['name','email','phone','company','buyerTypeOther','marketsOther','assetTypeOther',
+ 'exitStrategyOther','priceMin','priceMax','unitsMin','unitsMax','downPaymentMax','monthlyPaymentMax',
+ 'interestRateMax','balloonTerm','capRateTarget','creativeStructure','cities','notes','bedRequirement',
+ 'bathRequirement','unitRequirement','consent','dealConsent','buyerTypes','markets','assetTypes',
+ 'exitStrategies','cleanBuyerTypes','cleanMarkets','cleanAssetTypes','cleanExitStrategies','priceRange',
+ 'proofSummary','fileUploadWarning']);
+ payload:=payload||jsonb_build_object('proofFiles',proofs,'portalForm',portal_form||jsonb_build_object('website',coalesce(p_value->>'website','')));
  payload:=jsonb_set(payload,'{email}',to_jsonb(lower(trim(p_value->>'email'))));
  perform pg_advisory_xact_lock(hashtextextended('buyer-intake:'||p_key::text,0));
  select * into existing from public.buyer_portal_submissions where submission_key=p_key;
@@ -67,6 +90,8 @@ begin
  insert into public.buyer_portal_submissions(status,submission_key,buyer_data)
  values('pending_review',p_key,payload||jsonb_build_object('submissionPayload',payload,
  'submissionStatus','Pending Review','status','Submitted / Pending Review','blastEligible',false,
+ 'buyerPortalSubmission',true,'tags',jsonb_build_array('Buyer Portal','Pending Review'),
+ 'fundingStatus',case when jsonb_array_length(coalesce(payload->'proofFiles','[]'))>0 then 'Proof submitted / pending review' else 'Proof needed' end,
  'verificationStatus','Submitted / Pending Review','submittedAt',now(),'uploadedFiles',coalesce(payload->'proofFiles','[]'),
  'consent',jsonb_build_object('version','buyer-intake-consent-v1','accuracy',true,
  'dealInvitations',coalesce(p_value#>'{portalForm,dealConsent}'='true'::jsonb,false),'recordedAt',now()))) returning id into receipt;

@@ -47,7 +47,7 @@ workflow, or external provider behavior is complete or independently certified.
 
 ## Actual local verification
 
-- **87/87 affected checks PASS**: API 17, intake database 13, rendered buyer UI /
+- **89/89 affected checks PASS**: API 17, intake database 15, rendered buyer UI /
   receipt client / scope changes 7, saved consent 11, subscriber billing 21,
   proof files/batches 11, discovery 3, registration routing 4.
 - Frontend TypeScript / Vite application build PASS; existing dynamic-import and
