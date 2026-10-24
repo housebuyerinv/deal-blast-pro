@@ -152,6 +152,34 @@ this preparation or the proposed one-message relay scope.
 
 ## Failure and rollback
 
+### Lost-key replacement and real-launch correction
+
+Owner approval `6390259149` covers only revoking the exact unused isolated key
+`31dd3c1c-c268-4f1b-9153-76039c5400ed` and creating one identical-scope replacement.
+Do not create that replacement until the private credential prompt is ready.
+No DNS work, key guessing, transcript/clipboard retrieval, second email, or
+additional identity is authorized. Preserve the original one-message safeguards.
+
+Actual `Start-Process` launch failed at the public core hash operation with
+`CommandNotFoundException`, HRESULT `80131501`; it did not establish a hash
+mismatch or reach private entry. Direct invocation passed. Windows PowerShell
+launched from PowerShell 7 inherited an incompatible module path. Using only
+`$PSHOME/Modules` inside the Windows PowerShell helper process resolves the
+failure through the exact same launch route: exit 0, exact core hash match.
+The previous module path is restored in `finally`; no persisted environment,
+execution policy, ACL, tool hash, provider scope or other OS setting is changed.
+
+The helper now supports `-PreflightOnly`, exiting before private input/provider
+requests, and writes fixed sanitized stage checkpoints under ignored artifacts.
+No keys/passwords/links/raw exceptions/child output enter those checkpoints.
+Only public implementation hashes and preflight-only exception type/HRESULT/ID
+may be recorded. Mail acceptance remains distinct from delivery/confirmation.
+Five focused preflight checks cover PS5 parsing, real read-only execution,
+wrong-pin rejection, checkpoint policy and an actual child with a deliberately
+invalid inherited module path. Seven existing private-entry dummy checks pass.
+Historical diagnostics remain preserved. A started process is not called a
+ready private prompt without live stage/owner confirmation.
+
 If a later approved relay partially creates an identity, preserve its exact ID and
 receipt, review its current state, and disable/revoke only that new identity using
 supported Auth administration if needed. Deletion requires dependency review and

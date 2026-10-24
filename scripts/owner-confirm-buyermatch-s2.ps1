@@ -1,4 +1,5 @@
 # Owner-run only. No elevation, persistent secret storage, email-hook change or browser bridge.
+param([switch]$PreflightOnly)
 $ErrorActionPreference='Stop'
 function Convert-S2PrivateValue([Security.SecureString]$Value) {
  $ptr=[IntPtr]::Zero
@@ -22,7 +23,21 @@ function Invoke-S2OwnerPrivateEntry {
  }
 }
 if($MyInvocation.InvocationName -ne '.') {
+ # Start-Process from PowerShell 7 can inherit its incompatible module path.
+ # Use only this Windows PowerShell installation's built-in modules in this
+ # process, and restore the caller's value on every exit. No OS setting changes.
+ $previousModulePath=$env:PSModulePath
+ if($PSVersionTable.PSEdition -ceq 'Desktop'){$env:PSModulePath=[IO.Path]::Combine($PSHOME,'Modules')}
  $child=$null
+ $progress=@{stage='dependency-presence'}
+ $checkpoint=Join-Path $PSScriptRoot ('..\artifacts\buyermatch-1b\owner-relay-'+[guid]::NewGuid().ToString('N')+'.json')
+ $record={param($status)
+  # Fixed non-secret stage/status only. Never serialize inputs, exceptions or child output.
+  $allowed=@('dependency-presence','core-pin','node-pin','cli-pin','preflight-passed','private-entry','child-start','child-result','awaiting-private-owner-confirmation')
+  $stage=if($progress.stage -cin $allowed){$progress.stage}else{'UNKNOWN'}
+  $line=@{status=$status;stage=$stage;preflightOnly=[bool]$PreflightOnly;publicCoreHash=$progress.coreHash;expectedPublicCoreHash=$progress.expectedCoreHash;preflightErrorType=$progress.errorType;preflightHResult=$progress.hresult;preflightErrorId=$progress.errorId;time=[DateTime]::UtcNow.ToString('o')}|ConvertTo-Json -Compress
+  [IO.File]::WriteAllText($checkpoint,$line,[Text.UTF8Encoding]::new($false))
+ }
  try {
   # One-owner/one-message scope authorized in PR #2 comment 6389716524.
   # Operator must complete the fresh isolated-account preflight before this run.
@@ -30,13 +45,22 @@ if($MyInvocation.InvocationName -ne '.') {
   $core=Join-Path $PSScriptRoot 'testing\s2-owner-confirmation.mjs'
   $pin='2EC6EBF9D360997D04986C2116659CC7D84ECF2B2E065266ECD2FEAEBD2294BF'
   if(!(Test-Path -LiteralPath $core -PathType Leaf) -or !(Test-Path -LiteralPath $node -PathType Leaf)){throw 'Verified dependency missing'}
-  if((Get-FileHash -LiteralPath $core -Algorithm SHA256).Hash -cne $pin){throw 'Confirmation implementation changed'}
+  $progress.stage='core-pin'
+  $progress.coreHash=(Get-FileHash -LiteralPath $core -Algorithm SHA256).Hash
+  $progress.expectedCoreHash=$pin
+  if($progress.coreHash -cne $pin){throw 'Confirmation implementation changed'}
+  $progress.stage='node-pin'
   if((Get-FileHash -LiteralPath $node -Algorithm SHA256).Hash -cne 'B3094D0B49F9AD602262A9921551737BB97637C05DD357A06AE98188D7290AA3'){throw 'Node fingerprint changed'}
   $cli='C:\Users\CTL Katastrophic\AppData\Roaming\npm\node_modules\supabase\dist\supabase.js'
+  $progress.stage='cli-pin'
   if(!(Test-Path -LiteralPath $cli -PathType Leaf) -or (Get-FileHash -LiteralPath $cli -Algorithm SHA256).Hash -cne '253CAA8C31EE5976322D04A8BD7752622C0915E7943DE3F74E2B73395C54A240'){throw 'Staging CLI dependency changed'}
+  $progress.stage='preflight-passed'
+  & $record 'PASS'
+  if($PreflightOnly){Write-Host 'PASS: dependencies verified; no private input or provider operation.';return}
   Write-Host 'One S2 owner confirmation only. This does not activate registration, billing or an owner role.'
   Write-Host 'Use only the NEW isolated-account sending-only key restricted to s2.housebuyerinvestments.com. Never use the old shared key.'
   $run={param($privateJson)
+   $progress.stage='child-start'
    if((Get-FileHash -LiteralPath $core -Algorithm SHA256).Hash -cne $pin -or (Get-FileHash -LiteralPath $node -Algorithm SHA256).Hash -cne 'B3094D0B49F9AD602262A9921551737BB97637C05DD357A06AE98188D7290AA3' -or (Get-FileHash -LiteralPath $cli -Algorithm SHA256).Hash -cne '253CAA8C31EE5976322D04A8BD7752622C0915E7943DE3F74E2B73395C54A240'){throw 'Verified dependency changed during private entry'}
    $psi=New-Object Diagnostics.ProcessStartInfo
    $psi.FileName=$node;$psi.Arguments='"'+$core+'"'
@@ -51,17 +75,31 @@ if($MyInvocation.InvocationName -ne '.') {
     $text=$stdout.GetAwaiter().GetResult();$errors=$stderr.GetAwaiter().GetResult()
     if($errors.Length -gt 0 -or $text.Length -gt 2048){throw 'Unexpected private child output; stop and review'}
     $r=$text|ConvertFrom-Json
+    $progress.stage='child-result'
     # Only the fixed sanitized result schema may be displayed; never echo child output.
     if($r.ok -eq $true -and $r.emailAccepted -eq $true -and $r.stage -ceq 'awaiting-private-owner-confirmation' -and $child.ExitCode -eq 0){
+     $progress.stage='awaiting-private-owner-confirmation'
+     & $record 'ACCEPTED_NOT_CONFIRMED'
      Write-Host 'Resend accepted the one owner-confirmation message. Delivery and confirmation are not yet verified.'
      Write-Host 'Open the email privately and complete verification. Do not share the link, token, key or password.'
      Write-Host 'If the paused callback reports incomplete registration, do not retry signup. Report only that status.'
-    }else{Write-Host 'STOP: operation failed or is unverified. A new unconfirmed S2 account may exist. Do not retry; request a read-only checkpoint.';exit 1}
+    }else{& $record 'FAILED_OR_UNKNOWN';Write-Host 'STOP: operation failed or is unverified. A new unconfirmed S2 account may exist. Do not retry; request a read-only checkpoint.';exit 1}
    }finally{if($child){$child.Dispose()};$text=$null;$errors=$null;$privateJson=$null}
   }
+  $progress.stage='private-entry'
+  & $record 'WAITING_FOR_PRIVATE_ENTRY'
   Invoke-S2OwnerPrivateEntry -ReadPrivate {param($label) Read-Host $label -AsSecureString} -RunPrivate $run
  }catch{
+  if($progress.stage -cin @('dependency-presence','core-pin','node-pin','cli-pin')){
+   $progress.errorType=$_.Exception.GetType().FullName
+   $progress.hresult=$_.Exception.HResult.ToString('X8')
+   $progress.errorId=if($_.FullyQualifiedErrorId -cmatch '^[A-Za-z0-9_.,-]{1,160}$'){$_.FullyQualifiedErrorId}else{'UNKNOWN'}
+  }
+  try{& $record 'FAILED_OR_UNKNOWN'}catch{}
+  Write-Host ('Non-secret failure stage: '+$progress.stage)
   Write-Host 'STOP: private owner setup did not complete. No automatic retry. Do not share private values or raw provider errors.'
   exit 1
+ }finally{
+  $env:PSModulePath=$previousModulePath
  }
 }
