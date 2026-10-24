@@ -47,6 +47,22 @@ test('fresh legacy environments also converge safely without an emergency migrat
   await assert.rejects(legacy.query('select buyer_data from buyer_portal_submissions'),e=>e.code==='42501');
  }finally{await legacy.close()}
 });
+
+test('actual older S2 updated_at schema gains nullable imported_at and supports receipt plus replay',async()=>{
+ const staging=new PGlite();try{
+  await staging.exec(schema);
+  await staging.exec('alter table buyer_portal_submissions drop column imported_at;alter table buyer_portal_submissions add column updated_at timestamptz not null default now()');
+  await staging.exec(await readFile('scripts/security/contain-buyer-intake.sql','utf8'));
+  const migration=await readFile('supabase/migrations/20261024000845_buyermatch_private_buyer_intake.sql','utf8');
+  await staging.exec(migration);await staging.exec('set role anon');
+  const key=randomUUID();const first=(await staging.query('select bm_submit_buyer_intake($1,$2) receipt',[key,payload()])).rows;
+  await staging.exec('reset role');await staging.exec(migration);await staging.exec('set role anon');
+  assert.deepEqual((await staging.query('select bm_submit_buyer_intake($1,$2) receipt',[key,payload()])).rows,first);
+  await staging.exec('reset role');
+  const row=(await staging.query('select imported_at,updated_at from buyer_portal_submissions where submission_key=$1',[key])).rows[0];
+  assert.equal(row.imported_at,null);assert.ok(row.updated_at);
+ }finally{await staging.close()}
+});
 test('anonymous submission creates only a receipt, pending state and server-recorded separate consent',async()=>{
  const key=randomUUID(),r=await as('anon',null,()=>submit(key));
  assert.deepEqual(Object.keys(r.rows[0].receipt).sort(),['id','recorded']);

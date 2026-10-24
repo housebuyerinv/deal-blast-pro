@@ -6,10 +6,22 @@ set local statement_timeout='30s';
 -- pinned security SQL at 1c7e9a7, SHA256 A0D620D5278491B7ED36E6F85E529DA1863BAC07E751265721B89E7CB0BF79DB.
 -- Safe on both the legacy and contained baseline; NEVER replay bootstrap grants.
 alter table public.buyer_portal_submissions add column if not exists submission_key uuid;
+-- Older staging installations used updated_at instead of the review imported_at field.
+-- Add the nullable review field without changing or backfilling historical data.
+alter table public.buyer_portal_submissions add column if not exists imported_at timestamptz;
 create unique index if not exists buyer_portal_submission_key_unique on public.buyer_portal_submissions(submission_key);
 alter table public.buyer_portal_submissions enable row level security;
 do $$
 begin
+ if exists(select 1 from (values ('id','uuid'::regtype),('status','text'::regtype),('buyer_data','jsonb'::regtype),
+  ('created_at','timestamptz'::regtype),('imported_at','timestamptz'::regtype),('approved_at','timestamptz'::regtype),
+  ('approved_by','text'::regtype),('created_buyer_id','text'::regtype)) expected(name,type)
+  where not exists(select 1 from pg_attribute a where a.attrelid='public.buyer_portal_submissions'::regclass
+   and a.attname=expected.name and a.atttypid=expected.type and not a.attisdropped))
+ or exists(select 1 from pg_attribute where attrelid='public.buyer_portal_submissions'::regclass
+  and attnum>0 and not attisdropped and attnotnull and not atthasdef and attgenerated='' and attidentity=''
+  and attname<>all(array['status','submission_key','buyer_data'])) then
+  raise exception 'Unexpected intake column schema/default; preserve containment'; end if;
  if not exists(select 1 from pg_attribute where attrelid='public.buyer_portal_submissions'::regclass
   and attname='submission_key' and atttypid='uuid'::regtype and not attisdropped)
  or not exists(select 1 from pg_index i join pg_attribute a on a.attrelid=i.indrelid and a.attname='submission_key'
