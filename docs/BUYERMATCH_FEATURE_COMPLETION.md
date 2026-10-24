@@ -4,6 +4,14 @@ Current direction: PR #2 review **6377236755**, October 23, 2026 (owner timezone
 Feature work is local/synthetic/non-delivering. External readiness no longer stops
 local implementation. PR stays draft; public release remains **NO-GO**.
 
+**Security stop:** a narrow read-only Production metadata check now confirms
+unrestricted `anon` and `authenticated` SELECT/UPDATE authorization on
+`public.buyer_portal_submissions` through permissive `true` policies. No buyer
+records were read or changed; data presence and exploitation were not assessed.
+The local repair below is not deployed. Separate urgent security-only containment
+authorization is required; the registration POST pause does not protect this
+direct table pathway. See PR checkpoint 6377610493.
+
 ## Implemented MVP inventory
 
 | Area | Current code | Evidence / limits |
@@ -35,8 +43,12 @@ workflow, or external provider behavior is complete or independently certified.
    Direct anon table access is revoked. Normal authenticated workspace Admins
    cannot read/update intake. No other schema is changed.
 2. The checked-in legacy bootstrap exposed anonymous review reads/updates in a
-   disposable local reproduction. This is **source/local evidence**, not an audit
-   of current Production policies or evidence of exploitation.
+   disposable local reproduction. A subsequent targeted Production metadata check
+   confirmed effective SELECT/UPDATE privileges and unrestricted policies for both
+   public API roles. RLS is enabled but these policies do not restrict those actions.
+   No record-level read, public API test, exploitation finding or policy change
+   was performed. This is a confirmed live authorization defect, not merely a
+   future launch improvement.
 3. Captured accuracy and invitation consent separately. Server activation reads
    saved consent for the exact source identity, not an admin-supplied assertion.
    Existing suppressed network buyers remain suppressed under the existing RPC.
@@ -62,12 +74,15 @@ workflow, or external provider behavior is complete or independently certified.
   The owned fixture server was stopped. No network/security setting was changed
   to work around this. SSR rendering is not mobile/browser interaction proof.
 - No hosted matching/security suites repeated. No real provider credentials were
-  used by these local tests. No hosted registration, payment, email, database or
-  deployment operation occurred.
+  used by these local tests. No hosted registration, payment, email, database write
+  or deployment occurred. The separate Production metadata inspection read only
+  privileges and policies for this one table, never buyer records.
 
-No additional reproducible defect remains open in the changed paths after these
-checks. That does not substitute for the final cross-product/browser/security
-verification below or prove exhaustive whole-application correctness.
+The changed local paths pass their checks, but the newly confirmed Production
+authorization defect remains **unmitigated** under the current no-Production-write
+instruction. This report does not certify whole-application correctness or claim
+100% feature/release completion. Feature work stopped on the critical security
+finding rather than an external staging setup dependency.
 
 ## Migration / operational compatibility
 
@@ -93,6 +108,11 @@ proof data, consent, keys or existing billing protections.
 
 ## One coordinated prelaunch verification phase
 
+0. **Immediate security exception:** prepare and separately authorize narrowly
+   scoped Production containment for buyer-intake data. Preserve policy/grant
+   evidence, explain intake/review impact, and never restore public reads/updates
+   as an automatic rollback. Do not apply the full feature migration without
+   reviewing the currently deployed frontend's direct insert/readback dependency.
 1. **Source/schema/security review:** independently review the final draft PR,
    current schema prerequisites and the new intake migration. Rehearse complete
    migration ordering locally, then separately approve staging application. Check
