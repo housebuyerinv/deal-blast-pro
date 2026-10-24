@@ -16,7 +16,9 @@ export async function subscriberPortal(db, user, operation = 'payment', version,
   if (checkout.error || !checkout.data?.session_id) deny();
   const session = await stripe.checkout.sessions.retrieve(checkout.data.session_id);
   const customer = id(subscription.customer);
-  if (!customer || session.livemode !== live || session.client_reference_id !== user.id ||
+  if (!customer || session.id !== checkout.data.session_id || session.status !== 'complete' || session.mode !== 'subscription' ||
+      session.metadata?.dbpProduct !== 'buyermatch' || session.metadata?.dealBlastUserId !== user.id ||
+      session.livemode !== live || session.client_reference_id !== user.id ||
       session.metadata?.dbpCheckoutId !== checkout.data.id || id(session.subscription) !== subscription.id || id(session.customer) !== customer) deny();
   // A portal customer must contain only this owner's BuyerMatch subscriptions.
   // Shared CRM/foreign customers fail closed, including incomplete pagination.

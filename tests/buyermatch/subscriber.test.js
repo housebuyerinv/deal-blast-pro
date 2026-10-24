@@ -9,7 +9,7 @@ function fixture() {
  const metadata={dbpProduct:'buyermatch',dealBlastUserId:owner,dbpCheckoutId:'checkout'};
  const sub={id:'sub_owned',customer:'cus_bm',livemode:false,metadata,items:{data:[{id:'si_owned'}]}};
  const checkout={id:'checkout',owner_id:owner,product:'buyermatch',session_id:'cs_owned'};
- const session={id:'cs_owned',client_reference_id:owner,customer:'cus_bm',subscription:'sub_owned',livemode:false,metadata};
+ const session={id:'cs_owned',status:'complete',mode:'subscription',client_reference_id:owner,customer:'cus_bm',subscription:'sub_owned',livemode:false,metadata:{...metadata}};
  const config={active:true,livemode:false};
  const price={id:'price_pro',livemode:false,active:true,type:'recurring',currency:'usd',unit_amount:11900,recurring:{interval:'month',interval_count:1,usage_type:'licensed'}};
  const created=[];const tables=[];
@@ -34,6 +34,13 @@ for(const [name,mutate] of [
  ['mismatched customer',f=>{f.session.customer='cus_other'}],
  ['mismatched subscription',f=>{f.session.subscription='sub_other'}],
  ['mismatched checkout identity',f=>{f.session.client_reference_id='other'}],
+ ['open checkout',f=>{f.session.status='open'}],
+ ['expired checkout',f=>{f.session.status='expired'}],
+ ['missing completion proof',f=>{delete f.session.status}],
+ ['one-time checkout',f=>{f.session.mode='payment'}],
+ ['wrong checkout session',f=>{f.session.id='cs_other'}],
+ ['foreign checkout metadata',f=>{f.session.metadata.dealBlastUserId='other'}],
+ ['CRM checkout metadata',f=>{f.session.metadata.dbpProduct='crm'}],
  ['shared CRM customer',f=>{f.list.data=[f.sub,{livemode:false,metadata:{dbpProduct:'crm',dealBlastUserId:owner}}]}],
  ['incomplete customer inventory',f=>{f.list.has_more=true}],
  ['inactive portal configuration',f=>{f.config.active=false}],
