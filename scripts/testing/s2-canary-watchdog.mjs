@@ -2,6 +2,7 @@ import {readFileSync,writeFileSync,appendFileSync,existsSync} from 'node:fs';
 import {resolve,dirname} from 'node:path';
 import {makeProvider,sha,validateCanaryPlan,CANARY_SOURCE,discoverCanary} from './s2-canary-provider.mjs';
 import {closeS2Run} from '../buyermatch-s2-cleanup.mjs';
+import {restoreS2Pauses,S2_SCOPE} from '../buyermatch-s2-safety.mjs';
 import {S2_RELEASE as S2} from '../buyermatch-s2-release.mjs';
 let dir,plan,adapter,receipt;
 let phase='plan-verification';
@@ -24,6 +25,9 @@ try{
  await adapter.verifyAuthority();const safety=await adapter.readSafetyState();
  if(Object.entries(safety).some(([,v])=>v!==true))throw Error();
  const alias=await adapter.readAlias(plan.alias);if(alias.projectId!==plan.project||alias.deploymentId!==plan.fallback)throw Error();
+ phase='independent-same-state-containment';
+ await restoreS2Pauses(S2_SCOPE,{disableEndpoint:()=>adapter.disableEndpoint(S2.endpoint),pauseReceiver:()=>adapter.pauseReceiver(S2.staging),readSafetyState:()=>adapter.readSafetyState()});
+ journal({stage:'independent-same-state-containment',verified:true});
  write('watchdog-ready.json',{ready:true,pid:process.pid,launcherExited:true,source:CANARY_SOURCE,safety,at:new Date().toISOString()});
  phase='discover-exact-run';
  const deadline=plan.startedAt+900000;
