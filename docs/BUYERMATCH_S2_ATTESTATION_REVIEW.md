@@ -92,3 +92,37 @@ H1 and Production remain NO-GO until those hosted gates pass.
 References: [Vercel file inclusion](https://vercel.com/kb/guide/how-can-i-use-files-in-serverless-functions),
 [system deployment identity](https://vercel.com/docs/environment-variables/system-environment-variables),
 [Supabase server-verified getUser](https://supabase.com/docs/reference/javascript/auth-getuser).
+
+## Exact reviewed-canary operational binding
+
+The conditional canary remains exact `202b3d3965aa2fd4bb9e16dab06f207b157b8acd`;
+newer operator-tool commits do not replace the deployed application source.
+The attestation/cleanup/release boundaries are unchanged from that review.
+
+`scripts/testing/s2-canary-provider.mjs` binds the existing cleanup engine to
+pinned, already-authorized provider CLIs. No new credentials or token exports.
+All API reads are scoped; deletion requires the exact new project/team/run/source,
+Preview classification, no prior-inventory membership and no aliases. The supported
+`vercel remove <exact ID> --safe --yes` operation is followed by an independent
+authenticated, exact-path HTTP404. No alias mutation is permitted by this binding.
+
+CLI 58.9.0 drops structured HTTP status on API errors even with `--include`.
+The passive `s2-canary-http-observer.mjs` uses standard Node diagnostics channels
+and private child IPC to retain only origin-checked method/path/numeric status.
+It does not patch requests, read headers/bodies/credentials, modify the CLI or
+print raw errors. Missing/conflicting observations, transport timeout, wrong
+method/path, 401/403 and CLI outcome mismatch remain UNKNOWN. Actual read-only
+200 and synthetic-404 controls were observed. An initial Windows preload path
+error occurred before network observation; a proper file URL corrected it.
+26 focused binding tests cover those boundaries; the unchanged hosted/65-test
+suite is not repeated.
+
+The launcher starts a detached worker and exits. The worker proves that exit,
+checks independent provider authority/paused state, and writes readiness before
+deployment is allowed. It discovers only the fresh run-tagged new deployment,
+then closes on an explicit request or a 15-minute deadline using the existing
+`closeS2Run`. A failed worker does not count as automatic success; operator
+recovery remains separately labelled. Original evidence is never overwritten.
+Deployment uses all 17 settings in both scopes and supported `--skip-domain`;
+the stable alias is never moved. Runtime/build attestation and actual automatic
+deletion remain NOT RUN until their real canary evidence is collected.

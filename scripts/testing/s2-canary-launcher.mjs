@@ -1,0 +1,12 @@
+import {spawn} from 'node:child_process';
+import {readFileSync} from 'node:fs';
+import {resolve} from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {sha,validateCanaryPlan} from './s2-canary-provider.mjs';
+if(process.argv.length!==4)throw Error('Plan required');
+const path=resolve(process.argv[2]),raw=readFileSync(path);
+if(sha(raw)!==process.argv[3])throw Error('Plan changed');
+const p=validateCanaryPlan(JSON.parse(raw));
+for(const[file,h]of Object.entries(p.operatorPins))if(sha(readFileSync(file))!==h)throw Error('Operator pin changed');
+const child=spawn(process.execPath,[fileURLToPath(new URL('./s2-canary-watchdog.mjs',import.meta.url)),path,process.argv[3]],{cwd:process.cwd(),detached:true,windowsHide:true,stdio:'ignore'});
+child.unref();process.stdout.write(JSON.stringify({launcherPid:process.pid,childPid:child.pid,source:p.source})+'\n');
