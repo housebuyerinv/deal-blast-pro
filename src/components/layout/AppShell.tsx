@@ -1,5 +1,5 @@
 
-﻿import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import Sidebar from './Sidebar'
 import Topbar from './Topbar'
 import { useAppStore } from '../../store/useAppStore'
@@ -383,8 +383,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </main>
       </div>
 
-      <OnboardingTour />
-      <ProTrialPromotionModal />
+      {/* The read-only operator page must not prompt preference/provisioning writes. */}
+      {location.pathname !== '/app/s2-attestation' && <>
+        <OnboardingTour />
+        <ProTrialPromotionModal />
+      </>}
 
       {/* Global Deal Terminal Drawer */}
       {currentDealId && (
