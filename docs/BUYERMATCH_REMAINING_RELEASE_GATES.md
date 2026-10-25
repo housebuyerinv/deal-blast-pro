@@ -10,7 +10,7 @@ Production/public release NO-GO; draft PR retained. Source implementation candid
 | Gate | Status / actual evidence | Remaining acceptance |
 | --- | --- | --- |
 | Owner access | VERIFIED HOSTED: six authorized records and normal password browser login, checkpoint 6391341559 | No repeat email, signup, key or provisioning |
-| Cleanup engineering | VERIFIED LOCAL: separate AI review found mutable-state authority coupling and unbounded discovery; corrected, 38 focused checks and scoped lint pass | Separate review of final CLI identity-shape correction; actual cleanup still unproven |
+| Cleanup engineering | VERIFIED LOCAL: separate AI review found mutable-state authority coupling and unbounded discovery; corrected, 38 focused checks and scoped lint pass. Final code-review PASS at38fde4bee884cbe36e2a38d55d611859f49d43cd | Actual detached provider authority and hosted cleanup still unproven |
 | Reviewed source | VERIFIED LOCAL: 509 exported Git blobs match exact 202b source byte-for-byte after disabling Windows archive newline conversion | This is not a deployed artifact |
 | Canary preflight | BLOCKED before deployment/worker launch: named CLI profile identity is exactly one S2 TEST account, but endpoint retrieval returns permission-related api_error | Independently executable webhook read/update authority must work; connector-only access cannot replace detached authority |
 | Stripe endpoint | VERIFIED HOSTED read-only connector: exact S2 account, TEST mode, expected staging receiver, status disabled | No event replay, update, purchase or secret read performed |
