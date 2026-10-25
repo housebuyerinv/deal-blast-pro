@@ -520,7 +520,7 @@ test('request rejection details remain unavailable to anonymous and non-owner ca
   assert.equal(other.body.reasons, undefined);
 });
 
-test('actual dispatcher passes synthetic request envelopes to the actual protected handler unchanged', async () => {
+test('actual dispatcher normalizes only the exact path-bound vendor selector for the protected handler', async () => {
   globalThis.__s2RealHandler = handler;
   try {
     const result = await build({
@@ -554,6 +554,16 @@ test('actual dispatcher passes synthetic request envelopes to the actual protect
       'data:text/javascript;base64,' +
         Buffer.from(result.outputFiles[0].text).toString('base64')
     );
+    const contract = JSON.parse(
+      readFileSync('tests/fixtures/s2-vercel-route-contract.json', 'utf8'),
+    );
+    const externalPath = '/api/platform/s2-attestation';
+    const matched = new RegExp(contract.src).exec(externalPath);
+    assert.equal(matched[1], 's2-attestation');
+    const selector = contract.destinations[0]
+      .replace('$1', matched[1])
+      .split('?')[1];
+    assert.equal(selector, 'endpoint=s2-attestation');
     for (const [request, code, reason] of [
       [{}, 200, undefined],
       [
@@ -566,10 +576,52 @@ test('actual dispatcher passes synthetic request envelopes to the actual protect
         200,
         undefined,
       ],
-      [
-        { url: '/api/platform/s2-attestation?endpoint=s2-attestation' },
+      [{ url: externalPath + '?' + selector }, 200, undefined],
+      ...[
+        'endpoint=s2-attestation&key=DUMMY_PRIVATE',
+        'endpoint=s2-attestation&endpoint=s2-attestation',
+        'endpoint=buyermatch',
+        '%65ndpoint=s2-attestation',
+        'endpoint=s2%2Dattestation',
+        'key=DUMMY_PRIVATE',
+      ].map((query) => [
+        { url: externalPath + '?' + query },
         400,
         'QUERY_NOT_SUPPORTED',
+      ]),
+      [{ url: externalPath + '?' + selector, headers: {} }, 401, undefined],
+      [
+        {
+          url: externalPath + '?' + selector,
+          method: 'POST',
+          get body() {
+            throw Error('Body must not be read');
+          },
+        },
+        405,
+        undefined,
+      ],
+      [
+        {
+          url: externalPath + '?' + selector,
+          headers: {
+            authorization: 'Bearer dummy-valid',
+            'content-length': '1',
+          },
+        },
+        400,
+        'CONTENT_LENGTH_NOT_SUPPORTED',
+      ],
+      [
+        {
+          url: externalPath + '?' + selector,
+          headers: {
+            authorization: 'Bearer dummy-valid',
+            'transfer-encoding': 'chunked',
+          },
+        },
+        400,
+        'TRANSFER_ENCODING_NOT_SUPPORTED',
       ],
       [
         {
@@ -583,10 +635,45 @@ test('actual dispatcher passes synthetic request envelopes to the actual protect
       ],
     ]) {
       reset();
-      const r = await invoke(request, route);
+      const r = await invoke(request, async (req, res) => {
+        const originalUrl = req.url;
+        const originalHeaders = req.headers;
+        const result = await route(req, res);
+        assert.equal(req.url, originalUrl);
+        assert.equal(req.headers, originalHeaders);
+        return result;
+      });
       assert.equal(r.statusCode, code);
       assert.equal(r.body.reasons?.[0], reason);
+      assert.equal(JSON.stringify(r.body).includes('DUMMY'), false);
     }
+    reset();
+    owner.email = 'not-owner@example.com';
+    const nonOwner = await invoke(
+      { url: externalPath + '?' + selector },
+      route,
+    );
+    assert.equal(nonOwner.statusCode, 403);
+    assert.equal(nonOwner.body.reasons, undefined);
+    reset();
+    const failingRequest = {
+      method: 'GET',
+      url: externalPath + '?' + selector,
+      headers: { authorization: 'Bearer dummy-valid' },
+    };
+    const originalUrl = failingRequest.url;
+    await assert.rejects(
+      route(failingRequest, {
+        setHeader() {},
+        status() {
+          return this;
+        },
+        json() {
+          throw Error('synthetic response interruption');
+        },
+      }),
+    );
+    assert.equal(failingRequest.url, originalUrl);
   } finally {
     delete globalThis.__s2RealHandler;
   }
@@ -659,7 +746,7 @@ test('actual platform dispatcher preserves existing route targets and rejects di
             namespace: 'routes',
           }));
           b.onLoad({ filter: /.*/, namespace: 'routes' }, (args) => ({
-            contents: `export default (req,res)=>res.status(200).json({handler:${JSON.stringify(args.path)},method:req.method});`,
+            contents: `export default (req,res)=>res.status(200).json({handler:${JSON.stringify(args.path)},method:req.method,url:req.url});`,
             loader: 'js',
           }));
         },
@@ -693,6 +780,25 @@ test('actual platform dispatcher preserves existing route targets and rejects di
     assert.equal(res.code, 200);
     assert.ok(res.value.handler.endsWith('/' + name + '.js'));
   }
+  const otherRequest = {
+    url: '/api/platform/buyermatch?endpoint=s2-attestation&action=plans',
+    method: 'GET',
+  };
+  const otherResponse = {
+    code: 0,
+    value: null,
+    status(code) {
+      this.code = code;
+      return this;
+    },
+    json(value) {
+      this.value = value;
+      return this;
+    },
+  };
+  await route(otherRequest, otherResponse);
+  assert.equal(otherResponse.value.url, otherRequest.url);
+  assert.ok(otherResponse.value.handler.endsWith('/buyermatch.js'));
   for (const path of [
     '/api/platform/s2-attestation-extra',
     '/api/platform/not-a-route',

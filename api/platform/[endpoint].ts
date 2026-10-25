@@ -15,8 +15,21 @@ const handlers = {
 }
 
 export default async function handler(req: any, res: any) {
-  const path = new URL(req.url, 'https://internal.invalid').pathname
+  const url = new URL(req.url, 'https://internal.invalid')
+  const path = url.pathname
   const match = /^\/api\/(?:platform\/)?(buyermatch|buyermatch-response|buyermatch-worker|email-operations|s2-attestation)$/.exec(path)
   if (!match) return res.status(404).json({ error: 'Not found' })
+  // Vercel's [endpoint] route adds this exact, path-bound selector internally.
+  // Normalize only that routing artifact, never arbitrary/duplicate query input.
+  // The protected handler still independently rejects all query/body/framing input.
+  if (match[1] === 's2-attestation' && url.search === '?endpoint=s2-attestation') {
+    const originalUrl = req.url
+    try {
+      req.url = path
+      return await s2Attestation(req, res)
+    } finally {
+      req.url = originalUrl
+    }
+  }
   return handlers[match[1] as keyof typeof handlers](req, res)
 }
