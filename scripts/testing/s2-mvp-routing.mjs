@@ -1,10 +1,10 @@
 /* global AbortController, setTimeout, clearTimeout */
 import {S2_RELEASE as S2} from '../buyermatch-s2-release.mjs';
 import {URL} from 'node:url';
-export const MVP_SOURCE='5fab059a531f20c1b94c581c1b9e0c95a205a66f';
+export const MVP_SOURCE='b99830596080eef2b24472e71bdcb061c855bf57';
 export const MVP_ALIAS=new URL(S2.origin).hostname;
 export const WINDOW_MS=1800000;
-export const ACCEPTANCE_KEYS=Object.freeze(['ownerAttestation17','agreementDiscovery','subscriberReadOnly','buyerIntakeReadOnly','ownerReviewReadOnly','keyboardAndNarrowLayout','unauthenticatedDenied','safeguardsUnchanged']);
+export const ACCEPTANCE_KEYS=Object.freeze(['ownerAttestation17','agreementDiscovery','ownerBuyerMatchReadOnly','buyerIntakeReadOnly','ownerNetworkReviewReadOnly','keyboardAndNarrowLayout','unauthenticatedDenied','safeguardsUnchanged']);
 const id=x=>/^dpl_[A-Za-z0-9]+$/.test(x??'');
 export function validateMvpPlan(p){
  if(p?.schema!==1||p.source!==MVP_SOURCE||p.project!==S2.project||p.team!==S2.team||p.alias!==MVP_ALIAS||p.fallback!==S2.fallback||p.windowMs!==WINDOW_MS||!Number.isSafeInteger(p.startedAt)||!Number.isSafeInteger(p.discoveryDeadline)||p.discoveryDeadline<=p.startedAt||p.discoveryDeadline-p.startedAt>600000||!Array.isArray(p.preexistingIds)||!p.preexistingIds.includes(S2.fallback)||!p.preexistingIds.every(id)||!/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(p.runId??'')||!p.operatorPins||Object.keys(p.operatorPins).length<8||!Object.values(p.operatorPins).every(x=>/^[a-f0-9]{64}$/.test(x)))throw Error('MVP plan rejected');

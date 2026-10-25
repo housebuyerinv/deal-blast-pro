@@ -1,0 +1,66 @@
+{
+  "schema": 1,
+  "asOf": "2026-10-25T19:20:47.692Z",
+  "applicationSource": "b99830596080eef2b24472e71bdcb061c855bf57",
+  "observations": {
+    "vendor": "installed Vercel CLI 58.9.0",
+    "vendorChunkSha256": "46a38068802d3fc947239d7b3c446902df0957c308830a6f51a85b683b7732f7",
+    "functionSha256": {
+      "getSegmentName": "099279a7af1939d25f1854f5624ed97062a3f438bfb7bc2e56a1affcbfc9234e",
+      "escapeName": "52916c62275f2f8fdfa0c8937865423baa7d37db58ffd84d958b9bd410324289",
+      "createRouteFromPath": "a2501079d024c84a346dc5787069e4f1f5787c13ff7be4b5c7c9ae2c48f08269"
+    },
+    "observation": "Actual pinned vendor function text executed locally; not a hosted request-envelope capture",
+    "routes": [
+      {
+        "route": {
+          "src": "^/api/platform/([^/]+)$",
+          "dest": "/api/platform/[endpoint].ts?endpoint=$1"
+        },
+        "isDynamic": true
+      },
+      {
+        "route": {
+          "src": "^/api/platform/([^/]+)$",
+          "dest": "/api/platform/[endpoint]?endpoint=$1",
+          "check": true
+        },
+        "isDynamic": true
+      }
+    ]
+  },
+  "baselineRegression": {
+    "executed": true,
+    "originalDispatcherResult": 400,
+    "expected": 200,
+    "testFailedBeforeFix": true
+  },
+  "correctedRegression": {
+    "actualDispatcherAndActualProtectedHandler": true,
+    "generatedExactSelector": 200,
+    "arbitraryQueriesRejected": true,
+    "duplicatesEncodedAndMismatchedSelectorsRejected": true,
+    "unauthenticated": 401,
+    "nonOwner": 403,
+    "post": 405,
+    "nonzeroLengthAndTransferEncoding": 400,
+    "originalUrlRestoredOnSuccessAndThrow": true,
+    "otherHandlersUnchanged": true
+  },
+  "historicalHosted400Cause": "UNKNOWN_EFFECTIVE_ENVELOPE_NOT_CAPTURED",
+  "minimalFix": "Normalize only exact attestation path plus raw ?endpoint=s2-attestation; original handler guards unchanged",
+  "operatorPageFix": "Do not mount CRM preference-writing modals on exact /app/s2-attestation; adjacent routes unchanged",
+  "verification": {
+    "handlerRouterTests": 24,
+    "operatorShellSsrTests": 3,
+    "routingTests": 15,
+    "preparationTests": 11,
+    "apiTypecheck": "PASS",
+    "realServerBundle": "PASS",
+    "frontendTypecheckBuild": "PASS",
+    "scopedLint": "PASS"
+  },
+  "newProviderOperations": 0,
+  "newDeployments": 0,
+  "existingEvidencePreserved": true
+}

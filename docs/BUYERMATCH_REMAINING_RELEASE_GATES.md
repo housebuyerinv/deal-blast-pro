@@ -1,6 +1,38 @@
 # BuyerMatch consolidated release-validation evidence
 
-## Current checkpoint — approved current-MVP paused Preview
+## Current checkpoint — local routing fix; new approval pending
+
+Exact proposed application is `b99830596080eef2b24472e71bdcb061c855bf57`.
+The installed pinned vendor route generator adds the path-bound `endpoint`
+selector. Actual local dispatcher/handler regression failed400 before the fix
+and passed after normalizing only that exact selector. Owner authorization and
+strict body/query/framing denial remain intact. The original hosted request
+envelope was not captured, so its sole historical400 cause remains UNKNOWN.
+
+The operator page also excludes CRM preference-writing modal components; no
+account-preference write or owner setup is needed for that page. CRM behavior and
+BuyerMatch's separate layout are preserved.53 focused checks PASS (24 handler/
+router,3 shell SSR,15 routing,11 preparation), with API typecheck, actual server
+bundle, frontend typecheck/build, scoped lint and independent AI reviews PASS.
+No new hosted attempt, deployment, alias/provider change, payment or migration.
+
+One [approval packet](BUYERMATCH_S2_ROUTING_FIX_APPROVAL.md) and its
+[12-pin execution manifest](BUYERMATCH_S2_ROUTING_FIX_REQUEST.json) cover one
+future protected paused Preview, exact source,17 settings in each scope, dedicated
+alias only and maximum30-minute acceptance with the existing immutable fallback.
+Actual human approval is still required; CLI acknowledgement is not authorization.
+[Local reproduction evidence](BUYERMATCH_S2_ROUTING_FIX_LOCAL_EVIDENCE.json) records
+its limits. No diagnostic-only redeployment is proposed.
+
+The window proves owner-only configuration and specified read-only UI surfaces.
+It must not be labelled paid-subscriber or CRM buyer-intake approval/import
+acceptance. Those hosted workflows, Pro/lifecycle testing, legal approval and
+independent recovery remain open. Recovery stays BLOCKED ON HARDWARE; no new
+Windows recovery work, purchase, formatting or Production export. Production
+cutover still needs its separate security/integration migration review, verified
+recovery and explicit execution/activation approvals. Prior successes are retained.
+
+## Previous executed checkpoint — protected Preview and automatic rollback
 
 Authorization6399713964 for packet8998e60 was executed once. Exact application
 `5fab059a531f20c1b94c581c1b9e0c95a205a66f` (531 matching exported Git blobs)
