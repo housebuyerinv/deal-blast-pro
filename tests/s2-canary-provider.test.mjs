@@ -4,7 +4,7 @@ import {URL} from 'node:url';
 import {setTimeout,clearTimeout} from 'node:timers';
 import assert from 'node:assert/strict';
 import {statusObservation} from '../scripts/testing/s2-canary-http-observer.mjs';
-import {assertRemoval,checkedStatus,normalizeDeployment,validateCanaryPlan,assertApiRead,CANARY_SOURCE,assertCanaryAuthority,discoverCanary} from '../scripts/testing/s2-canary-provider.mjs';
+import {assertRemoval,checkedStatus,normalizeDeployment,validateCanaryPlan,assertApiRead,CANARY_SOURCE,assertCanaryAuthority,discoverCanary,stripeProfileAccount} from '../scripts/testing/s2-canary-provider.mjs';
 import {closeS2Run} from '../scripts/buyermatch-s2-cleanup.mjs';
 import {S2_RELEASE as S2} from '../scripts/buyermatch-s2-release.mjs';
 const path='/v13/deployments/dpl_SYNTHETICCANARY';
@@ -22,6 +22,11 @@ test('preexisting and fallback deployment IDs are protected',()=>{assert.throws(
 test('new draft HEAD and malformed run IDs cannot replace approved source',()=>{assert.throws(()=>validateCanaryPlan({...plan(),source:'30426ac933cbe542e8524aacc65eae245330e3ba'}));assert.throws(()=>validateCanaryPlan({...plan(),runId:'-'.repeat(36)}));});
 test('API reads cannot escape to credentials, another project or arbitrary URL',()=>{for(const p of ['/v10/projects/prj_OTHER/env?decrypt=true','https://api.vercel.com/v2/user','/v9/projects/prj_OTHER','/v13/deployments/dpl_X?unapproved=1','/v6/deployments?limit=100'])assert.throws(()=>assertApiRead(p));assert.doesNotThrow(()=>assertApiRead(path));});
 const authority=(status='enabled',patch={})=>assertCanaryAuthority({id:S2.project,accountId:S2.team},{id:S2.team,membership:{role:'OWNER'}},{account_id:S2.account},{id:S2.endpoint,livemode:false,url:`https://${S2.staging}.supabase.co/functions/v1/stripe-webhook`,status,...patch});
+test('current CLI authorized_accounts output requires exact single S2 TEST scope',()=>{
+ assert.equal(stripeProfileAccount({authorized_accounts:[{id:S2.account,modes:['test']}]}),S2.account);
+ for(const authorized_accounts of [[],[{id:'acct_OTHER',modes:['test']}],[{id:S2.account,modes:['live']}],[{id:S2.account,modes:['test']},{id:'acct_OTHER',modes:['test']}],[{id:S2.account}]])assert.throws(()=>stripeProfileAccount({authorized_accounts}));
+ assert.throws(()=>stripeProfileAccount({error:{type:'api_error'}}));
+});
 test('enabled and disabled scoped TEST endpoints both authorize containment',()=>{assert.equal(authority().livemode,false);assert.deepEqual(authority('disabled'),authority());});
 test('mutable protection drift cannot suppress exact-scope containment authority',()=>{
  const p={id:S2.project,accountId:S2.team,link:{type:'github'},ssoProtection:null,protectionBypass:{synthetic:true}};

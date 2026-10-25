@@ -1,0 +1,48 @@
+{
+  "status": "PREPARATION_ONLY_NO_EXECUTION",
+  "asOfUtc": "2026-10-25",
+  "productionProject": "aigvnbxiydbzzqbetlhl",
+  "productionDatabaseVersion": "17.6",
+  "productionMigrationCount": 67,
+  "hashEncoding": "SHA256 of exact Git blob bytes; Windows checkout newline conversion must not change approved execution bytes",
+  "directContainment": {
+    "migrationHistoryEntry": false,
+    "unsafeTableGrants": 0,
+    "unsafeColumnGrants": 0,
+    "rlsEnabled": true,
+    "serviceRoleAccess": true
+  },
+  "orderedPendingSources": [
+    {
+      "path": "supabase/migrations/20261019233315_registration_create_only_provisioning.sql",
+      "sha256": "d3ba74f22223b6afa8af96624c00e272b911a7d81dabf6de92d617775b1ffd28",
+      "s2RecordedVersion": "20261020164022",
+      "productionRecorded": false,
+      "release": "separate-security-only"
+    },
+    {
+      "path": "supabase/migrations/20261022141326_buyermatch_owned_subscription_plan_changes.sql",
+      "sha256": "24fa34d899c27dc2a5bf69d188c40e1bcd7f5ea81bc292b48d930b6aaba573f8",
+      "s2RecordedVersion": "20261022235049",
+      "productionRecorded": false,
+      "release": "BuyerMatch-integration"
+    },
+    {
+      "path": "supabase/migrations/20261023153356_buyermatch_completed_checkout_guards.sql",
+      "sha256": "efd58655720d339d5f4096959413d9d1385ae3fff09ff49124937b94887e46a0",
+      "s2RecordedVersion": "20261023155333",
+      "productionRecorded": false,
+      "release": "BuyerMatch-integration"
+    },
+    {
+      "path": "supabase/migrations/20261024000845_buyermatch_private_buyer_intake.sql",
+      "sha256": "fec2e79a02ca93e1cb3a360a03bfb1eb1e9ae627c5380fdc45b7316655f8a811",
+      "s2RecordedVersion": "20261024000845",
+      "productionRecorded": false,
+      "release": "secure-intake-restoration-separate-approval"
+    }
+  ],
+  "excludeFromProduction": ["S2 capture-email hook", "S2 stable callback DDL", "staging QA legal fixtures", "Stripe TEST catalog bindings"],
+  "remainingBeforeExecution": ["fresh function-definition and security metadata comparison", "exact security-only source verification", "independent full recovery and key custody", "legal approval", "hosted acceptance", "separate Production authorization"],
+  "rollback": "Keep additive security guards and all pauses; no automatic weaker SQL or vulnerable signup restoration"
+}

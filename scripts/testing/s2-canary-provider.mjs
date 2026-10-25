@@ -9,10 +9,21 @@ const base='C:/Users/CTL Katastrophic/AppData/Roaming/npm/node_modules/';
 const paths={node:'C:/Program Files/nodejs/node.exe',vercel:base+'vercel/dist/vc.js',supabase:base+'supabase/dist/supabase.js',stripe:'C:/Users/CTL Katastrophic/AppData/Local/Microsoft/WinGet/Packages/Stripe.StripeCli_Microsoft.Winget.Source_8wekyb3d8bbwe/stripe.exe'};
 const pins={node:'b3094d0b49f9ad602262a9921551737bb97637c05dd357a06ae98188d7290aa3',vercel:'33542f1ec34ec6b9953ee7486c7ae5f9cc2a2b0225671ece4ed22fe8625bab86',supabase:'253caa8c31ee5976322d04a8bd7752622c0915e7943de3f74e2b73395c54a240',stripe:'88162aeacb9875bdb48b654a81f00ad45b9155a28545770144e7997f90efd486'};
 export const sha=x=>createHash('sha256').update(x).digest('hex');
+export function stripeProfileAccount(who){
+ // Current CLI identity output lists authorized accounts; reject ambiguous scope.
+ if(Array.isArray(who?.authorized_accounts)){
+  const a=who.authorized_accounts;
+  if(a.length!==1||a[0]?.id!==S2.account||!Array.isArray(a[0].modes)||!a[0].modes.includes('test'))throw Error('Stripe profile identity unavailable');
+  return a[0].id;
+ }
+ if(who?.account_id!==S2.account)throw Error('Stripe profile identity unavailable');
+ return who.account_id;
+}
 // Cleanup authority describes ownership, not the mutable state it must contain.
 export function assertCanaryAuthority(p,t,who,e){
- if(p?.id!==S2.project||p.accountId!==S2.team||t?.id!==S2.team||t.membership?.role!=='OWNER'||who?.account_id!==S2.account||e?.id!==S2.endpoint||e.livemode!==false||e.url!==`https://${S2.staging}.supabase.co/functions/v1/stripe-webhook`||!['enabled','disabled'].includes(e.status))throw Error('Authority unavailable');
- return {project:p.id,team:p.accountId,account:who.account_id,livemode:false};
+ const account=stripeProfileAccount(who);
+ if(p?.id!==S2.project||p.accountId!==S2.team||t?.id!==S2.team||t.membership?.role!=='OWNER'||e?.id!==S2.endpoint||e.livemode!==false||e.url!==`https://${S2.staging}.supabase.co/functions/v1/stripe-webhook`||!['enabled','disabled'].includes(e.status))throw Error('Authority unavailable');
+ return {project:p.id,team:p.accountId,account,livemode:false};
 }
 export async function discoverCanary(adapter,plan,deadline,now=Date.now){
  const remaining=deadline-now();if(remaining<=0)throw Error('Discovery deadline');
@@ -81,7 +92,7 @@ export function makeProvider(plan,dir){
  const stripe=(args,signal)=>json('stripe',[...args,'--project-name','buyermatch-s2'],signal);
  const projectIdentity=async signal=>{const p=(await api('/v9/projects/'+S2.project,signal)).body;if(p?.id!==S2.project||p.accountId!==S2.team)throw Error('Project identity failed');return p;};
  const project=async signal=>{const p=await projectIdentity(signal);if(p.link||p.ssoProtection?.deploymentType!=='all'||Object.keys(p.protectionBypass||{}).length)throw Error('Project isolation failed');return p;};
- const endpoint=async signal=>{const e=await stripe(['webhook_endpoints','retrieve',S2.endpoint],signal);if(e.id!==S2.endpoint||e.livemode!==false||e.url!==`https://${S2.staging}.supabase.co/functions/v1/stripe-webhook`)throw Error('Stripe scope mismatch');return e;};
+ const endpoint=async signal=>{const e=await stripe(['webhook_endpoints','retrieve',S2.endpoint],signal);if(e.error)throw Error('Stripe endpoint access unavailable');if(e.id!==S2.endpoint||e.livemode!==false||e.url!==`https://${S2.staging}.supabase.co/functions/v1/stripe-webhook`)throw Error('Stripe scope mismatch');return e;};
  const readDeployment=async(id,signal)=>{if(!/^dpl_[A-Za-z0-9]+$/.test(id))throw Error();const r=await api('/v13/deployments/'+id,signal);return normalizeDeployment(r.body,r.code,id);};
  const readAlias=async(alias,signal)=>{if(alias!==plan.alias)throw Error();const a=(await api('/v4/aliases/'+alias,signal)).body;return {projectId:a.projectId,deploymentId:a.deploymentId??a.deployment?.id};};
  return {

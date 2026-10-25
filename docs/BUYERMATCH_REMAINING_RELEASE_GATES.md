@@ -1,4 +1,98 @@
-# BuyerMatch remaining release gates — October 23, 2026
+# BuyerMatch consolidated release-validation evidence
+
+## Current checkpoint — October 24, 2026 owner timezone
+
+Direction: PR #2 reviews 6391606558 / 6391619478. Feature scope remains frozen.
+Production/public release NO-GO; draft PR retained. Source implementation candidate
+5fab059 remains distinct from operator changes and the exact reviewed canary
+202b3d3965aa2fd4bb9e16dab06f207b157b8acd. No new deployment or payment occurred.
+
+| Gate | Status / actual evidence | Remaining acceptance |
+| --- | --- | --- |
+| Owner access | VERIFIED HOSTED: six authorized records and normal password browser login, checkpoint 6391341559 | No repeat email, signup, key or provisioning |
+| Cleanup engineering | VERIFIED LOCAL: separate AI review found mutable-state authority coupling and unbounded discovery; corrected, 38 focused checks and scoped lint pass | Separate review of final CLI identity-shape correction; actual cleanup still unproven |
+| Reviewed source | VERIFIED LOCAL: 509 exported Git blobs match exact 202b source byte-for-byte after disabling Windows archive newline conversion | This is not a deployed artifact |
+| Canary preflight | BLOCKED before deployment/worker launch: named CLI profile identity is exactly one S2 TEST account, but endpoint retrieval returns permission-related api_error | Independently executable webhook read/update authority must work; connector-only access cannot replace detached authority |
+| Stripe endpoint | VERIFIED HOSTED read-only connector: exact S2 account, TEST mode, expected staging receiver, status disabled | No event replay, update, purchase or secret read performed |
+| Build/runtime attestation + removal | NOT RUN: no temporary deployment created | All17 settings both scopes, authenticated owner-only access, real automatic removal and independent exact-ID404 |
+| Buyer UI | VERIFIED LOCAL actual browser against current React component and synthetic-only CSP fixture: invalid budget denied; corrected criteria yields private pending-review receipt without invitation opt-in; paused response exposes safe outage message, not injected backend details; Tab navigation used | Mobile, subscriber/admin and complete deployed browser round trip NOT RUN; local fixture is not hosted acceptance |
+| Billing | VERIFIED HOSTED historical Starter59 activation and corrected v21 signed replay retained | Pro119 50/25/50, portal, plan changes, cancellation, failure/recovery and adverse ordering remain NOT RUN/BLOCKED on controlled-window gates |
+| Intake security | VERIFIED HOSTED historical28 assertions/7cleanup/rollback retained; current Production metadata reconfirms zero unsafe table/column grants, RLS and server access | S2 platform-owner deployed review/browser acceptance; no repeat completed DB matrix |
+| Legal | VERIFIED LOCAL all4 draft hashes match manifest; approved=false, publicationAllowed=false | Owner/counsel decisions, final exact versions/hashes/effective date; QA fixtures cannot substitute |
+| Recovery | BLOCKED: no verified native Linux host/encrypted media; read-only DriveInfo sees only ready C: NTFS with33,673,379,840 free bytes | Identify existing $0 host/media; approve setup, independent key custody, full DB/Auth/Storage acquisition/isolated restore separately |
+| Production migration/cutover | VERIFIED HOSTED metadata only: PostgreSQL17.6,67 migration entries, later four source migrations absent by version/name | See exact forward manifest below; backup, reviewed definitions/diff, separate migration/deployment/activation approval |
+
+Current provider-state readback: S2 project Git-unlinked/protected; stable fallback
+unchanged; registration/Checkout/live billing/live delivery disabled; Supabase
+receiver false; live DBP alias still containment dpl_EBYBJZS7Q9Gqmvwdk8Ay3RM6C1PE.
+The legacy preflight script returned FAIL because it assumes flat whoami output
+and cannot read the endpoint through CLI. Its stripePaused=false is NOT proof of
+an enabled endpoint; the independent connector read confirms disabled. Current CLI
+whoami uses authorized_accounts:[{id,name,modes}], validated without printing names
+or credentials. Default CLI profile and all runtime keys were left untouched.
+
+Actual browser fixture uses loopback, synthetic records, mocked provider imports,
+connect-src 'none' and rejects non-GET HTTP. No live intake or delivery occurred.
+An initial sandbox-loopback timeout was resolved by running the approved synthetic
+server in the host context; no firewall or security settings changed.
+
+Recovery discovery limitation: CIM access denied in this process. DriveInfo is
+actual filesystem capacity evidence, not proof of Linux availability, encryption,
+device ownership, backup capacity or restore readiness. No WSL/Windows recovery
+debugging, formatting, mounting, key generation or export was performed.
+
+### Minimal coordinated actions
+
+1. Restore/authorize the independent named S2 CLI/executor's exact webhook
+   read/update operations. S2 connector read works; detached CLI access does not.
+   Do not change application keys, default profile, Production or MoneyMap to solve
+   this. A login retry is not presumed to fix a permission failure.
+2. After authority is proven and final source review passes, the existing conditional
+   approval covers one paused payment-free202b rehearsal. New-host normal owner
+   login may require private password entry; no session/token copying is permitted.
+3. Once rehearsal passes, reconcile the existing H1 and lifecycle authorizations
+   with exact source/fixtures/window before any enabling. Bundle any genuinely
+   missing permissions, current-MVP deployment/alias and supported failure/time
+   scenarios; no new TEST purchase is claimed authorized by this checkpoint alone.
+4. In parallel owner/counsel can resolve the existing four legal drafts and identify
+   already-owned Linux hardware/media. No technical owner commands, paid resources,
+   export, device formatting or legal acceptance are requested now.
+5. After hosted/security/legal/recovery acceptance, request one exact Production
+   release package approval; do not deploy the full integration as security-only.
+
+### Forward-only cutover preparation — NOT authorization
+
+[Exact canonical SQL fingerprints and ledger mappings](BUYERMATCH_FORWARD_RELEASE_MANIFEST.json)
+record the four later source files. Production already has the foundation/workflow
+chain under provider-generated migration timestamps; do NOT replay the old11-file
+bootstrap or blindly db-push every locally unmatched filename. S2-only capture-hook
+and stable-callback DDL are deliberately excluded from Production.
+
+Release sequence: (1) verified encrypted recovery and exact remote source; (2) fresh
+catalog/function/ACL/source-hash checks; (3) registration create-only additive SQL
+with bounded locks, then separately approved security-only paused release and login
+smokes; (4) approved BuyerMatch owned-plan and completed-Checkout SQL in order;
+(5) private-intake forward reconciliation, after fresh buyer-table schema/policy
+review, plus exact secure replacement application; (6) paused protected canary,
+auth/CRM/read-only billing/intake/security smokes; (7) separately approved public
+activation only after all acceptance gates. Staging success is not Production proof.
+
+Intake correction was direct SQL with no history entry. The private-intake source
+already reconciles that contained baseline atomically; never replay bootstrap grants
+or fabricate an applied containment migration. Before execution, approve exact
+canonical bytes and truthful new ledger entries. Preserve ownership, service-only
+RPCs, locks, completed Checkout, subscription owner checks, RLS and unrelated data.
+Current SQL is prepared, not re-applied/rehearsed against fresh Production here.
+
+Failure plan: stop activation, retain registration503/billing/delivery pauses and
+intake least-privilege containment; roll application routing only to a verified
+compatible paused release. Retain stronger additive SQL guards. Never restore the
+vulnerable registration handler with signup open, broad buyer grants, or earlier
+premature-entitlement functions. A database restore is separately approved recovery,
+not an automatic down migration. Preserve exact deployment IDs, definitions/grants,
+ledger/source hashes and sanitized before/after evidence.
+
+## Archived October23 planning baseline (not current authorization/status)
 
 Prepared under PR #2 review 6369522557. This is planning and evidence consolidation,
 not permission to activate providers. PR stays DRAFT; Production/public launch NO-GO.
