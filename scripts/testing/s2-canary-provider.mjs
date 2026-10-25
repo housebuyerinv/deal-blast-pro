@@ -9,6 +9,13 @@ const base='C:/Users/CTL Katastrophic/AppData/Roaming/npm/node_modules/';
 const paths={node:'C:/Program Files/nodejs/node.exe',vercel:base+'vercel/dist/vc.js',supabase:base+'supabase/dist/supabase.js',stripe:'C:/Users/CTL Katastrophic/AppData/Local/Microsoft/WinGet/Packages/Stripe.StripeCli_Microsoft.Winget.Source_8wekyb3d8bbwe/stripe.exe'};
 const pins={node:'b3094d0b49f9ad602262a9921551737bb97637c05dd357a06ae98188d7290aa3',vercel:'33542f1ec34ec6b9953ee7486c7ae5f9cc2a2b0225671ece4ed22fe8625bab86',supabase:'253caa8c31ee5976322d04a8bd7752622c0915e7943de3f74e2b73395c54a240',stripe:'88162aeacb9875bdb48b654a81f00ad45b9155a28545770144e7997f90efd486'};
 export const sha=x=>createHash('sha256').update(x).digest('hex');
+export function scopedStripeArgs(args){
+ const command=JSON.stringify(args);
+ if(command===JSON.stringify(['whoami','--format','json']))return [...args,'--project-name','buyermatch-s2'];
+ if(![JSON.stringify(['webhook_endpoints','retrieve',S2.endpoint]),JSON.stringify(['webhook_endpoints','update',S2.endpoint,'--disabled=true','--confirm'])].includes(command))throw Error('Stripe operation scope denied');
+ // A profile selects CLI configuration, not an authorized account's API context.
+ return [...args,'--stripe-context',S2.account,'--project-name','buyermatch-s2'];
+}
 export function stripeProfileAccount(who){
  // Current CLI identity output lists authorized accounts; reject ambiguous scope.
  if(Array.isArray(who?.authorized_accounts)){
@@ -89,7 +96,7 @@ export function makeProvider(plan,dir){
  }
  const json=async(name,args,signal,options)=>{const r=await run(name,args,signal,false,options);if(r.code!==0||r.timedOut)throw Error('Private command unavailable');return JSON.parse(r.stdout);};
  async function api(path,signal){assertApiRead(path);const r=await run('vercel',['api',path,'--scope',S2.scope,'--raw'],signal,true);const code=checkedStatus(r,path);return {code,body:code===200?JSON.parse(r.stdout):null};}
- const stripe=(args,signal)=>json('stripe',[...args,'--project-name','buyermatch-s2'],signal);
+ const stripe=(args,signal)=>json('stripe',scopedStripeArgs(args),signal);
  const projectIdentity=async signal=>{const p=(await api('/v9/projects/'+S2.project,signal)).body;if(p?.id!==S2.project||p.accountId!==S2.team)throw Error('Project identity failed');return p;};
  const project=async signal=>{const p=await projectIdentity(signal);if(p.link||p.ssoProtection?.deploymentType!=='all'||Object.keys(p.protectionBypass||{}).length)throw Error('Project isolation failed');return p;};
  const endpoint=async signal=>{const e=await stripe(['webhook_endpoints','retrieve',S2.endpoint],signal);if(e.error)throw Error('Stripe endpoint access unavailable');if(e.id!==S2.endpoint||e.livemode!==false||e.url!==`https://${S2.staging}.supabase.co/functions/v1/stripe-webhook`)throw Error('Stripe scope mismatch');return e;};

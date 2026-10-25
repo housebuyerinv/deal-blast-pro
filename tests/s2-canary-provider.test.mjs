@@ -4,7 +4,7 @@ import {URL} from 'node:url';
 import {setTimeout,clearTimeout} from 'node:timers';
 import assert from 'node:assert/strict';
 import {statusObservation} from '../scripts/testing/s2-canary-http-observer.mjs';
-import {assertRemoval,checkedStatus,normalizeDeployment,validateCanaryPlan,assertApiRead,CANARY_SOURCE,assertCanaryAuthority,discoverCanary,stripeProfileAccount} from '../scripts/testing/s2-canary-provider.mjs';
+import {assertRemoval,checkedStatus,normalizeDeployment,validateCanaryPlan,assertApiRead,CANARY_SOURCE,assertCanaryAuthority,discoverCanary,stripeProfileAccount,scopedStripeArgs} from '../scripts/testing/s2-canary-provider.mjs';
 import {closeS2Run} from '../scripts/buyermatch-s2-cleanup.mjs';
 import {S2_RELEASE as S2} from '../scripts/buyermatch-s2-release.mjs';
 const path='/v13/deployments/dpl_SYNTHETICCANARY';
@@ -22,6 +22,12 @@ test('preexisting and fallback deployment IDs are protected',()=>{assert.throws(
 test('new draft HEAD and malformed run IDs cannot replace approved source',()=>{assert.throws(()=>validateCanaryPlan({...plan(),source:'30426ac933cbe542e8524aacc65eae245330e3ba'}));assert.throws(()=>validateCanaryPlan({...plan(),runId:'-'.repeat(36)}));});
 test('API reads cannot escape to credentials, another project or arbitrary URL',()=>{for(const p of ['/v10/projects/prj_OTHER/env?decrypt=true','https://api.vercel.com/v2/user','/v9/projects/prj_OTHER','/v13/deployments/dpl_X?unapproved=1','/v6/deployments?limit=100'])assert.throws(()=>assertApiRead(p));assert.doesNotThrow(()=>assertApiRead(path));});
 const authority=(status='enabled',patch={})=>assertCanaryAuthority({id:S2.project,accountId:S2.team},{id:S2.team,membership:{role:'OWNER'}},{account_id:S2.account},{id:S2.endpoint,livemode:false,url:`https://${S2.staging}.supabase.co/functions/v1/stripe-webhook`,status,...patch});
+test('explicit Stripe context: exact endpoint read uses S2 account and named profile',()=>assert.deepEqual(scopedStripeArgs(['webhook_endpoints','retrieve',S2.endpoint]),['webhook_endpoints','retrieve',S2.endpoint,'--stripe-context',S2.account,'--project-name','buyermatch-s2']));
+test('explicit Stripe context: only same-state disabled update is permitted',()=>assert.deepEqual(scopedStripeArgs(['webhook_endpoints','update',S2.endpoint,'--disabled=true','--confirm']),['webhook_endpoints','update',S2.endpoint,'--disabled=true','--confirm','--stripe-context',S2.account,'--project-name','buyermatch-s2']));
+test('explicit Stripe context: whoami preserves named profile without unsupported resource flag',()=>assert.deepEqual(scopedStripeArgs(['whoami','--format','json']),['whoami','--format','json','--project-name','buyermatch-s2']));
+test('explicit Stripe context: foreign endpoint, live mode, enablement and overrides fail closed',()=>{
+ for(const a of [['webhook_endpoints','retrieve','we_OTHER'],['webhook_endpoints','retrieve',S2.endpoint,'--live'],['webhook_endpoints','update',S2.endpoint,'--disabled=false','--confirm'],['webhook_endpoints','retrieve',S2.endpoint,'--stripe-context','acct_OTHER'],['whoami','--project-name','default']])assert.throws(()=>scopedStripeArgs(a));
+});
 test('current CLI authorized_accounts output requires exact single S2 TEST scope',()=>{
  assert.equal(stripeProfileAccount({authorized_accounts:[{id:S2.account,modes:['test']}]}),S2.account);
  for(const authorized_accounts of [[],[{id:'acct_OTHER',modes:['test']}],[{id:S2.account,modes:['live']}],[{id:S2.account,modes:['test']},{id:'acct_OTHER',modes:['test']}],[{id:S2.account}]])assert.throws(()=>stripeProfileAccount({authorized_accounts}));
