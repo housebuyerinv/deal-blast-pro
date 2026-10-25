@@ -5,7 +5,14 @@ No command in this document has been executed as a restore. No export, new keys,
 installation, boot, formatting or provider resource creation occurred.
 Custom Windows/VeraCrypt/AppContainer development remains stopped.
 
-## Current resource gate: BLOCKED
+## Current resource gate: BLOCKED ON HARDWARE (not failed)
+
+Owner update, PR #2 comment6399297749: no spare Linux machine or external/USB
+storage currently available. Do not ask for boot, installation, formatting,
+erasure or purchase. Do not move keys or live exports to the everyday Windows
+machine as a substitute. The existing$0 plan remains non-executed; other authorized
+BuyerMatch work can proceed independently. Minimum future capabilities are listed
+in R2_NATIVE_LINUX_RECOVERY_PLAN.md; no new resource is assumed available.
 
 No already-owned native Linux host or suitable separate encrypted media is verified.
 Read-only Windows command discovery finds age and ssh, but that is not Linux resource

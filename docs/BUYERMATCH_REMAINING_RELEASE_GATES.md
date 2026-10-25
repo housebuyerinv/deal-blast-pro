@@ -19,7 +19,7 @@ Production/public release NO-GO; draft PR retained. Source implementation candid
 | Billing | VERIFIED HOSTED historical Starter59 activation and corrected v21 signed replay retained | Pro119 50/25/50, portal, plan changes, cancellation, failure/recovery and adverse ordering remain NOT RUN/BLOCKED on controlled-window gates |
 | Intake security | VERIFIED HOSTED historical28 assertions/7cleanup/rollback retained; current Production metadata reconfirms zero unsafe table/column grants, RLS and server access | S2 platform-owner deployed review/browser acceptance; no repeat completed DB matrix |
 | Legal | VERIFIED LOCAL all4 draft hashes match manifest; approved=false, publicationAllowed=false | Owner/counsel decisions, final exact versions/hashes/effective date; QA fixtures cannot substitute |
-| Recovery | BLOCKED: no verified native Linux host/encrypted media; read-only DriveInfo sees only ready C: NTFS with33,673,379,840 free bytes | Identify existing $0 host/media; approve setup, independent key custody, full DB/Auth/Storage acquisition/isolated restore separately |
+| Recovery | BLOCKED ON HARDWARE, not failed: owner confirms no spare Linux computer or external/USB storage in comment6399297749; no restore attempted | Keep$0 non-destructive plan ready; no owner hardware action now; resume only when suitable existing resources and separate setup/export approvals are available |
 | Production migration/cutover | VERIFIED HOSTED metadata only: PostgreSQL17.6,67 migration entries, later four source migrations absent by version/name | See exact forward manifest below; backup, reviewed definitions/diff, separate migration/deployment/activation approval |
 
 Current provider-state readback: S2 project Git-unlinked/protected; stable fallback
@@ -96,9 +96,10 @@ This is a different application SHA and a stable S2 alias move, so it is not sil
 treated as the already-completed one-canary authorization. Hosted TEST billing
 windows and eventual Production release remain separately gated.
 
-Owner/counsel business-policy decisions and identification of already-owned Linux
-hardware/media were requested together; no answer has been assumed. Existing legal
-drafts remain unpublished/unapproved and recovery remains BLOCKED. There is no new
+Owner/counsel business-policy decisions remain unanswered. The owner has now
+confirmed no Linux/external/USB resources are available; recovery is BLOCKED ON
+HARDWARE, not failed, and does not stop other authorized work. Existing legal
+drafts remain unpublished/unapproved. There is no new
 key, account, email-provider, Windows command or purchase request.
 
 ### Forward-only cutover preparation — NOT authorization

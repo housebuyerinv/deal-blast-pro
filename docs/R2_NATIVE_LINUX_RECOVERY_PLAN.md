@@ -11,10 +11,16 @@ No more Windows probes, mounts, ACL changes or SDK development are proposed.
 
 ## Resource status
 
-No existing owner-controlled native Linux machine, suitable spare USB or external
-storage has been independently confirmed. Existing evidence records a Windows host,
-32 GiB RAM and only about 8.2 GiB free on C:, without an available ready hypervisor.
-Those facts do not establish a safe Linux restore destination. No hardware purchase,
+**BLOCKED ON HARDWARE — not failed or passed.** Owner update in PR #2 comment
+6399297749 confirms no spare Linux computer or external/USB storage is available.
+No owner boot/install/format/purchase action is requested. This blocks independent
+recovery execution, not other authorized application or release-verification work.
+
+Historical evidence recorded a Windows host,32GiB RAM and about8.2GiB free on C:.
+October24 DriveInfo later observed33,673,379,840 free bytes on the only ready C:
+NTFS volume; CIM inspection was denied. Neither snapshot establishes a suitable
+independent encrypted Linux destination. Do not move recovery keys or sensitive
+exports onto the everyday Windows host as a substitute. No hardware purchase,
 cloud resource, installation, device boot or formatting is authorized. Budget is $0.
 
 Preferred: an already-owned native Linux computer with owner-controlled encrypted
@@ -22,6 +28,29 @@ storage. Alternative: an already-owned live USB plus a SEPARATE suitable encrypt
 external drive. A VM is not assumed available or isolated. Stop if existing resources
 cannot hold the entire database, Storage bytes, encrypted archive and restore working
 set with adequate free headroom; do not delete forensic evidence to make room.
+
+## Minimum capabilities when existing resources become available
+
+- Owner-controlled64-bit native Linux execution, supported PostgreSQL17 and the
+  required Supabase extensions/local Auth/Storage services. A live USB is usable
+  only with an independently approved host and suitable separate working storage.
+- LUKS2 encrypted working storage, age authenticated archive encryption, physical
+  network disconnection plus verifiable network namespaces/capability restrictions.
+  No unencrypted swap, hibernation, core dumps or persistent temporary spill.
+- Available disk bytes must cover the measured full DB and Storage object bytes,
+  encrypted acquisition archive, restored indexes/WAL/temp working set and explicit
+  safety headroom. Source sizes remain unmeasured here; do not invent a fixed
+  minimum drive size or assume the old2GiB workspace is sufficient.
+- CPU/RAM must actually support the pinned full synthetic PostgreSQL/Auth/Storage
+  stack and restore working set. Verify this on the available hardware before
+  acquisition; a DB-only restore is insufficient proof of Auth/Storage recovery.
+- Separate owner-held offline storage for an independent recovery-key copy; the
+  backup's only decryption key must not share its sole device/failure boundary.
+  Prove custody using a synthetic decrypt/restore challenge, not a filename check.
+
+No equipment purchase is proposed. Until those already-owned resources exist,
+keep the coverage/consistency manifest and source hashes ready, preserve existing
+evidence, and perform no acquisition, key generation, boot or destructive setup.
 
 ## One resource and safety gate before setup approval
 
@@ -75,8 +104,9 @@ record counts, constraints, permissions and Storage checksums before release app
 Retention: seven days after verified secure cutover; review at 30 days if delayed.
 Never delete evidence or recovery material required for an unresolved incident.
 
-Minimum future owner involvement: identify existing suitable hardware/media; approve
+Minimum future owner involvement, only after resources become available: identify existing suitable hardware/media; approve
 any device boot/format; privately control encryption secrets and independent offline
 key copy; separately approve Production export. There is no owner command to run now.
 
-Status: PLAN ONLY / resource readiness UNVERIFIED / Production recovery NO-GO.
+Status: PLAN ONLY / BLOCKED ON HARDWARE / no failed recovery test claimed /
+Production recovery NO-GO.
