@@ -1,6 +1,51 @@
 # BuyerMatch consolidated release-validation evidence
 
-## Current checkpoint — local routing fix; new approval pending
+## Current checkpoint — hosted owner attestation PASS; browser gate failed safely
+
+Approved packetd7b139d/comment6402458765 was executed once using exact application
+`b99830596080eef2b24472e71bdcb061c855bf57`. Preview
+`dpl_9N41ZRqvCoSMHimYkrK5gRuPZM7y` reached READY with555 exported Git blobs
+verified. **Actual normal-owner attestation returned HTTP200 once and verified
+all17 BUILD and RUNTIME settings**, correct source/deployment and build checksum
+`9b4859c6544d8eddafa48d0aebb195c5d7a464b2aeb8aab48a8b5b71c80a02c3`.
+No owner setup or authenticated request retry was needed. Anonymous protection,
+no-bearer denial and exact QA agreements passed.
+
+Read-only overview/plans PASS: advertised59/119 tiers and20/10/25 vs50/25/50 limits,
+checkout unavailable, existing QA acceptance and separate Free CRM preserved.
+This is not paid activation or a fresh Stripe catalog/permission test.
+Network-admin browser view FAIL: generic configuration error, two application-
+generated GET503 responses during one navigation; no manual retry. Testing
+stopped, so public-intake/keyboard acceptance was NOT RUN. **Overall acceptance
+FAIL; automatic rollback PASS**, not successful retention.
+
+Independent readback at2026-10-25T20:20:51.523Z confirms exact fallback
+`dpl_nr5RVunmUGdryPUtWkRkVdsA96pT`, all8 safeguards, all8 prior deployments
+preserved, inventory9 and unchanged live containment. No manual recovery. The
+new candidate remains READY/protected/paused/unaliased for evidence. Owner
+profile/workspace/plan fingerprints stayed unchanged and CRM remains Free.
+
+Confirmed configuration gap: Preview lacks `BUYERMATCH_IDENTITY_KEY`;223 existing
+marked-synthetic AES-GCM-shaped buyer fixtures require it. Admin-table SELECT
+permissions are intact and the missing-key path reproduces with dummy input.
+`BM_RESPONSE_SECRET` and `BM_WORKER_SECRET` are also missing future workflow
+dependencies. No secret was read/generated/rotated/installed, and no ciphertext
+was decrypted by the agent. Original seed-file metadata exists, but custody and
+key correspondence are unverified. Do not generate a replacement blindly.
+
+See [actual hosted evidence](BUYERMATCH_S2_HOSTED_ATTESTATION_2026-10-25.json) and
+the [bounded S2 secret-remediation proposal](BUYERMATCH_S2_SERVER_SECRET_REMEDIATION.md).
+Private source verification/installation and another Preview require separate
+authorization. Optional Supabase secret listing was automatically rejected and
+not executed; safer metadata-only diagnostics were used. The original400
+envelope remains uncaptured, but the corrected path now has actual hosted PASS.
+
+No registration POST, purchase, event, email, migration, customer write, legal
+publication, Production or MoneyMap change. Pro/lifecycle and broader browser
+work remain open, legal approval pending, recovery BLOCKED ON HARDWARE.
+Production/public release stays NO-GO; PR stays DRAFT.
+
+## Earlier checkpoint — local routing fix and approval preparation
 
 Exact proposed application is `b99830596080eef2b24472e71bdcb061c855bf57`.
 The installed pinned vendor route generator adds the path-bound `endpoint`
