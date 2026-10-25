@@ -1,3 +1,4 @@
+/* global AbortSignal */
 import {spawn} from 'node:child_process';
 import {readFileSync,mkdirSync} from 'node:fs';
 import {createHash,randomUUID} from 'node:crypto';
@@ -8,6 +9,25 @@ const base='C:/Users/CTL Katastrophic/AppData/Roaming/npm/node_modules/';
 const paths={node:'C:/Program Files/nodejs/node.exe',vercel:base+'vercel/dist/vc.js',supabase:base+'supabase/dist/supabase.js',stripe:'C:/Users/CTL Katastrophic/AppData/Local/Microsoft/WinGet/Packages/Stripe.StripeCli_Microsoft.Winget.Source_8wekyb3d8bbwe/stripe.exe'};
 const pins={node:'b3094d0b49f9ad602262a9921551737bb97637c05dd357a06ae98188d7290aa3',vercel:'33542f1ec34ec6b9953ee7486c7ae5f9cc2a2b0225671ece4ed22fe8625bab86',supabase:'253caa8c31ee5976322d04a8bd7752622c0915e7943de3f74e2b73395c54a240',stripe:'88162aeacb9875bdb48b654a81f00ad45b9155a28545770144e7997f90efd486'};
 export const sha=x=>createHash('sha256').update(x).digest('hex');
+// Cleanup authority describes ownership, not the mutable state it must contain.
+export function assertCanaryAuthority(p,t,who,e){
+ if(p?.id!==S2.project||p.accountId!==S2.team||t?.id!==S2.team||t.membership?.role!=='OWNER'||who?.account_id!==S2.account||e?.id!==S2.endpoint||e.livemode!==false||e.url!==`https://${S2.staging}.supabase.co/functions/v1/stripe-webhook`||!['enabled','disabled'].includes(e.status))throw Error('Authority unavailable');
+ return {project:p.id,team:p.accountId,account:who.account_id,livemode:false};
+}
+export async function discoverCanary(adapter,plan,deadline,now=Date.now){
+ const remaining=deadline-now();if(remaining<=0)throw Error('Discovery deadline');
+ const signal=AbortSignal.timeout(remaining);
+ const check=()=>{if(signal.aborted||now()>=deadline)throw Error('Discovery deadline');};
+ check();const listing=await adapter.api('/v6/deployments?projectId='+S2.project+'&limit=100',signal);check();
+ if(listing.code!==200||!Array.isArray(listing.body?.deployments)||listing.body.pagination?.next)throw Error('Incomplete discovery');
+ const discovered=[];
+ for(const item of listing.body.deployments.filter(x=>!plan.preexistingIds.includes(x.uid??x.id))){
+  check();const d=await adapter.readDeployment(item.uid??item.id,signal);check();
+  if(d.kind==='found'&&d.meta?.s2RunId===plan.runId){assertRemoval(d,plan);discovered.push(d);}
+ }
+ if(discovered.length>1)throw Error('Multiple canaries');
+ return discovered[0]??null;
+}
 const observer=new URL('./s2-canary-http-observer.mjs',import.meta.url);
 export function validateCanaryPlan(p){
  if(!p||p.source!==CANARY_SOURCE||p.project!==S2.project||p.team!==S2.team||p.alias!==new URL(S2.origin).hostname||p.fallback!==S2.fallback||
@@ -65,7 +85,7 @@ export function makeProvider(plan,dir){
  const readAlias=async(alias,signal)=>{if(alias!==plan.alias)throw Error();const a=(await api('/v4/aliases/'+alias,signal)).body;return {projectId:a.projectId,deploymentId:a.deploymentId??a.deployment?.id};};
  return {
   api,readDeployment,readAlias,
-  async verifyAuthority(signal){const[p,t,who,e]=await Promise.all([project(signal),api('/v2/teams/'+S2.team,signal),stripe(['whoami','--format','json'],signal),endpoint(signal)]);if(t.body?.id!==S2.team||t.body.membership?.role!=='OWNER'||who.account_id!==S2.account||e.status!=='disabled')throw Error('Authority unavailable');return {project:p.id,team:p.accountId,account:who.account_id,livemode:false};},
+  async verifyAuthority(signal){const[p,t,who,e]=await Promise.all([project(signal),api('/v2/teams/'+S2.team,signal),stripe(['whoami','--format','json'],signal),endpoint(signal)]);return assertCanaryAuthority(p,t.body,who,e);},
   async disableEndpoint(id,signal){if(id!==S2.endpoint)throw Error();await endpoint(signal);const e=await stripe(['webhook_endpoints','update',id,'--disabled=true','--confirm'],signal);if(e.id!==id||e.status!=='disabled'||e.livemode!==false)throw Error('Containment unverified');},
   async pauseReceiver(ref,signal){if(ref!==S2.staging)throw Error();const r=await run('supabase',['secrets','set','BM_S2_STRIPE_WEBHOOK_ENABLED=false','--project-ref',ref],signal);if(r.code!==0||r.timedOut)throw Error('Receiver pause failed');},
   async readSafetyState(signal){

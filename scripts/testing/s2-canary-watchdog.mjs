@@ -1,6 +1,6 @@
 import {readFileSync,writeFileSync,appendFileSync,existsSync} from 'node:fs';
 import {resolve,dirname} from 'node:path';
-import {makeProvider,sha,validateCanaryPlan,CANARY_SOURCE,assertRemoval} from './s2-canary-provider.mjs';
+import {makeProvider,sha,validateCanaryPlan,CANARY_SOURCE,discoverCanary} from './s2-canary-provider.mjs';
 import {closeS2Run} from '../buyermatch-s2-cleanup.mjs';
 import {S2_RELEASE as S2} from '../buyermatch-s2-release.mjs';
 let dir,plan,adapter,receipt;
@@ -28,16 +28,8 @@ try{
  phase='discover-exact-run';
  const deadline=plan.startedAt+900000;
  while(Date.now()<deadline){
-  const listing=await adapter.api('/v6/deployments?projectId='+S2.project+'&limit=100');
-  if(listing.code!==200||!Array.isArray(listing.body?.deployments)||listing.body.pagination?.next)throw Error();
-  const discovered=[];
-  for(const item of listing.body.deployments.filter(x=>!plan.preexistingIds.includes(x.uid??x.id))){
-   const d=await adapter.readDeployment(item.uid??item.id);
-   if(d.kind==='found'&&d.meta?.s2RunId===plan.runId){assertRemoval(d,plan);discovered.push(d);}
-  }
-  if(discovered.length>1)throw Error();
-  if(discovered.length===1){
-   const d=discovered[0];
+  const d=await discoverCanary(adapter,plan,deadline);
+  if(d){
    receipt={runId:plan.runId,deploymentId:d.id,source:CANARY_SOURCE,project:S2.project,team:S2.team,preexistingDeploymentIds:plan.preexistingIds,fallbackId:plan.fallback,alias:plan.alias};
    write('watchdog-receipt.json',receipt);journal({stage:'exact-run-discovered',deploymentId:d.id});break;
   }

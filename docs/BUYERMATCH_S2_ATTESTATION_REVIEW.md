@@ -126,3 +126,14 @@ recovery remains separately labelled. Original evidence is never overwritten.
 Deployment uses all 17 settings in both scopes and supported `--skip-domain`;
 the stable alias is never moved. Runtime/build attestation and actual automatic
 deletion remain NOT RUN until their real canary evidence is collected.
+
+Independent AI peer review of operator commit `2ccd0d1` requested two corrections
+before any rehearsal: mutable endpoint state must not suppress cleanup authority,
+and discovery must propagate its remaining deadline through every provider read.
+Both are corrected locally. Deployment preflight still requires paused state;
+cleanup accepts an enabled endpoint only after exact TEST account/destination and
+owner scope validation. Discovery expiry interrupts the current child and stops
+the scan; the worker's bounded containment fallback remains independent.
+36 focused binding checks pass, including enabled-endpoint cleanup with a failed
+disable operation, between-item deadline expiry and actual in-flight abort.
+This is local evidence, not proof of hosted cleanup. Re-review is required.

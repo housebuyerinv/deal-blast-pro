@@ -1,7 +1,11 @@
+/* global AbortSignal */
 import test from 'node:test';
+import {URL} from 'node:url';
+import {setTimeout,clearTimeout} from 'node:timers';
 import assert from 'node:assert/strict';
 import {statusObservation} from '../scripts/testing/s2-canary-http-observer.mjs';
-import {assertRemoval,checkedStatus,normalizeDeployment,validateCanaryPlan,assertApiRead,CANARY_SOURCE} from '../scripts/testing/s2-canary-provider.mjs';
+import {assertRemoval,checkedStatus,normalizeDeployment,validateCanaryPlan,assertApiRead,CANARY_SOURCE,assertCanaryAuthority,discoverCanary} from '../scripts/testing/s2-canary-provider.mjs';
+import {closeS2Run} from '../scripts/buyermatch-s2-cleanup.mjs';
 import {S2_RELEASE as S2} from '../scripts/buyermatch-s2-release.mjs';
 const path='/v13/deployments/dpl_SYNTHETICCANARY';
 const plan=()=>({source:CANARY_SOURCE,project:S2.project,team:S2.team,alias:new URL(S2.origin).hostname,fallback:S2.fallback,runId:'1f47e2bb-b266-4971-8f0a-c6849cc58d89',preexistingIds:[S2.fallback],startedAt:Date.now(),operatorPins:{a:'1',b:'2',c:'3',d:'4',e:'5'}});
@@ -17,3 +21,26 @@ for(const[label,patch]of Object.entries({production:{target:'production'},otherP
 test('preexisting and fallback deployment IDs are protected',()=>{assert.throws(()=>assertRemoval({...deployment(),id:S2.fallback},plan()));assert.throws(()=>assertRemoval(deployment(),{...plan(),preexistingIds:[S2.fallback,'dpl_SYNTHETICCANARY']}));});
 test('new draft HEAD and malformed run IDs cannot replace approved source',()=>{assert.throws(()=>validateCanaryPlan({...plan(),source:'30426ac933cbe542e8524aacc65eae245330e3ba'}));assert.throws(()=>validateCanaryPlan({...plan(),runId:'-'.repeat(36)}));});
 test('API reads cannot escape to credentials, another project or arbitrary URL',()=>{for(const p of ['/v10/projects/prj_OTHER/env?decrypt=true','https://api.vercel.com/v2/user','/v9/projects/prj_OTHER','/v13/deployments/dpl_X?unapproved=1','/v6/deployments?limit=100'])assert.throws(()=>assertApiRead(p));assert.doesNotThrow(()=>assertApiRead(path));});
+const authority=(status='enabled',patch={})=>assertCanaryAuthority({id:S2.project,accountId:S2.team},{id:S2.team,membership:{role:'OWNER'}},{account_id:S2.account},{id:S2.endpoint,livemode:false,url:`https://${S2.staging}.supabase.co/functions/v1/stripe-webhook`,status,...patch});
+test('enabled and disabled scoped TEST endpoints both authorize containment',()=>{assert.equal(authority().livemode,false);assert.deepEqual(authority('disabled'),authority());});
+for(const patch of [{livemode:true},{id:'we_OTHER'},{url:'https://production.invalid'},{status:'unknown'}])test(`wrong endpoint authority denied: ${JSON.stringify(patch)}`,()=>assert.throws(()=>authority('enabled',patch)));
+test('enabled endpoint cannot suppress either cleanup containment operation',async()=>{
+ const p=plan(),calls=[];const r={runId:p.runId,deploymentId:'dpl_SYNTHETICCANARY',source:CANARY_SOURCE,project:p.project,team:p.team,preexistingDeploymentIds:p.preexistingIds,fallbackId:p.fallback,alias:p.alias};
+ const a={verifyAuthority:async()=>authority(),disableEndpoint:async()=>{calls.push('disable');throw Error('synthetic failure');},pauseReceiver:async()=>calls.push('pause'),readAlias:async()=>({projectId:p.project,deploymentId:p.fallback}),readDeployment:async()=>({kind:'not-found',httpStatus:404,deploymentId:r.deploymentId}),readSafetyState:async()=>({endpointDisabled:false,receiverPaused:true,registrationPaused:true,checkoutPaused:true,liveBillingPaused:true,deliveryDisabled:true,protectionEnabled:true})};
+ a.removeDeployment=async()=>{throw Error('unexpected removal');};a.restoreAlias=async()=>{throw Error('unexpected alias change');};
+ const result=await closeS2Run(r,a,{approvedSource:CANARY_SOURCE,timeoutMs:100,journal:async()=>{}});
+ assert.deepEqual(calls.sort(),['disable','pause']);assert.equal(result.verified,false);
+});
+test('discovery forwards one remaining-deadline signal through listing and reads',async()=>{
+ const seen=[];const a={api:async(_,s)=>{seen.push(s);return {code:200,body:{deployments:[{uid:'dpl_SYNTHETICCANARY'}]}};},readDeployment:async(_,s)=>{seen.push(s);return deployment();}};
+ assert.equal((await discoverCanary(a,plan(),Date.now()+1000)).id,'dpl_SYNTHETICCANARY');assert.equal(seen[0],seen[1]);assert.ok(seen[0] instanceof AbortSignal);
+});
+test('expiry between deployment reads stops scanning before the next item',async()=>{
+ let now=0,reads=0;const a={api:async()=>({code:200,body:{deployments:[{uid:'dpl_ONE'},{uid:'dpl_TWO'}]}}),readDeployment:async()=>{reads++;now=100;return {kind:'not-found'};}};
+ await assert.rejects(discoverCanary(a,plan(),100,()=>now),/deadline/);assert.equal(reads,1);
+});
+test('expired discovery issues no provider command',async()=>{let calls=0;await assert.rejects(discoverCanary({api:async()=>calls++},plan(),1,()=>1),/deadline/);assert.equal(calls,0);});
+test('actual abort stops an in-flight synthetic listing',async()=>{
+ const a={api:(_,s)=>new Promise((resolve,reject)=>{const keep=setTimeout(resolve,500);s.addEventListener('abort',()=>{clearTimeout(keep);reject(Error('bounded abort'));},{once:true});})};
+ await assert.rejects(discoverCanary(a,plan(),Date.now()+20),/bounded abort/);
+});
