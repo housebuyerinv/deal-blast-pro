@@ -71,30 +71,20 @@ debugging, formatting, mounting, key generation or export was performed.
 
 ### Next concrete S2 action proposed for approval (not executed)
 
-Deploy the existing code-complete application source
-`5fab059a531f20c1b94c581c1b9e0c95a205a66f` as a protected, paused Preview in the
-same dedicated S2 project/team. It is already published as an ancestor of the
-integration branch; current api/src/server/supabase directories have no delta from
-it. Its build hook, attestation implementation and operator UI are unchanged from
-the reviewed202b implementation. No new MVP functionality is proposed.
+The single [owner approval packet](BUYERMATCH_S2_PAUSED_PREVIEW_APPROVAL.md) pins
+source5fab059a531f20c1b94c581c1b9e0c95a205a66f, project/team, current and proposed
+routing, maximum30-minute read-only window, $0 spend and exact rollback target.
+Its [machine-readable request](BUYERMATCH_S2_PAUSED_PREVIEW_REQUEST.json) records
+all17 build/runtime overrides and explicitly leaves the not-yet-created deployment
+ID/hostname null. No new app feature or source substitution is proposed.
 
-After exact source/READY/Preview/protection/staging-binding and all paused deployment
-argument checks pass, move ONLY the dedicated S2 stable alias to that new verified
-deployment. Its actual ID must be recorded before assignment; never invent an ID.
-Keep dpl_nr5RVunmUGdryPUtWkRkVdsA96pT and the other seven prior deployments intact.
-This can reuse the owner's normal stable-origin session, subject to actual server
-verification, instead of requiring another disposable-origin password handoff.
-Then run owner-only attestation and read-only current-MVP browser/navigation checks.
-If those fail, restore ONLY that S2 alias to its recorded fallback and keep all gates
-paused. No Production domain or routing change; no new bypass secret.
-
-Requested scope excludes purchases, subscription changes, registration POSTs,
-fixture/database writes, email, delivery, migrations and legal publication. All17
-paused values remain mandatory in both scopes. Supabase callback origin stays the
-already allowlisted stable S2 origin; no callback/email setting changes are needed.
-This is a different application SHA and a stable S2 alias move, so it is not silently
-treated as the already-completed one-canary authorization. Hosted TEST billing
-windows and eventual Production release remain separately gated.
+Fresh read-only routing/pause inspection passed at2026-10-25T15:19:02.606Z. The
+current alias still points to READY Preview dpl_nr5RVunmUGdryPUtWkRkVdsA96pT.
+All eight safety fields and Production containment remain true/unchanged.
+No new candidate, same-state alias write, routing change or test was executed.
+Independent alias rollback authority/deadline restoration must pass its own gate
+before a move; the completed deletion proof does not establish alias restoration.
+Hosted TEST billing and eventual Production release remain separately gated.
 
 Owner/counsel business-policy decisions remain unanswered. The owner has now
 confirmed no Linux/external/USB resources are available; recovery is BLOCKED ON
