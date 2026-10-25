@@ -79,13 +79,14 @@ export function makeProvider(plan,dir){
  const json=async(name,args,signal,options)=>{const r=await run(name,args,signal,false,options);if(r.code!==0||r.timedOut)throw Error('Private command unavailable');return JSON.parse(r.stdout);};
  async function api(path,signal){assertApiRead(path);const r=await run('vercel',['api',path,'--scope',S2.scope,'--raw'],signal,true);const code=checkedStatus(r,path);return {code,body:code===200?JSON.parse(r.stdout):null};}
  const stripe=(args,signal)=>json('stripe',[...args,'--project-name','buyermatch-s2'],signal);
- const project=async signal=>{const p=(await api('/v9/projects/'+S2.project,signal)).body;if(p?.id!==S2.project||p.accountId!==S2.team||p.link||p.ssoProtection?.deploymentType!=='all'||Object.keys(p.protectionBypass||{}).length)throw Error('Project isolation failed');return p;};
+ const projectIdentity=async signal=>{const p=(await api('/v9/projects/'+S2.project,signal)).body;if(p?.id!==S2.project||p.accountId!==S2.team)throw Error('Project identity failed');return p;};
+ const project=async signal=>{const p=await projectIdentity(signal);if(p.link||p.ssoProtection?.deploymentType!=='all'||Object.keys(p.protectionBypass||{}).length)throw Error('Project isolation failed');return p;};
  const endpoint=async signal=>{const e=await stripe(['webhook_endpoints','retrieve',S2.endpoint],signal);if(e.id!==S2.endpoint||e.livemode!==false||e.url!==`https://${S2.staging}.supabase.co/functions/v1/stripe-webhook`)throw Error('Stripe scope mismatch');return e;};
  const readDeployment=async(id,signal)=>{if(!/^dpl_[A-Za-z0-9]+$/.test(id))throw Error();const r=await api('/v13/deployments/'+id,signal);return normalizeDeployment(r.body,r.code,id);};
  const readAlias=async(alias,signal)=>{if(alias!==plan.alias)throw Error();const a=(await api('/v4/aliases/'+alias,signal)).body;return {projectId:a.projectId,deploymentId:a.deploymentId??a.deployment?.id};};
  return {
   api,readDeployment,readAlias,
-  async verifyAuthority(signal){const[p,t,who,e]=await Promise.all([project(signal),api('/v2/teams/'+S2.team,signal),stripe(['whoami','--format','json'],signal),endpoint(signal)]);return assertCanaryAuthority(p,t.body,who,e);},
+  async verifyAuthority(signal){const[p,t,who,e]=await Promise.all([projectIdentity(signal),api('/v2/teams/'+S2.team,signal),stripe(['whoami','--format','json'],signal),endpoint(signal)]);return assertCanaryAuthority(p,t.body,who,e);},
   async disableEndpoint(id,signal){if(id!==S2.endpoint)throw Error();await endpoint(signal);const e=await stripe(['webhook_endpoints','update',id,'--disabled=true','--confirm'],signal);if(e.id!==id||e.status!=='disabled'||e.livemode!==false)throw Error('Containment unverified');},
   async pauseReceiver(ref,signal){if(ref!==S2.staging)throw Error();const r=await run('supabase',['secrets','set','BM_S2_STRIPE_WEBHOOK_ENABLED=false','--project-ref',ref],signal);if(r.code!==0||r.timedOut)throw Error('Receiver pause failed');},
   async readSafetyState(signal){

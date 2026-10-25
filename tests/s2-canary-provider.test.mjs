@@ -23,6 +23,11 @@ test('new draft HEAD and malformed run IDs cannot replace approved source',()=>{
 test('API reads cannot escape to credentials, another project or arbitrary URL',()=>{for(const p of ['/v10/projects/prj_OTHER/env?decrypt=true','https://api.vercel.com/v2/user','/v9/projects/prj_OTHER','/v13/deployments/dpl_X?unapproved=1','/v6/deployments?limit=100'])assert.throws(()=>assertApiRead(p));assert.doesNotThrow(()=>assertApiRead(path));});
 const authority=(status='enabled',patch={})=>assertCanaryAuthority({id:S2.project,accountId:S2.team},{id:S2.team,membership:{role:'OWNER'}},{account_id:S2.account},{id:S2.endpoint,livemode:false,url:`https://${S2.staging}.supabase.co/functions/v1/stripe-webhook`,status,...patch});
 test('enabled and disabled scoped TEST endpoints both authorize containment',()=>{assert.equal(authority().livemode,false);assert.deepEqual(authority('disabled'),authority());});
+test('mutable protection drift cannot suppress exact-scope containment authority',()=>{
+ const p={id:S2.project,accountId:S2.team,link:{type:'github'},ssoProtection:null,protectionBypass:{synthetic:true}};
+ assert.equal(assertCanaryAuthority(p,{id:S2.team,membership:{role:'OWNER'}},{account_id:S2.account},{id:S2.endpoint,livemode:false,url:`https://${S2.staging}.supabase.co/functions/v1/stripe-webhook`,status:'enabled'}).project,S2.project);
+ assert.throws(()=>assertCanaryAuthority({...p,id:'prj_OTHER'},{id:S2.team,membership:{role:'OWNER'}},{account_id:S2.account},{}));
+});
 for(const patch of [{livemode:true},{id:'we_OTHER'},{url:'https://production.invalid'},{status:'unknown'}])test(`wrong endpoint authority denied: ${JSON.stringify(patch)}`,()=>assert.throws(()=>authority('enabled',patch)));
 test('enabled endpoint cannot suppress either cleanup containment operation',async()=>{
  const p=plan(),calls=[];const r={runId:p.runId,deploymentId:'dpl_SYNTHETICCANARY',source:CANARY_SOURCE,project:p.project,team:p.team,preexistingDeploymentIds:p.preexistingIds,fallbackId:p.fallback,alias:p.alias};

@@ -134,6 +134,10 @@ Both are corrected locally. Deployment preflight still requires paused state;
 cleanup accepts an enabled endpoint only after exact TEST account/destination and
 owner scope validation. Discovery expiry interrupts the current child and stops
 the scan; the worker's bounded containment fallback remains independent.
-36 focused binding checks pass, including enabled-endpoint cleanup with a failed
+37 focused binding checks pass, including enabled-endpoint cleanup with a failed
 disable operation, between-item deadline expiry and actual in-flight abort.
 This is local evidence, not proof of hosted cleanup. Re-review is required.
+The follow-up review found the same coupling in project safety checks. Cleanup
+authority now reads exact project/team identity independently; Git linkage, SSO
+and bypass drift still fail strict deployment preflight and safety readback.
+They cannot suppress pausing the independently identified S2 services.
