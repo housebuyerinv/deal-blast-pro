@@ -48,7 +48,6 @@ export default function S2Attestation() {
         signal: controller.signal,
         headers: { Authorization: `Bearer ${data.session.access_token}` },
       });
-      if (!response.ok) throw Error();
       const value = await response.json();
       const { data: latest } = await supabase.auth.getSession();
       if (
@@ -57,6 +56,30 @@ export default function S2Attestation() {
         useAppStore.getState().user?.id !== owner
       )
         throw Error();
+      if (!response.ok) {
+        const allowed = [
+          'QUERY_NOT_SUPPORTED',
+          'CONTENT_LENGTH_NOT_SUPPORTED',
+          'TRANSFER_ENCODING_NOT_SUPPORTED',
+        ];
+        if (
+          response.status === 400 &&
+          Array.isArray(value?.reasons) &&
+          value.reasons.length > 0 &&
+          value.reasons.length <= allowed.length &&
+          new Set(value.reasons).size === value.reasons.length &&
+          value.reasons.every(
+            (reason: unknown) =>
+              typeof reason === 'string' && allowed.includes(reason),
+          )
+        ) {
+          setStatus(
+            `Request rejected: ${value.reasons.join(', ')}. No retry was attempted.`,
+          );
+          return;
+        }
+        throw Error();
+      }
       const keys = [
         'DBP_REQUIRE_VERSIONED_PLATFORM_AGREEMENTS',
         'DBP_REGISTRATION_PAUSED',

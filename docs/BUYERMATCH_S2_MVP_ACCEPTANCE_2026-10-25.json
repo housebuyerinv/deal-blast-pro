@@ -1,0 +1,148 @@
+{
+  "schema": 1,
+  "asOf": "2026-10-25T16:32:17.942Z",
+  "approvalComment": 6399713964,
+  "approvedPacket": "8998e601d589d9384b59ced95b9243d57e381444",
+  "approvedApplicationSource": "5fab059a531f20c1b94c581c1b9e0c95a205a66f",
+  "operatorSource": "c8ed3e79df4e29123a29d850bdbab10ea5d734a8",
+  "project": "prj_XglHAvS3zjuyLWvHkuNt5U8BoUtl",
+  "team": "team_2ejXKYjjGXIFsIQTUMEqZ8Cf",
+  "runId": "44049890-856d-4622-9a09-ac7fba5cf958",
+  "deploymentId": "dpl_Fig7B1bWNEXKM762MEizAfUBfbsh",
+  "generatedOrigin": "https://dbp-registration-s2-lmxzjv71v-housebuyerinv.vercel.app",
+  "target": "preview",
+  "ready": true,
+  "sourceGitBlobsVerified": 531,
+  "alias": "dbp-registration-s2-preview-housebuyerinv.vercel.app",
+  "fallback": "dpl_nr5RVunmUGdryPUtWkRkVdsA96pT",
+  "outcome": "ACCEPTANCE_FAILED_AUTOMATIC_ROLLBACK_VERIFIED",
+  "configuredSettings": {
+    "build": 17,
+    "runtime": 17,
+    "actualOwnerComparison": "NOT_COMPLETED_HTTP_400"
+  },
+  "credentialEvidence": {
+    "stagingPublicKeyMatchesProvider": true,
+    "sensitiveValuesExported": false,
+    "unchangedPreviewOnlyBindingMetadata": true,
+    "priorHostedCatalogCheckpoint": 6354560386,
+    "priorHostedReceiverCheckpoint": 6369494763,
+    "contentsAndPermissionsNewlyRevalidated": false
+  },
+  "protection": {
+    "anonymous": [
+      {
+        "path": "/",
+        "status": 302,
+        "vercelAuthentication": true
+      },
+      {
+        "path": "/api/platform/s2-attestation",
+        "status": 302,
+        "vercelAuthentication": true
+      }
+    ],
+    "withoutApplicationBearer": "Sign in required",
+    "bypassSecretsCreated": 0
+  },
+  "agreements": {
+    "required": true,
+    "exactQaIdsVersionsContentHashes": true
+  },
+  "owner": {
+    "normalStableSessionLoaded": true,
+    "confirmedOwnerAdminWorkspaceChecks": "PASSED_BEFORE_SOLE_400_CODE_PATH",
+    "attestation": "FAIL_HTTP_400",
+    "exactRejectedCondition": "UNKNOWN",
+    "possibleConditions": [
+      "URL_QUERY",
+      "NONZERO_CONTENT_LENGTH",
+      "TRANSFER_ENCODING"
+    ],
+    "requestRepeated": false
+  },
+  "window": {
+    "startedAt": 1792945324944,
+    "deadline": 1792947124944,
+    "deploymentId": "dpl_Fig7B1bWNEXKM762MEizAfUBfbsh"
+  },
+  "readOnlyBrowserAcceptance": "NOT_RUN_STOPPED_ON_ATTESTATION_FAILURE",
+  "automaticRollback": {
+    "verified": true,
+    "routingRestored": true,
+    "safeguardsVerified": true,
+    "mutationCertain": true,
+    "operationResults": [
+      "fulfilled",
+      "fulfilled",
+      "fulfilled"
+    ]
+  },
+  "independentReadback": {
+    "status": "PASS_INDEPENDENT_READBACK_OF_AUTOMATIC_ROLLBACK",
+    "at": "2026-10-25T16:28:11.834Z",
+    "manualRecovery": false,
+    "route": {
+      "projectId": "prj_XglHAvS3zjuyLWvHkuNt5U8BoUtl",
+      "deploymentId": "dpl_nr5RVunmUGdryPUtWkRkVdsA96pT"
+    },
+    "candidateRetainedForDiagnostics": "dpl_Fig7B1bWNEXKM762MEizAfUBfbsh",
+    "candidateReadyProtectedPausedUnaliased": true,
+    "safety": {
+      "registrationPaused": true,
+      "checkoutPaused": true,
+      "liveBillingPaused": true,
+      "deliveryDisabled": true,
+      "stagingOnly": true,
+      "endpointDisabled": true,
+      "receiverPaused": true,
+      "protectionEnabled": true
+    },
+    "priorDeploymentCount": 7,
+    "priorDeploymentsPreserved": true,
+    "inventoryCount": 8,
+    "projectDomains": 0,
+    "productionContainmentUnchanged": true
+  },
+  "priorDeploymentsPreserved": 7,
+  "candidateDisposition": "RETAINED_PROTECTED_PAUSED_UNALIASED_FOR_DIAGNOSTICS",
+  "manualRecovery": false,
+  "localCorrection": {
+    "deployed": false,
+    "scope": "Fixed owner-only rejection classifications; no guard relaxed and no root-cause claim",
+    "focusedTests": 34,
+    "apiTypecheck": "PASS",
+    "scopedLint": "PASS",
+    "applicationBuild": "PASS",
+    "independentAiReview": "PASS"
+  },
+  "spending": {
+    "teamPlan": "Hobby",
+    "paidUpgradesOrServicesCreated": false,
+    "additionalSpendAuthorized": 0
+  },
+  "prohibitedOperationsPerformed": [],
+  "productionContainment": "dpl_EBYBJZS7Q9Gqmvwdk8Ay3RM6C1PE",
+  "productionContainmentUnchanged": true,
+  "moneyMapChanged": false,
+  "remaining": {
+    "hostedAttestation": "BLOCKED_PENDING_REVIEWED_DIAGNOSTIC_EXECUTION",
+    "currentMvpHostedAcceptance": "PENDING",
+    "proAndLifecycle": "PENDING_CONTROLLED_AUTHORIZED_WINDOW",
+    "legal": "OWNER_COUNSEL_APPROVAL_PENDING",
+    "recovery": "BLOCKED_ON_HARDWARE",
+    "production": "NO_GO"
+  },
+  "evidenceSha256": {
+    "preflight.json": "67d6f6d66b199f8ac7d00a7baa461f277b4b5d0ed04fa2335ceb16971d0a977c",
+    "routing-watchdog.jsonl": "4a6beab872622a90fdebe576ac8b4a0e52bad1a42f0701647d7cc7d29eb6e1be",
+    "routing-ready.json": "bfe87e24fff1da69511c889a589d0d401cbcb234f7f5a67e6feef359a8121878",
+    "before-alias-verification.json": "cc96eee66093976f4828914b3e114afb918b529d099170151950fe4b6b7c8291",
+    "agreement-discovery.json": "5226c8b5319917288f9e32b1b16d2325813245d680f5afd3c32fe0a63ef09daf",
+    "routing-active.json": "7a51586d7d652143168e1fe3f09ea9a9da47339ec36a4144994fb54a44645ad0",
+    "owner-attestation-failure.json": "c8dd4246bd495345d2b6aea7b3b466ec3c509bd189f82dda80d2320ef04d6158",
+    "runtime-error-projection.json": "062d47bf17de888d3bfb06f0b3a1049332f84a97ec7c13dab73c272cdc673e90",
+    "routing-result.json": "68bd355d6c387bfd52babe9d90758986b167e9dfc0f21128c7876ae252c1c79c",
+    "independent-rollback-readback.json": "3d39bfc76317c70469217a57d54c79102fb177bafe8e3ce69c5aef1de0f01f4f"
+  }
+}

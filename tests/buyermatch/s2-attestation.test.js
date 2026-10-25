@@ -1,4 +1,8 @@
 import test from 'node:test';
+import { Buffer } from 'node:buffer';
+import process from 'node:process';
+import console from 'node:console';
+import { URL } from 'node:url';
 import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -318,7 +322,7 @@ function reset() {
   delete process.env.SUPER_ADMIN_EMAILS;
   artifactText = JSON.stringify(captureS2Build(env(), new Date()));
 }
-async function invoke(overrides = {}) {
+async function invoke(overrides = {}, entry = handler) {
   const response = {
     headers: {},
     statusCode: 0,
@@ -341,7 +345,7 @@ async function invoke(overrides = {}) {
     headers: { authorization: 'Bearer dummy-valid' },
   };
   Object.defineProperties(request, Object.getOwnPropertyDescriptors(overrides));
-  await handler(request, response);
+  await entry(request, response);
   return response;
 }
 test('actual handler authorizes server-verified confirmed owner and performs reads only', async () => {
@@ -436,6 +440,155 @@ test('query/environment selectors and GET bodies are refused without reflecting 
     assert.equal(r.statusCode, 400);
     assert.equal(calls.includes('read-artifact'), false);
     assert.equal(JSON.stringify(r.body).includes('DUMMY'), false);
+  }
+});
+
+test('request framing diagnostics preserve strict denial without reflecting raw values', async () => {
+  const cases = [
+    [
+      { url: '/api/platform/s2-attestation?endpoint=s2-attestation' },
+      ['QUERY_NOT_SUPPORTED'],
+    ],
+    [
+      {
+        headers: {
+          authorization: 'Bearer dummy-valid',
+          'content-length': 'DUMMY_PRIVATE',
+        },
+      },
+      ['CONTENT_LENGTH_NOT_SUPPORTED'],
+    ],
+    [
+      {
+        headers: {
+          authorization: 'Bearer dummy-valid',
+          'transfer-encoding': 'DUMMY_PRIVATE',
+        },
+      },
+      ['TRANSFER_ENCODING_NOT_SUPPORTED'],
+    ],
+    [
+      {
+        url: '/api/platform/s2-attestation?DUMMY_PRIVATE',
+        headers: {
+          authorization: 'Bearer dummy-valid',
+          'content-length': '2',
+          'transfer-encoding': 'DUMMY_PRIVATE',
+        },
+      },
+      [
+        'QUERY_NOT_SUPPORTED',
+        'CONTENT_LENGTH_NOT_SUPPORTED',
+        'TRANSFER_ENCODING_NOT_SUPPORTED',
+      ],
+    ],
+  ];
+  for (const [request, reasons] of cases) {
+    reset();
+    const r = await invoke(request);
+    assert.equal(r.statusCode, 400);
+    assert.deepEqual(r.body.reasons, reasons);
+    assert.equal(calls.includes('read-artifact'), false);
+    assert.equal(JSON.stringify(r.body).includes('DUMMY'), false);
+  }
+});
+
+test('absent framing and explicit zero length still attest successfully', async () => {
+  for (const headers of [
+    { authorization: 'Bearer dummy-valid' },
+    { authorization: 'Bearer dummy-valid', 'content-length': '0' },
+  ]) {
+    reset();
+    assert.equal((await invoke({ headers })).statusCode, 200);
+  }
+});
+
+test('request rejection details remain unavailable to anonymous and non-owner callers', async () => {
+  reset();
+  const anonymous = await invoke({
+    url: '/api/platform/s2-attestation?DUMMY_PRIVATE',
+    headers: { 'transfer-encoding': 'DUMMY_PRIVATE' },
+  });
+  assert.equal(anonymous.statusCode, 401);
+  assert.equal(anonymous.body.reasons, undefined);
+  reset();
+  owner.email = 'not-owner@example.com';
+  const other = await invoke({
+    url: '/api/platform/s2-attestation?DUMMY_PRIVATE',
+  });
+  assert.equal(other.statusCode, 403);
+  assert.equal(other.body.reasons, undefined);
+});
+
+test('actual dispatcher passes synthetic request envelopes to the actual protected handler unchanged', async () => {
+  globalThis.__s2RealHandler = handler;
+  try {
+    const result = await build({
+      entryPoints: ['api/platform/[endpoint].ts'],
+      bundle: true,
+      write: false,
+      platform: 'node',
+      format: 'esm',
+      plugins: [
+        {
+          name: 'real-attestation-dispatch',
+          setup(b) {
+            b.onResolve({ filter: /server\/http\/.*\.js$/ }, (args) => ({
+              path: args.path,
+              namespace: 'actual-attestation',
+            }));
+            b.onLoad(
+              { filter: /.*/, namespace: 'actual-attestation' },
+              (args) => ({
+                contents: args.path.endsWith('/s2-attestation.js')
+                  ? 'export default globalThis.__s2RealHandler;'
+                  : 'export default ()=>{throw Error("Unexpected unrelated handler");};',
+                loader: 'js',
+              }),
+            );
+          },
+        },
+      ],
+    });
+    const { default: route } = await import(
+      'data:text/javascript;base64,' +
+        Buffer.from(result.outputFiles[0].text).toString('base64')
+    );
+    for (const [request, code, reason] of [
+      [{}, 200, undefined],
+      [
+        {
+          headers: {
+            authorization: 'Bearer dummy-valid',
+            'content-length': '0',
+          },
+        },
+        200,
+        undefined,
+      ],
+      [
+        { url: '/api/platform/s2-attestation?endpoint=s2-attestation' },
+        400,
+        'QUERY_NOT_SUPPORTED',
+      ],
+      [
+        {
+          headers: {
+            authorization: 'Bearer dummy-valid',
+            'transfer-encoding': 'chunked',
+          },
+        },
+        400,
+        'TRANSFER_ENCODING_NOT_SUPPORTED',
+      ],
+    ]) {
+      reset();
+      const r = await invoke(request, route);
+      assert.equal(r.statusCode, code);
+      assert.equal(r.body.reasons?.[0], reason);
+    }
+  } finally {
+    delete globalThis.__s2RealHandler;
   }
 });
 test('missing, stale, conflicting and credential-injected runtime evidence returns generic503 with no logs', async () => {

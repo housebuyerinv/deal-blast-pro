@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { Buffer } from 'node:buffer';
 import assert from 'node:assert/strict';
 import { build } from 'esbuild';
 import { readFileSync } from 'node:fs';
@@ -85,23 +86,50 @@ function reset() {
     requests.push({ url, options });
     if (mode === 'switch') ownerId = 'different-owner';
     return {
-      ok: mode !== 'denied',
+      ok: ![
+        'denied',
+        'reasons',
+        'unknown-reason',
+        'wrong-status',
+        'duplicate-reason',
+        'reasons-switch',
+      ].includes(mode),
+      status: mode === 'wrong-status' ? 403 : 400,
       json: async () =>
-        mode === 'malformed'
-          ? { error: 'DUMMY_PRIVATE_RESPONSE' }
-          : {
-              schema: 1,
-              qaOnly: true,
-              identity: {
-                sourceSha: '1'.repeat(40),
-                deploymentId: 'dpl_SyntheticUI',
+        [
+          'reasons',
+          'unknown-reason',
+          'wrong-status',
+          'duplicate-reason',
+          'reasons-switch',
+        ].includes(mode)
+          ? {
+              error: 'DUMMY_PRIVATE_RESPONSE',
+              reasons:
+                mode === 'unknown-reason'
+                  ? ['DUMMY_PRIVATE_REASON']
+                  : mode === 'duplicate-reason'
+                    ? ['QUERY_NOT_SUPPORTED', 'QUERY_NOT_SUPPORTED']
+                    : [
+                        'QUERY_NOT_SUPPORTED',
+                        'TRANSFER_ENCODING_NOT_SUPPORTED',
+                      ],
+            }
+          : mode === 'malformed'
+            ? { error: 'DUMMY_PRIVATE_RESPONSE' }
+            : {
+                schema: 1,
+                qaOnly: true,
+                identity: {
+                  sourceSha: '1'.repeat(40),
+                  deploymentId: 'dpl_SyntheticUI',
+                },
+                build: {
+                  sha256: '2'.repeat(64),
+                  settings: { ...REQUIRED_S2_ENV },
+                },
+                runtime: { settings: { ...REQUIRED_S2_ENV } },
               },
-              build: {
-                sha256: '2'.repeat(64),
-                settings: { ...REQUIRED_S2_ENV },
-              },
-              runtime: { settings: { ...REQUIRED_S2_ENV } },
-            },
     };
   };
 }
@@ -111,6 +139,50 @@ test.after(() => {
   else globalThis.window = originalWindow;
   delete globalThis.__s2Ui;
 });
+
+test('HTTP400 renders only fixed request rejection codes, without raw provider detail', async () => {
+  reset();
+  mode = 'reasons';
+  await button(Page()).props.onClick();
+  assert.ok(
+    states.includes(
+      'Request rejected: QUERY_NOT_SUPPORTED, TRANSFER_ENCODING_NOT_SUPPORTED. No retry was attempted.',
+    ),
+  );
+  assert.equal(JSON.stringify(states).includes('DUMMY'), false);
+  assert.equal(requests.length, 1);
+});
+
+for (const failure of [
+  'unknown-reason',
+  'wrong-status',
+  'duplicate-reason',
+  'reasons-switch',
+])
+  test(
+    'untrusted or stale rejection details stay generic: ' + failure,
+    async () => {
+      reset();
+      mode = failure;
+      if (failure === 'reasons-switch') {
+        const fetch = globalThis.fetch;
+        globalThis.fetch = async (...args) => {
+          const response = await fetch(...args);
+          ownerId = 'different-owner';
+          return response;
+        };
+      }
+      await button(Page()).props.onClick();
+      assert.equal(
+        states.some(
+          (x) => typeof x === 'string' && x.startsWith('Request rejected:'),
+        ),
+        false,
+      );
+      assert.equal(JSON.stringify(states).includes('DUMMY'), false);
+      assert.equal(requests.length, 1);
+    },
+  );
 test('owner view uses normal same-origin GET auth internally and renders only public summary', async () => {
   reset();
   const control = button(Page());

@@ -1,6 +1,52 @@
 # BuyerMatch consolidated release-validation evidence
 
-## Current checkpoint — October 25, 2026 owner timezone
+## Current checkpoint — approved current-MVP paused Preview
+
+Authorization6399713964 for packet8998e60 was executed once. Exact application
+`5fab059a531f20c1b94c581c1b9e0c95a205a66f` (531 matching exported Git blobs)
+reached READY as Preview `dpl_Fig7B1bWNEXKM762MEizAfUBfbsh`, generated hostname
+`dbp-registration-s2-lmxzjv71v-housebuyerinv.vercel.app`. All17 public settings
+were explicitly supplied in both build and runtime; this is **not** a claim that
+the hosted owner comparison passed.
+
+- PASS: independent controller survived launcher exit, proved actual same-state
+  fallback assignment/readback, then moved only the approved S2 alias.
+- PASS: anonymous root/attestation302 to Vercel Authentication; application-bearer
+  absence denied; exact staging QA agreement IDs, versions and content hashes.
+- FAIL: the existing owner's normal stable session loaded, but the single
+  attestation GET returned400. The sole400 branch occurs after confirmed-owner
+  Auth and Active Admin/workspace checks. Its query/body/framing guard rejected
+  the effective request. Which predicate fired remains **UNKNOWN**; neither an
+  invalid credential nor a provider-added query is established by the evidence.
+- NOT RUN: all17 actual build/runtime comparison and remaining current-MVP browser
+  acceptance. Testing stopped at the failed gate; no repeated hosted request.
+- PASS: automatic fallback restoration and both processing pauses; independent
+  fresh readback at2026-10-25T16:28:11.834Z confirms exact fallback, all8 safeguards,
+  all7 prior deployments preserved, zero project domains and unchanged live
+  containment. No manual recovery. New candidate remains protected/paused/unaliased
+  for evidence. No second deployment, migration, purchase, email or fixture write.
+
+See [sanitized execution evidence](BUYERMATCH_S2_MVP_ACCEPTANCE_2026-10-25.json).
+The initial local credential check incorrectly expected sensitive Vercel variables
+to be exportable and assumed a legacy JWT public key. Corrected preparation verifies
+the actual publishable key against Supabase, pins unchanged Preview-only binding
+metadata, and preserves prior hosted proof. It does not decrypt secrets or claim
+fresh validation of hidden contents/permissions. Eleven focused metadata checks and
+independent AI review passed before execution.
+
+A local, independently reviewed diagnostic correction now preserves every strict
+guard and exposes only fixed rejection codes to the confirmed platform owner.
+The UI displays only recognized400 codes after identity revalidation; raw headers,
+queries, provider errors and credentials stay suppressed.34 focused tests, API
+typecheck, scoped lint and application build PASS. Actual dispatcher/handler tests
+use synthetic request envelopes, not a claim about Vercel's effective envelope.
+**This correction is not deployed and does not identify/fix the original hosted
+cause.** Another protected diagnostic deployment/alias window requires exact-source
+authorization; the one5fab authorization is consumed. No new owner account setup
+is required. Feature scope stays frozen; legal approval, hosted billing lifecycle,
+independent recovery and separately approved Production cutover remain open.
+
+## Earlier canary — retained October 25 evidence
 
 Direction: PR #2 reviews 6391606558 / 6391619478. Feature scope remains frozen.
 Production/public release NO-GO; draft PR retained. Source implementation candidate

@@ -53,13 +53,20 @@ export default async function handler(req: any, res: any) {
       workspace.data?.account_status !== 'Active'
     )
       return res.status(403).json({ error: 'Owner access required' });
+    // Fixed classifications only, after confirmed platform-owner authorization.
+    // Never reflect/log URL, query, framing values, credentials or provider errors.
+    const reasons: string[] = [];
+    if (new URL(req.url, 'https://internal.invalid').search)
+      reasons.push('QUERY_NOT_SUPPORTED');
     if (
-      new URL(req.url, 'https://internal.invalid').search ||
-      (req.headers?.['content-length'] &&
-        req.headers['content-length'] !== '0') ||
-      req.headers?.['transfer-encoding']
+      req.headers?.['content-length'] &&
+      req.headers['content-length'] !== '0'
     )
-      return res.status(400).json({ error: 'Unsupported request' });
+      reasons.push('CONTENT_LENGTH_NOT_SUPPORTED');
+    if (req.headers?.['transfer-encoding'])
+      reasons.push('TRANSFER_ENCODING_NOT_SUPPORTED');
+    if (reasons.length)
+      return res.status(400).json({ error: 'Unsupported request', reasons });
     const build = JSON.parse(
       readFileSync(resolve(process.cwd(), ATTESTATION_PATH), 'utf8'),
     );
