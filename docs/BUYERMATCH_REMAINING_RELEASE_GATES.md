@@ -1,21 +1,21 @@
 # BuyerMatch consolidated release-validation evidence
 
-## Current checkpoint — October 24, 2026 owner timezone
+## Current checkpoint — October 25, 2026 owner timezone
 
 Direction: PR #2 reviews 6391606558 / 6391619478. Feature scope remains frozen.
 Production/public release NO-GO; draft PR retained. Source implementation candidate
 5fab059 remains distinct from operator changes and the exact reviewed canary
-202b3d3965aa2fd4bb9e16dab06f207b157b8acd. No new deployment or payment occurred.
+202b3d3965aa2fd4bb9e16dab06f207b157b8acd. One paused canary was created; no payment occurred.
 
 | Gate | Status / actual evidence | Remaining acceptance |
 | --- | --- | --- |
 | Owner access | VERIFIED HOSTED: six authorized records and normal password browser login, checkpoint 6391341559 | No repeat email, signup, key or provisioning |
-| Cleanup engineering | VERIFIED LOCAL: separate AI review found mutable-state authority coupling and unbounded discovery; corrected, 38 focused checks and scoped lint pass. Final code-review PASS at38fde4bee884cbe36e2a38d55d611859f49d43cd | Actual detached provider authority and hosted cleanup still unproven |
+| Cleanup engineering | VERIFIED LOCAL: prior38 checks retained, four new explicit-context routing checks and lint pass; separate review PASS for b8c0b69/c0fdbf0 and exact fresh-run wrapper hashes. VERIFIED HOSTED: detached deadline cleanup completed with no manual removal | Do not repeat the completed cleanup rehearsal |
 | Reviewed source | VERIFIED LOCAL: 509 exported Git blobs match exact 202b source byte-for-byte after disabling Windows archive newline conversion | This is not a deployed artifact |
-| Canary preflight | BLOCKED before deployment/worker launch: named CLI profile identity is exactly one S2 TEST account, but endpoint retrieval returns permission-related api_error | Independently executable webhook read/update authority must work; connector-only access cannot replace detached authority |
+| Canary preflight | VERIFIED HOSTED: detached worker after launcher exit performed exact-context endpoint disabled=true update, receiver=false and fresh safe readback | No new credentials/login/permission changes were needed |
 | Stripe endpoint | VERIFIED HOSTED read-only connector: exact S2 account, TEST mode, expected staging receiver, status disabled | No event replay, update, purchase or secret read performed |
-| Build/runtime attestation + removal | NOT RUN: no temporary deployment created | All17 settings both scopes, authenticated owner-only access, real automatic removal and independent exact-ID404 |
-| Buyer UI | VERIFIED LOCAL actual browser against current React component and synthetic-only CSP fixture: invalid budget denied; corrected criteria yields private pending-review receipt without invitation opt-in; paused response exposes safe outage message, not injected backend details; Tab navigation used | Mobile, subscriber/admin and complete deployed browser round trip NOT RUN; local fixture is not hosted acceptance |
+| Build/runtime attestation + removal | Exact202b Preview dpl_DUUyLNdAtKPN1UhGR1Yvgx5MC25B reached READY, aliases[]. Anonymous GETs redirected to Vercel Authentication; browser GET without app bearer denied attestation. GET agreement discovery returned required=true and both exact QA IDs/hashes. Automatic deletion and separate authenticated exact-ID404 PASS; generated hostname is RETIRED | All17 owner BUILD/RUNTIME attestation NOT RUN: private normal login was not completed in the15-minute window |
+| Buyer UI | VERIFIED LOCAL prior desktop evidence retained; nine new actual-browser scenarios pass:390px wrapping/keyboard/error focus and private-response missing link, fragment clearing, busy controls, stale-result isolation, current completion and opt-out messaging | Fixed390px iframe is not mobile hardware; subscriber/admin and complete hosted backend round trip remain NOT RUN |
 | Billing | VERIFIED HOSTED historical Starter59 activation and corrected v21 signed replay retained | Pro119 50/25/50, portal, plan changes, cancellation, failure/recovery and adverse ordering remain NOT RUN/BLOCKED on controlled-window gates |
 | Intake security | VERIFIED HOSTED historical28 assertions/7cleanup/rollback retained; current Production metadata reconfirms zero unsafe table/column grants, RLS and server access | S2 platform-owner deployed review/browser acceptance; no repeat completed DB matrix |
 | Legal | VERIFIED LOCAL all4 draft hashes match manifest; approved=false, publicationAllowed=false | Owner/counsel decisions, final exact versions/hashes/effective date; QA fixtures cannot substitute |
@@ -26,10 +26,20 @@ Current provider-state readback: S2 project Git-unlinked/protected; stable fallb
 unchanged; registration/Checkout/live billing/live delivery disabled; Supabase
 receiver false; live DBP alias still containment dpl_EBYBJZS7Q9Gqmvwdk8Ay3RM6C1PE.
 The legacy preflight script returned FAIL because it assumes flat whoami output
-and cannot read the endpoint through CLI. Its stripePaused=false is NOT proof of
-an enabled endpoint; the independent connector read confirms disabled. Current CLI
+and omitted explicit API account context. Its stripePaused=false is NOT proof of
+an enabled endpoint. Current CLI
 whoami uses authorized_accounts:[{id,name,modes}], validated without printing names
-or credentials. Default CLI profile and all runtime keys were left untouched.
+or credentials. Actual endpoint operations pass with --stripe-context selecting
+the exact S2 account; --project-name only selects CLI configuration. Default CLI
+profile and all runtime keys were left untouched.
+
+An orchestration error added Production-only --skip-domain to Preview arguments.
+The CLI rejected it before creation; exact-run inventory remained7/no matching run.
+Supported --dry reproduced the error. The independently reviewed correction uses
+the unchanged reviewed helper's Preview arguments, no alias/promote command,
+fresh exact509-file export outside Git, empty project-domains metadata and strict
+existing alias/protection checks. Corrected --dry exits0. Original failure evidence
+is preserved; no Production-labelled fallback or security bypass was used.
 
 Actual browser fixture uses loopback, synthetic records, mocked provider imports,
 connect-src 'none' and rejects non-GET HTTP. No live intake or delivery occurred.
@@ -43,13 +53,12 @@ debugging, formatting, mounting, key generation or export was performed.
 
 ### Minimal coordinated actions
 
-1. Restore/authorize the independent named S2 CLI/executor's exact webhook
-   read/update operations. S2 connector read works; detached CLI access does not.
-   Do not change application keys, default profile, Production or MoneyMap to solve
-   this. A login retry is not presumed to fix a permission failure.
-2. After authority is proven and final source review passes, the existing conditional
-   approval covers one paused payment-free202b rehearsal. New-host normal owner
-   login may require private password entry; no session/token copying is permitted.
+1. Stripe routing blocker is resolved. Do not reconnect, rotate keys or change
+   permissions. Preserve exact S2 CLI context and named profile.
+2. The existing conditional approval covers the paused payment-free202b rehearsal.
+   That one deployment is now automatically deleted. Do not reuse its retired URL,
+   copy sessions/tokens, extend deadlines or create another canary without scope
+   authorization. Owner-authenticated attestation remains the unfinished part.
 3. Once rehearsal passes, reconcile the existing H1 and lifecycle authorizations
    with exact source/fixtures/window before any enabling. Bundle any genuinely
    missing permissions, current-MVP deployment/alias and supported failure/time
@@ -59,6 +68,38 @@ debugging, formatting, mounting, key generation or export was performed.
    export, device formatting or legal acceptance are requested now.
 5. After hosted/security/legal/recovery acceptance, request one exact Production
    release package approval; do not deploy the full integration as security-only.
+
+### Next concrete S2 action proposed for approval (not executed)
+
+Deploy the existing code-complete application source
+`5fab059a531f20c1b94c581c1b9e0c95a205a66f` as a protected, paused Preview in the
+same dedicated S2 project/team. It is already published as an ancestor of the
+integration branch; current api/src/server/supabase directories have no delta from
+it. Its build hook, attestation implementation and operator UI are unchanged from
+the reviewed202b implementation. No new MVP functionality is proposed.
+
+After exact source/READY/Preview/protection/staging-binding and all paused deployment
+argument checks pass, move ONLY the dedicated S2 stable alias to that new verified
+deployment. Its actual ID must be recorded before assignment; never invent an ID.
+Keep dpl_nr5RVunmUGdryPUtWkRkVdsA96pT and the other seven prior deployments intact.
+This can reuse the owner's normal stable-origin session, subject to actual server
+verification, instead of requiring another disposable-origin password handoff.
+Then run owner-only attestation and read-only current-MVP browser/navigation checks.
+If those fail, restore ONLY that S2 alias to its recorded fallback and keep all gates
+paused. No Production domain or routing change; no new bypass secret.
+
+Requested scope excludes purchases, subscription changes, registration POSTs,
+fixture/database writes, email, delivery, migrations and legal publication. All17
+paused values remain mandatory in both scopes. Supabase callback origin stays the
+already allowlisted stable S2 origin; no callback/email setting changes are needed.
+This is a different application SHA and a stable S2 alias move, so it is not silently
+treated as the already-completed one-canary authorization. Hosted TEST billing
+windows and eventual Production release remain separately gated.
+
+Owner/counsel business-policy decisions and identification of already-owned Linux
+hardware/media were requested together; no answer has been assumed. Existing legal
+drafts remain unpublished/unapproved and recovery remains BLOCKED. There is no new
+key, account, email-provider, Windows command or purchase request.
 
 ### Forward-only cutover preparation — NOT authorization
 

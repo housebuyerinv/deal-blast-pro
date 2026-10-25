@@ -123,9 +123,22 @@ deployment is allowed. It discovers only the fresh run-tagged new deployment,
 then closes on an explicit request or a 15-minute deadline using the existing
 `closeS2Run`. A failed worker does not count as automatic success; operator
 recovery remains separately labelled. Original evidence is never overwritten.
-Deployment uses all 17 settings in both scopes and supported `--skip-domain`;
+Deployment uses all 17 settings in both scopes. The previous orchestration's
+`--skip-domain` flag is NOT supported for Preview and was rejected before creation;
+it must not be reused or changed to a Production target. The corrected Preview
+procedure uses a verified nongit source export, empty project-domain metadata,
+unlinked Git, no alias/promote command and independent stable-alias checks;
 the stable alias is never moved. Runtime/build attestation and actual automatic
 deletion remain NOT RUN until their real canary evidence is collected.
+
+October25 execution: exact202b Preview dpl_DUUyLNdAtKPN1UhGR1Yvgx5MC25B reached
+READY, aliases[]; independent same-state containment passed. The generated origin
+was protected. Owner login was not completed before the fixed deadline, so owner
+runtime attestation remains NOT RUN. At13:56:27UTC the detached worker verified
+automatic deletion; a separate authenticated read confirmed exact-ID404 and all
+seven prior deployments, stable routing, pauses and Production containment intact.
+The generated hostname is retired; do not attempt login there. No manual deletion
+was performed. See the consolidated matrix and sanitized evidence JSON.
 
 Independent AI peer review of operator commit `2ccd0d1` requested two corrections
 before any rehearsal: mutable endpoint state must not suppress cleanup authority,
