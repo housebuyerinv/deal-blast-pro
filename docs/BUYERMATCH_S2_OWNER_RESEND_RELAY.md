@@ -152,6 +152,51 @@ this preparation or the proposed one-message relay scope.
 
 ## Failure and rollback
 
+### Confirmed owner application provisioning — approved coordinator
+
+Owner email confirmation completed; do not repeat email, DNS or key setup.
+Approval `6391036826` permits the transactional RPC's six application records
+only after actual private authentication and personal review/acceptance of both
+pinned `staging-fixture-v2` documents. They explicitly identify themselves as
+nonbinding synthetic QA fixtures, not Production legal approval.
+
+`scripts/owner-provision-buyermatch-s2.ps1` presents the exact freshly fetched
+documents and requires masked existing-password/name/company entry plus the
+owner-entered phrase `ACCEPT BOTH S2 QA FIXTURES`. Blank company is permitted;
+no typed identity or acceptance is invented. A pinned child receives private
+JSON through stdin only. It performs normal staging password authentication,
+server `getUser` verification of the exact confirmed owner, document/content-hash
+checks and empty-state checks. It reuses the pinned existing registration intent
+signer/verifier, then calls the existing service-role RPC with Admin, Free and
+`p_require_documents=true`. No public handler is unpaused; no Auth metadata,
+paid plan, BuyerMatch entitlement or platform-owner override is modified.
+
+The run is bound to a fresh, hash-checked local baseline containing the exact
+owner UUID, reviewed RPC fingerprint/service-only status, preserved-state
+fingerprints and live pause/routing observations. Baseline expires after an hour;
+owner acceptance expires after 15 minutes. The same run can attempt submission
+only once. Wrong credentials, non-owner/unconfirmed identity, altered documents,
+partial/deactivated state or invalid intent stops before provisioning. An existing
+exact tuple is read back without RPC; it is never silently repaired. The only
+session closed is the coordinator's new password-authentication session via
+`logout?scope=local`; browser sessions are not globally revoked.
+
+After the RPC, the child checks the exact 1 profile/1 workspace/1 Free assignment/
+2 genuine acceptances/1 registration-event tuple and reports only fixed sanitized
+status. Independent database queries compare all unrelated fingerprints. A
+timeout or post-commit/readback/cleanup failure is UNKNOWN and does not trigger
+another attempt or deletion. Immutable consent evidence remains preserved.
+Normal protected-browser password login remains a separate observed acceptance
+test; the helper's password authentication is not misreported as browser testing.
+
+32 Node regression cases and 7 actual PowerShell 5 dummy checks pass, including
+actual invalid child invocation, wrong password/identity, rejected consent,
+Production key refusal, signed-intent alteration, partial/idempotent state,
+RPC uncertainty, post-commit failure and local-session cleanup failure. Scoped
+lint passes. Dependency-only preflight and actual read-only S2 document retrieval
+pass. These are not a hosted owner-provisioning result; actual execution remains
+conditional on private owner input. No unchanged hosted suite is repeated.
+
 ### Lost-key replacement and real-launch correction
 
 Owner approval `6390259149` covers only revoking the exact unused isolated key
