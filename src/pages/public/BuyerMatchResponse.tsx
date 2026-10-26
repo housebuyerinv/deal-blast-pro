@@ -95,6 +95,8 @@ export default function BuyerMatchResponse() {
         <p className="bm-eyebrow">BUYERMATCH · PRIVATE INVITATION</p>
         <h1 className="text-2xl">BuyerMatch private deal response</h1>
         <p className="text-sm text-slate-400">Powered by Deal Blast Pro. No subscriber plan is required to respond to your invitation.</p>
+        <p className="text-sm text-slate-400">Responses and messages belong to this invitation only. This is not an account-wide buyer history.</p>
+        <a href="/buyermatch/buyers/help#responses" target="_blank" rel="noopener noreferrer" className="text-sm text-emerald-300 underline">Buyer help (opens in a new tab)</a>
         <p>
           This private link is limited to the deal you received. Do not forward
           it.

@@ -6,16 +6,19 @@ export default function PublicNav() {
   const [open, setOpen] = useState(false)
   const menuButton = useRef<HTMLButtonElement>(null)
   const close = () => setOpen(false)
-  const buyerMatchPage = useLocation().pathname.startsWith('/buyermatch')
-  const signup = buyerMatchPage ? '/register?product=buyermatch&tier=starter' : '/register'
+  const pathname = useLocation().pathname
+  const buyerMatchPage = pathname.startsWith('/buyermatch')
+  const buyerJourney = pathname.startsWith('/buyermatch/buyers')
+  const signup = buyerJourney ? '/buyermatch/buyers' : buyerMatchPage ? '/register?product=buyermatch&tier=starter' : '/register'
   const signin = buyerMatchPage ? '/admin-login?product=buyermatch&tier=starter' : '/admin-login'
-  const signupLabel = buyerMatchPage ? 'Get BuyerMatch' : 'Sign Up Free'
+  const signupLabel = buyerJourney ? 'Buyer criteria' : buyerMatchPage ? 'Get BuyerMatch' : 'Sign Up Free'
 
   const menuItems = [
     { to: '/buyermatch', label: 'BuyerMatch' },
     { to: buyerMatchPage ? '/buyermatch/pricing' : '/pricing', label: buyerMatchPage ? 'BuyerMatch pricing' : 'CRM pricing' },
     { to: buyerMatchPage ? '/buyermatch/features' : '/features', label: 'Features' },
     ...(buyerMatchPage ? [{ to: '/buyermatch/how-it-works', label: 'How it works' }, { to: '/buyermatch/demo', label: 'Interactive demo' }] : []),
+    ...(buyerMatchPage ? [{ to: '/buyermatch/buyers/help', label: 'Buyer guide' }] : []),
     { to: signup, label: signupLabel },
     { to: signin, label: 'Login' },
     { to: '/contact', label: 'Contact' },
@@ -33,12 +36,18 @@ export default function PublicNav() {
 
         <div className="hidden xl:flex items-center gap-4 text-sm">
           <Link to="/buyermatch" className="font-semibold text-[#22C55E] hover:text-white">BuyerMatch</Link>
+          {buyerMatchPage ? <>
+            <Link to="/pricing" className="hover:text-white">DBP CRM</Link>
+            <Link to="/buyermatch/pricing" className="hover:text-white">Software plans</Link>
+            <Link to="/buyermatch/buyers/help" className="hover:text-white">Buyer guide</Link>
+          </> : <>
           <Link to={buyerMatchPage ? '/buyermatch/pricing' : '/pricing'} className="hover:text-white">{buyerMatchPage ? 'BuyerMatch pricing' : 'CRM pricing'}</Link>
           <Link to={buyerMatchPage ? '/buyermatch/features' : '/features'} className="hover:text-white">Features</Link>
           <Link to={buyerMatchPage ? '/buyermatch/how-it-works' : '/portal'} className="hover:text-white">{buyerMatchPage ? 'How it works' : 'Submit Deal'}</Link>
           <Link to={buyerMatchPage ? '/buyermatch/buyers' : '/buyer-portal'} className="hover:text-white">Buyer Portal</Link>
+          </>}
           <Link to="/contact" className="hover:text-white">Contact</Link>
-          <Link to={signin} className="px-3 py-1.5 hover:text-white">Sign In</Link>
+          <Link to={signin} className="px-3 py-1.5 hover:text-white">{buyerJourney ? 'Subscriber sign in' : 'Sign In'}</Link>
           <Link to={signup} className="btn btn-primary px-5 py-1.5 text-sm">{signupLabel}</Link>
         </div>
 
@@ -65,7 +74,7 @@ export default function PublicNav() {
             <div className="grid gap-1 pt-2">
               {menuItems.map(item => (
                 <Link
-                  key={item.to}
+                  key={`${item.to}:${item.label}`}
                   to={item.to}
                   onClick={close}
                   className="rounded border border-[#252A38] px-4 py-3 text-sm text-[#C5CAD6] hover:text-white hover:bg-[#171B26]"

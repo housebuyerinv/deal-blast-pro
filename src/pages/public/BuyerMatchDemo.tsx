@@ -490,22 +490,17 @@ export default function BuyerMatchDemo() {
                       defaultValue="200000"
                     />
                   </label>
-                  <label className="bm-label">
-                    Proof-of-funds example
-                    <input
-                      className="input"
-                      type="file"
-                      accept="application/pdf"
-                      onChange={(e) =>
-                        setProof(e.target.files?.[0]?.name || "")
-                      }
-                    />
-                    <small>
+                  <div className="bm-label">
+                    <span>Proof-of-funds example · demo only</span>
+                    <button type="button" className="btn btn-ghost" aria-describedby="demo-proof-note" onClick={() => setProof('synthetic-proof-example.pdf')}>Use a synthetic proof label</button>
+                    <small id="demo-proof-note">
                       {proof
-                        ? "Selected in memory only; not uploaded: " + proof
-                        : "No upload occurs. Do not select a private document."}
+                        ? "Sample label only; no document exists or was uploaded: " + proof
+                        : "No file picker or upload. Keep real financial documents out of the demo."}
                     </small>
-                  </label>
+                  </div>
+                  <p className="bm-fineprint">Real initial intake and private invitation responses exist. Post-submission profile/POF editing and account-wide response history are not provided by this demo or the current buyer interface.</p>
+                  <Link className="bm-inline-link" to="/buyermatch/buyers/help">What the real buyer journey supports <ArrowRight size={15} /></Link>
                   <button className="btn btn-green">
                     Preview criteria review
                   </button>

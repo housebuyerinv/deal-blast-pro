@@ -178,6 +178,7 @@ export default function BuyerPortal({ product = 'crm' }: { product?: 'crm' | 'bu
         : 'Buyer signup is paused because the plan is cancelled. Contact admin to reactivate billing.'
     : ''
 const [submitted, setSubmitted] = useState(false)
+  const [receiptReference, setReceiptReference] = useState('')
   const [form, setForm] = useState(emptyForm)
   const [buyerTypes, setBuyerTypes] = useState<string[]>([])
   const [markets, setMarkets] = useState<string[]>([])
@@ -367,7 +368,8 @@ const [submitted, setSubmitted] = useState(false)
     } as any
 
     try {
-      await createBuyerPortalSubmission(buyerSubmission, { operationKey: submissionKey.current, notify: !independent })
+      const receipt = await createBuyerPortalSubmission(buyerSubmission, { operationKey: submissionKey.current, notify: !independent })
+      setReceiptReference(typeof receipt?.id === 'string' ? receipt.id : '')
       setSubmissionWarning(fileUploadWarning)
       toast.success(fileUploadWarning ? `Buyer verification submitted for review. ${fileUploadWarning}` : 'Buyer verification submitted for review.')
       setSubmitted(true)
@@ -400,10 +402,12 @@ const [submitted, setSubmitted] = useState(false)
             <div className="rounded-xl border border-[#252A38] bg-[#0B1020] p-4 text-left text-sm">
               <div className="font-semibold mb-2">Submission status</div>
               <div className="text-[#22C55E]">Submitted / Pending Review</div>
+              {receiptReference && <p className="mt-3 break-all">Submission reference: <span className="font-mono">{receiptReference}</span></p>}
               <div className="text-xs text-[#8B92A3] mt-2">
                 Only verified buyers are eligible for private deal blasts and deal-room access.
               </div>
             </div>
+            {independent && <div className="mt-5 text-left text-sm text-slate-400"><p>This receipt confirms submission only. It is not a live approval-status lookup or a buyer-profile edit link.</p><Link className="btn btn-ghost mt-3" to="/buyermatch/buyers/help">Criteria, POF updates & private responses</Link></div>}
           </div>
 
           <footer className="border-t border-[#252A38] mt-10 py-7 text-center text-xs text-[#8B92A3]">
@@ -427,6 +431,7 @@ const [submitted, setSubmitted] = useState(false)
           <h1 className="text-4xl font-bold mb-3">{independent ? 'Join the BuyerMatch buyer network' : 'Join Our Private Buyer Network'}</h1>
           {independent && <ol aria-label="Buyer profile steps" className="bm-workflow mt-6"><li><span>01</span><div><strong>Your profile</strong><p>Contact details and buy box.</p></div></li><li><span>02</span><div><strong>Private proof</strong><p>Provide supporting documents.</p></div></li><li><span>03</span><div><strong>Consent & review</strong><p>Choose invitation consent.</p></div></li><li><span>04</span><div><strong>Matched invitations</strong><p>Respond via secure deal links.</p></div></li></ol>}
           {independent && <div className="mb-4 space-y-2"><p>Powered by Deal Blast Pro. Submit buying criteria without purchasing a CRM or BuyerMatch subscriber plan.</p><p>Your submission stays private and requires review. It does not automatically verify you, activate distribution, or guarantee an invitation.</p><Link className="underline" to="/buyermatch">Looking for deal-matching software? Compare BuyerMatch plans</Link></div>}
+          {independent && <Link className="bm-inline-link" to="/buyermatch/buyers/help">Already submitted? Learn about criteria updates, POF and private responses →</Link>}
           <p className="text-[#C5CAD6] max-w-3xl">
             Submit your buying criteria and proof documents so we can confirm your purchasing ability and match you with off-market opportunities.
           </p>
@@ -663,7 +668,7 @@ const [submitted, setSubmitted] = useState(false)
           <div className="card p-6">
             <h2 className="text-xl font-semibold mb-2">Verification Documents{independent ? ' (optional)' : ' *'}</h2>
             <p className="text-sm text-[#8B92A3] mb-4">
-              {independent ? 'Proof can be supplied through a secure signed-in upload or during review. Do not paste financial records into the notes.' : 'Upload at least one proof document. Select what the file is before attaching it.'}
+              {independent ? 'Initial attachments require a secure signed-in upload by an authorized account. Guests may submit criteria without proof. For later POF changes, request secure follow-up using the buyer guide; there is no self-service replacement screen. Do not paste financial records into the notes.' : 'Upload at least one proof document. Select what the file is before attaching it.'}
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">

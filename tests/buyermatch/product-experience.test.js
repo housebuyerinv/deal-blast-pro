@@ -27,6 +27,7 @@ async function component(path) {
 const Marketing = (await component("src/pages/public/BuyerMatchLanding.tsx"))
   .default;
 const Demo = (await component("src/pages/public/BuyerMatchDemo.tsx")).default;
+const BuyerGuide = (await component('src/pages/public/BuyerMatchBuyerHelp.tsx')).default;
 const { WorkspaceOverview } = await component(
   "src/components/buyermatch/WorkspaceOverview.tsx",
 );
@@ -60,6 +61,39 @@ function mount(Page, path) {
     },
   };
 }
+test('real buyer guide distinguishes supported intake from absent self-service update/history contracts', () => {
+  const f = mount(BuyerGuide, '/buyermatch/buyers/help');
+  try {
+    const value = text(f.view.toJSON());
+    assert(value.includes('no buyer self-service POF replacement screen'));
+    assert(value.includes('no public deal inventory or account-wide response-history'));
+    assert(value.includes('Guests may submit criteria without proof'));
+    assert.equal(f.view.root.findAllByType('form').length, 0);
+    const links=f.view.root.findAllByType('a').map(n=>n.props.href);
+    assert(links.includes('/buyermatch/buyers'));
+    assert(links.includes('/contact?topic=buyermatch-buyer-update'));
+    assert(links.includes('/buyermatch/demo/buyers'));
+    assert(!links.some(url=>/receipt|token|secret/.test(url)));
+  } finally { f.close(); }
+});
+test('buyer-facing navigation does not present a paid signup as the buyer intake action', () => {
+  const f = mount(BuyerGuide, '/buyermatch/buyers/help');
+  try {
+    const primary=f.view.root.findAllByType('a').filter(n=>text(n)==='Buyer criteria');
+    assert(primary.length>0); assert(primary.every(n=>n.props.href==='/buyermatch/buyers'));
+    assert(!f.view.root.findAllByType('a').some(n=>n.props.href.startsWith('/register')));
+  } finally { f.close(); }
+});
+test('synthetic proof preview cannot open a private file or imply a real upload', () => {
+  const f = mount(Demo, '/buyermatch/demo/buyers');
+  try {
+    assert(!f.view.root.findAllByType('input').some(n=>n.props.type==='file'));
+    const button=f.view.root.findAllByType('button').find(n=>text(n)==='Use a synthetic proof label');
+    assert.equal(button.props.type,'button'); act(()=>button.props.onClick());
+    assert(text(f.view.toJSON()).includes('no document exists or was uploaded'));
+    assert(text(f.view.toJSON()).includes('synthetic-proof-example.pdf'));
+  } finally { f.close(); }
+});
 for (const [route, heading] of [
   ["/buyermatch", "The right buyer fit."],
   ["/buyermatch/features", "Every deal."],

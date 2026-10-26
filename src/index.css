@@ -1251,3 +1251,9 @@ body {
     white-space: normal;
   }
 }
+/* Final product-polish: narrow buyer flow and accurate status/help presentation. */
+.bm-buyer-guide>h1 { font-size:clamp(30px,4vw,48px); font-weight:600; max-width:880px; margin:20px 0; }
+.bm-buyer-guide .bm-panel { scroll-margin-top:100px; }
+.bm-buyer-guide .bm-panel>svg { color:#69dda2; margin-bottom:16px; }
+.bm-buyer-guide .bm-panel .btn { margin-top:14px; }
+@media(max-width:720px) { .bm-product-nav>div { flex-wrap:wrap; row-gap:8px; }.bm-product-nav>div a { min-height:36px; display:flex; align-items:center; }.bm-demo-sidebar nav a { min-height:42px; } }

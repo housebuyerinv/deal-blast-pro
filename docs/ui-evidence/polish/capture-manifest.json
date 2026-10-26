@@ -1,0 +1,92 @@
+{
+  "date": "2026-10-26",
+  "scope": "Actual local browser viewport captures; explicitly labeled demo private views; no real customer data",
+  "fullDocumentCapture": false,
+  "note": "Native screenshot bytes are JPEG; extensions corrected without changing image bytes.",
+  "files": [
+    {
+      "name": "admin-demo-desktop.jpg",
+      "format": "jpeg",
+      "width": 1085,
+      "height": 710,
+      "sha256": "515cd69f1024147cbfbc9d9696bc535d6357466343f6c0b0b043c764cd0c57bb"
+    },
+    {
+      "name": "buyer-demo-desktop.jpg",
+      "format": "jpeg",
+      "width": 1085,
+      "height": 710,
+      "sha256": "3d392ce922e15ef16ab949f0fe4beb0e7677f96e4778f0f288ef13621a02b546"
+    },
+    {
+      "name": "buyer-demo-mobile.jpg",
+      "format": "jpeg",
+      "width": 375,
+      "height": 812,
+      "sha256": "477ab9a05dad53850609de0f072a0ea81847e42f430a9961b69fd618bb3b06d6"
+    },
+    {
+      "name": "buyer-guide-desktop.jpg",
+      "format": "jpeg",
+      "width": 1085,
+      "height": 710,
+      "sha256": "4afd949872106cefee56323e1de2d98714c1d02868dc61df304651dbc0edac82"
+    },
+    {
+      "name": "buyer-guide-mobile.jpg",
+      "format": "jpeg",
+      "width": 375,
+      "height": 812,
+      "sha256": "861680345183bc97886588ef38637d3838ff7baa4cd9c31ffb8185d60c6f68e6"
+    },
+    {
+      "name": "deal-demo-desktop.jpg",
+      "format": "jpeg",
+      "width": 1085,
+      "height": 710,
+      "sha256": "98c29eee00ee6949a78ab9f8f39f6fa7d0b3d6b900db6aa05f91e1d5367c6f04"
+    },
+    {
+      "name": "overview-desktop.jpg",
+      "format": "jpeg",
+      "width": 1085,
+      "height": 710,
+      "sha256": "f6e258e1d2ae9958dbfd9c160540e4184ee632ec4ac6f335ef6cd7bebe795113"
+    },
+    {
+      "name": "overview-mobile.jpg",
+      "format": "jpeg",
+      "width": 375,
+      "height": 812,
+      "sha256": "c16500290afd587aea3867fda0c13329435df34cd7a69728b52bb12cd27acdb3"
+    },
+    {
+      "name": "plans-demo-desktop.jpg",
+      "format": "jpeg",
+      "width": 1085,
+      "height": 710,
+      "sha256": "4dd7fc57445fb66a573b6319a9c2aea5fea3e60beddfa0cdeab9a58b72894d98"
+    },
+    {
+      "name": "pricing-desktop.jpg",
+      "format": "jpeg",
+      "width": 1085,
+      "height": 710,
+      "sha256": "7e0c688ed3227d29cb1be9b2ca4b5ab9404ec7e3d77555f4d2a3f558901955a2"
+    },
+    {
+      "name": "response-requires-invitation-mobile.jpg",
+      "format": "jpeg",
+      "width": 390,
+      "height": 844,
+      "sha256": "ba4c7f75017253b85054f6dccb9801cf5892da08a7c661fa1bdcc6e8f1944793"
+    },
+    {
+      "name": "workspace-desktop.jpg",
+      "format": "jpeg",
+      "width": 1085,
+      "height": 710,
+      "sha256": "dfcc48425bb57233149f506443b2b60cef3c7136ef6e95b51358df32dc85ba81"
+    }
+  ]
+}

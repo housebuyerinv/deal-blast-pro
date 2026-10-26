@@ -6,6 +6,13 @@ or approval to accept payments. The security-only branch remains separate.
 
 Implementation commit: `de54725586bfa592d364131572eea2692a32e6d3` (local, not pushed).
 
+Final polish and the accurate DONE / DEMO ONLY / BACKEND GATED matrix are in
+`BUYERMATCH_PRELAUNCH_ACCEPTANCE.md`. The real `/buyermatch/buyers/help` route now
+explains post-submission criteria/POF limitations and existing secure follow-up.
+The demo proof control uses a synthetic label rather than selecting real files.
+New full-width viewport captures are in `ui-evidence/polish/`; earlier capture
+limitations below describe the historical build, not the newer viewport evidence.
+
 ## Open the local application
 
 `http://127.0.0.1:5188/buyermatch` — public product experience.

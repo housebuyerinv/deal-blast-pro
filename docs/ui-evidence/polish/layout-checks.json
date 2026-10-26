@@ -1,0 +1,101 @@
+{
+  "scope": "Actual local browser checks after polish; no provider operations or form submissions",
+  "checks": [
+    {
+      "route": "/buyermatch",
+      "content": 1265,
+      "forms": 0,
+      "heading": "The right buyer fit.\nA more focused deal flow.",
+      "width": 1280,
+      "pass": true
+    },
+    {
+      "route": "/buyermatch/pricing",
+      "content": 1265,
+      "forms": 0,
+      "heading": "A plan for your deal flow.",
+      "width": 1280,
+      "pass": true
+    },
+    {
+      "route": "/buyermatch/buyers",
+      "content": 1265,
+      "forms": 1,
+      "heading": "Join the BuyerMatch buyer network",
+      "width": 1280,
+      "pass": true
+    },
+    {
+      "route": "/buyermatch/buyers/help",
+      "content": 1265,
+      "forms": 0,
+      "heading": "Your buying profile, proof and private responses.",
+      "width": 1280,
+      "pass": true
+    },
+    {
+      "route": "/buyermatch/demo/buyers",
+      "content": 1265,
+      "forms": 2,
+      "heading": "Your criteria. Your next opportunity.",
+      "width": 1280,
+      "pass": true
+    },
+    {
+      "route": "/buyer-response",
+      "content": 1280,
+      "forms": 0,
+      "heading": "BuyerMatch private deal response",
+      "width": 1280,
+      "pass": true
+    },
+    {
+      "route": "/buyermatch",
+      "content": 375,
+      "forms": 0,
+      "heading": "The right buyer fit.\nA more focused deal flow.",
+      "width": 390,
+      "pass": true
+    },
+    {
+      "route": "/buyermatch/pricing",
+      "content": 375,
+      "forms": 0,
+      "heading": "A plan for your deal flow.",
+      "width": 390,
+      "pass": true
+    },
+    {
+      "route": "/buyermatch/buyers",
+      "content": 375,
+      "forms": 1,
+      "heading": "Join the BuyerMatch buyer network",
+      "width": 390,
+      "pass": true
+    },
+    {
+      "route": "/buyermatch/buyers/help",
+      "content": 375,
+      "forms": 0,
+      "heading": "Your buying profile, proof and private responses.",
+      "width": 390,
+      "pass": true
+    },
+    {
+      "route": "/buyermatch/demo/buyers",
+      "content": 375,
+      "forms": 2,
+      "heading": "Your criteria. Your next opportunity.",
+      "width": 390,
+      "pass": true
+    },
+    {
+      "route": "/buyer-response",
+      "content": 390,
+      "forms": 0,
+      "heading": "BuyerMatch private deal response",
+      "width": 390,
+      "pass": true
+    }
+  ]
+}

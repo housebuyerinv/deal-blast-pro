@@ -54,6 +54,17 @@ test('all visible form controls have associated labels; chips expose selected st
   assert.ok(view.root.findAllByType('div').some(n=>/grid-cols-1 md:grid-cols-/.test(n.props.className??'')));
  }finally{act(()=>view.unmount());}
 });
+test('confirmed receipt is a support reference, not a public lookup/edit link or live approval claim',async()=>{
+ const view=mount();try{
+  valid(view);await act(async()=>submit(view));
+  assert.match(jsonText(view),/synthetic-receipt/);
+  assert.match(jsonText(view),/not a live approval-status lookup/);
+  const links=view.root.findAllByType('a').map(n=>n.props.href);
+  assert(links.includes('/buyermatch/buyers/help'));
+  assert(!links.some(url=>String(url).includes('synthetic-receipt')));
+  assert.equal(fixture.calls.length,1);
+ }finally{act(()=>view.unmount());}
+});
 
 test('validation announces a focusable summary without a request and leaves invitation consent optional',async()=>{
  const view=mount();try{
