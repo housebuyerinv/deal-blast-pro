@@ -1,7 +1,8 @@
 # Final product boundary and coordinated prelaunch acceptance
 
-October 26, 2026 · PR #2 directive 6422625498. Preparation only; no execution
-authorization. Product-polish scope now closes. Fix verified defects during
+October 26, 2026 · PR #2 directives 6423328828 and 6424360093 supersede the earlier
+polish-only boundary. Local implementation only; no hosted execution authorization.
+Buyer self-service is now implemented. Fix verified defects during
 acceptance; do not add speculative features or resume Windows recovery work.
 
 ## Feature matrix
@@ -15,19 +16,18 @@ the specific missing activation or contract. DEMO ONLY never proves a real resul
 | Buyer/subscriber navigation and signup intent | DONE | Buyer screens lead to criteria, not paid signup; subscribers retain the existing securely bound product/tier flow |
 | Buyer criteria submission and private receipt | DONE / BACKEND GATED | Real `/buyermatch/buyers` uses the existing receipt RPC. New UI shows its reference only after confirmation, with no public lookup/edit link. Hosted availability and intake restoration still gated |
 | Initial POF attachments | DONE / BACKEND GATED | Existing private upload + receipt metadata contract; authorized signed-in ownership required. Guest criteria may omit proof. No claim that a failed upload succeeded |
-| Post-submission buyer criteria editing or POF replacement | BACKEND GATED — contract missing | No self-service buyer screen/endpoint provided by the reviewed intake/response contracts. `/buyermatch/buyers/help` now routes to existing support for secure follow-up. A receipt/email alone must never authorize editing |
+| Buyer profile/criteria editing and private POF replacement | DONE LOCALLY / HOSTED GATED | `/buyermatch/buyers/account`, authenticated server-only API and new draft migration. Create-only pending profile or confirmed Auth + identity-matched delivered-invitation linkage; immutable binding/audit, revision locks, opt-out preservation, private immutable proof versions and owner review queue. No receipt/email-only edits |
 | Invitation-specific offers, interest, pass, opt-out and conversation | DONE / BACKEND GATED | Existing `/buyer-response` capability endpoint and scoped message loading. Valid private invitation and enabled server required; no token entered or hosted POST performed in this pass |
-| Buyer account-wide deal feed, approval dashboard or response history | BACKEND GATED — contract missing | Not implemented in the current buyer interface. Invitation-scoped conversation is not account history. No public buyer identity or inventory feed added |
+| Personal invitation/deal/response history | DONE LOCALLY / HOSTED GATED | Keyset-paginated delivered invitations for the bound buyer only; interests, declines, deal states, offers and contact-redacted private messages. Expired links remain expired. No public inventory or other buyer history |
 | Subscriber deal, matching, review, distribution, EOC and billing UI | DONE / BACKEND GATED | Real authenticated routes and existing server contracts retained. Hosted key custody, entitlements, agreements and delivery controls still apply |
 | Network administration | DONE / BACKEND GATED | Private administrator-only list/review/import UI retained. No anonymous bypass and no real records used in demo screenshots |
 | Interactive analysis/allowance/review/response walkthrough | DEMO ONLY | `/buyermatch/demo/*`; sample state only, no provider calls or entitlement activation. New synthetic proof-label button has no file picker/document/upload |
 
-**Genuine product decision, not infrastructure:** confirm whether managed secure
-follow-up is acceptable for the initial buyer MVP. If buyer self-service updates,
-POF replacement or account history are mandatory, they require separately reviewed
-identity-bound server contracts and corresponding engineering before claiming a
-complete self-service buyer portal. Do not disguise absent endpoints as switches
-that a deployment or payment can enable.
+The previously missing contracts are now local implementation, not activation-only
+switches or synthetic demo substitutes. The new draft migration has NOT been run
+in S2 or Production. The earlier private-intake migration WAS already applied and
+recorded in S2; do not repeat it. See `BUYERMATCH_LOCAL_RELEASE_CANDIDATE.md` for
+one consolidated evidence/acceptance sequence and the new migration boundary.
 
 ## Local polish evidence
 

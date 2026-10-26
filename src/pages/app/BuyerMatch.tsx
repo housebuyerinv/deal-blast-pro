@@ -1,4 +1,5 @@
 import BuyerCriteriaEditor from "./BuyerCriteriaEditor";
+import BuyerProofReview from './BuyerProofReview';
 import { WorkspaceOverview, WorkflowSteps } from '../../components/buyermatch/WorkspaceOverview';
 import BuyerMatchConfiguration from "./BuyerMatchConfiguration";
 import { UsageCards, AdminUsage, CommercialPlans } from './BuyerMatchUsage';
@@ -370,6 +371,7 @@ function BuyerMatchScreen() {
         plans.isNetworkAdmin && (
           <>
             <AdminUsage metrics={data.metrics} />
+            <BuyerProofReview request={request}/>
             <section className="border border-slate-700 rounded-xl p-5 space-y-4">
               <h2 className="text-xl">Import buyers</h2>
               <p className="text-sm text-slate-400">

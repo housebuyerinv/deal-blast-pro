@@ -61,17 +61,17 @@ function mount(Page, path) {
     },
   };
 }
-test('real buyer guide distinguishes supported intake from absent self-service update/history contracts', () => {
+test('real buyer guide connects authenticated self-service and distinguishes it from synthetic demonstrations', () => {
   const f = mount(BuyerGuide, '/buyermatch/buyers/help');
   try {
     const value = text(f.view.toJSON());
-    assert(value.includes('no buyer self-service POF replacement screen'));
-    assert(value.includes('no public deal inventory or account-wide response-history'));
+    assert(value.includes('upload a private replacement'));
+    assert(value.includes('linked buyer account lists your delivered invitations'));
     assert(value.includes('Guests may submit criteria without proof'));
     assert.equal(f.view.root.findAllByType('form').length, 0);
     const links=f.view.root.findAllByType('a').map(n=>n.props.href);
     assert(links.includes('/buyermatch/buyers'));
-    assert(links.includes('/contact?topic=buyermatch-buyer-update'));
+    assert(links.includes('/buyermatch/buyers/account'));
     assert(links.includes('/buyermatch/demo/buyers'));
     assert(!links.some(url=>/receipt|token|secret/.test(url)));
   } finally { f.close(); }
@@ -95,7 +95,7 @@ test('synthetic proof preview cannot open a private file or imply a real upload'
   } finally { f.close(); }
 });
 for (const [route, heading] of [
-  ["/buyermatch", "The right buyer fit."],
+  ["/buyermatch", "Find the right fit for your next real estate deal."],
   ["/buyermatch/features", "Every deal."],
   ["/buyermatch/how-it-works", "From property details"],
   ["/buyermatch/pricing", "A plan for your deal flow."],

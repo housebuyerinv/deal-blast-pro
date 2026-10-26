@@ -668,7 +668,7 @@ const [submitted, setSubmitted] = useState(false)
           <div className="card p-6">
             <h2 className="text-xl font-semibold mb-2">Verification Documents{independent ? ' (optional)' : ' *'}</h2>
             <p className="text-sm text-[#8B92A3] mb-4">
-              {independent ? 'Initial attachments require a secure signed-in upload by an authorized account. Guests may submit criteria without proof. For later POF changes, request secure follow-up using the buyer guide; there is no self-service replacement screen. Do not paste financial records into the notes.' : 'Upload at least one proof document. Select what the file is before attaching it.'}
+              {independent ? 'Initial attachments require a secure signed-in upload by an authorized account. Guests may submit criteria without proof. Linked buyers can replace POF privately in their buyer account; review is required and prior documents are retained. Do not paste financial records into the notes.' : 'Upload at least one proof document. Select what the file is before attaching it.'}
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">

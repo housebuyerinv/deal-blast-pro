@@ -21,25 +21,25 @@ import catalog from "../../../supabase/functions/_shared/buyermatchPlans.json";
 const capabilities = [
   {
     icon: FileSearch,
-    title: "A clearer view of buyer fit",
+    title: "Evaluate first",
     body: "Compare asking price, location, property type and recorded buying criteria. Review missing information and price sensitivity before deciding your next move.",
     tag: "ANALYZE",
   },
   {
     icon: LockKeyhole,
-    title: "A network, with boundaries",
+    title: "See private fit signals",
     body: "Review anonymous buyer references and fit diagnostics. Buyer names, email addresses, phone numbers and the master network are not handed out to subscribers.",
     tag: "PROTECT",
   },
   {
     icon: Target,
-    title: "Reach eligible buyers",
+    title: "Distribute with control",
     body: "Prepare a reviewed deal for software distribution within your allowance. Contract control, current analysis, consent and required agreements are checked before exposure.",
     tag: "DISTRIBUTE",
   },
   {
     icon: MessageSquare,
-    title: "Follow the conversation",
+    title: "Keep the transaction organized",
     body: "Track interest, offers, passes and deal-specific messages. Keep the conversation attached to the property, with buyer identities protected.",
     tag: "RESPOND",
   },
@@ -63,6 +63,18 @@ const pages = [
   ["/buyermatch/pricing", "Pricing"],
 ] as const;
 const faqs = [
+  [
+    "Can buyers maintain their own information?",
+    "Yes. Confirmed account holders can create a new pending buyer profile. Existing network profiles require a valid delivered invitation and matching confirmed identity to connect. Linked buyers can update their own profile and criteria, privately replace proof, withdraw invitation consent and page through their personal response history. A submission receipt is never an edit credential.",
+  ],
+  [
+    "Does updated proof of funds automatically verify me?",
+    "No. A replacement is private, retains earlier evidence and requires review. Document acceptance is not a guaranteed balance or permission to receive invitations. Expired proof stays expired.",
+  ],
+  [
+    "Are allowances shared with DBP CRM credits?",
+    "No. Starter includes 20 analyses, 10 distributions and up to 25 buyers per distribution. Pro includes 50 analyses, 25 distributions and up to 50 buyers. These are BuyerMatch billing-period allowances, separate from DBP CRM plans, Property Intelligence credit packs and promotions.",
+  ],
   [
     "Do I need a paid DBP CRM plan?",
     "No. BuyerMatch is an independent subscription. Existing DBP users can add it without replacing their CRM subscription. A BuyerMatch purchase does not activate a paid CRM plan.",
@@ -203,7 +215,7 @@ export default function BuyerMatchLanding() {
         ? "Every deal. A clearer next step."
         : page === "workflow"
           ? "From property details to private conversations."
-          : "The right buyer fit.\nA more focused deal flow.";
+          : "Find the right fit for your next real estate deal.";
   useEffect(() => {
     const previous = document.title;
     if (typeof window !== "undefined") window.scrollTo?.(0, 0);
@@ -244,7 +256,7 @@ export default function BuyerMatchLanding() {
                   ? "Bring property analysis, private buyer fit, reviewed distribution and responses into one connected workspace."
                   : page === "workflow"
                     ? "Start with what you know about the property. Understand the match, complete the required review, and keep the response tied to the deal."
-                    : "Understand who fits your property, prepare a more relevant invitation, and follow the response—all without exposing the private buyer network."}
+                    : "BuyerMatch helps wholesalers and acquisition teams evaluate opportunities, see private buyer-match signals, and manage controlled deal distribution, without exposing the entire buyer network."}
             </p>
             {page !== "pricing" && (
               <div className="bm-actions">
@@ -325,6 +337,64 @@ export default function BuyerMatchLanding() {
                 </p>
               </div>
               <WorkflowSteps />
+              {page === "workflow" && (
+                <div className="bm-detail-grid mt-6">
+                  <article className="bm-panel">
+                    <h3>Subscriber onboarding</h3>
+                    <ol className="list-decimal pl-5 space-y-2">
+                      <li>
+                        Verify your identity and review the current versioned
+                        terms.
+                      </li>
+                      <li>
+                        Confirm your standalone subscription and available
+                        allowances.
+                      </li>
+                      <li>Submit the property and known deal details.</li>
+                      <li>
+                        Review analysis, missing information and eligible
+                        private fit signals.
+                      </li>
+                      <li>
+                        Verify contract rights, consent and required agreements.
+                      </li>
+                      <li>
+                        Initiate a permitted distribution within the plan
+                        limits.
+                      </li>
+                      <li>Monitor responses and end-of-contract dates.</li>
+                    </ol>
+                  </article>
+                  <article className="bm-panel">
+                    <h3>Buyer onboarding</h3>
+                    <ol className="list-decimal pl-5 space-y-2">
+                      <li>
+                        Submit criteria for review, or create a pending profile
+                        after normal confirmation and sign in.
+                      </li>
+                      <li>
+                        Upload private proof when ready; review is required.
+                      </li>
+                      <li>Review only your authorized invitations.</li>
+                      <li>
+                        Express interest, make an offer or decline through the
+                        valid private invitation.
+                      </li>
+                      <li>
+                        Use your authenticated buyer account to maintain
+                        criteria and proof, stop invitations and read personal
+                        history.
+                      </li>
+                    </ol>
+                    <Link
+                      className="btn btn-ghost mt-4"
+                      to="/buyermatch/buyers/account"
+                    >
+                      Open buyer account <ArrowRight size={16} />
+                    </Link>
+                  </article>
+                </div>
+              )}
               {page === "workflow" && (
                 <div className="bm-detail-grid">
                   {[

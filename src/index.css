@@ -1257,3 +1257,12 @@ body {
 .bm-buyer-guide .bm-panel>svg { color:#69dda2; margin-bottom:16px; }
 .bm-buyer-guide .bm-panel .btn { margin-top:14px; }
 @media(max-width:720px) { .bm-product-nav>div { flex-wrap:wrap; row-gap:8px; }.bm-product-nav>div a { min-height:36px; display:flex; align-items:center; }.bm-demo-sidebar nav a { min-height:42px; } }
+/* Buyer self-service keeps long private history and form controls within mobile bounds. */
+.bm-buyer-account label { display: block; margin: .85rem 0; }
+.bm-buyer-account input:not([type="checkbox"]), .bm-buyer-account select { max-width: 100%; }
+.bm-buyer-account input:not([type="checkbox"]):not([type="file"]) { display: block; width: 100%; padding: .7rem; border: 1px solid #334155; border-radius: .5rem; background: #0b101a; color: #f1f5f9; }
+.bm-buyer-account .bm-panel + .bm-panel { margin-top: 1.25rem; }
+.bm-buyer-account form > fieldset { margin: 0; padding: 0; border: 0; }
+.bm-buyer-account input::file-selector-button { padding: .5rem .75rem; margin-right: .75rem; border: 1px solid #334155; border-radius: .4rem; background: #162133; color: #f1f5f9; }
+.bm-buyer-account article { overflow-wrap: anywhere; }
+.bm-buyer-account .bm-subnav { display: flex; flex-wrap: wrap; gap: 1rem; margin: 1.5rem 0; }

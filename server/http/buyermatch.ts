@@ -1,4 +1,5 @@
 import { subscriberPortal } from '../buyermatch/portal.js';
+import {buyerProofReview} from '../buyermatch/buyer-proof-review.js';
 import { portalConsentEvidence } from '../buyermatch/portal-consent.js';
 import { subscriberAgreements, requireSubscriberAgreements } from '../buyermatch/onboarding.js';
 import { randomUUID, createHash } from "node:crypto";
@@ -132,6 +133,7 @@ export default async function handler(req: any, res: any) {
     const emit = (value: any) => res.status(200).json(value);
     if (action.startsWith("admin-")) {
       assertAdmin(account);
+      if(action.startsWith('admin-buyer-proof-'))return emit(await buyerProofReview(db,user,body));
       if (action === 'admin-verify-provider') return emit(await verifyProductionResend());
       if (action === 'admin-usage') {
         const metrics = checked(await db.rpc('bm_operating_metrics', { p_owner: body.ownerId ? uuid.parse(body.ownerId) : null }));

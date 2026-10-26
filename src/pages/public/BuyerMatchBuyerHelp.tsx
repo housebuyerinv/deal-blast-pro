@@ -21,6 +21,15 @@ export default function BuyerMatchBuyerHelp() {
           criteria or respond to a valid invitation. Here is what you can do
           now—and what requires secure follow-up.
         </p>
+        <p className="mb-6">
+          New participants can create their own pending buyer profile after
+          normal account confirmation. Existing network profiles require a
+          valid, identity-matched invitation to connect; neither a receipt nor
+          an email address alone grants access.{" "}
+          <Link className="bm-inline-link" to="/buyermatch/buyers/account">
+            Open your private buyer account →
+          </Link>
+        </p>
         <div className="bm-detail-grid">
           <section id="criteria" className="bm-panel">
             <FileCheck2 size={25} />
@@ -45,16 +54,13 @@ export default function BuyerMatchBuyerHelp() {
               upload is not a successful attachment.
             </p>
             <p>
-              There is no buyer self-service POF replacement screen after
-              submission. Contact the team to request a secure update path. Do
-              not put bank records, identity documents or private links in a
-              general support message.
+              Linked buyers can upload a private replacement in their buyer
+              account. Earlier documents are retained; replacements remain
+              pending review and do not automatically verify funds. Do not put
+              financial records or private links in a support message.
             </p>
-            <Link
-              className="btn btn-ghost"
-              to="/contact?topic=buyermatch-buyer-update"
-            >
-              Request secure follow-up
+            <Link className="btn btn-ghost" to="/buyermatch/buyers/account">
+              Open private buyer account
             </Link>
           </section>
           <section id="updates" className="bm-panel">
@@ -62,20 +68,18 @@ export default function BuyerMatchBuyerHelp() {
             <p className="bm-eyebrow">AFTER SUBMISSION</p>
             <h2>Need to change your criteria?</h2>
             <p>
-              Keep your submission reference if one was issued. The current
-              receipt does not provide a public lookup or edit capability. No
-              buyer account-wide approval/status dashboard is available.
+              Sign in normally and connect your profile using a valid, delivered
+              invitation for your confirmed email. Neither an email address nor
+              a submission receipt alone grants access to an existing profile.
             </p>
             <p>
-              Request a reviewed update through support. Do not submit repeated
-              profiles to work around this limitation, and do not purchase a
-              software subscription just to request a correction.
+              Update criteria in your buyer account. Changes require review and
+              do not reactivate previous opt-outs. You can withdraw invitation
+              consent without accepting a new agreement or buying a
+              subscription.
             </p>
-            <Link
-              className="btn btn-ghost"
-              to="/contact?topic=buyermatch-buyer-update"
-            >
-              Ask about an existing submission
+            <Link className="btn btn-ghost" to="/buyermatch/buyers/account">
+              Manage buying criteria
             </Link>
           </section>
           <section id="responses" className="bm-panel">
@@ -89,9 +93,11 @@ export default function BuyerMatchBuyerHelp() {
               service is available.
             </p>
             <p>
-              There is no public deal inventory or account-wide response-history
-              dashboard. Do not paste your invitation token into this site, a
-              support message or the demo.
+              Your linked buyer account lists your delivered invitations,
+              responses, offers and private conversations, including older
+              pages. Expired links stay expired. There is no public deal
+              inventory. Enter an invitation token only in the private
+              account-linking form, never in support or the synthetic demo.
             </p>
             <Link className="btn btn-ghost" to="/buyermatch/demo/buyers">
               See the synthetic buyer walkthrough <ArrowRight size={16} />

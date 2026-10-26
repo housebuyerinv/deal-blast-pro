@@ -32,6 +32,11 @@ Do not use this synthetic build as a hosted release artifact.
 
 ## Implemented route inventory
 
+Current self-service/copy follow-up: see `BUYERMATCH_LOCAL_RELEASE_CANDIDATE.md`.
+The earlier 35/42-check polish evidence below is retained history. Buyer account
+API/SQL/security/component implementation and the Launch Kit comment copy are now
+added locally; no hosted activation is implied.
+
 | Journey | Routes | Result |
 | --- | --- | --- |
 | Product education | `/buyermatch`, `/buyermatch/features`, `/buyermatch/how-it-works` | Distinct headings/content, workflow, capability cards, privacy boundaries, FAQs, buyer/subscriber paths and connected product navigation |
@@ -42,6 +47,7 @@ Do not use this synthetic build as a hosted release artifact.
 | Actual billing | `/app/buyermatch/plans` | Existing agreement, Checkout/portal handlers and server gates retained; readable usage cards/progress and independent CRM explanation |
 | Actual network administration | `/app/buyermatch/admin` | Existing administrator-only operations retained; private buyer table, current-page search, review actions, concise operating summary with expandable diagnostics/audit details |
 | Private response | `/buyer-response` | Existing hash-token handling and in-flight protection unchanged; clearer private-invitation presentation |
+| Authenticated buyer self-service | `/buyermatch/buyers/account` | Normal confirmed login, create-only pending profile or invitation-bound legacy linkage, private profile/criteria updates, immutable POF replacement/review and personal delivered-invitation/response history; new migration is local draft only |
 | Synthetic walkthrough | `/buyermatch/demo`, `/plans`, `/buyers`, `/admin`, `/deals/:id` beneath demo | In-memory sample deal creation, explicitly illustrative analysis, disabled delivery, tier allowance preview, buyer criteria/response preview, consent-gated synthetic review and empty-filter recovery |
 | DBP integration | `/`, `/features`, `/pricing`, `/app/dashboard`, `/app/upgrade` | Prominent BuyerMatch discovery, linked workspace and explicit separation from CRM plans; existing CRM functionality retained |
 

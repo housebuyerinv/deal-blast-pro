@@ -33,6 +33,7 @@ import BuyerMatchResponse from './pages/public/BuyerMatchResponse'
 import BuyerMatchLanding from './pages/public/BuyerMatchLanding'
 import BuyerMatchDemo from './pages/public/BuyerMatchDemo'
 import BuyerMatchBuyerHelp from './pages/public/BuyerMatchBuyerHelp'
+import BuyerMatchAccount from './pages/public/BuyerMatchAccount'
 import Dashboard from './pages/app/Dashboard'
 import Submissions from './pages/app/Submissions'
 import Inventory from './pages/app/Inventory'
@@ -322,6 +323,7 @@ function App() {
         <Route path="/buyermatch/demo/deals/:id" element={<BuyerMatchDemo />} />
         <Route path="/buyermatch/buyers" element={<BuyerPortal product="buyermatch" />} />
         <Route path="/buyermatch/buyers/help" element={<BuyerMatchBuyerHelp />} />
+        <Route path="/buyermatch/buyers/account" element={<BuyerMatchAccount />} />
         <Route path="/buyermatch/*" element={<Navigate to={location.pathname.replace(/^\/buyermatch/, '/app/buyermatch')} replace />} />
         <Route path="/buyer-response" element={<BuyerMatchResponse />} />
         <Route path="/pricing" element={<Pricing />} />

@@ -18,7 +18,7 @@ export default function PublicNav() {
     { to: buyerMatchPage ? '/buyermatch/pricing' : '/pricing', label: buyerMatchPage ? 'BuyerMatch pricing' : 'CRM pricing' },
     { to: buyerMatchPage ? '/buyermatch/features' : '/features', label: 'Features' },
     ...(buyerMatchPage ? [{ to: '/buyermatch/how-it-works', label: 'How it works' }, { to: '/buyermatch/demo', label: 'Interactive demo' }] : []),
-    ...(buyerMatchPage ? [{ to: '/buyermatch/buyers/help', label: 'Buyer guide' }] : []),
+    ...(buyerMatchPage ? [{ to: '/buyermatch/buyers/help', label: 'Buyer guide' }, {to:'/buyermatch/buyers/account',label:'Buyer account'}] : []),
     { to: signup, label: signupLabel },
     { to: signin, label: 'Login' },
     { to: '/contact', label: 'Contact' },
@@ -40,6 +40,7 @@ export default function PublicNav() {
             <Link to="/pricing" className="hover:text-white">DBP CRM</Link>
             <Link to="/buyermatch/pricing" className="hover:text-white">Software plans</Link>
             <Link to="/buyermatch/buyers/help" className="hover:text-white">Buyer guide</Link>
+            <Link to="/buyermatch/buyers/account" className="hover:text-white">Buyer account</Link>
           </> : <>
           <Link to={buyerMatchPage ? '/buyermatch/pricing' : '/pricing'} className="hover:text-white">{buyerMatchPage ? 'BuyerMatch pricing' : 'CRM pricing'}</Link>
           <Link to={buyerMatchPage ? '/buyermatch/features' : '/features'} className="hover:text-white">Features</Link>
