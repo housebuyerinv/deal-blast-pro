@@ -1,5 +1,73 @@
 # Milestone 1B continuation — evidence, not activation approval
 
+## Latest continuation from `573e2866abcb91ee2e18cfbeba9a7bc84784a3fa`
+
+Fresh **names-only** provider checks (no values or digests displayed/saved):
+
+| Required Vercel server name | Dedicated S2 Preview | Staging Supabase secret inventory |
+| --- | --- | --- |
+| `BUYERMATCH_IDENTITY_KEY` | Absent | Absent |
+| `BM_RESPONSE_SECRET` | Absent | Absent |
+| `BM_WORKER_SECRET` | Absent | Absent |
+
+The three names are consumed by Vercel server modules, not the current Edge
+Functions. Installing them in Supabase alone would NOT fix Preview. Preview's
+Checkout-key binding and Supabase's Stripe API/signing-secret bindings are present;
+this proves name presence, not values, runtime permissions or key compatibility.
+See `supabase-secret-name-readback.json` and `vercel-preview-bindings-current.json`.
+Original material remains UNSURE, not confirmed lost. The rejected credential file
+was not inspected, and no secret was retrieved/copied/generated/installed.
+
+**4/4 additional local acceptance checks PASS**, selected by test name so completed
+suites were not rerun: expired/revoked invitation history does not reauthorize a
+claim; history uses the frozen invitation property rather than later deal edits;
+expired POF approval is denied while rejection preserves file/buyer evidence; and
+paid renewal advances the same subscription period once, with idempotent replay,
+unchanged CRM records and retained historical usage. These are actual local SQL /
+signed-handler fixture checks, NOT Stripe/provider or hosted buyer acceptance.
+No application defect was reproduced. App/SQL/operator implementation is unchanged
+from `573e286`; previous 109-test, 46-test, TypeScript/build/bundle evidence is retained,
+not added together or represented as a new full-suite execution.
+
+### Coverage review and disposition
+
+| Requirement | Existing or added evidence | Current disposition |
+| --- | --- | --- |
+| Confirmed buyer authentication/profile and account-state denial | `buyer-account.test.js`, `buyer-account-ui.test.js` | LOCAL PASS retained; hosted NOT TESTED |
+| Admin/buyer revision conflicts and migration retry | `buyer-account-migration-readiness.test.js` | LOCAL PASS retained; real concurrent hosted test NOT TESTED |
+| Ownership, private POF/expiry, immutable audit, personal history | `buyer-account-database.test.js` plus three new checks | LOCAL PASS; current hosted NOT TESTED |
+| Starter/Pro boundaries, cancellation/failure, signature/replay, CRM separation | `lifecycle-reconciliation.test.js`, `billing.test.js`, `subscriber-database.test.js` | LOCAL PASS retained; new renewal check LOCAL PASS; Pro/lifecycle hosted NOT TESTED |
+| Starter activation and corrected signed invoice replay | Prior provider/database checkpoints | HISTORICAL HOSTED PASS; not claimed for new buyer features |
+| Stripe catalog/portal/destination and receiver pause | Readbacks below | Retained HOSTED configuration PASS; no new payment/event/probe |
+| Secret binding inventory | Two fresh provider name inventories | CURRENT HOSTED metadata verified; required Preview configuration BLOCKED |
+| Push, corrected S2 migration and protected Preview | Exact candidate/source hash and existing rollback plan | AWAITING AUTHORIZATION; none executed |
+| Backup restoration and legal publication | Existing resource-gated R2 plan / unapproved review pack | BLOCKED / UNVERIFIED and AWAITING APPROVAL |
+
+### Exact administrative/authorization gap
+
+1. The owner/provider must restore the existing trusted originals **privately** into
+   the dedicated S2 Vercel Preview names above, with identity-key compatibility
+   validated against existing staging records before use. This requires explicit
+   authorization of the private provisioning/validation operation; current scope
+   permits inventory only. No replacements or Production/MoneyMap changes.
+2. If no trusted original copy is privately available, the next narrow approval is
+   a private, free Vercel capability inquiry about a supported opaque transfer of
+   the original staging-branch Secret bindings. Prior metadata identifies those
+   provider-held bindings, but does NOT prove transfer support or value equivalence.
+   Inquiry permission is not transfer permission. Do not use runtime export,
+   rejected files, logs or chat to obtain the values.
+3. Separately approve the exact local source push, corrected single S2 migration
+   (current hash in `followup-fingerprints.json`) and protected Preview deployment /
+   alias/rollback window. No broad `db push`, new billing window or public release
+   is implied. Once prerequisites pass, proceed within the existing approved TEST
+   scope; request normal private synthetic login only if genuinely necessary.
+
+There is no new verified overall 80/85/90/95/100 threshold. Hosted buyer/Pro lifecycle,
+legal, recovery and controlled Production release remain open. All previously
+verified containment is retained; no processing setting was changed this round.
+
+---
+
 Baseline: local `ddf1928f09f9e831376aec07ad6a56f17cbd3f26`.
 Fresh GitHub readback: PR #2 remains open/DRAFT at remote
 `531beb77c11a0b8275a321b69e0ce21200650339`; local application work is not published.

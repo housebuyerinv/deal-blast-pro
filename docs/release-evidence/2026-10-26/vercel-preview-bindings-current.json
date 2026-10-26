@@ -1,0 +1,12 @@
+{
+  "asOf": "2026-10-26T23:26:56.974Z",
+  "project": "prj_XglHAvS3zjuyLWvHkuNt5U8BoUtl",
+  "scope": "PREVIEW_NAME_ONLY_METADATA_NO_VALUES",
+  "exitCode": 0,
+  "bindings": {
+    "BUYERMATCH_IDENTITY_KEY": false,
+    "BM_RESPONSE_SECRET": false,
+    "BM_WORKER_SECRET": false,
+    "BM_STRIPE_TEST_SECRET_KEY": true
+  }
+}

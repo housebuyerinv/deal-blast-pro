@@ -307,4 +307,27 @@ test('release delta: foreign Checkout completion leaves both owners and ledgers 
   assert.equal(await ledgerCount(f),0);assert.equal(await ledgerCount(other),0);
 });
 
+test('acceptance gate: paid renewal advances the same subscription period once without erasing prior usage',async()=>{
+  const f=await fixture();assert.equal((await emit(f,'invoice.paid',200)).status,200);
+  const before=await entitlement(f), nextStart=current.items.data[0].current_period_end;
+  const deal=randomUUID();await db.query("insert into bm_deals(id,owner_id,property) values($1,$2,'{}')",[deal,f.owner]);
+  await db.query("insert into bm_analyses(deal_id,owner_id,operation_key,private_result,public_result) values($1,$2,$3,'{}','{}')",[deal,f.owner,randomUUID()]);
+  const crm=(await db.query('select * from local_crm_sentinel')).rows;
+  current.items.data[0].current_period_start=nextStart;
+  current.items.data[0].current_period_end=nextStart+30*86400;
+  current.latest_invoice={...current.latest_invoice,id:'in_renewal_local'};
+  const eventId='evt_renewal_'+randomUUID();
+  assert.equal((await emit(f,'invoice.paid',300,{id:eventId})).status,200);
+  const renewed=await entitlement(f);
+  assert.equal(renewed.stripe_subscription_id,before.stripe_subscription_id);
+  assert.equal(renewed.allowance,50);assert.equal(renewed.status,'active');
+  assert.equal(new Date(renewed.period_start).getTime(),nextStart*1000);
+  assert.equal(new Date(renewed.period_end).getTime(),(nextStart+30*86400)*1000);
+  assert.equal((await emit(f,'invoice.paid',300,{id:eventId})).status,200);
+  assert.equal(await ledgerCount(f),2);
+  assert.deepEqual(await entitlement(f),renewed);
+  assert.equal((await db.query('select count(*)::int n from bm_analyses where owner_id=$1',[f.owner])).rows[0].n,1);
+  assert.deepEqual((await db.query('select * from local_crm_sentinel')).rows,crm);
+});
+
 test.after(async()=>{globalThis.fetch=realFetch;if(oldDeno===undefined)delete globalThis.Deno;else globalThis.Deno=oldDeno;await db.close();});

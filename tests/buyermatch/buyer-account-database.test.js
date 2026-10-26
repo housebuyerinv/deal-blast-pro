@@ -758,3 +758,113 @@ test("external administrator edits invalidate stale self-service revisions befor
     777,
   );
 });
+
+test("acceptance gate: expired or revoked invitation can remain in own history without permitting a new claim", async () => {
+  const f = await fixture();
+  await claim(f);
+  await db.query(
+    "update bm_response_tokens set expires_at=now()-interval '1 day',revoked_at=now() where token_hash=$1",
+    [f.hash],
+  );
+  const items = (await history(f)).rows[0].result;
+  assert.equal(items.length, 1);
+  assert.equal(items[0].id, f.exposure);
+  await assert.rejects(claim(f));
+  assert.equal(
+    (
+      await db.query(
+        "select count(*)::int n from bm_buyer_accounts where user_id=$1",
+        [f.user],
+      )
+    ).rows[0].n,
+    1,
+  );
+});
+
+test("acceptance gate: personal history uses the authorized invitation property snapshot rather than a later deal edit", async () => {
+  const f = await fixture();
+  await claim(f);
+  const nextDeal = randomUUID(),
+    nextExposure = randomUUID();
+  await db.query(
+    'insert into bm_deals(id,owner_id,property) values($1,$2,\'{"address":"NEW UNINVITED ADDRESS"}\')',
+    [nextDeal, f.user],
+  );
+  await db.query(
+    "insert into bm_exposures(id,deal_id,buyer_id,owner_id,operation_key,frozen_terms) values($1,$2,$3,$4,$5,$6)",
+    [
+      nextExposure,
+      nextDeal,
+      f.buyer,
+      f.user,
+      randomUUID(),
+      {
+        property: {
+          address: "AUTHORIZED SNAPSHOT",
+          city: "Sample",
+          state: "TX",
+        },
+      },
+    ],
+  );
+  await db.query(
+    "insert into bm_outbox(exposure_id,state,accepted_at) values($1,'accepted',now())",
+    [nextExposure],
+  );
+  const items = (await history(f)).rows[0].result;
+  const item = items.find((row) => row.id === nextExposure);
+  assert.equal(item.property.address, "AUTHORIZED SNAPSHOT");
+  assert.doesNotMatch(JSON.stringify(item), /NEW UNINVITED/);
+});
+
+test("acceptance gate: expired proof cannot be approved and rejection preserves immutable file evidence and buyer state", async () => {
+  const f = await fixture();
+  await claim(f);
+  const admin = randomUUID(),
+    document = randomUUID();
+  await db.query(
+    "insert into auth.users values($1,'housebuyerinv@gmail.com',now(),null)",
+    [admin],
+  );
+  await db.query("insert into account_profiles values($1,'Admin','Active')", [
+    admin,
+  ]);
+  await db.query(
+    "insert into bm_buyer_proofs(id,buyer_id,storage_path,sha256,mime,bytes,expires_on) values($1,$2,$3,$4,'application/pdf',8,current_date-1)",
+    [document, f.buyer, `${f.user}/${document}`, "a".repeat(64)],
+  );
+  const buyerBefore = (
+    await db.query("select * from bm_buyers where id=$1", [f.buyer])
+  ).rows;
+  const proofBefore = (
+    await db.query("select * from bm_buyer_proofs where id=$1", [document])
+  ).rows;
+  await assert.rejects(
+    db.query("select bm_buyer_proof_review($1,$2,'approved')", [
+      admin,
+      document,
+    ]),
+  );
+  await db.query("select bm_buyer_proof_review($1,$2,'rejected')", [
+    admin,
+    document,
+  ]);
+  assert.deepEqual(
+    (await db.query("select * from bm_buyer_proofs where id=$1", [document]))
+      .rows,
+    proofBefore,
+  );
+  assert.deepEqual(
+    (await db.query("select * from bm_buyers where id=$1", [f.buyer])).rows,
+    buyerBefore,
+  );
+  assert.equal(
+    (
+      await db.query(
+        "select decision from bm_buyer_proof_reviews where proof_id=$1",
+        [document],
+      )
+    ).rows[0].decision,
+    "rejected",
+  );
+});
