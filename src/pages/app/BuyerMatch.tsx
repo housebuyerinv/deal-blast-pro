@@ -1,8 +1,9 @@
 import BuyerCriteriaEditor from "./BuyerCriteriaEditor";
+import { WorkspaceOverview, WorkflowSteps } from '../../components/buyermatch/WorkspaceOverview';
 import BuyerMatchConfiguration from "./BuyerMatchConfiguration";
 import { UsageCards, AdminUsage, CommercialPlans } from './BuyerMatchUsage';
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { Link, NavLink, useLocation, useNavigate, useParams } from "react-router-dom";
 import Papa from "papaparse";
 import { supabase } from "../../lib/supabase";
 import { useAppStore } from "../../store/useAppStore";
@@ -94,14 +95,17 @@ function BuyerMatchScreen() {
   const { id } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const isPlans = location.pathname.endsWith("/plans");
-  const isAdmin = location.pathname.endsWith("/admin");
+  const routePath = location.pathname.replace(/\/+$/, "");
+  const isPlans = routePath.endsWith("/plans");
+  const isAdmin = routePath.endsWith("/admin");
   const [data, setData] = useState<RecordData>({});
   const [plans, setPlans] = useState<RecordData>({});
   const checkoutKeys = useRef<Record<string, string>>({});
   const [error, setError] = useState("");
+  const [dealSearch, setDealSearch] = useState("");
   const [notice, setNotice] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [property, setProperty] = useState<RecordData>({
     serviceType: 'software',
     assetType: "sfh",
@@ -129,8 +133,11 @@ function BuyerMatchScreen() {
   const [settlementKey, setSettlementKey] = useState("");
   const [filter, setFilter] = useState("all");
   const [adminPage, setAdminPage] = useState(0);
+  const [adminSearch, setAdminSearch] = useState("");
   const [operationKey, setOperationKey] = useState(() => crypto.randomUUID());
   const reload = useCallback(async () => {
+    setLoadFailed(false);
+    try {
     const plan = await request("plans", {}, true);
     setPlans(plan);
     if (isPlans) {
@@ -152,6 +159,10 @@ function BuyerMatchScreen() {
       setTitle(detail.deal.title || {});
       setDocuments((await request("documents", {}, true)).documents);
     } else setData(await request("list", {}, true));
+    } catch (error) {
+      setLoadFailed(true);
+      throw error;
+    }
   }, [id, isPlans, isAdmin, adminPage]);
   useEffect(() => {
     setData({});
@@ -219,24 +230,26 @@ function BuyerMatchScreen() {
     </label>
   );
   return (
-    <main className="max-w-6xl mx-auto p-4 sm:p-8 space-y-6 text-slate-100">
+    <main className="bm-workspace-app max-w-6xl mx-auto p-4 sm:p-8 space-y-6 text-slate-100">
       <header className="space-y-3">
         <p className="text-xs tracking-widest text-emerald-400">
           DEAL BLAST PRO · PRIVATE NETWORK
         </p>
         <h1 className="text-3xl font-semibold">
           {isAdmin
-            ? "Private Buyer Network"
+            ? "Network administration"
             : isPlans
-              ? "BuyerMatch access"
-              : "DBP BuyerMatch"}
+              ? "Your BuyerMatch plan & usage"
+              : id ? "Deal workspace" : "Your next deal, in focus."}
         </h1>
+        <p className="text-sm text-slate-400">{isAdmin ? 'Review buyer criteria, consent and evidence before eligibility. Network identities remain administrator-only.' : isPlans ? 'Independent BuyerMatch billing. Your DBP CRM subscription stays separate.' : 'Save the property. Understand buyer fit. Review before distribution.'}</p>
         <nav aria-label="BuyerMatch workspace" className="flex flex-wrap gap-5 text-sm">
-          <Link to="/app/buyermatch">My deals</Link>
-          <Link to="/app/buyermatch/plans">Plans & allowances</Link>
+          <NavLink end to="/app/buyermatch">My deals</NavLink>
+          <NavLink to="/app/buyermatch/plans">Plans & allowances</NavLink>
           {plans.isNetworkAdmin && (
-            <Link to="/app/buyermatch/admin">Network admin</Link>
+            <NavLink to="/app/buyermatch/admin">Network admin</NavLink>
           )}
+          <Link to="/buyermatch/how-it-works">Product guide</Link>
         </nav>
       </header>
       {error && (
@@ -245,6 +258,7 @@ function BuyerMatchScreen() {
           className="rounded border border-amber-800 bg-amber-950/40 p-4"
         >
           {error}
+          <button className="btn btn-ghost ml-3" disabled={busy} onClick={() => void run(reload)}>Retry</button>
         </p>
       )}
       {busy && <p role="status">Working…</p>}
@@ -500,6 +514,8 @@ function BuyerMatchScreen() {
             </section>
             <section className="space-y-3">
               <h2 className="text-xl">Network buyers</h2>
+              <p className="text-sm text-slate-400">Private administrator view. Profile status, verification and invitation consent are separate checks.</p>
+              <label className="block text-sm text-slate-400">Search this page of buyers<input type="search" className={inputClass} value={adminSearch} onChange={e => setAdminSearch(e.target.value)} placeholder="Name, email or status" /></label>
               <div className="flex gap-4 items-center">
                 <button
                   disabled={busy || adminPage === 0}
@@ -518,10 +534,12 @@ function BuyerMatchScreen() {
                   Next page
                 </button>
               </div>
-              {data.buyers?.map((b: RecordData) => (
-                <button
-                  key={b.id}
-                  className="block w-full text-left rounded border border-slate-700 p-3"
+              <div className="overflow-x-auto rounded-xl border border-slate-700"><table className="w-full text-left text-sm"><caption className="sr-only">Private network buyer profiles on this page</caption><thead className="bg-slate-900 text-slate-400"><tr><th scope="col" className="p-4">Buyer</th><th scope="col" className="p-4">Status</th><th scope="col" className="p-4">Verification</th><th scope="col" className="p-4">Review</th></tr></thead><tbody>
+              {(data.buyers || []).filter((b: RecordData) => [b.identity.name,b.identity.email,b.status].join(' ').toLowerCase().includes(adminSearch.trim().toLowerCase())).map((b: RecordData) => (
+                <tr key={b.id} className="border-t border-slate-700"><th scope="row" className="p-4 font-normal">{b.identity.name || b.identity.email}</th><td className="p-4"><span className="bm-status">{b.status}</span></td><td className="p-4 text-slate-400">{String(b.verification_level || 'unverified').replace(/_/g,' ')}</td><td className="p-4"><button
+                  disabled={busy}
+                  className="text-emerald-300 underline disabled:opacity-40 whitespace-nowrap"
+                  aria-label={`Review ${b.identity.name || b.identity.email}`}
                   onClick={() => {
                     setSelectedBuyer(b);
                     setDuplicates([]);
@@ -529,10 +547,11 @@ function BuyerMatchScreen() {
                     setCriteria(JSON.stringify(b.criteria, null, 2));
                   }}
                 >
-                  {b.identity.name || b.identity.email} · {b.status} ·{" "}
-                  {b.verification_level}
-                </button>
+                  Review profile
+                </button></td></tr>
               ))}
+              </tbody></table></div>
+              {!busy && !error && !(data.buyers || []).some((b: RecordData) => [b.identity.name,b.identity.email,b.status].join(' ').toLowerCase().includes(adminSearch.trim().toLowerCase())) && <p className="rounded-xl border border-slate-700 p-5 text-sm text-slate-400">{adminSearch ? 'No buyers match this search on the current page.' : 'No buyer profiles on this page. Import a reviewed CSV to begin.'}</p>}
               {selectedBuyer && (
                 <div className="space-y-3 border border-slate-700 rounded p-4">
                   <h3>{selectedBuyer.identity.email}</h3>
@@ -881,9 +900,9 @@ function BuyerMatchScreen() {
                     );
                     await reload();
                   })}
-                  <pre className="text-xs p-4 bg-black/30 overflow-auto max-h-96">
+                  <details><summary className="text-sm text-slate-400 cursor-pointer">Administrator audit details</summary><pre className="text-xs p-4 bg-black/30 overflow-auto max-h-96">
                     {JSON.stringify(adminDetail, null, 2)}
-                  </pre>
+                  </pre></details>
                 </section>
               )}
             </section>
@@ -903,25 +922,13 @@ function BuyerMatchScreen() {
         <>
           {!id && (
             <section className="space-y-3">
-              <p>
-                Save and analyze a deal before contracting it. Analysis never
-                distributes a deal.
-              </p>
-              {data.deals?.map((d: RecordData) => (
-                <Link
-                  key={d.id}
-                  to={`/app/buyermatch/deals/${d.id}`}
-                  className="block rounded-xl border border-slate-700 p-4"
-                >
-                  {d.property.address} · {d.property.city}, {d.property.state}{" "}
-                  <span className="block mt-2 text-sm text-slate-400 sm:mt-0 sm:float-right">
-                    {d.status.replaceAll("_", " ")}
-                  </span>
-                </Link>
-              ))}
+              <WorkflowSteps />
+              <label className="block text-sm text-slate-400">Find a saved deal<input type="search" className={inputClass} placeholder="Address, city or deal status" value={dealSearch} onChange={e => setDealSearch(e.target.value)} /></label>
+              <WorkspaceOverview allDeals={data.deals || []} searchActive={Boolean(dealSearch.trim())} deals={(data.deals || []).filter((d: RecordData) => [d.property.address, d.property.city, d.status].join(' ').toLowerCase().includes(dealSearch.trim().toLowerCase()))} loading={busy} failed={loadFailed} />
             </section>
           )}
           <form
+            id="new-deal"
             className="rounded-xl border border-slate-700 p-5 space-y-4"
             onSubmit={(e) => {
               e.preventDefault();

@@ -31,6 +31,7 @@ import AppShell from './components/layout/AppShell'
 import BuyerMatch from './pages/app/BuyerMatch'
 import BuyerMatchResponse from './pages/public/BuyerMatchResponse'
 import BuyerMatchLanding from './pages/public/BuyerMatchLanding'
+import BuyerMatchDemo from './pages/public/BuyerMatchDemo'
 import Dashboard from './pages/app/Dashboard'
 import Submissions from './pages/app/Submissions'
 import Inventory from './pages/app/Inventory'
@@ -311,6 +312,13 @@ function App() {
         <Route path="/" element={<Landing />} />
         <Route path="/buyermatch" element={<BuyerMatchLanding />} />
         <Route path="/buyermatch/pricing" element={<BuyerMatchLanding />} />
+        <Route path="/buyermatch/features" element={<BuyerMatchLanding />} />
+        <Route path="/buyermatch/how-it-works" element={<BuyerMatchLanding />} />
+        <Route path="/buyermatch/demo" element={<BuyerMatchDemo />} />
+        <Route path="/buyermatch/demo/plans" element={<BuyerMatchDemo />} />
+        <Route path="/buyermatch/demo/buyers" element={<BuyerMatchDemo />} />
+        <Route path="/buyermatch/demo/admin" element={<BuyerMatchDemo />} />
+        <Route path="/buyermatch/demo/deals/:id" element={<BuyerMatchDemo />} />
         <Route path="/buyermatch/buyers" element={<BuyerPortal product="buyermatch" />} />
         <Route path="/buyermatch/*" element={<Navigate to={location.pathname.replace(/^\/buyermatch/, '/app/buyermatch')} replace />} />
         <Route path="/buyer-response" element={<BuyerMatchResponse />} />

@@ -39,7 +39,7 @@ export default function Landing() {
           <p className="text-sm font-semibold text-[#22C55E]">BUYERMATCH  -  POWERED BY DEAL BLAST PRO</p>
           <h2 className="mt-3 text-2xl font-semibold">Private buyer matching. A separate software subscription.</h2>
           <p className="mt-3 max-w-3xl text-[#C5CAD6]">Compare your deal with recorded buyer criteria, review anonymous matches, and distribute eligible deals through secure invitations. A paid DBP CRM subscription is not required.</p>
-          <p className="mt-3 text-sm text-[#C5CAD6]">Starter $59/month  -  Pro $119/month. Direct BuyerMatch signup is coming; contact us with questions about access.</p>
+          <p className="mt-3 text-sm text-[#C5CAD6]">Starter $59/month  -  Pro $119/month. A separate monthly subscription. Explore plans, the product guide and a no-delivery interactive demo.</p>
           <Link to="/buyermatch" className="btn btn-primary mt-5 inline-flex px-5 py-3">Explore BuyerMatch &amp; compare plans</Link>
         </section>
 

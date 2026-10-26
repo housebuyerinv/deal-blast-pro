@@ -1,145 +1,459 @@
 import { useEffect } from "react";
-import { Link } from "react-router-dom";
-import { Check, LockKeyhole, MessageSquare, Network, ShieldCheck, Sparkles } from "lucide-react";
+import { Link, NavLink, useLocation } from "react-router-dom";
+import {
+  ArrowRight,
+  Check,
+  CheckCircle2,
+  FileSearch,
+  LockKeyhole,
+  MessageSquare,
+  Network,
+  ShieldCheck,
+  SlidersHorizontal,
+  Target,
+  Workflow,
+} from "lucide-react";
 import PublicNav from "../../components/layout/PublicNav";
 import PublicFooter from "../../components/layout/PublicFooter";
-import catalog from '../../../supabase/functions/_shared/buyermatchPlans.json';
+import { WorkflowSteps } from "../../components/buyermatch/WorkspaceOverview";
+import catalog from "../../../supabase/functions/_shared/buyermatchPlans.json";
 
-const plans = [
+const capabilities = [
   {
-    name: "Starter",
-    price: `$${catalog[0].amountCents / 100}`,
-    description: "Private matching for wholesalers who want qualified buyer reach without giving away the network.",
-    features: [`${catalog[0].analysisAllowance} analyses per billing period`, `${catalog[0].distributionAllowance} Software distributions per billing period`, `Up to ${catalog[0].maxDistributionFanout} qualified buyers per distribution`, "Anonymous buyer profiles", "Secure buyer responses"],
+    icon: FileSearch,
+    title: "A clearer view of buyer fit",
+    body: "Compare asking price, location, property type and recorded buying criteria. Review missing information and price sensitivity before deciding your next move.",
+    tag: "ANALYZE",
   },
   {
-    name: "Pro",
-    price: `$${catalog[1].amountCents / 100}`,
-    description: "More matching capacity and deeper buyer intelligence for active disposition teams.",
-    features: [`${catalog[1].analysisAllowance} analyses per billing period`, `${catalog[1].distributionAllowance} Software distributions per billing period`, `Up to ${catalog[1].maxDistributionFanout} qualified buyers per distribution`, "Detailed buyer-fit diagnostics", "Offer and response tracking"],
+    icon: LockKeyhole,
+    title: "A network, with boundaries",
+    body: "Review anonymous buyer references and fit diagnostics. Buyer names, email addresses, phone numbers and the master network are not handed out to subscribers.",
+    tag: "PROTECT",
+  },
+  {
+    icon: Target,
+    title: "Reach eligible buyers",
+    body: "Prepare a reviewed deal for software distribution within your allowance. Contract control, current analysis, consent and required agreements are checked before exposure.",
+    tag: "DISTRIBUTE",
+  },
+  {
+    icon: MessageSquare,
+    title: "Follow the conversation",
+    body: "Track interest, offers, passes and deal-specific messages. Keep the conversation attached to the property, with buyer identities protected.",
+    tag: "RESPOND",
+  },
+  {
+    icon: Workflow,
+    title: "From review to closing evidence",
+    body: "Keep deal progress and end-of-contract dates together. Reported closings remain pending until verified; interest and email opens are not proof of a closing.",
+    tag: "TRACK",
+  },
+  {
+    icon: SlidersHorizontal,
+    title: "Your subscription, your capacity",
+    body: "See period usage and remaining allowances. Manage BuyerMatch billing independently of your DBP CRM access through the supported billing controls.",
+    tag: "MANAGE",
   },
 ];
-
-export default function BuyerMatchLanding() {
-  useEffect(() => {
-    const previousTitle = document.title;
-    document.title = 'BuyerMatch | Private Buyer Matching  -  Powered by Deal Blast Pro';
-    let meta = document.querySelector<HTMLMetaElement>('meta[name="description"]');
-    const previousDescription = meta?.getAttribute('content');
-    const created = !meta;
-    if (!meta) {
-      meta = document.createElement('meta');
-      meta.name = 'description';
-      document.head.appendChild(meta);
-    }
-    meta.content = 'Discover BuyerMatch private buyer matching and secure deal distribution. Compare independent Starter $59/month and Pro $119/month software plans.';
-    return () => {
-      document.title = previousTitle;
-      if (created) meta?.remove();
-      else if (previousDescription === null) meta?.removeAttribute('content');
-      else if (previousDescription !== undefined) meta?.setAttribute('content', previousDescription);
-    };
-  }, []);
+const pages = [
+  ["/buyermatch", "Overview"],
+  ["/buyermatch/features", "Features"],
+  ["/buyermatch/how-it-works", "How it works"],
+  ["/buyermatch/pricing", "Pricing"],
+] as const;
+const faqs = [
+  [
+    "Do I need a paid DBP CRM plan?",
+    "No. BuyerMatch is an independent subscription. Existing DBP users can add it without replacing their CRM subscription. A BuyerMatch purchase does not activate a paid CRM plan.",
+  ],
+  [
+    "Can I download the buyer network?",
+    "No. Matching uses private buyer criteria and anonymous references. Subscriber access does not expose the master buyer database or buyer contact details.",
+  ],
+  [
+    "What counts as a distribution?",
+    "A software distribution is a reviewed deal-distribution request within your billing-period allowance. The fanout limit is a maximum number of eligible buyers for that distribution, not a guaranteed audience or response count.",
+  ],
+  [
+    "Does saving or analyzing contact buyers?",
+    "No. Analysis and distribution are separate steps. Delivery requires the applicable permissions, consent, review, agreements and remaining allowance.",
+  ],
+  [
+    "Is managed disposition included?",
+    "No. Managed disposition is a separately arranged service with its own signed scope and terms. Neither software plan automatically charges a success fee or enrolls you in that service.",
+  ],
+  [
+    "When does paid access begin?",
+    "Creating an account does not start billing. Subscription access follows completed Checkout and server-verified payment status. Availability and payment controls are shown in your workspace.",
+  ],
+];
+function MatchPreview() {
   return (
-    <div className="min-h-screen bg-[#070A12] text-white">
-      <PublicNav />
-      <main>
-        <section className="mx-auto max-w-6xl px-5 py-16 md:py-24">
-          <div className="mx-auto max-w-4xl text-center">
-            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#22C55E]/30 bg-[#22C55E]/10 px-3 py-1 text-xs font-semibold text-[#22C55E]">
-              <Network size={14} /> BUYERMATCH  -  PRIVATE BUYER MATCHING
-            </div>
-            <p className="mb-4 text-sm text-[#AAB2C2]">Powered by Deal Blast Pro</p>
-            <h1 className="text-4xl font-bold tracking-tight md:text-6xl">
-              BuyerMatch: find the buyer fit behind your next deal.
-            </h1>
-            <p className="mx-auto mt-6 max-w-3xl text-lg text-[#AAB2C2]">
-              BuyerMatch compares your property against a private investor network, explains why buyers fit, and routes responses through secure deal-specific conversations without handing out the underlying buyer database.
+    <div
+      className="bm-preview"
+      aria-label="Illustrative BuyerMatch analysis, sample data"
+    >
+      <div className="bm-preview-bar">
+        <span>
+          <Network size={16} /> BUYERMATCH
+        </span>
+        <span className="bm-sample">ILLUSTRATIVE DATA</span>
+      </div>
+      <div className="bm-preview-body">
+        <div className="bm-card-top">
+          <span className="bm-eyebrow">PROPERTY FIT REVIEW</span>
+          <LockKeyhole size={17} />
+        </div>
+        <h2>Look beyond a buyer list.</h2>
+        <p>Understand the criteria behind the fit.</p>
+        <div className="bm-fit-row">
+          <div className="bm-fit-ring">Fit</div>
+          <div>
+            <strong>Anonymous buyer profile</strong>
+            <p>Location · price · strategy</p>
+            <span className="bm-status">Criteria matched</span>
+          </div>
+        </div>
+        <div className="bm-checklist">
+          {[
+            "Location matches the recorded buy box",
+            "Asking price within recorded range",
+            "Buyer contact details remain private",
+          ].map((t) => (
+            <p key={t}>
+              <CheckCircle2 size={16} />
+              {t}
             </p>
-            <div className="mt-8 flex flex-wrap justify-center gap-3">
-              <a href="#pricing" className="btn btn-primary px-6 py-3">Compare BuyerMatch plans</a>
-              <Link to="/register?product=buyermatch&tier=starter" className="btn btn-ghost px-6 py-3">Get started with BuyerMatch</Link>
-            </div>
+          ))}
+        </div>
+        <div className="bm-preview-footer">
+          <span>Analysis never sends invitations</span>
+          <ShieldCheck size={18} />
+        </div>
+      </div>
+    </div>
+  );
+}
+export function BuyerMatchPlanCards() {
+  return (
+    <div className="bm-pricing-grid">
+      {catalog.map((plan, index) => (
+        <article
+          className={`bm-price-card ${index === 1 ? "bm-price-pro" : ""}`}
+          key={plan.version}
+        >
+          <div className="bm-card-top">
+            <p className="bm-eyebrow">BUYERMATCH {plan.name.toUpperCase()}</p>
+            {index === 1 && <span className="bm-status">More capacity</span>}
           </div>
-
-          <div className="mx-auto mt-7 max-w-3xl rounded-xl border border-[#30384A] bg-[#0D111A] p-4 text-sm text-[#C5CAD6]">
-            BuyerMatch is subscribed to independently; no paid DBP CRM plan is required. Create a BuyerMatch account, confirm your email, then choose secure checkout. Existing DBP customers can sign in and add BuyerMatch without changing their CRM plan.
-          </div>
-          <div className="mt-16 grid gap-4 md:grid-cols-3">
+          <h2>{plan.name}</h2>
+          <p className="bm-price">
+            <strong>${plan.amountCents / 100}</strong>
+            <span> / month</span>
+          </p>
+          <p>
+            {index === 0
+              ? "For a focused deal pipeline."
+              : "For a more active disposition workflow."}
+          </p>
+          <ul className="bm-plan-list">
             {[
-              [ShieldCheck, "Private by design", "Buyer names, phone numbers, emails, and the master buyer database stay protected by default."],
-              [Sparkles, "Explainable matches", "See match strength and the criteria behind it instead of a mysterious buyer count."],
-              [MessageSquare, "Built-in response flow", "Buyers can express interest, make offers, pass, or message through secure deal-specific links."],
-            ].map(([Icon, title, body]: any) => (
-              <div key={title} className="rounded-2xl border border-[#252A38] bg-[#0D111A] p-6">
-                <Icon className="mb-4 text-[#22C55E]" />
-                <h2 className="text-xl font-semibold">{title}</h2>
-                <p className="mt-2 text-sm leading-6 text-[#9AA3B5]">{body}</p>
-              </div>
+              `${plan.analysisAllowance} analyses per billing period`,
+              `${plan.distributionAllowance} software distributions per billing period`,
+              `Up to ${plan.maxDistributionFanout} qualified buyers per distribution`,
+              "Private matching and secure buyer responses",
+              "Independent BuyerMatch billing",
+            ].map((item) => (
+              <li key={item}>
+                <Check size={17} />
+                {item}
+              </li>
+            ))}
+          </ul>
+          <Link
+            className={`btn ${index === 1 ? "btn-green" : "btn-ghost"}`}
+            to={`/register?product=buyermatch&tier=${index === 0 ? "starter" : "pro"}`}
+          >
+            Choose {plan.name} <ArrowRight size={16} />
+          </Link>
+          <p className="bm-fineprint">
+            Creating an account does not start billing. Purchase availability is
+            shown in your workspace.
+          </p>
+        </article>
+      ))}
+    </div>
+  );
+}
+export default function BuyerMatchLanding() {
+  const { pathname: rawPathname } = useLocation();
+  const pathname = rawPathname.replace(/\/+$/, "") || "/";
+  const page = pathname.endsWith("/pricing")
+    ? "pricing"
+    : pathname.endsWith("/features")
+      ? "features"
+      : pathname.endsWith("/how-it-works")
+        ? "workflow"
+        : "overview";
+  const heading =
+    page === "pricing"
+      ? "A plan for your deal flow."
+      : page === "features"
+        ? "Every deal. A clearer next step."
+        : page === "workflow"
+          ? "From property details to private conversations."
+          : "The right buyer fit.\nA more focused deal flow.";
+  useEffect(() => {
+    const previous = document.title;
+    if (typeof window !== "undefined") window.scrollTo?.(0, 0);
+    document.title = `BuyerMatch ${page === "overview" ? "— Private Buyer Matching" : page === "workflow" ? "— How it works" : `— ${page[0].toUpperCase()}${page.slice(1)}`} | Deal Blast Pro`;
+    return () => {
+      document.title = previous;
+    };
+  }, [page]);
+  return (
+    <div className="bm-site">
+      <PublicNav />
+      <main id="main-content">
+        <nav className="bm-product-nav" aria-label="BuyerMatch product">
+          <Link to="/buyermatch" className="bm-product-brand">
+            <Network size={19} /> BuyerMatch <span>by DBP</span>
+          </Link>
+          <div>
+            {pages.map(([to, label]) => (
+              <NavLink key={to} to={to} end>
+                {label}
+              </NavLink>
             ))}
           </div>
+        </nav>
+        <section
+          className={`bm-hero ${page !== "overview" ? "bm-hero-compact" : ""}`}
+        >
+          <div className="bm-hero-copy">
+            <p className="bm-eyebrow">
+              <span className="bm-dot" /> PRIVATE BUYER MATCHING · INDEPENDENT
+              SOFTWARE
+            </p>
+            <h1>{heading}</h1>
+            <p className="bm-lead">
+              {page === "pricing"
+                ? "Choose the capacity you need for analysis and eligible deal distribution. Separate from DBP CRM. No paid CRM subscription required."
+                : page === "features"
+                  ? "Bring property analysis, private buyer fit, reviewed distribution and responses into one connected workspace."
+                  : page === "workflow"
+                    ? "Start with what you know about the property. Understand the match, complete the required review, and keep the response tied to the deal."
+                    : "Understand who fits your property, prepare a more relevant invitation, and follow the response—all without exposing the private buyer network."}
+            </p>
+            {page !== "pricing" && (
+              <div className="bm-actions">
+                <Link className="btn btn-green" to="/buyermatch/pricing">
+                  Explore plans <ArrowRight size={17} />
+                </Link>
+                <Link className="btn btn-ghost" to="/buyermatch/demo">
+                  Explore the interactive demo
+                </Link>
+              </div>
+            )}
+            <p className="bm-fineprint">
+              Standalone Starter $59/mo · Pro $119/mo · No automatic paid CRM
+              assignment
+            </p>
+          </div>
+          {page === "overview" && <MatchPreview />}
         </section>
-
-        <section className="border-y border-[#252A38] bg-[#0B0F17]">
-          <div className="mx-auto max-w-6xl px-5 py-16">
-            <div className="grid gap-8 md:grid-cols-2">
+        {page === "pricing" ? (
+          <section className="bm-section bm-section-tight">
+            <BuyerMatchPlanCards />
+            <div className="bm-comparison-note">
+              <ShieldCheck size={22} />
               <div>
-                <h2 className="text-3xl font-bold">Your buyers remain your network.</h2>
-                <p className="mt-4 text-[#AAB2C2]">
-                  BuyerMatch exposes useful anonymous buyer intelligence and engagement, not a downloadable buyer list. Existing buyers do not need to create an account before they can receive a secure matched-deal invitation.
+                <h3>One workspace. Two clearly separate products.</h3>
+                <p>
+                  DBP CRM organizes your deal operation. BuyerMatch provides
+                  private matching and eligible network distribution. CRM annual
+                  pricing, credits and promotions do not apply to these monthly
+                  BuyerMatch plans.
+                </p>
+                <Link to="/pricing">
+                  Compare DBP CRM plans <ArrowRight size={14} />
+                </Link>
+              </div>
+            </div>
+            <p className="bm-fineprint">
+              Allowances apply per billing period. Buyer counts are upper
+              limits, not guaranteed matches, invitations or responses. Payment,
+              distribution and required agreement controls remain
+              server-enforced.
+            </p>
+          </section>
+        ) : (
+          <>
+            <section className="bm-value-strip" aria-label="Product principles">
+              <span>
+                <LockKeyhole size={18} /> Private buyer identities
+              </span>
+              <span>
+                <FileSearch size={18} /> Explainable fit
+              </span>
+              <span>
+                <ShieldCheck size={18} /> Reviewed distribution
+              </span>
+              <span>
+                <MessageSquare size={18} /> Deal-specific responses
+              </span>
+            </section>
+            <section className="bm-section">
+              <div className="bm-section-title">
+                <div>
+                  <p className="bm-eyebrow">
+                    {page === "workflow"
+                      ? "THE WORKFLOW"
+                      : "BUILT AROUND YOUR NEXT DEAL"}
+                  </p>
+                  <h2>
+                    {page === "workflow"
+                      ? "Four steps. Clear boundaries."
+                      : "Less list chasing. More informed follow-through."}
+                  </h2>
+                </div>
+                <p>
+                  Keep your property, its fit and its next action together.
+                  Analysis is a decision aid—not a buyer commitment or promise
+                  of a closing.
                 </p>
               </div>
-              <div className="rounded-2xl border border-[#252A38] bg-[#070A12] p-6">
-                <div className="flex items-center gap-2 text-[#22C55E]"><LockKeyhole size={18} /> Illustrative match  -  sample data</div>
-                <div className="mt-4 text-2xl font-semibold">Buyer BM-84F2A19C  -  90% fit</div>
-                <div className="mt-3 space-y-2 text-sm text-[#AAB2C2]">
-                  <p>✓ Birmingham SFR strategy fit</p>
-                  <p>✓ Price fits recorded buy box</p>
-                  <p>✓ Recently active</p>
-                  <p>✓ Secure response available</p>
+              <WorkflowSteps />
+              {page === "workflow" && (
+                <div className="bm-detail-grid">
+                  {[
+                    [
+                      "01 / PREPARE",
+                      "Save the property, not another spreadsheet.",
+                      "Record the address, price, asset type and available financial details. Add missing information before analysis. No buyer is contacted when you save.",
+                    ],
+                    [
+                      "02 / ANALYZE",
+                      "Understand what is driving the match.",
+                      "Review anonymous fit, missing information and price sensitivity where available. Scores may be withheld to protect privacy; recorded evidence is not a promise of funding.",
+                    ],
+                    [
+                      "03 / REVIEW",
+                      "Make distribution a deliberate step.",
+                      "Complete contract/control review, a future EOC date, required agreements, consent and allowance checks. The server rechecks eligibility before exposure.",
+                    ],
+                    [
+                      "04 / FOLLOW THROUGH",
+                      "Keep interest and evidence in context.",
+                      "Follow secure conversations, offers and passes. Track EOC and closing evidence. Reported progress and verified closing status remain distinct.",
+                    ],
+                  ].map(([step, title, body]) => (
+                    <article className="bm-panel" key={step}>
+                      <p className="bm-eyebrow">{step}</p>
+                      <h3>{title}</h3>
+                      <p>{body}</p>
+                    </article>
+                  ))}
                 </div>
+              )}
+            </section>
+            {page !== "workflow" && (
+              <section className="bm-section bm-feature-section">
+                <div className="bm-section-title">
+                  <div>
+                    <p className="bm-eyebrow">THE TOOLKIT</p>
+                    <h2>From first look to follow-up.</h2>
+                  </div>
+                  <Link className="btn btn-ghost" to="/buyermatch/how-it-works">
+                    See the workflow <ArrowRight size={16} />
+                  </Link>
+                </div>
+                <div className="bm-feature-grid">
+                  {capabilities.map(({ icon: Icon, title, body, tag }) => (
+                    <article className="bm-feature-card" key={tag}>
+                      <div className="bm-card-top">
+                        <Icon size={24} />
+                        <span className="bm-eyebrow">{tag}</span>
+                      </div>
+                      <h3>{title}</h3>
+                      <p>{body}</p>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            )}
+            <section className="bm-section">
+              <div className="bm-audience-grid">
+                <article className="bm-panel">
+                  <p className="bm-eyebrow">FOR WHOLESALERS & DISPO TEAMS</p>
+                  <h2>Your deal. A private matching workspace.</h2>
+                  <p>
+                    Save, analyze and prepare eligible distribution. Already use
+                    DBP? Add BuyerMatch without giving up your existing CRM
+                    plan.
+                  </p>
+                  <Link to="/admin-login?product=buyermatch&tier=starter">
+                    Sign in to your workspace <ArrowRight size={16} />
+                  </Link>
+                </article>
+                <article className="bm-panel">
+                  <p className="bm-eyebrow">FOR PROPERTY BUYERS</p>
+                  <h2>A buying profile, not a software subscription.</h2>
+                  <p>
+                    Submit your criteria and proof for private review. Access
+                    matched opportunities through secure invitations; no paid
+                    subscriber plan is required to submit.
+                  </p>
+                  <Link to="/buyermatch/buyers">
+                    Create a buyer profile <ArrowRight size={16} />
+                  </Link>
+                </article>
               </div>
-            </div>
-          </div>
+            </section>
+            {page === "overview" && (
+              <section className="bm-section">
+                <div className="bm-section-title">
+                  <div>
+                    <p className="bm-eyebrow">CHOOSE YOUR CAPACITY</p>
+                    <h2>Independent plans. Clear allowances.</h2>
+                  </div>
+                  <Link to="/buyermatch/pricing">
+                    Compare plans <ArrowRight size={16} />
+                  </Link>
+                </div>
+                <BuyerMatchPlanCards />
+              </section>
+            )}
+          </>
+        )}
+        <section className="bm-section bm-faq">
+          <p className="bm-eyebrow">BEFORE YOU GET STARTED</p>
+          <h2>Good questions. Clear answers.</h2>
+          {faqs.map(([question, answer]) => (
+            <details key={question}>
+              <summary>{question}</summary>
+              <p>{answer}</p>
+            </details>
+          ))}
         </section>
-
-        <section aria-labelledby="how-it-works" className="mx-auto max-w-6xl px-5 py-16">
-          <h2 id="how-it-works" className="text-3xl font-bold">How BuyerMatch works</h2>
-          <ol className="mt-8 grid gap-5 md:grid-cols-3">
-            {[
-              ['Add your deal', 'Enter property details and the information needed to assess buyer fit.'],
-              ['Review private matches', 'Compare anonymous buyer profiles and recorded criteria. A match is a fit estimate, not a commitment to buy. Buyer contact details stay protected.'],
-              ['Invite eligible buyers', 'Distribute a reviewed deal within your plan allowance when required permissions and agreements are satisfied. Track secure responses without downloading the network.'],
-            ].map(([title, body], index) => <li key={title} className="rounded-2xl border border-[#252A38] p-6"><p className="text-sm font-semibold text-[#22C55E]">STEP {index + 1}</p><h3 className="mt-3 text-xl font-semibold">{title}</h3><p className="mt-3 text-sm leading-6 text-[#AAB2C2]">{body}</p></li>)}
-          </ol>
-        </section>
-        <section id="pricing" className="mx-auto max-w-6xl px-5 py-16">
-          <div className="text-center">
-            <h2 className="text-3xl font-bold">BuyerMatch plans</h2>
-            <p className="mt-3 text-[#9AA3B5]">Independent monthly software subscriptions. No paid DBP CRM subscription required. Software plans do not automatically take a percentage of your assignment fee.</p>
+        <section className="bm-final-cta">
+          <Network size={30} />
+          <h2>A more focused next deal starts here.</h2>
+          <p>Explore the workspace before choosing a plan.</p>
+          <div className="bm-actions">
+            <Link className="btn btn-green" to="/buyermatch/demo">
+              Try the interactive demo <ArrowRight size={16} />
+            </Link>
+            <Link className="btn btn-ghost" to="/buyermatch/pricing">
+              See BuyerMatch pricing
+            </Link>
           </div>
-          <div className="mx-auto mt-10 grid max-w-4xl gap-5 md:grid-cols-2">
-            {plans.map((plan) => (
-              <div key={plan.name} className="rounded-2xl border border-[#30384A] bg-[#0D111A] p-7">
-                <h3 className="text-2xl font-semibold">{plan.name}</h3>
-                <div className="mt-3"><span className="text-4xl font-bold">{plan.price}</span><span className="text-[#8B92A3]">/month</span></div>
-                <p className="mt-4 text-sm text-[#AAB2C2]">{plan.description}</p>
-                <ul className="mt-6 space-y-3 text-sm">
-                  {plan.features.map((feature) => <li key={feature} className="flex gap-2"><Check size={17} className="mt-0.5 text-[#22C55E]" />{feature}</li>)}
-                </ul>
-                <Link to={`/register?product=buyermatch&tier=${plan.name.toLowerCase()}`} className="btn btn-primary mt-7 block w-full text-center">Choose {plan.name}</Link>
-              </div>
-            ))}
-          </div>
-          <p className="mt-4 text-center"><Link to="/admin-login?product=buyermatch&tier=starter">Already use DBP? Sign in to add BuyerMatch</Link></p>
-          <p className="mt-4 text-center"><Link className="underline" to="/buyermatch/buyers">Buying properties? Submit your criteria to the private buyer network</Link></p>
-          <p className="mx-auto mt-6 max-w-4xl text-sm text-[#AAB2C2]">Creating an account does not start billing. Subscription access begins only after payment is verified. Allowances apply per billing period; match counts and responses are not guaranteed. Distribution remains subject to review, eligibility, consent, and required agreements.</p>
-          <div className="mx-auto mt-6 max-w-4xl rounded-2xl border border-[#22C55E]/30 bg-[#22C55E]/5 p-6">
-            <h3 className="text-xl font-semibold">Managed disposition  -  separately arranged service</h3>
-            <p className="mt-2 text-sm text-[#AAB2C2]">
-              Self-service BuyerMatch software lets you manage matching and eligible distribution. If you want House Buyer Investments to actively handle disposition, contact us to discuss a separately arranged service. Any service scope and fee terms require a separate signed agreement. Success fees remain disabled in the software; neither software plan enrolls you in managed disposition.
-            </p>
-          </div>
+          <p className="bm-fineprint">
+            Managed disposition is separately arranged under signed terms.
+            Software success fees remain disabled. No guaranteed matches,
+            delivery or closings.
+          </p>
         </section>
       </main>
       <PublicFooter />

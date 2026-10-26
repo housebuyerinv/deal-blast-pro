@@ -77,7 +77,7 @@ globalThis.__buyerRoute={owner:'synthetic-a',path:'/app/buyermatch/deals/one'};
 const {default: Workspace}=await bundle({entryPoints:['src/pages/app/BuyerMatch.tsx'],plugins:[{name:'isolated-workspace',setup(b){
  b.onResolve({filter:/^react-router-dom$|store\/useAppStore$|lib\/supabase$/},a=>({path:a.path,namespace:'scope'}));
  b.onLoad({filter:/.*/,namespace:'scope'},a=>({contents:a.path==='react-router-dom'?
- "export const useLocation=()=>({pathname:globalThis.__buyerRoute.path});export const useParams=()=>({});export const useNavigate=()=>()=>{};export function Link(){return null}":a.path.endsWith('useAppStore')?
+ "export const useLocation=()=>({pathname:globalThis.__buyerRoute.path});export const useParams=()=>({});export const useNavigate=()=>()=>{};export function Link(){return null};export const NavLink=Link":a.path.endsWith('useAppStore')?
  "export const useAppStore=s=>s({user:{id:globalThis.__buyerRoute.owner}});":'export const supabase={};'}));
 }}]});
 test('workspace state is remounted on account/deal change but stable within the same scope',()=>{

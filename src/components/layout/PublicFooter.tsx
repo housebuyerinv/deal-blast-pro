@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom'
 
 const footerLinks = [
-  { to: '/pricing', label: 'Pricing' },
+  { to: '/buyermatch', label: 'BuyerMatch' },
+  { to: '/buyermatch/pricing', label: 'BuyerMatch pricing' },
+  { to: '/pricing', label: 'CRM pricing' },
   { to: '/features', label: 'Features' },
   { to: '/portal', label: 'Submit Deal' },
   { to: '/buyer-portal', label: 'Buyer Portal' },

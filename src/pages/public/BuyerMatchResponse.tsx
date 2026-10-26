@@ -90,8 +90,9 @@ export default function BuyerMatchResponse() {
     }
   }
   return (
-    <main className="min-h-screen bg-slate-950 text-white p-8">
-      <div className="max-w-lg mx-auto space-y-5">
+    <main className="bm-site min-h-screen text-white p-5 sm:p-8">
+      <div className="bm-panel max-w-lg mx-auto space-y-5">
+        <p className="bm-eyebrow">BUYERMATCH · PRIVATE INVITATION</p>
         <h1 className="text-2xl">BuyerMatch private deal response</h1>
         <p className="text-sm text-slate-400">Powered by Deal Blast Pro. No subscriber plan is required to respond to your invitation.</p>
         <p>

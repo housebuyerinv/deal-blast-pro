@@ -425,6 +425,7 @@ const [submitted, setSubmitted] = useState(false)
             Verified Buyer Intake
           </div>
           <h1 className="text-4xl font-bold mb-3">{independent ? 'Join the BuyerMatch buyer network' : 'Join Our Private Buyer Network'}</h1>
+          {independent && <ol aria-label="Buyer profile steps" className="bm-workflow mt-6"><li><span>01</span><div><strong>Your profile</strong><p>Contact details and buy box.</p></div></li><li><span>02</span><div><strong>Private proof</strong><p>Provide supporting documents.</p></div></li><li><span>03</span><div><strong>Consent & review</strong><p>Choose invitation consent.</p></div></li><li><span>04</span><div><strong>Matched invitations</strong><p>Respond via secure deal links.</p></div></li></ol>}
           {independent && <div className="mb-4 space-y-2"><p>Powered by Deal Blast Pro. Submit buying criteria without purchasing a CRM or BuyerMatch subscriber plan.</p><p>Your submission stays private and requires review. It does not automatically verify you, activate distribution, or guarantee an invitation.</p><Link className="underline" to="/buyermatch">Looking for deal-matching software? Compare BuyerMatch plans</Link></div>}
           <p className="text-[#C5CAD6] max-w-3xl">
             Submit your buying criteria and proof documents so we can confirm your purchasing ability and match you with off-market opportunities.

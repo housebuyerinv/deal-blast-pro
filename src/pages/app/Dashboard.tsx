@@ -117,6 +117,7 @@ export default function Dashboard() {
 
   return (
     <div>
+      <div className="mb-5 rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-4 flex flex-wrap items-center justify-between gap-3"><div><p className="text-emerald-400 text-xs font-semibold tracking-widest">BUYERMATCH · INDEPENDENT SOFTWARE</p><p className="text-sm text-slate-300 mt-1">Private buyer matching, reviewed distribution and secure responses. Separate from your CRM plan.</p></div><a href="/app/buyermatch" className="btn btn-ghost">Open BuyerMatch</a></div>
       <div className="flex items-end justify-between mb-6">
         <div>
           <div className="text-xs uppercase tracking-[2px] text-[#8B92A3]">COMMAND CENTER</div>

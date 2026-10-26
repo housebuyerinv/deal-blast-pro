@@ -108,11 +108,12 @@ export default function Register() {
         </div>
 
         <div className="card p-8">
-          <div className="text-2xl font-semibold mb-1">{isBuyerMatch ? 'Create your BuyerMatch account' : 'Create your account'}</div>
+          <h1 className="text-2xl font-semibold mb-1">{isBuyerMatch ? 'Create your BuyerMatch account' : 'Create your account'}</h1>
           <div className="text-[#8B92A3] mb-6">{isBuyerMatch ? 'Powered by Deal Blast Pro. Confirm your email, then subscribe securely. No paid CRM subscription is added.' : 'Create a cloud login for Deal Blast Pro'}</div>
           <div className="mb-5 rounded border border-[#252A38] bg-[#0A0C12] px-3 py-2 text-sm text-[#C5CAD6]">
             Selected plan: <span className="font-semibold text-white">{isBuyerMatch ? `BuyerMatch ${tier === 'pro' ? 'Pro · $119/month' : 'Starter · $59/month'}` : requestedPlan}</span>
           </div>
+          {isBuyerMatch && <ol aria-label="BuyerMatch account setup" className="mb-6 grid grid-cols-3 gap-2 text-xs text-slate-400"><li><span className="block text-emerald-400 mb-1">01 · Account</span>Confirm your email</li><li><span className="block text-emerald-400 mb-1">02 · Agreements</span>Review exact versions</li><li><span className="block text-emerald-400 mb-1">03 · Subscription</span>Verify payment & access</li></ol>}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
