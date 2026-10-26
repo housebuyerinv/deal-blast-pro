@@ -1,5 +1,25 @@
 # Milestone 1B continuation — evidence, not activation approval
 
+## Preservation-first identity assessment
+
+Fresh read-only S2 aggregates confirm 223 marked-synthetic identity ciphertexts,
+9 encrypted provenance payloads, and 215 expected-format HMACs plus 8 length-36
+nonstandard hashes (8 linked exposures). Shape is not decryption proof; strict
+compatibility remains BLOCKED. Supabase's actual S2 Free backup page states that
+project backups are not included. Independent originals remain UNSURE.
+
+**3/3 new local fixed-dummy crypto checks PASS**, scoped lint PASS. A different key
+cannot decrypt old payloads or reproduce identity HMACs; preserved bytes remain
+recoverable if the correct original is later obtained. No real key generated.
+No provider/data/permission change, raw ciphertext/identity export, migration,
+deployment or Production/MoneyMap access. Historical tests were not repeated.
+
+See [assessment](../../BUYERMATCH_S2_IDENTITY_PRESERVATION_ASSESSMENT.md) and
+`identity-preservation-assessment.json`. In-place replacement is NO-GO. A parallel
+isolated synthetic cohort is only a conditional preservation path requiring
+resource/custody/routing verification and separate execution approval, not recovery
+of legacy plaintext. No new completion threshold is established.
+
 ## Authorized private Vercel inquiry — actual result
 
 Inquiry submitted and response received through the authenticated Hobby-account
