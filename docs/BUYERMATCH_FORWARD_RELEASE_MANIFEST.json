@@ -25,14 +25,19 @@
       "sha256": "24fa34d899c27dc2a5bf69d188c40e1bcd7f5ea81bc292b48d930b6aaba573f8",
       "s2RecordedVersion": "20261022235049",
       "productionRecorded": false,
-      "release": "BuyerMatch-integration"
+      "release": "BuyerMatch-integration",
+      "productionExecution": "DO_NOT_REPLAY_SUPERSEDED",
+      "supersededBy": "20261023153356_buyermatch_completed_checkout_guards.sql",
+      "historyPolicy": "Retain original S2 recorded version/hash; never fabricate a Production applied entry for skipped SQL"
     },
     {
       "path": "supabase/migrations/20261023153356_buyermatch_completed_checkout_guards.sql",
       "sha256": "efd58655720d339d5f4096959413d9d1385ae3fff09ff49124937b94887e46a0",
       "s2RecordedVersion": "20261023155333",
       "productionRecorded": false,
-      "release": "BuyerMatch-integration"
+      "release": "BuyerMatch-integration",
+      "productionExecution": "DIRECT_FINAL_GUARD_CANDIDATE_REQUIRES_FRESH_BASELINE_REVIEW_AND_SEPARATE_APPROVAL",
+      "weakerTierPredecessorRequired": false
     },
     {
       "path": "supabase/migrations/20261024000845_buyermatch_private_buyer_intake.sql",
@@ -42,7 +47,34 @@
       "release": "secure-intake-restoration-separate-approval"
     }
   ],
-  "excludeFromProduction": ["S2 capture-email hook", "S2 stable callback DDL", "staging QA legal fixtures", "Stripe TEST catalog bindings"],
-  "remainingBeforeExecution": ["fresh function-definition and security metadata comparison", "exact security-only source verification", "independent full recovery and key custody", "legal approval", "hosted acceptance", "separate Production authorization"],
-  "rollback": "Keep additive security guards and all pauses; no automatic weaker SQL or vulnerable signup restoration"
+  "excludeFromProduction": [
+    "S2 capture-email hook",
+    "S2 stable callback DDL",
+    "staging QA legal fixtures",
+    "Stripe TEST catalog bindings"
+  ],
+  "remainingBeforeExecution": [
+    "fresh function-definition and security metadata comparison",
+    "exact security-only source verification",
+    "independent full recovery and key custody",
+    "legal approval",
+    "hosted acceptance",
+    "separate Production authorization",
+    "review net final definitions without replaying superseded weaker wrapper",
+    "truthful ledger reconciliation; no blanket db push or invented applied history"
+  ],
+  "rollback": "Keep additive security guards and all pauses; no automatic weaker SQL or vulnerable signup restoration",
+  "sourceInventoryIsNotBlindExecutionOrder": true,
+  "executionAllowed": false,
+  "directFinalGuardLocalEvidence": {
+    "test": "tests/buyermatch/direct-final-billing-cutover.test.mjs",
+    "passed": 10,
+    "failed": 0,
+    "baseline": "Minimal disposable PGlite fixture with existing service-only wrappers; historical tier migration NOT executed",
+    "limitations": [
+      "Not a fresh Production prerequisite/definition comparison",
+      "Not complete Production schema equivalence",
+      "Not hosted billing, native restore or real concurrent-connection verification"
+    ]
+  }
 }

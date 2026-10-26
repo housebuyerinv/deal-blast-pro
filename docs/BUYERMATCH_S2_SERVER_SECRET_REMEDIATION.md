@@ -6,6 +6,14 @@ is needed. Application source remains `b99830596080eef2b24472e71bdcb061c855bf57`
 
 ## Confirmed findings
 
+**Alternative provenance, directive6405583960:** metadata-only provider inspection
+located all3 original branch-specific Secret bindings in the original Vercel project,
+unchanged sinceOctober1. No values were retrieved. The owner is unsure about an
+independent vault copy. Secret readback is not supported by member-facing policy,
+and opaque cross-project transfer remains unverified. See the
+[single recommended provider inquiry and bounded recovery options](BUYERMATCH_S2_TRUSTED_KEY_RECOVERY_DECISION.md).
+This does not clear the rejected source or authorize retrieval/transfer/deployment.
+
 **Updated source decision, directive6403897425:** a fresh owner-context ACL-only
 check found3 unexpected inherited Modify entries on the documented candidate,
 including CodexSandboxUsers (offline AND online accounts) and2 unresolved SIDs.

@@ -1,23 +1,27 @@
 # BuyerMatch Milestone 1B release checklist
 
-Current engineering direction: **final application-code audit**, PR review 6379091744.
+Current engineering direction: **release validation; MVP feature scope frozen**,
+PR review6405583960. Code-complete is not public-release approval.
 See [implemented feature inventory, local evidence and the consolidated prelaunch
 checklist](BUYERMATCH_FEATURE_COMPLETION.md). External owner/provider/legal/recovery
-gates below remain release requirements and do not stop local feature work. The
+gates below remain release requirements and do not stop authorized release
+validation and defect fixes. The
 private buyer-intake migration is applied and recorded in S2 only. Production
 restoration remains unapplied and requires separate authorization.
 
-Current review: October 24, 2026, PR #2 direction 6379091744.
+Current review: October25,2026, PR#2 direction6405583960.
 **PR DRAFT; Production/public launch NO-GO.** This checklist replaces stale
 infrastructure prerequisites and rollback instructions from initial PR creation.
 
 ## Current evidence and provenance
 
-Current source: integration branch codex/buyermatch-1b-integration, including the
-final audit corrections following 3426b88. The accompanying PR checkpoint records
-the exact published SHA. Historical hosted billing source:
-6a98cff667a452563a336b8ba175762029038ef5. Later intake/UI/code changes have NOT been
-deployed; a source commit is not evidence of a new hosted application/receiver.
+Application source is frozen at b99830596080eef2b24472e71bdcb061c855bf57;
+later integration-branch commits record reviewed operators/evidence, not a new app
+candidate. Exact b998305 reached READY in protected paused S2 as
+dpl_9N41ZRqvCoSMHimYkrK5gRuPZM7y; owner17/overview/plans passed, network-admin503
+failed, and automatic fallback restoration passed. Remaining browser/hosted billing
+acceptance was not run. Historical hosted billing source remains
+6a98cff667a452563a336b8ba175762029038ef5; source publication is not hosted proof.
 Base: codex/buyermatch-network at 501cb6a4566211f6828633f862163420fed9c016.
 Milestone 1A and registration repair are integrated here; this branch must NOT be
 released as the separate security-only hotfix.
@@ -36,7 +40,7 @@ released as the separate security-only hotfix.
 - New completed-Checkout guard SOURCE migration
   20261023153356_buyermatch_completed_checkout_guards.sql is already applied to
   S2 as remote migration 20261023155333. Do not blindly db-push it again.
-- Corrected protected Preview:
+- Historical corrected billing Preview (preserved evidence):
   https://dbp-registration-s2-6qwn9shv2-housebuyerinv.vercel.app
   / dpl_Cp9qXVBXtSGozPRKQ7p3atTCF7Hi.
 - Stable callback alias remains paused recovery deployment

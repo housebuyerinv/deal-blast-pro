@@ -1,6 +1,28 @@
 # BuyerMatch consolidated release-validation evidence
 
-## Current preparation — source custody FAIL; no sensitive execution
+## Current investigation — original provider bindings located; transfer unverified
+
+Directive6405583960: metadata-only original-project/branch inspection found all3
+existing Secret bindings on codex/buyermatch-network, unchanged sinceOctober1.
+No values retrieved. Provider documentation makes Secrets non-retrievable after
+saving; a non-revealing cross-project transfer is NOT established. Owner-held
+independent copy availability is UNSURE. This is progress in provenance, not
+successful recovery or permission to use the rejected local source.
+
+The [single recommended decision and draft inquiry](BUYERMATCH_S2_TRUSTED_KEY_RECOVERY_DECISION.md)
+preserves the failed custody gate. Fresh approval is needed to send one secret-free
+$0 provider-capability question; it would authorize no transfer, source/configuration
+change or new key. If unsupported, a new separately reviewed recovery/re-provisioning
+decision is required. No rejected-file access or permissions change occurred.
+
+Independent release work:10 new local PGlite direct-final-guard checks PASS without
+the superseded tier predecessor. The four-source manifest now explicitly prohibits
+replaying that weaker intermediate wrapper while retaining its hash and S2 history.
+This is not actual Production equivalence or hosted billing.130 prior preparation
+checks, hosted owner17 and rollback evidence retained without repetition. Legal
+approval, Pro/lifecycle/browser acceptance and hardware-blocked recovery remain open.
+
+## Prior preparation — source custody FAIL; no sensitive execution
 
 Directive6403897425 is preparation only. The tested private recovery core/native
 adapter, create-only stdin transfer, receipt-pinning extension and guarded retest
