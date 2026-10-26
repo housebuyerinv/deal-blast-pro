@@ -1,0 +1,13 @@
+{
+  "baseline": "ddf1928f09f9e831376aec07ad6a56f17cbd3f26",
+  "files": [
+    {
+      "path": "supabase/migrations/20261026175709_buyermatch_authenticated_buyer_self_service.sql",
+      "sha256": "9bb5aa7eda7047863e1910ab40337388e9cfc0b6455539699bf637471eb114dd"
+    },
+    {
+      "path": "scripts/testing/s2-receiver-pause-readback.mjs",
+      "sha256": "7009e65bb838c3971fc977aa877d651366a9134ba7408f7fd25d15aabeb20b8e"
+    }
+  ]
+}

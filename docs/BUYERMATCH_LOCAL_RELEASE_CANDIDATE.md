@@ -1,5 +1,13 @@
 # BuyerMatch local release candidate — October 26, 2026
 
+Follow-up continuation from `ddf1928f09f9e831376aec07ad6a56f17cbd3f26`:
+the unexecuted draft migration now invalidates stale portal revisions after legacy
+administrator changes, closing a reproduced lost-update defect. Its fingerprint
+has therefore changed; the old `ui-evidence/buyer-self-service/` pins are historical.
+Use current `release-evidence/2026-10-26/` evidence for the corrected draft.
+The receiver pause probe also now uses an empty unsigned POST: GET receives 405
+before the deployed pause gate and cannot establish its state. No event is sent.
+
 Implementation checkpoint, not Production approval. Feature scope is complete for
 the requested buyer self-service and existing subscriber MVP. No push, deployment,
 hosted migration, payment, email, delivery or provider change was performed.
@@ -90,3 +98,21 @@ than dropping buyer data, deleting proofs or reopening direct table grants.
    run authorized smoke checks, verify rollback, then obtain separate public activation.
 
 Production remains NO-GO. MoneyMap and Production/S2 controls were not changed.
+
+## Current gate disposition
+
+| Gate | State | Evidence / next dependency |
+| --- | --- | --- |
+| MVP / authenticated buyer self-service | Implemented locally; locally tested | `ddf1928` plus this narrow lost-update correction; completed UI/features preserved |
+| New migration prerequisites | Hosted metadata verified; locally rehearsed | Actual S2 PostgreSQL17.11, expected dependencies, no new tables/bucket; local full24-source chain, privilege checks and rollback/retry pass. Application remains awaiting authorization |
+| Existing S2 privacy perimeter | Hosted metadata verified | Nine inspected tables retain RLS and deny anon/authenticated table AND column privileges. This is not a hosted API/Storage acceptance test |
+| Stripe configuration | Hosted metadata verified | Exact isolated TEST account, $59/$119 recurring prices, expanded portal product/quantity restrictions, disabled endpoint; receiver pause503 verified with empty unsigned probe |
+| Starter and signed replay | Historical hosted independently verified | Retain actual paid Starter and corrected signed invoice replay/idempotency evidence; not repeated |
+| Current buyer/Pro lifecycle | Prepared; blocked by activation prerequisites | Missing trusted server secrets and unapproved new migration/deployment; normal private fixture authentication also required. B1–B8/H1–H9 are not executed PASS |
+| Legal | Prepared; awaiting owner/counsel approval | Four unchanged hash-verified drafts and review-only addendum; no agreement publication |
+| Recovery | Blocked on resources; restoration unverified | No verified independent Linux/storage/key-custody acquisition/restore. R2 plan is not a backup; Windows debugging remains closed |
+| Production cutover | Awaiting separate authorization; NO-GO | Preserve direct containment, source separation, complete backup, migrations and deployment-level disabled overrides before any activation |
+
+No new overall 80/85/90/95/100 threshold is claimed. There is no agreed weighting
+that turns these unequal gates into a defensible percentage; local feature completion
+must not be presented as overall release completion.

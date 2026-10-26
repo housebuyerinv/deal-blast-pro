@@ -743,3 +743,18 @@ test("buyer profile mutation retains identity hash and opt-out; stale or forged 
     2,
   );
 });
+
+test("external administrator edits invalidate stale self-service revisions before buyer data can be overwritten", async () => {
+  const f = await fixture();
+  await claim(f);
+  await db.query(
+    "update bm_buyers set criteria='{\"minPrice\":777}'::jsonb where id=$1",
+    [f.buyer],
+  );
+  await assert.rejects(mutate(f, "criteria", payload(), 0));
+  assert.equal(
+    (await db.query("select criteria from bm_buyers where id=$1", [f.buyer]))
+      .rows[0].criteria.minPrice,
+    777,
+  );
+});

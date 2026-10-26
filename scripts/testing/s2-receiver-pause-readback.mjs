@@ -3,8 +3,11 @@
 export async function readPausedReceiver(fetcher = fetch, signal = AbortSignal.timeout(10000)) {
   try {
     const response = await fetcher('https://qxhhlprentrufobpcgna.supabase.co/functions/v1/stripe-webhook', {
-      method: 'GET', redirect: 'error', cache: 'no-store', signal,
-      headers: { 'Cache-Control': 'no-store' },
+      // The deployed handler returns 405 for GET before evaluating its pause gate.
+      // An empty unsigned POST has no Stripe event or valid signature and cannot
+      // reach billing writes, even if processing unexpectedly becomes enabled.
+      method: 'POST', body: '', redirect: 'error', cache: 'no-store', signal,
+      headers: { 'Cache-Control': 'no-store', 'Content-Type': 'application/json' },
     });
     const text = await response.text();
     if (text.length > 1024 || response.status !== 503 || response.redirected) throw Error();

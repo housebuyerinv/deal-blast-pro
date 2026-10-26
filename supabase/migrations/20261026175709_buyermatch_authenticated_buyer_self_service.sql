@@ -1,6 +1,8 @@
 -- DRAFT ONLY. Never links legacy buyers by email or a public intake receipt.
 -- Requires verified Auth AND a valid, delivered, identity-matched invitation.
 begin;
+set local lock_timeout='5s';
+set local statement_timeout='30s';
 create table public.bm_buyer_accounts (
  user_id uuid primary key references auth.users(id),
  buyer_id uuid not null unique references public.bm_buyers(id),
@@ -57,6 +59,20 @@ begin
 end $$;
 create trigger bm_buyer_binding_immutable before update on public.bm_buyer_accounts
  for each row execute function public.bm_buyer_binding_immutable();
+-- Existing import/review/admin workflows predate buyer accounts. Their changes
+-- must invalidate a browser's old revision too, not just portal-originated edits.
+create function public.bm_buyer_revision_on_change() returns trigger language plpgsql
+ security definer set search_path=public,pg_temp as $$
+begin
+ if (to_jsonb(new)-'last_active_at') is distinct from (to_jsonb(old)-'last_active_at') then
+  update bm_buyer_accounts set revision=revision+1 where buyer_id=new.id;
+ end if;
+ return new;
+end $$;
+create trigger bm_buyer_revision_on_change after update on public.bm_buyers
+ for each row execute function public.bm_buyer_revision_on_change();
+revoke all on function public.bm_buyer_revision_on_change() from public,anon,authenticated;
+grant execute on function public.bm_buyer_revision_on_change() to service_role;
 alter table public.bm_buyer_accounts enable row level security;
 alter table public.bm_buyer_account_events enable row level security;
 alter table public.bm_buyer_proofs enable row level security;

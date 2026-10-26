@@ -1,0 +1,15 @@
+{
+  "asOf": "2026-10-26T22:50:19.325Z",
+  "project": "prj_XglHAvS3zjuyLWvHkuNt5U8BoUtl",
+  "scope": "PREVIEW_NAME_ONLY_METADATA_NO_VALUES",
+  "exitCode": 0,
+  "bindings": {
+    "BUYERMATCH_IDENTITY_KEY": false,
+    "BM_RESPONSE_SECRET": false,
+    "BM_WORKER_SECRET": false,
+    "BM_STRIPE_TEST_SECRET_KEY": true,
+    "BM_STRIPE_PORTAL_CONFIGURATION_ID": false,
+    "DBP_REGISTRATION_PAUSED": true,
+    "BM_CHECKOUT_ENABLED": true
+  }
+}
