@@ -1,5 +1,35 @@
 # Milestone 1B continuation — evidence, not activation approval
 
+## Exact-source preparation after `de9009e`
+
+- Fresh GitHub connector metadata: PR #2 OPEN/DRAFT, integration branch remote
+  `531beb77c11a0b8275a321b69e0ce21200650339`. Actual local Git ancestry confirms
+  candidate `de9009e165cb15709497e538118d1ceda013cdb5` is six commits ahead with
+  99 changed files. Remote and candidate both contain the integration-branch
+  automatic-deployment guard; this does not independently prove all external CI
+  or connected-project settings. No push performed.
+- New offline `scripts/testing/s2-current-source-packet.mjs` reads committed Git
+  objects, never credential files/provider APIs. It produces exact command argv
+  for push/archive, isolated S2 CLI linkage, single SQL application/history and
+  paused protected Preview. **6/6 focused checks PASS**, scoped lint PASS.
+  No frontend/server implementation changed; previous build/typechecks retained.
+- `exact-source-staging-packet.json` pins the source tree and corrected migration
+  hash, records all 17 build/runtime settings and mandatory gates. Commands are
+  DATA ONLY, not executed or authorized. Preparation directories are proposals,
+  not created. Fresh readiness evidence, trusted-secret compatibility, explicit
+  source/migration/deployment/alias approval and detached watchdog source repinning
+  are required before execution. Existing `b998305` operators remain preserved;
+  do NOT run them against this newer candidate or weaken their source assertions.
+- Provider documentation reconfirmed write-only Secret values and no documented
+  opaque cross-project recovery procedure. Private owner-entry instructions and
+  the conditional provider inquiry are in
+  [the existing recovery decision](../../BUYERMATCH_S2_TRUSTED_KEY_RECOVERY_DECISION.md). No support
+  inquiry was sent, no values accessed, and no original/target bindings changed.
+- Three missing-secret inventories and prior S2 catalog/RLS/pause evidence below
+  are retained dated metadata, not newly executed hosted acceptance. Hosted buyer,
+  Pro/lifecycle, independent recovery and legal gates remain open. No new overall
+  percentage or milestone is claimed. Production/MoneyMap were not accessed.
+
 ## Latest continuation from `573e2866abcb91ee2e18cfbeba9a7bc84784a3fa`
 
 Fresh **names-only** provider checks (no values or digests displayed/saved):

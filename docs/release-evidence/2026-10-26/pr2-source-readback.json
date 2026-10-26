@@ -1,0 +1,11 @@
+{
+  "scope": "READ_ONLY_GITHUB_PR_METADATA",
+  "asOf": "2026-10-26T23:37:47.797Z",
+  "repository": "housebuyerinv/deal-blast-pro",
+  "pr": 2,
+  "state": "open",
+  "draft": true,
+  "head": "531beb77c11a0b8275a321b69e0ce21200650339",
+  "branch": "codex/buyermatch-1b-integration",
+  "base": "codex/buyermatch-network"
+}

@@ -1,5 +1,48 @@
 # Existing S2 keys: metadata findings and one next decision
 
+## Current provider capability check — October 26 continuation
+
+Official documentation was rechecked after `de9009e`. Secret values (including
+legacy Sensitive bindings) remain write-only after saving. Project-variable
+creation requires a value; the documented API does not establish a source-binding
+ID/opaque-copy operation. Shared variables do not support branch overrides and
+are not a supported conversion/copy of these existing project Secrets.
+This is **no documented recovery method found**, not a claim that support has
+confirmed recovery impossible. No decrypted API, runtime export, rejected file,
+source configuration change, provider contact or installation was attempted.
+
+The only presently documented restoration route requires an independently trusted
+original copy controlled by the owner. If available, after private provisioning
+authorization: select team `housebuyerinv` → project `dbp-registration-s2`
+(`prj_XglHAvS3zjuyLWvHkuNt5U8BoUtl`) → Environment Variables; add exactly
+`BUYERMATCH_IDENTITY_KEY`, `BM_RESPONSE_SECRET`, `BM_WORKER_SECRET` as **Secret**,
+**Preview only**, no branch override, Production or Development target. Enter
+originals privately from the trusted vault; do not import any dotenv or reveal
+values to Codex. Stop on a pre-existing binding rather than overwrite it.
+Do not press a redeploy action. Notify Codex only that entry is complete.
+
+Name presence is not identity compatibility. Before ordinary application use,
+the separately authorized private verifier must compare the original key against
+the complete independently verified synthetic staging cohort using AES-GCM
+authentication and HMAC equality, return only a bounded count/PASS/FAIL, and
+retain no decrypted identities. The historical 223-row expectation must be
+reconciled with fresh cohort metadata; it is not permission to omit new rows or
+relax the existing verifier. Format/length alone cannot prove the response/worker
+values are the originals. Their independent provenance remains mandatory; never
+probe worker execution to test a secret.
+
+If no original copy is available, **stop before entry**. The next exact owner
+decision is approval for the existing private, $0 provider-capability inquiry
+below. Ask whether an opaque Preview-only copy is supported; request no transfer
+or secret disclosure. No new keys, project transfer, source-target changes or
+paid support are authorized by the present investigation.
+
+Sources: [Config/Secret and private creation](https://vercel.com/docs/environment-variables/sensitive-environment-variables),
+[Shared-variable limitations](https://vercel.com/docs/environment-variables/shared-environment-variables),
+[Project-variable creation API](https://vercel.com/docs/rest-api/projects/create-one-or-more-environment-variables).
+
+---
+
 Directive6405583960; PREPARATION/METADATA ONLY. No permission to read the rejected
 seed, retrieve values, repair ACLs, create keys, transfer bindings or deploy.
 The immutable967376c packet remains blocked and unchanged.
