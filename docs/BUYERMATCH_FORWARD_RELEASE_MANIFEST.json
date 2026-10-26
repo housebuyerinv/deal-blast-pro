@@ -76,5 +76,14 @@
       "Not complete Production schema equivalence",
       "Not hosted billing, native restore or real concurrent-connection verification"
     ]
+  },
+  "securityOnlyLocalSourceCheck": {
+    "candidate": "1d513f6f75b0a8ec19647da3d82105490508f092",
+    "testedParent": "a722fca5eff8164cdf98b9e584636b1b1d0fbd3b",
+    "evidence": "docs/REGISTRATION_SECURITY_RELEASE_SOURCE_CHECK.json",
+    "localAncestryDeltaAndMigrationHashVerified": true,
+    "remotePublication": "NOT_CHECKED_IN_THIS_LOCAL_COMPARISON",
+    "publicationOrDeploymentAuthorized": false,
+    "containmentSource": "890fba70b5b64611f1800fef8f1201e6c4cacdb6"
   }
 }

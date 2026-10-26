@@ -1,5 +1,28 @@
 # BuyerMatch consolidated release-validation evidence
 
+## Latest owner update — UNSURE retained; no immediate private action
+
+Directive6405771876 does not authorize provider contact or key recovery. The
+[optional owner-only checklist](BUYERMATCH_OWNER_KEY_BACKUP_CHECKLIST.md) asks only
+for availability, never values. The rejected seed and blocked packet remain
+unchanged; no source/vault content, permission, key or provider action occurred.
+
+Independent local Git provenance check confirms the separate registration-only
+candidate1d513f6f75b0a8ec19647da3d82105490508f092 remains directly based on tested
+a722fca, with only the status/login helper and its regression tests added. Compared
+with pinned containment890fba7, runtime differences are limited to7 registration
+paths; no billing/CRM/BuyerMatch feature change is included. The registration SQL
+matches the canonical forward-manifest hash, the handler pause precedes Auth/body
+processing, and the pinned containment recovery ref is retained. See
+[exact source-only evidence](REGISTRATION_SECURITY_RELEASE_SOURCE_CHECK.json).
+This is not fresh remote publication, hosted acceptance, migration or Production
+approval. The security-only branch was not changed/published and no completed
+suite was rerun; integration documentation publication is a separate operation.
+
+Existing130 preparation checks,10 direct-final-guard checks and hosted owner17/
+rollback/Starter/v21 results retained. Billing/remaining browser validation, legal
+approval and hardware-blocked recovery remain open. PR DRAFT; public launch NO-GO.
+
 ## Current investigation — original provider bindings located; transfer unverified
 
 Directive6405583960: metadata-only original-project/branch inspection found all3

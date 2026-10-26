@@ -4,6 +4,12 @@ Directive6405583960; PREPARATION/METADATA ONLY. No permission to read the reject
 seed, retrieve values, repair ACLs, create keys, transfer bindings or deploy.
 The immutable967376c packet remains blocked and unchanged.
 
+Latest owner update6405771876 retains **UNSURE** and requests only an optional
+[private backup-availability checklist](BUYERMATCH_OWNER_KEY_BACKUP_CHECKLIST.md).
+No immediate owner action is required. The inquiry below remains a draft, NOT
+authorized or sent. No new recovery execution decision is being requested before
+a trustworthy option is established.
+
 ## Actual original provider custody located
 
 The authenticated provider confirmed project `deal-blast-pro`,

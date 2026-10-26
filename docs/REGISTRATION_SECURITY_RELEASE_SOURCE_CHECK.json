@@ -1,0 +1,39 @@
+{
+  "status": "READ_ONLY_LOCAL_GIT_SOURCE_CHECK_NOT_RELEASE_APPROVAL",
+  "directive": 6405771876,
+  "candidateBranch": "codex/registration-security-release",
+  "candidateSha": "1d513f6f75b0a8ec19647da3d82105490508f092",
+  "testedParent": "a722fca5eff8164cdf98b9e584636b1b1d0fbd3b",
+  "parentAncestryVerified": true,
+  "statusCorrectionOnlyDelta": [
+    "api/register-account.ts",
+    "src/lib/completeRegistration.ts",
+    "tests/registration-paused-login.test.mjs"
+  ],
+  "comparisonContainmentSha": "890fba70b5b64611f1800fef8f1201e6c4cacdb6",
+  "onlyRegistrationRuntimeChanges": [
+    "api/_registrationIntent.ts",
+    "api/register-account.ts",
+    "src/lib/completeRegistration.ts",
+    "src/pages/public/AuthCallback.tsx",
+    "src/pages/public/Login.tsx",
+    "src/pages/public/Register.tsx",
+    "supabase/migrations/20261019233315_registration_create_only_provisioning.sql"
+  ],
+  "pausePrecedesHandlerAuthAndBodyParsing": true,
+  "registrationMigrationSha256": "d3ba74f22223b6afa8af96624c00e272b911a7d81dabf6de92d617775b1ffd28",
+  "containmentLocalRef": "codex/registration-containment",
+  "containmentLocalSha": "890fba70b5b64611f1800fef8f1201e6c4cacdb6",
+  "temporaryContainmentDocsAndTests": "Retained in the pinned containment Git commit; not removed from recovery history",
+  "remoteReleaseAvailability": "NOT_CHECKED_IN_THIS_LOCAL_COMPARISON",
+  "sourceBranchChanged": false,
+  "newTestSuiteRun": false,
+  "productionInspectedOrChanged": false,
+  "limitations": [
+    "Local Git comparison, not fresh live Production provenance or hosted candidate verification",
+    "Earlier tests are retained evidence, not newly executed tests",
+    "Any future publication requires remote/ref and automatic-build preflight before push",
+    "Recovery, fresh migration/configuration review and explicit Production approval remain required",
+    "Do not release the full BuyerMatch integration as the security-only repair"
+  ]
+}
