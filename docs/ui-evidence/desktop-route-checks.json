@@ -1,0 +1,68 @@
+{
+  "scope": "Actual local browser DOM checks at 1280px; no provider operations",
+  "checks": [
+    {
+      "route": "/buyermatch",
+      "contentWidth": 1265,
+      "heading": "The right buyer fit.\nA more focused deal flow.",
+      "width": 1280,
+      "pass": true
+    },
+    {
+      "route": "/buyermatch/features",
+      "contentWidth": 1265,
+      "heading": "Every deal. A clearer next step.",
+      "width": 1280,
+      "pass": true
+    },
+    {
+      "route": "/buyermatch/how-it-works",
+      "contentWidth": 1265,
+      "heading": "From property details to private conversations.",
+      "width": 1280,
+      "pass": true
+    },
+    {
+      "route": "/buyermatch/pricing",
+      "contentWidth": 1265,
+      "heading": "A plan for your deal flow.",
+      "width": 1280,
+      "pass": true
+    },
+    {
+      "route": "/buyermatch/demo",
+      "contentWidth": 1265,
+      "heading": "Your next deal, in focus.",
+      "width": 1280,
+      "pass": true
+    },
+    {
+      "route": "/buyermatch/demo/plans",
+      "contentWidth": 1265,
+      "heading": "Capacity that fits your workflow.",
+      "width": 1280,
+      "pass": true
+    },
+    {
+      "route": "/buyermatch/demo/buyers",
+      "contentWidth": 1265,
+      "heading": "Your criteria. Your next opportunity.",
+      "width": 1280,
+      "pass": true
+    },
+    {
+      "route": "/buyermatch/demo/admin",
+      "contentWidth": 1265,
+      "heading": "A considered approach to your network.",
+      "width": 1280,
+      "pass": true
+    },
+    {
+      "route": "/buyermatch/demo/deals/sample-oak",
+      "contentWidth": 1265,
+      "heading": "124 Sample Oak Lane",
+      "width": 1280,
+      "pass": true
+    }
+  ]
+}
