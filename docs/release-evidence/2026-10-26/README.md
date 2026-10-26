@@ -1,5 +1,20 @@
 # Milestone 1B continuation — evidence, not activation approval
 
+## Authorized private Vercel inquiry — actual result
+
+Inquiry submitted and response received through the authenticated Hobby-account
+Vercel Help chat. Vercel Agent's **automated** answer says opaque Secret copying
+is unsupported. This is not human confirmation. The offered human case was
+blocked by an actual paid-account gate under **CI/CD → Environments**, despite
+the assistant claiming it would be free. No case submitted; no pending human
+reply, paid plan/trial, public post, secret disclosure/transfer/replacement,
+configuration edit, migration or deployment. Original custody remains UNSURE.
+See `vercel-support-inquiry.json` and `vercel-support-free-case-gate.png`.
+
+All tests/source packets below are retained, not rerun for this documentation-only
+checkpoint. The application remains pinned to `de9009e`; Production/MoneyMap and
+processing settings were not accessed/changed. No completion threshold crossed.
+
 ## Exact-source preparation after `de9009e`
 
 - Fresh GitHub connector metadata: PR #2 OPEN/DRAFT, integration branch remote

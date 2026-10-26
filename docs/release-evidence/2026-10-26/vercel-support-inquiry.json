@@ -1,0 +1,47 @@
+{
+  "scope": "AUTHORIZED_PRIVATE_ZERO_DOLLAR_CAPABILITY_INQUIRY_ONLY",
+  "date": "2026-10-26",
+  "channel": "Authenticated Vercel Help / Vercel Agent",
+  "team": "housebuyerinv",
+  "planObserved": "Hobby",
+  "conversationUrl": "https://vercel.com/help?product=vercel&teamSlug=housebuyerinv&c=true&thread=d314650b-416a-445e-ae26-da2fb6888e6d",
+  "submitted": true,
+  "submissionVerifiedInConversation": true,
+  "configurationNamesSupplied": [
+    "BUYERMATCH_IDENTITY_KEY",
+    "BM_RESPONSE_SECRET",
+    "BM_WORKER_SECRET"
+  ],
+  "secretValuesOrFilesSupplied": false,
+  "privateProjectOrBindingIdsSupplied": false,
+  "automatedAnswer": {
+    "source": "Vercel Agent AI assistant, not a human support engineer",
+    "opaqueCrossProjectCopy": "UNSUPPORTED_ACCORDING_TO_AUTOMATED_SUPPORT",
+    "summary": "Assistant says saved Secret values cannot be retrieved/copied across projects by platform features or Support; target setup requires originals supplied privately by the owner.",
+    "humanVerified": false,
+    "originalKeysLost": "UNKNOWN"
+  },
+  "humanCase": {
+    "formOpened": true,
+    "accurateCategory": "CI/CD > Environments",
+    "severity": "4 - Non-production impact",
+    "status": "BLOCKED_BY_PAID_ACCOUNT_GATE",
+    "visibleMessage": "Visit our Community for further help or create a paid account for dedicated CI/CD → Environments support.",
+    "submitted": false,
+    "caseId": null,
+    "humanResponsePending": false,
+    "automatedFreeCaseClaimContradictedByActualForm": true
+  },
+  "budget": {
+    "additionalSpendingAuthorizedUsd": 0,
+    "paidPlanOrTrialOrPaidSupportSelected": false
+  },
+  "secretsRetrievedTransferredReplacedOrInstalled": false,
+  "providerConfigurationChanged": false,
+  "deploymentOrMigrationOrPaymentPerformed": false,
+  "publicForumPosted": false,
+  "productionAndMoneyMapAccessed": false,
+  "nextDecision": "Use trusted originals privately if available; otherwise separately review preservation-first S2 replacement and identity compatibility. No generation, replacement, recovery execution, or paid escalation authorized.",
+  "evidence": "vercel-support-free-case-gate.png",
+  "supportTerms": "https://vercel.com/legal/support-terms"
+}

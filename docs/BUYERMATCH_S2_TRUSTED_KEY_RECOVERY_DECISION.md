@@ -1,5 +1,35 @@
 # Existing S2 keys: metadata findings and one next decision
 
+## Authorized inquiry executed — provider AI answered; human case blocked
+
+On October 26, the owner authorized the private $0 capability inquiry. It was
+submitted through the authenticated Vercel Help conversation for `housebuyerinv`
+on the existing Hobby plan. Only the three configuration names and capability
+constraints were supplied; no values, files, logs, project IDs or binding IDs.
+
+**Observed automated answer:** Vercel Agent says opaque cross-project copying is
+unsupported and originals must be entered privately in the destination. This is
+an AI support answer, NOT human confirmation or proof that the owner has lost the
+originals. No export/runtime workaround or replacement was attempted.
+
+The assistant offered a supposedly free case. The actual case form, under the
+accurate **CI/CD → Environments** category, instead required a paid account.
+Stopped before submission: **no human case ID, no pending human response, no paid
+plan/trial, and no public forum post**. The [Support Terms](https://vercel.com/legal/support-terms)
+limit Hobby tickets to billing and login/registration issues; the inquiry was
+not misclassified to evade that restriction. The form is the verified eligibility
+result, overriding the assistant's conflicting free-case claim.
+
+Sanitized evidence: [inquiry result](release-evidence/2026-10-26/vercel-support-inquiry.json)
+and [actual support gate](release-evidence/2026-10-26/vercel-support-free-case-gate.png).
+Original custody remains UNSURE. If originals cannot be located privately, the
+next decision is a separately reviewed preservation-first S2 replacement design
+and identity-key compatibility/data plan. Replacement cannot decrypt ciphertext
+encrypted with another key. No key creation, rejected-file access, existing data
+rewrite/deletion or provider changes were authorized/executed by this inquiry.
+
+The material below is retained historical preparation, not an unsent request.
+
 ## Current provider capability check — October 26 continuation
 
 Official documentation was rechecked after `de9009e`. Secret values (including
