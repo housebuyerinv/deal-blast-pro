@@ -4,6 +4,7 @@ import {readFileSync,mkdirSync} from 'node:fs';
 import {createHash,randomUUID} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import {S2_RELEASE as S2} from '../buyermatch-s2-release.mjs';
+import {readPausedReceiver} from './s2-receiver-pause-readback.mjs';
 export const CANARY_SOURCE='202b3d3965aa2fd4bb9e16dab06f207b157b8acd';
 const base='C:/Users/CTL Katastrophic/AppData/Roaming/npm/node_modules/';
 const paths={node:'C:/Program Files/nodejs/node.exe',vercel:base+'vercel/dist/vc.js',supabase:base+'supabase/dist/supabase.js',stripe:'C:/Users/CTL Katastrophic/AppData/Local/Microsoft/WinGet/Packages/Stripe.StripeCli_Microsoft.Winget.Source_8wekyb3d8bbwe/stripe.exe'};
@@ -111,9 +112,9 @@ export function makeProvider(plan,dir){
    const cwd=dir+'/env-empty-'+randomUUID();mkdirSync(cwd);
    const names=['SYSTEMROOT','WINDIR','SYSTEMDRIVE','COMSPEC','PATHEXT','PATH','USERPROFILE','APPDATA','LOCALAPPDATA','TEMP','TMP','HOMEDRIVE','HOMEPATH','USERNAME','OS','PROCESSOR_ARCHITECTURE','NUMBER_OF_PROCESSORS'];
    const env=Object.fromEntries(Object.entries(process.env).filter(([k])=>names.includes(k.toUpperCase())));
-   const[p,e,secrets,pauses]=await Promise.all([project(signal),endpoint(signal),json('supabase',['secrets','list','--project-ref',S2.staging,'--output','json'],signal),json('vercel',['env','run','--project',S2.project,'--environment','preview','--scope',S2.scope,'--',paths.node,fileURLToPath(new URL('./s2-canary-pauses.mjs',import.meta.url))],signal,{cwd,env})]);
+   const[p,e,receiverPaused,pauses]=await Promise.all([project(signal),endpoint(signal),readPausedReceiver(undefined,signal),json('vercel',['env','run','--project',S2.project,'--environment','preview','--scope',S2.scope,'--',paths.node,fileURLToPath(new URL('./s2-canary-pauses.mjs',import.meta.url))],signal,{cwd,env})]);
    if(pauses.stagingOnly!==true)throw Error('Wrong backend');
-   return {...pauses,endpointDisabled:e.status==='disabled',receiverPaused:secrets.find(s=>s.name==='BM_S2_STRIPE_WEBHOOK_ENABLED')?.value===sha('false'),protectionEnabled:p.ssoProtection.deploymentType==='all'};
+   return {...pauses,endpointDisabled:e.status==='disabled',receiverPaused,protectionEnabled:p.ssoProtection.deploymentType==='all'};
   },
   async removeDeployment(id,signal){const d=await readDeployment(id,signal);assertRemoval(d,plan);if(id!==d.id)throw Error();const r=await run('vercel',['remove',id,'--safe','--yes','--scope',S2.scope],signal);if(r.code!==0||r.timedOut)throw Error('Removal command failed');},
   async restoreAlias(){throw Error('Alias changes prohibited in this rehearsal');},

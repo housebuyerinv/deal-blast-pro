@@ -6,6 +6,17 @@ is needed. Application source remains `b99830596080eef2b24472e71bdcb061c855bf57`
 
 ## Confirmed findings
 
+**Updated source decision, directive6403897425:** a fresh owner-context ACL-only
+check found3 unexpected inherited Modify entries on the documented candidate,
+including CodexSandboxUsers (offline AND online accounts) and2 unresolved SIDs.
+Source custody FAIL; contents were not opened. The tested reader rejects this
+state. [The precise packet](BUYERMATCH_S2_SECRET_RECOVERY_APPROVAL.md) is blocked,
+not executable; its machine request has `executionReady=false`. Resolve a trusted
+owner-controlled source or separately review custody remediation before any
+private access, installation or new deployment. No original ACL/owner/data change,
+key rotation or speculative copy was attempted. The earlier minimum scope below
+does not authorize bypassing this newly confirmed prerequisite.
+
 The corrected deployed application passed actual owner17-setting attestation
 (HTTP200, one authenticated request). Overview/plans loaded with checkout
 unavailable and Free CRM preserved. The network-admin view failed with generic503;

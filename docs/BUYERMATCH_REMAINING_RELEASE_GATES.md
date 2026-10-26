@@ -1,6 +1,36 @@
 # BuyerMatch consolidated release-validation evidence
 
-## Current checkpoint — hosted owner attestation PASS; browser gate failed safely
+## Current preparation — source custody FAIL; no sensitive execution
+
+Directive6403897425 is preparation only. The tested private recovery core/native
+adapter, create-only stdin transfer, receipt-pinning extension and guarded retest
+scope are prepared.130 focused checks (77new/53 relevant existing), scoped lint,
+static parsing, actual dummy Windows child processes and an actual PowerShell5
+public-file/native-ACL test pass. Independent AI review is preparation evidence,
+not owner authorization or actual secret recovery.
+
+**Actual metadata-only source gate FAIL:** the documented candidate file has3
+unexpected inherited Modify grants: CodexSandboxUsers (both offline/online sandbox
+accounts) and2 unresolved SIDs. No contents, private key, ciphertext or provider
+secret was read. No ACL, owner, group or source modification was made. The native
+reader rejects this state before data access. Machine request is deliberately
+`BLOCKED_SOURCE_CUSTODY_NO_EXECUTION` / `executionReady=false`; do not approve it
+for execution or treat a human acknowledgement as permission to skip the gate.
+
+See the [precise proposed scope and failed custody gate](BUYERMATCH_S2_SECRET_RECOVERY_APPROVAL.md),
+[17-pin request](BUYERMATCH_S2_SECRET_RECOVERY_REQUEST.json) and
+[sanitized local evidence](BUYERMATCH_S2_SECRET_RECOVERY_LOCAL_EVIDENCE.json).
+Next genuine dependency is a trusted owner-controlled source or a separately
+reviewed custody-remediation procedure preserving the original and existing ACLs.
+No new key, unknown ACL repair, secret installation or Preview is authorized.
+
+The17-setting hosted PASS, overview/plans PASS and automatic rollback PASS remain
+valid. No new hosted requests were run. Legal4 draft hashes and4 forward migration
+hashes still match Git, but legal approval/publication remain false and recovery
+remains BLOCKED ON HARDWARE. S2 intake migration is already applied/recorded.
+Production/MoneyMap untouched; all processing settings unchanged; PR DRAFT.
+
+## Retained hosted checkpoint — owner attestation PASS; browser gate failed safely
 
 Approved packetd7b139d/comment6402458765 was executed once using exact application
 `b99830596080eef2b24472e71bdcb061c855bf57`. Preview

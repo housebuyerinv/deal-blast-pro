@@ -29,13 +29,13 @@ import {
 } from '../buyermatch-s2-release.mjs';
 // This flag is an operator acknowledgement, NOT a source of authorization.
 // Independently verify actual owner approval of the exact packet before invocation.
-const [acknowledgement, approvalComment, packetSha] = process.argv.slice(2);
+const [acknowledgement, approvalComment, packetSha, recoveryPath, recoveryHash] = process.argv.slice(2);
 if (
-  process.argv.length !== 5 ||
+  process.argv.length !== 7 ||
   acknowledgement !== '--execute-after-owner-approval' ||
   !/^\d+$/.test(approvalComment ?? '') ||
-  Number(approvalComment) <= 6400728839 ||
-  !/^[a-f0-9]{40}$/.test(packetSha ?? '')
+  Number(approvalComment) <= 6403897425 ||
+  !/^[a-f0-9]{40}$/.test(packetSha ?? '') || !recoveryPath || !/^[a-f0-9]{64}$/.test(recoveryHash ?? '')
 ) {
   process.stdout.write('PENDING_OWNER_APPROVAL_NO_PROVIDER_OPERATIONS\n');
   process.exit(2);
@@ -53,6 +53,11 @@ const requiredOperatorFiles = [
   'scripts/testing/s2-mvp-binding-metadata.mjs',
   'scripts/testing/s2-mvp-preparer.mjs',
   'scripts/testing/s2-mvp-deploy.mjs',
+  'scripts/testing/s2-secret-recovery-core.mjs',
+  'scripts/testing/s2-private-json-child.mjs',
+  'scripts/testing/s2-private-seed-source.ps1',
+  'scripts/testing/s2-secret-recovery-session.mjs',
+  'scripts/testing/s2-receiver-pause-readback.mjs',
 ];
 const runId = randomUUID(),
   dir = resolve('artifacts/buyermatch-1b/mvp-acceptance-' + runId);
@@ -71,10 +76,10 @@ try {
   if (git(['status', '--porcelain']).trim()) throw Error();
   git(['merge-base', '--is-ancestor', packetSha, 'HEAD']);
   const request = JSON.parse(
-    git(['show', packetSha + ':docs/BUYERMATCH_S2_ROUTING_FIX_REQUEST.json']),
+    git(['show', packetSha + ':docs/BUYERMATCH_S2_SECRET_RECOVERY_REQUEST.json']),
   );
   if (
-    request.status !== 'PENDING_OWNER_APPROVAL_NO_EXECUTION' ||
+    request.status !== 'PENDING_OWNER_APPROVAL_NO_EXECUTION' || request.executionReady !== true ||
     request.source !== MVP_SOURCE ||
     request.project !== S2.project ||
     request.team !== S2.team ||
@@ -87,8 +92,8 @@ try {
     throw Error();
   if (
     !Array.isArray(request.protectedDeploymentIds) ||
-    request.protectedDeploymentIds.length !== 8 ||
-    new Set(request.protectedDeploymentIds).size !== 8 ||
+    request.protectedDeploymentIds.length !== 9 ||
+    new Set(request.protectedDeploymentIds).size !== 9 ||
     !request.protectedDeploymentIds.includes(S2.fallback) ||
     !request.protectedDeploymentIds.every((id) => /^dpl_[A-Za-z0-9]+$/.test(id))
   )
@@ -255,8 +260,13 @@ try {
   )
     throw Error();
   phase = 'private-credential-provenance';
+  const recoveryRaw = readFileSync(recoveryPath);
+  if (sha(recoveryRaw) !== recoveryHash) throw Error();
+  const recovery = JSON.parse(recoveryRaw);
+  if (recovery.approvalComment !== approvalComment || recovery.packetCommit !== packetSha) throw Error();
   const bindingMetadata = verifyBindingMetadata(
     api('/v10/projects/' + p.project + '/env?decrypt=false&target=preview'),
+    recovery,
   );
   const empty = resolve(dir, 'private-env-cwd');
   mkdirSync(empty);
