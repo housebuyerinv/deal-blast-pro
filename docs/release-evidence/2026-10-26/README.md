@@ -1,5 +1,25 @@
 # Milestone 1B continuation — evidence, not activation approval
 
+## Parallel synthetic environment feasibility
+
+Actual owner metadata and Supabase create form confirm two active Free projects
+(Production and original S2), with new project creation blocked by the owner's
+two-project limit. Inactive QA is not established disposable or eligible to
+resume within existing capacity. Another organization does not add a free slot;
+branching incurs charges. No creation/resume/pause, data write, key generation,
+provider setting change or deployment was attempted.
+
+New isolated hosted acceptance is technically possible but currently BLOCKED at
+$0 while preserving both active environments. New Vercel project count has
+headroom, but commercial-plan eligibility/usage and an additional isolated Stripe
+sandbox remain unverified. Existing receiver/operator ref pins require a reviewed
+new-environment profile before deployment; unchanged code is not configuration-only
+ready. No application tests were rerun for this read-only feasibility assessment.
+
+See [bounded assessment](../../BUYERMATCH_PARALLEL_SYNTHETIC_FEASIBILITY.md),
+`parallel-synthetic-feasibility.json` and the actual quota screenshot. No new
+completion milestone. Original223-key compatibility remains a separate blocker.
+
 ## Preservation-first identity assessment
 
 Fresh read-only S2 aggregates confirm 223 marked-synthetic identity ciphertexts,
