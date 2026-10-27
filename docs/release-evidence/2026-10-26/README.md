@@ -2,9 +2,9 @@
 
 ## New billing implementation and exact-source packet
 
-Candidate `557b935a57f6baef5a5dbc06976cb795d086609d` adds actual server-side S2
+Candidate `57976a5bb85cec906783173dfaa85b843ea801ca` adds actual server-side S2
 owner/operation/deadline enforcement and a bounded, durably journaled billing-runner
-interface. **98/98 selected checks PASS**, including61 new checks; TypeScript,
+interface. **100/100 selected checks PASS**, including63 new checks; TypeScript,
 scoped lint, server bundle and build PASS. The migration hash is unchanged.
 See [implementation and boundaries](../../BUYERMATCH_BILLING_RUNNER.md),
 `billing-runner-verification.json` and `billing-runner-source-packet.json`.

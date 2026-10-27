@@ -2,14 +2,15 @@
   "schema": 1,
   "status": "PREPARED_ONLY_BLOCKED_NO_EXECUTION",
   "executionReady": false,
-  "source": "557b935a57f6baef5a5dbc06976cb795d086609d",
-  "tree": "b916c83b50febc0a4759091319fcb15950645e8a",
+  "source": "57976a5bb85cec906783173dfaa85b843ea801ca",
+  "tree": "9e53afbb2346878b4257a236636b79d310627f6b",
   "remoteHead": "531beb77c11a0b8275a321b69e0ce21200650339",
   "branch": "codex/buyermatch-1b-integration",
-  "ahead": 14,
-  "changedFileCount": 130,
+  "ahead": 16,
+  "changedFileCount": 133,
   "changedFiles": [
     "api/platform/[endpoint].ts",
+    "docs/BUYERMATCH_BILLING_RUNNER.md",
     "docs/BUYERMATCH_EXISTING_S2_TEST_SCOPE_DECISION.md",
     "docs/BUYERMATCH_HOSTED_TEST_SEQUENCE.md",
     "docs/BUYERMATCH_KEY_RECOVERY_CAPACITY_DECISION.md",
@@ -23,6 +24,8 @@
     "docs/legal/buyermatch-review-v0.1/BUYER_SELF_SERVICE_ADDENDUM_REVIEW.md",
     "docs/release-evidence/2026-10-26/README.md",
     "docs/release-evidence/2026-10-26/additional-acceptance-checks.txt",
+    "docs/release-evidence/2026-10-26/billing-runner-source-packet.json",
+    "docs/release-evidence/2026-10-26/billing-runner-verification.json",
     "docs/release-evidence/2026-10-26/exact-source-staging-packet.json",
     "docs/release-evidence/2026-10-26/existing-s2-test-scope-decision.json",
     "docs/release-evidence/2026-10-26/focused-regressions.txt",
@@ -160,7 +163,7 @@
       "git",
       "push",
       "origin",
-      "557b935a57f6baef5a5dbc06976cb795d086609d:refs/heads/codex/buyermatch-1b-integration"
+      "57976a5bb85cec906783173dfaa85b843ea801ca:refs/heads/codex/buyermatch-1b-integration"
     ],
     "archive": [
       "git",
@@ -170,7 +173,7 @@
       "--format=tar",
       "--output",
       "C:\\DBP-S2-APPROVAL-REQUIRED\\source-archive.tar",
-      "557b935a57f6baef5a5dbc06976cb795d086609d"
+      "57976a5bb85cec906783173dfaa85b843ea801ca"
     ],
     "extract": [
       "tar.exe",
@@ -192,7 +195,7 @@
       "--yes",
       "--no-wait",
       "--meta",
-      "githubCommitSha=557b935a57f6baef5a5dbc06976cb795d086609d",
+      "githubCommitSha=57976a5bb85cec906783173dfaa85b843ea801ca",
       "--meta",
       "s2RunId=05a02678-ad8c-443e-8aa5-1ab8f93bbf88",
       "--env",
@@ -268,9 +271,9 @@
       "--build-env",
       "BM_S2_ATTESTATION_ENABLED=true",
       "--env",
-      "BM_S2_ATTESTATION_SOURCE_SHA=557b935a57f6baef5a5dbc06976cb795d086609d",
+      "BM_S2_ATTESTATION_SOURCE_SHA=57976a5bb85cec906783173dfaa85b843ea801ca",
       "--build-env",
-      "BM_S2_ATTESTATION_SOURCE_SHA=557b935a57f6baef5a5dbc06976cb795d086609d",
+      "BM_S2_ATTESTATION_SOURCE_SHA=57976a5bb85cec906783173dfaa85b843ea801ca",
       "--env",
       "BM_S2_ATTESTATION_RUN_ID=05a02678-ad8c-443e-8aa5-1ab8f93bbf88",
       "--build-env",

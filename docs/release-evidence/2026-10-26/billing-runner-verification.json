@@ -1,8 +1,8 @@
 {
   "scope": "LOCAL_SYNTHETIC_ONLY",
-  "applicationSource": "557b935a57f6baef5a5dbc06976cb795d086609d",
+  "applicationSource": "57976a5bb85cec906783173dfaa85b843ea801ca",
   "previousSource": "de9009e165cb15709497e538118d1ceda013cdb5",
-  "checks": {"billingAndAffectedRegressions": 91, "updatedPacket": 7, "new": 61, "failures": 0},
+  "checks": {"billingAndAffectedRegressions": 93, "updatedPacket": 7, "new": 63, "failures": 0},
   "typecheck": "PASS frontend build and scoped server/http/buyermatch.ts",
   "scopedLint": "PASS zero errors/warnings after removing unused test global declaration",
   "serverBundle": "PASS esbuild node ESM external packages",

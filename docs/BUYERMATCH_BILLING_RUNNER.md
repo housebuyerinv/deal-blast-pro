@@ -1,6 +1,6 @@
 # Billing-only implementation checkpoint
 
-Application/runner candidate: `557b935a57f6baef5a5dbc06976cb795d086609d`.
+Application/runner candidate: `57976a5bb85cec906783173dfaa85b843ea801ca`.
 This supersedes `de9009e` for proposals using the new server-side window.
 No push, deployment, hosted write, payment or provider configuration changed.
 
@@ -26,8 +26,8 @@ No push, deployment, hosted write, payment or provider configuration changed.
   Checkout denial, completed Pro50/25/50, invalid signatures, replay, delayed-failure
   reconciliation and unchanged CRM sentinel. No buyer identity secret is used.
 
-**98/98 selected checks PASS**:91 billing/window/journal/application checks plus7
-updated packet checks, including61 new checks. Scoped lint, frontend/server
+**100/100 selected checks PASS**:93 billing/window/journal/application checks plus7
+updated packet checks, including63 new checks. Scoped lint, frontend/server
 TypeScript, server bundle and build PASS. Existing bundle-size/import warnings
 remain. Embedded SQL is not hosted Stripe, multi-connection PostgreSQL or recovery.
 
