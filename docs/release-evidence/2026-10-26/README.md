@@ -1,5 +1,23 @@
 # Milestone 1B continuation — evidence, not activation approval
 
+## New billing implementation and exact-source packet
+
+Candidate `557b935a57f6baef5a5dbc06976cb795d086609d` adds actual server-side S2
+owner/operation/deadline enforcement and a bounded, durably journaled billing-runner
+interface. **98/98 selected checks PASS**, including61 new checks; TypeScript,
+scoped lint, server bundle and build PASS. The migration hash is unchanged.
+See [implementation and boundaries](../../BUYERMATCH_BILLING_RUNNER.md),
+`billing-runner-verification.json` and `billing-runner-source-packet.json`.
+
+The application integration uses actual Checkout code, signed-webhook handler
+and disposable migration SQL with all HTTP intercepted. Provider orchestration
+adapters are mocked; private adapters/watchdog and hosted execution remain unverified.
+Activation excludes Portal creation. Portal lifetime/containment must be resolved
+before lifecycle activation; paused Checkout alone cannot close existing sessions.
+No provider writes, migration, deployment, push or payment occurred. This billing
+packet does not require buyer keys or migration, and does not clear buyer acceptance,
+legal, recovery or Production gates. Older source packets are historical evidence.
+
 ## Final existing-S2 test-scope review
 
 Source tracing confirms the subscriber billing paths do not use buyer identity,

@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import process from "node:process";
 import {
   prepareCurrentSourcePacket,
+  prepareBillingOnlySourcePacket,
   CANDIDATE,
   REVIEWED_REMOTE,
   MIGRATION_HASH,
@@ -20,8 +21,8 @@ const input = {
 test("offline packet pins actual committed source, migration, ancestor and buyer route", () => {
   const p = prepareCurrentSourcePacket(input);
   assert.equal(p.source, CANDIDATE);
-  assert.equal(p.ahead, 6);
-  assert.equal(p.changedFileCount, 99);
+  assert.equal(p.ahead, 14);
+  assert.equal(p.changedFileCount, 130);
   assert.match(p.tree, /^[a-f0-9]{40}$/);
   assert.ok(p.changedFiles.includes("server/buyermatch/buyer-account.js"));
   assert.equal(p.migration.sha256, MIGRATION_HASH);
@@ -118,4 +119,27 @@ test("invalid run identity cannot produce deployment instructions", () => {
     () => prepareCurrentSourcePacket({ ...input, runId: "$(unsafe)" }),
     /identity/,
   );
+});
+
+test("billing-only packet excludes migration, crypto restoration and portal activation", () => {
+  const p = prepareBillingOnlySourcePacket(input);
+  assert.deepEqual(Object.keys(p.commands).sort(), [
+    "archive",
+    "deploy",
+    "extract",
+    "push",
+  ]);
+  assert.deepEqual(p.migration, { required: false, apply: false });
+  assert.equal(p.identityKeysRequired, false);
+  assert.equal(p.buyerRoutesPermitted, false);
+  assert.equal(p.portalOperationsPermitted, false);
+  assert.equal(p.privateProviderAdaptersVerified, false);
+  assert.equal(p.executionReady, false);
+  assert.equal(p.source, CANDIDATE);
+  assert.ok(
+    p.mandatoryGates.some((g) =>
+      g.includes("223 identity/9 provenance/8 nonstandard-hash"),
+    ),
+  );
+  assert.ok(p.mandatoryGates.some((g) => g.includes("BM_S2_BILLING_*")));
 });

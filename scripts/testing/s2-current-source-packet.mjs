@@ -9,7 +9,7 @@ import {
   S2_RELEASE,
 } from "../buyermatch-s2-release.mjs";
 
-export const CANDIDATE = "de9009e165cb15709497e538118d1ceda013cdb5";
+export const CANDIDATE = "557b935a57f6baef5a5dbc06976cb795d086609d";
 export const REVIEWED_REMOTE = "531beb77c11a0b8275a321b69e0ce21200650339";
 export const BRANCH = "codex/buyermatch-1b-integration";
 export const MIGRATION =
@@ -178,6 +178,37 @@ export function prepareCurrentSourcePacket({
       "Verify exact READY Preview/source/team/project, private runtime provenance, all 17 build/runtime settings, owner-only attestation and agreement hashes before alias move.",
       "Move only S2 alias with prior-target comparison; restore pinned fallback on failure/deadline. Retain private tables/proofs/audit; never drop evidence or reopen browser grants.",
       "This paused deployment packet authorizes no hosted writes, payment, registration unpause, event delivery or distribution; use separately bounded approved testing windows.",
+    ],
+  };
+}
+
+// Billing does not require decrypting buyers or applying the buyer migration.
+// This is an offline proposal, not an executable provider adapter or approval.
+export function prepareBillingOnlySourcePacket(input) {
+  const full = prepareCurrentSourcePacket(input);
+  const { push, archive, extract, deploy } = full.commands;
+  return {
+    ...full,
+    profile: "billing-only-activation",
+    executionReady: false,
+    commands: { push, archive, extract, deploy },
+    migration: { required: false, apply: false },
+    identityKeysRequired: false,
+    buyerRoutesPermitted: false,
+    portalOperationsPermitted: false,
+    privateProviderAdaptersVerified: false,
+    mandatoryGates: [
+      "Separate owner approval for exact-source push, protected Preview and one existing-fixture Pro TEST activation; no execution here.",
+      "Fresh remote/CI suppression, pinned CLI ownership/arguments, exact archive verification and zero-cost resource checks before push or deploy.",
+      "Fresh S2 scope, disabled endpoint/paused receiver, 17 paused build/runtime settings, owner-only attestation and fallback verification.",
+      "Existing confirmed Pro fixture only, normal private login and approved staging agreements; no signup, password reset or key replacement.",
+      "Before activation verify original 223 identity/9 provenance/8 nonstandard-hash records and unrelated accounts remain unchanged; never read plaintext or mutate buyer records.",
+      "Privately verify installed TEST runtime keys/account and billing SQL guards; historical evidence is not current permission verification.",
+      "Independent watchdog and private provider adapters must prove abort/in-flight reconciliation, both pause controls, owned Checkout expiration, routing restoration and temporary-deployment removal for THIS source.",
+      "Bind the five non-secret BM_S2_BILLING_* values to the approved run, existing Pro owner, checkout-only operation and maximum 30-minute window; do not add buyer secrets.",
+      "No portal creation in this activation profile. Portal lifecycle requires a separately reviewed provider-session containment strategy.",
+      "Run the bounded billing runner with durable acknowledged evidence and exclusive run claim; UNKNOWN cannot pass. No automatic retry.",
+      "Verify containment and original-record fingerprints after completion; no migration, buyer acceptance, live billing, distribution, Production or MoneyMap changes.",
     ],
   };
 }
