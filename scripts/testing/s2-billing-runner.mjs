@@ -185,6 +185,10 @@ export async function runBillingStage(
   { approvedSource, journal, timeoutMs = 25000, now = Date.now } = {},
 ) {
   const plan = validateBillingPlan(input, approvedSource, now());
+  if (plan.mode === "HOSTED" && plan.profile === "lifecycle")
+    throw Error(
+      "Hosted Portal-session containment is not verified; no activation",
+    );
   if (
     methods.some((m) => typeof adapter?.[m] !== "function") ||
     typeof journal !== "function" ||

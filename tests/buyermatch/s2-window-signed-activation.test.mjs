@@ -234,6 +234,11 @@ test("actual S2 window → Checkout reservation SQL → signed webhook → Pro a
             { price: "price_local_pro", quantity: 1 },
           ]);
           assert.equal(args.client_reference_id, owner);
+          assert.equal(args.metadata.dbpS2RunId, env.BM_S2_BILLING_RUN_ID);
+          assert.equal(
+            args.subscription_data.metadata.dbpS2RunId,
+            env.BM_S2_BILLING_RUN_ID,
+          );
           session = {
             id: "cs_local_window",
             url: "https://checkout.stripe.com/dummy-only",

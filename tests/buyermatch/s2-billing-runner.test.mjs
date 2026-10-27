@@ -314,6 +314,14 @@ test("activation profile never authorizes a portal action", () => {
   );
 });
 
+test("HOSTED lifecycle is blocked before any adapter call until provider-session containment is resolved", async () => {
+  const f = fixture();
+  f.p.mode = "HOSTED";
+  f.p.profile = "lifecycle";
+  await assert.rejects(f.run(), /Portal-session containment/);
+  assert.deepEqual(f.calls, []);
+});
+
 test("wrong or unknown provider authority causes no mutations", async () => {
   for (const account of ["foreign", undefined]) {
     const f = fixture();

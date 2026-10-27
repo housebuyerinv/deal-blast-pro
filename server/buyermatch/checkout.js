@@ -42,7 +42,7 @@ export async function createCheckout(
   stripe = checkoutStripe(env),
 ) {
   const { origin, live } = billingConfig(env);
-  requireS2BillingWindow(user.id, 'checkout', env);
+  const testWindow = requireS2BillingWindow(user.id, 'checkout', env);
   if (env.BM_CHECKOUT_ENABLED !== "true")
     throw new Error("BuyerMatch checkout disabled");
   if (live) {
@@ -114,12 +114,14 @@ export async function createCheckout(
       customer_email: record.email,
       subscription_data: {
         metadata: {
+          ...(testWindow ? { dbpS2RunId: testWindow.runId } : {}),
           dbpProduct: plan.product,
           dealBlastUserId: user.id,
           dbpCheckoutId: record.id,
         },
       },
       metadata: {
+        ...(testWindow ? { dbpS2RunId: testWindow.runId } : {}),
         dbpProduct: plan.product,
         dealBlastUserId: user.id,
         dbpCheckoutId: record.id,
