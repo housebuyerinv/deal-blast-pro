@@ -43,6 +43,8 @@ import Blast from './pages/app/Blast'
 import DealCalculator from './pages/app/DealCalculator'
 import Settings from './pages/app/Settings'
 import S2Attestation from './pages/app/S2Attestation'
+import S2SessionVerification from './components/billing/S2SessionVerification'
+import { isS2VerificationOrigin } from './lib/s2BrowserVerification'
 import ManualIntake from './pages/app/ManualIntake'
 import FollowUps from './pages/app/FollowUps'
 import Analytics from './pages/app/Analytics'
@@ -233,7 +235,10 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 function App() {
-  useCloudAutoSave()
+  const routeLocation = useLocation()
+  const readOnlyS2Session = routeLocation.pathname === '/s2/session-verification' &&
+    isS2VerificationOrigin(window.location.origin, import.meta.env.VITE_SUPABASE_URL || '')
+  useCloudAutoSave(!readOnlyS2Session)
   const initializeStore = useAppStore(s => s.initialize)
   const billingStatus = useAppStore(s => s.trial.billingStatus)
   const billingUserId = useAppStore(s => s.user?.id)
@@ -311,6 +316,11 @@ function App() {
   return (
     <ErrorBoundary>
       <Routes>
+        <Route path="/s2/session-verification" element={
+          isS2VerificationOrigin(window.location.origin, import.meta.env.VITE_SUPABASE_URL || '') ?
+            <ProtectedRoute><div className="mx-auto max-w-3xl p-6"><S2SessionVerification /></div></ProtectedRoute> :
+            <p>Not available.</p>
+        } />
         <Route path="/" element={<Landing />} />
         <Route path="/buyermatch" element={<BuyerMatchLanding />} />
         <Route path="/buyermatch/pricing" element={<BuyerMatchLanding />} />

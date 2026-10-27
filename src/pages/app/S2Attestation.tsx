@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAppStore } from '../../store/useAppStore';
-import S2SessionVerification from '../../components/billing/S2SessionVerification';
 
 // Private operator view: no navigation link, credential fields, raw response dump,
 // console output or token handoff. The server independently enforces owner access.
@@ -155,7 +154,6 @@ export default function S2Attestation() {
   return (
     <section className="mx-auto max-w-3xl space-y-4 p-6">
       <h1 className="text-xl font-semibold">S2 configuration verification</h1>
-      <S2SessionVerification />
       <p>
         Read-only operator check. No registration, payment or delivery is
         enabled.
