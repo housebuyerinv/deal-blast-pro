@@ -1,5 +1,24 @@
 # Milestone 1B continuation — evidence, not activation approval
 
+## Inactive QA read-only review
+
+Ownership is confirmed (owner organization, signed-in Owner role). QA remains
+paused; provider notice gives an October19,2027 resume deadline and says retained
+data/backups/Storage remain available. No archive was opened/exported or restored.
+Existing `stripe-webhook` v1 metadata was found. Its consumers and database/Auth/
+Storage contents/retention classification remain UNKNOWN; QA is not disposable.
+
+No development branches were returned; no managed GitHub/Vercel connections were
+listed. No QA reference was found in inspected application source/local history
+beyond the prior feasibility checkpoint, which does not exclude external/manual
+dependencies. No project or credential was modified, no database/endpoint probe
+or Production/MoneyMap project-data access occurred, and tests were not rerun.
+
+Deleting paused QA would free no active slot; resuming still needs active capacity.
+See [review](../../BUYERMATCH_QA_PROJECT_READONLY_REVIEW.md),
+`qa-project-readonly-review.json` and `qa-paused-retention.png`. Retain QA unchanged.
+Original223 identity compatibility remains unresolved. No new milestone.
+
 ## Parallel synthetic environment feasibility
 
 Actual owner metadata and Supabase create form confirm two active Free projects
