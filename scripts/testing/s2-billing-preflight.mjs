@@ -1,6 +1,7 @@
 // Executable read-only proof aggregation. No credentials, activation or provider defaults.
 import { validateBillingPlan } from "./s2-billing-runner.mjs";
 import { setTimeout, clearTimeout } from "node:timers";
+import { createHash } from "node:crypto";
 const required = [
   "registrationPaused",
   "checkoutPaused",
@@ -19,6 +20,7 @@ const required = [
   "subscriptionOwnershipRequired",
   "ownerLockingRequired",
   "allReachablePortalEntryPointsDenied",
+  "allReachableCheckoutEntryPointsDenied",
   "providerPortalLoginDisabled",
   "sharedCoordinationRootVerified",
 ];
@@ -35,6 +37,7 @@ export async function executeBillingPreflight(
     timeoutMs > 30000 ||
     [
       "readFacts",
+      "verifyApproval",
       "readPreservation",
       "readWatchdogAuthority",
       "readAttestation",
@@ -63,6 +66,15 @@ export async function executeBillingPreflight(
     }
   };
   try {
+    const digest = createHash("sha256").update(JSON.stringify(p)).digest("hex"),
+      approval = await call("verifyApproval", digest);
+    if (
+      approval?.approved !== true ||
+      approval.planDigest !== digest ||
+      approval.mode !== p.mode ||
+      approval.scope !== "payment-free-preflight"
+    )
+      throw Error();
     if (
       (await call("journal", { stage: "preflight", status: "STARTED" }))
         ?.durable !== true

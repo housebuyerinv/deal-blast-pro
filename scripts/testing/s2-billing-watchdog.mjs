@@ -72,6 +72,11 @@ export async function runIndependentBillingCleanup(
       approval?.approved !== true ||
       approval.planDigest !== digest ||
       approval.mode !== plan.mode ||
+      ![
+        "payment-free-preflight",
+        "subscription-activation",
+        "subscription-lifecycle",
+      ].includes(approval.scope) ||
       authority?.project !== plan.project ||
       authority.team !== plan.team ||
       authority.database !== plan.database ||

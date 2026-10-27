@@ -5,6 +5,7 @@ import process from "node:process";
 import {
   prepareCurrentSourcePacket,
   prepareBillingOnlySourcePacket,
+  preparePaymentFreePreflightPacket,
   CANDIDATE,
   REVIEWED_REMOTE,
   MIGRATION_HASH,
@@ -112,6 +113,28 @@ test("one migration only, non-force exact ref push and no generated provisioning
       gate.includes("Historical b998305 launcher is incompatible"),
     ),
   );
+});
+
+test("payment-free packet forbids activation, Portal sessions, event generation and alias moves", () => {
+  const p = preparePaymentFreePreflightPacket(input);
+  for (const k of [
+    "checkoutActivationPermitted",
+    "portalSessionsPermitted",
+    "webhookEventsPermitted",
+    "aliasMovePermitted",
+    "paymentAuthorized",
+    "executionReady",
+  ])
+    assert.equal(p[k], false);
+  assert.deepEqual(Object.keys(p.commands).sort(), [
+    "archive",
+    "deploy",
+    "extract",
+    "push",
+  ]);
+  assert.deepEqual(p.migration, { required: false, apply: false });
+  assert.equal(p.cleanupScope.existingDeployments, "preserve");
+  assert.equal(p.source, CANDIDATE);
 });
 
 test("invalid run identity cannot produce deployment instructions", () => {

@@ -212,3 +212,34 @@ export function prepareBillingOnlySourcePacket(input) {
     ],
   };
 }
+
+// This narrower packet cannot be mistaken for the later activation test request.
+export function preparePaymentFreePreflightPacket(input) {
+  const p = prepareBillingOnlySourcePacket(input);
+  return {
+    ...p,
+    profile: "payment-free-hosted-preflight",
+    approvalScope: "payment-free-preflight",
+    checkoutActivationPermitted: false,
+    portalSessionsPermitted: false,
+    webhookEventsPermitted: false,
+    aliasMovePermitted: false,
+    paymentAuthorized: false,
+    cleanupScope: {
+      endpoint: "disable-only-already-disabled-S2",
+      receiver: "pause-only-already-paused-S2",
+      deployment: "newly-owned-run-receipt-only",
+      existingDeployments: "preserve",
+    },
+    mandatoryGates: [
+      "Separate explicit approval for THIS source publication, one zero-cost protected paused S2 Preview, authenticated read-only preflight and independent same-state cleanup proof.",
+      "Fresh remote and all connected CI/project automatic-deployment suppression before exact non-force push; extract only exact Git archive into new verified empty directory.",
+      "Before deployment independently verify pinned CLI custody, owner/provider authority, free quota, all processing pauses and cleanup rights for the exact S2 account/project.",
+      "Use verified immutable Preview hostname/source/deployment metadata; supply all 17 paused settings in build and runtime; normal private Pro/owner authentication only.",
+      "Verify every current/legacy Checkout and Portal entry point, all paused runtime settings, SQL guards, shared exclusive lease and independent watchdog provider readbacks; unknown means stop.",
+      "Preserve source-pinned fallback and every preexisting deployment; no alias move. Remove only newly owned unaliased temporary Preview after source/project/team/run receipt checks.",
+      "Do not set activation window bindings, enable Checkout/receiver/Stripe delivery, create a session, trigger an event, purchase, migrate or modify buyer records.",
+      "No credential extraction/output, key replacement, legal publication, Production or MoneyMap changes. Keep PR draft and $0 limit; no automatic retries.",
+    ],
+  };
+}

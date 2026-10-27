@@ -62,7 +62,12 @@ export function makeBillingContainment(input, receipt, ports, approvedSource) {
     if (
       consent?.approved !== true ||
       consent.planDigest !== planDigest ||
-      consent.mode !== plan.mode
+      consent.mode !== plan.mode ||
+      ![
+        "payment-free-preflight",
+        "subscription-activation",
+        "subscription-lifecycle",
+      ].includes(consent.scope)
     )
       deny();
     const a = await ports.readAuthority(signal);
@@ -141,7 +146,20 @@ export function makeBillingContainment(input, receipt, ports, approvedSource) {
           a.mode !== plan.mode
         )
           deny();
-        return { approved: true, planDigest: digest, mode: plan.mode };
+        if (
+          ![
+            "payment-free-preflight",
+            "subscription-activation",
+            "subscription-lifecycle",
+          ].includes(a.scope)
+        )
+          deny();
+        return {
+          approved: true,
+          planDigest: digest,
+          mode: plan.mode,
+          scope: a.scope,
+        };
       } catch {
         deny();
       }

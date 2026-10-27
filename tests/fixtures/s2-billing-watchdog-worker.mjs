@@ -51,6 +51,7 @@ const append = async (name) => {
 const adapter = {
   verifyApproval: async (_, digest) => ({
     approved: scenario !== "denied-approval",
+    scope: "subscription-activation",
     mode: plan.mode,
     planDigest: digest,
   }),

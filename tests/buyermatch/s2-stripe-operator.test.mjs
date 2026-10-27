@@ -46,6 +46,7 @@ async function fixture(fn) {
       timeoutMs: 2000,
       verifyApproval: async (_, digest) => ({
         approved: true,
+        scope: "payment-free-preflight",
         planDigest: digest,
         mode: plan.mode,
       }),

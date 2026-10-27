@@ -234,7 +234,8 @@ export async function runBillingStage(
   if (
     approval?.approved !== true ||
     approval.planDigest !== digest(plan) ||
-    approval.mode !== plan.mode
+    approval.mode !== plan.mode ||
+    approval.scope !== `subscription-${plan.profile}`
   )
     throw Error(
       "Billing approval unavailable; no activation or containment mutations",

@@ -3,6 +3,13 @@ import { URL } from "node:url";
 
 export const S2_BILLING_REF = "qxhhlprentrufobpcgna";
 export const S2_PRO_OWNER = "368f5f93-acf7-4cc3-9805-a4c0817506c3";
+export function isS2LegacyCheckout(action, method, env = process.env) {
+  return (
+    method === "POST" &&
+    ["credit-packs", "pro-trial-checkout"].includes(action) &&
+    isDedicatedS2Runtime(env)
+  );
+}
 export function s2BillingWindowStatus(user, env = process.env) {
   if (
     !isDedicatedS2Runtime(env) ||

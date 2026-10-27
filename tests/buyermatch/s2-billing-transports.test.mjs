@@ -69,6 +69,7 @@ function fixture() {
     timeoutMs: 1000,
     verifyApproval: async (_, digest) => ({
       approved: true,
+      scope: "subscription-activation",
       planDigest: digest,
       mode: plan.mode,
     }),
@@ -379,6 +380,22 @@ test("wrong-runtime binding, expired window and service identity cannot create C
     );
   }
 });
+test("read-only preflight approval cannot create Checkout even if runtime flags are accidentally enabled", async () => {
+  const f = fixture();
+  f.opts.verifyApproval = async (_, digest) => ({
+    approved: true,
+    planDigest: digest,
+    mode: f.plan.mode,
+    scope: "payment-free-preflight",
+  });
+  await assert.rejects(f.make().createProCheckout());
+  assert.equal(
+    f.requests.some((r) => r.options.method === "POST"),
+    false,
+  );
+  assert.equal(f.opened.length, 0);
+});
+
 test("different app and verified-user bearers are rejected before a billing write", async () => {
   const f = fixture(),
     old = f.opts.headersFor;

@@ -111,7 +111,12 @@ export function makeStripeOperator(
       if (
         consent?.approved !== true ||
         consent.planDigest !== digest ||
-        consent.mode !== plan.mode
+        consent.mode !== plan.mode ||
+        ![
+          "payment-free-preflight",
+          "subscription-activation",
+          "subscription-lifecycle",
+        ].includes(consent.scope)
       )
         deny();
       const [file, folder] = await Promise.all([

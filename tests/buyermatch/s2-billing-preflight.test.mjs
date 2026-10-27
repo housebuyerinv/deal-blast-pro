@@ -46,6 +46,7 @@ function fixture() {
     "subscriptionOwnershipRequired",
     "ownerLockingRequired",
     "allReachablePortalEntryPointsDenied",
+    "allReachableCheckoutEntryPointsDenied",
     "providerPortalLoginDisabled",
     "sharedCoordinationRootVerified",
   ])
@@ -69,6 +70,12 @@ function fixture() {
   };
   const journal = [];
   const ports = {
+    verifyApproval: async (_, digest) => ({
+      approved: true,
+      planDigest: digest,
+      mode: p.mode,
+      scope: "payment-free-preflight",
+    }),
     readFacts: async () => facts,
     readOperatorIdentity: async () => ({ account: p.account, mode: "test" }),
     readAttestation: async (_, id) => ({
@@ -98,6 +105,23 @@ function fixture() {
       }),
   };
 }
+test("preflight requires its own source-bound approval before provider fact reads", async () => {
+  const f = fixture();
+  f.ports.verifyApproval = async (_, digest) => ({
+    approved: true,
+    planDigest: digest,
+    mode: f.p.mode,
+    scope: "subscription-activation",
+  });
+  let reads = 0;
+  f.ports.readFacts = async () => {
+    reads++;
+    return f.facts;
+  };
+  assert.equal((await f.run()).status, "PREFLIGHT_UNVERIFIED");
+  assert.equal(reads, 0);
+});
+
 test("complete read-only preflight never grants payment authorization or opens processing", async () => {
   const f = fixture(),
     r = await f.run();
@@ -108,6 +132,7 @@ test("complete read-only preflight never grants payment authorization or opens p
 for (const key of [
   "normalProLoginVerified",
   "allReachablePortalEntryPointsDenied",
+  "allReachableCheckoutEntryPointsDenied",
   "providerPortalLoginDisabled",
   "sharedCoordinationRootVerified",
   "freeQuotaVerified",

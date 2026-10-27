@@ -76,6 +76,7 @@ function fixture() {
   const ports = {
     readApproval: async (digest) => ({
       approved: true,
+      scope: "subscription-activation",
       mode: plan.mode,
       planDigest: digest,
     }),

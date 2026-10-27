@@ -96,7 +96,7 @@ export function makeBillingTransports(
     );
     if (ack?.durable !== true) fail();
   };
-  const scoped = async (signal) => {
+  const scoped = async (signal, writingCheckout = false) => {
     const consent = await step(
         () => verifyApproval(plan, digest, signal),
         signal,
@@ -106,6 +106,12 @@ export function makeBillingTransports(
       consent?.approved !== true ||
       consent.planDigest !== digest ||
       consent.mode !== plan.mode ||
+      ![
+        "payment-free-preflight",
+        "subscription-activation",
+        "subscription-lifecycle",
+      ].includes(consent.scope) ||
+      (writingCheckout && consent.scope !== "subscription-activation") ||
       a?.project !== plan.project ||
       a.team !== plan.team ||
       a.database !== plan.database ||
@@ -143,7 +149,10 @@ export function makeBillingTransports(
     timer = setTimeout(abort, timeoutMs);
     try {
       if (controller.signal.aborted) fail();
-      await scoped(controller.signal);
+      await scoped(
+        controller.signal,
+        stage === "checkout" && method === "POST",
+      );
       if (controller.signal.aborted) fail();
       await record(stage, "STARTED", controller.signal);
       const supplied = await step(

@@ -68,6 +68,7 @@ function fixture() {
     releaseRun: async () => ({ released: true }),
     verifyApproval: async (_, d) => ({
       approved: true,
+      scope: `subscription-${p.profile}`,
       mode: p.mode,
       planDigest: d,
     }),
@@ -327,6 +328,18 @@ test("runner composes with actual shared lock and durable journal; verified clos
     assert.equal(path.dirname(base), path.resolve(tmpdir()));
     await rm(base, { recursive: true, force: true });
   }
+});
+
+test("payment-free approval cannot authorize the billing runner", async () => {
+  const f = fixture();
+  f.a.verifyApproval = async (_, digest) => ({
+    approved: true,
+    planDigest: digest,
+    mode: f.p.mode,
+    scope: "payment-free-preflight",
+  });
+  await assert.rejects(f.run(), /approval/);
+  assert.deepEqual(f.calls, []);
 });
 
 test("activation profile never authorizes a portal action", () => {
