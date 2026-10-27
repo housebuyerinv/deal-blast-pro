@@ -294,7 +294,7 @@ const compiled = await build({
     },
   ],
 });
-const { default: handler } = await import(
+const { default: handler, makeS2AttestationHandler } = await import(
   'data:text/javascript;base64,' +
     Buffer.from(compiled.outputFiles[0].text).toString('base64')
 );
@@ -364,6 +364,23 @@ test('actual handler authorizes server-verified confirmed owner and performs rea
   assert.equal(r.headers.Vary, 'Authorization');
   assert.equal(r.headers['Access-Control-Allow-Origin'], undefined);
   assert.equal(JSON.stringify(r.body).includes('owner-fixture'), false);
+});
+
+test('runtime readback extension runs only after owner and complete attestation verification', async () => {
+  let extensions = 0;
+  const extended = makeS2AttestationHandler(async (_env, attestation) => { extensions++; return { attestation, permissions: 'SYNTHETIC_READ_ONLY' }; });
+  reset();
+  assert.equal((await invoke({}, extended)).statusCode, 200);
+  assert.equal(extensions, 1);
+  for (const mutate of [() => owner.email = 'other@example.com', () => owner.email_confirmed_at = null, () => profile.role = 'Member', () => workspace.account_status = 'Deactivated', () => artifactText = '{}', () => process.env.BM_CHECKOUT_ENABLED = 'true']) {
+    reset(); mutate();
+    assert.notEqual((await invoke({}, extended)).statusCode, 200);
+    assert.equal(extensions, 1);
+  }
+  reset(); assert.equal((await invoke({ method: 'POST' }, extended)).statusCode, 405);
+  reset(); assert.equal((await invoke({ headers: {} }, extended)).statusCode, 401);
+  reset(); assert.equal((await invoke({ url: '/api/platform/s2-stripe-readiness?arbitrary=1' }, extended)).statusCode, 400);
+  assert.equal(extensions, 1);
 });
 test('anonymous, forged token and forged internal headers do not expose diagnostics', async () => {
   for (const headers of [
@@ -763,6 +780,7 @@ test('actual platform dispatcher preserves existing route targets and rejects di
     'buyermatch-worker',
     'email-operations',
     's2-attestation',
+    's2-stripe-readiness',
   ]) {
     const res = {
       code: 0,
@@ -779,6 +797,17 @@ test('actual platform dispatcher preserves existing route targets and rejects di
     await route({ url: '/api/platform/' + name, method: 'GET' }, res);
     assert.equal(res.code, 200);
     assert.ok(res.value.handler.endsWith('/' + name + '.js'));
+  }
+  const original = '/api/platform/s2-stripe-readiness?endpoint=s2-stripe-readiness';
+  const request = { url: original, method: 'GET' };
+  const response = { code: 0, value: null, status(code) { this.code = code; return this; }, json(value) { this.value = value; return this; } };
+  await route(request, response);
+  assert.equal(response.value.url, '/api/platform/s2-stripe-readiness');
+  assert.equal(request.url, original);
+  for (const query of ['endpoint=s2-attestation', 'endpoint=s2-stripe-readiness&endpoint=s2-stripe-readiness', '%65ndpoint=s2-stripe-readiness']) {
+    const req = { url: '/api/platform/s2-stripe-readiness?' + query, method: 'GET' };
+    await route(req, response);
+    assert.equal(response.value.url, req.url);
   }
   const otherRequest = {
     url: '/api/platform/buyermatch?endpoint=s2-attestation&action=plans',

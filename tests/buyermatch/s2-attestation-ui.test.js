@@ -226,3 +226,32 @@ test('Production host exposes no diagnostic button and source contains no raw co
   ])
     assert.equal(text.includes(pattern), false);
 });
+
+const stripeButton = value => value?.type === 'button' && value.children.includes('Verify Stripe read permissions') ? value
+  : (Array.isArray(value) ? value : value?.children || []).map(stripeButton).find(Boolean);
+test('private owner UI explicitly requests only the read-only readiness endpoint', async () => {
+  reset();
+  const previous = globalThis.fetch;
+  globalThis.fetch = async (...args) => {
+    const r = await previous(...args);
+    return { ...r, json: async () => ({ attestation: await r.json(), permissions: {
+      schema: 1, status: 'READ_ONLY_PERMISSION_CHECKS_PASS', accountBinding: 'EXACT_APPROVED_S2_RESOURCES',
+      writePermissions: 'NOT_TESTED', permissionExclusivity: 'NOT_ESTABLISHED_BY_READS',
+      checks: ['starter_price_read','pro_price_read','portal_configuration_read','checkout_read','subscription_read'].map(operation => ({ operation, httpStatus: 200, verified: true })),
+      unrelatedPrivateField: 'DUMMY_PRIVATE_PROVIDER_RESPONSE',
+    } }) };
+  };
+  await stripeButton(Page()).props.onClick();
+  assert.equal(requests.length, 1); assert.equal(requests[0].url, '/api/platform/s2-stripe-readiness');
+  assert.equal(requests[0].options.method, 'GET'); assert.ok(states.some(v => typeof v === 'string' && v.includes('five Stripe TEST read checks')));
+  assert.equal(JSON.stringify(states).includes('DUMMY'), false);
+});
+test('readiness UI refuses incomplete, failed or reordered evidence without rendering raw details', async () => {
+  for (const checks of [[], [{ operation: 'starter_price_read', httpStatus: 403, verified: false }]]) {
+    reset(); const previous = globalThis.fetch;
+    globalThis.fetch = async (...args) => { const r = await previous(...args); return { ...r, json: async () => ({ attestation: await r.json(), permissions: { status: 'UNVERIFIED', checks, error: 'DUMMY_PRIVATE_PROVIDER_RESPONSE' } }) }; };
+    await stripeButton(Page()).props.onClick();
+    assert.equal(requests.length, 1); assert.equal(states.some(v => typeof v === 'string' && v.startsWith('Verified')), false);
+    assert.equal(JSON.stringify(states).includes('DUMMY'), false);
+  }
+});

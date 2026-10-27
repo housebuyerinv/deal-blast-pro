@@ -25,7 +25,7 @@ export default function S2Attestation() {
       'https://qxhhlprentrufobpcgna.supabase.co' &&
     window.location.hostname.startsWith('dbp-registration-s2-') &&
     window.location.hostname.endsWith('-housebuyerinv.vercel.app');
-  async function verify() {
+  async function verify(withStripe = false) {
     const owner = useAppStore.getState().user?.id;
     const controller = new AbortController();
     active.current?.abort();
@@ -42,13 +42,14 @@ export default function S2Attestation() {
         !data.session.access_token
       )
         throw Error();
-      const response = await fetch('/api/platform/s2-attestation', {
+      const response = await fetch(withStripe ? '/api/platform/s2-stripe-readiness' : '/api/platform/s2-attestation', {
         method: 'GET',
         cache: 'no-store',
         signal: controller.signal,
         headers: { Authorization: `Bearer ${data.session.access_token}` },
       });
-      const value = await response.json();
+      const payload = await response.json();
+      const value = withStripe ? payload?.attestation : payload;
       const { data: latest } = await supabase.auth.getSession();
       if (
         controller.signal.aborted ||
@@ -124,6 +125,17 @@ export default function S2Attestation() {
         deployment: value.identity.deploymentId,
         build: value.build.sha256,
       });
+      if (withStripe) {
+        const expected = ['starter_price_read', 'pro_price_read', 'portal_configuration_read', 'checkout_read', 'subscription_read'];
+        const p = payload?.permissions;
+        if (p?.schema !== 1 || p.status !== 'READ_ONLY_PERMISSION_CHECKS_PASS' ||
+            p.accountBinding !== 'EXACT_APPROVED_S2_RESOURCES' ||
+            p.writePermissions !== 'NOT_TESTED' || p.permissionExclusivity !== 'NOT_ESTABLISHED_BY_READS' ||
+            !Array.isArray(p.checks) || p.checks.length !== expected.length ||
+            p.checks.some((c: any, i: number) => c.operation !== expected[i] || c.httpStatus !== 200 || c.verified !== true)) throw Error();
+        setStatus('Verified 17 settings and five Stripe TEST read checks. No sessions or mutations. Write permissions and permission exclusivity were not tested.');
+        return;
+      }
       setStatus(
         'Verified 17 build and runtime settings. External provider checks are still required.',
       );
@@ -149,10 +161,14 @@ export default function S2Attestation() {
       <button
         type="button"
         disabled={busy}
-        onClick={verify}
+        onClick={() => verify()}
         className="rounded border px-4 py-2 disabled:opacity-50"
       >
         Verify configuration
+      </button>
+      <button type="button" disabled={busy} onClick={() => verify(true)}
+        className="rounded border px-4 py-2 disabled:opacity-50">
+        Verify Stripe read permissions
       </button>
       <p role="status" aria-live="polite">
         {status}

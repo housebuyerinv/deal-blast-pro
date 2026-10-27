@@ -11,7 +11,12 @@ import {
   s2AttestationScope,
 } from '../buyermatch/s2-attestation.js';
 
-export default async function handler(req: any, res: any) {
+// Extensions run only after the unchanged owner, framing and build/runtime gates.
+type S2Readback = (env: Record<string, string | undefined>, attestation: any) => Promise<any>;
+export function makeS2AttestationHandler(readback?: S2Readback) {
+  return (req: any, res: any) => handleAttestation(req, res, readback);
+}
+async function handleAttestation(req: any, res: any, readback?: S2Readback) {
   res.setHeader('Cache-Control', 'private, no-store, max-age=0');
   res.setHeader('Vary', 'Authorization');
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -70,10 +75,12 @@ export default async function handler(req: any, res: any) {
     const build = JSON.parse(
       readFileSync(resolve(process.cwd(), ATTESTATION_PATH), 'utf8'),
     );
-    return res.status(200).json(attestS2Runtime(process.env, build));
+    const attestation = attestS2Runtime(process.env, build);
+    return res.status(200).json(readback ? await readback(process.env, attestation) : attestation);
   } catch {
     return res
       .status(503)
       .json({ error: 'S2 configuration attestation unavailable' });
   }
 }
+export default makeS2AttestationHandler();

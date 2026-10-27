@@ -1,0 +1,53 @@
+{
+  "date": "2026-10-27",
+  "approvedApplicationSourceUnchanged": "2fe5ee83389b6fd6981d93795eef92b57bc7c34f",
+  "priorLocalHead": "0b145218cc6c6983cf2892774fe54c3c450c69aa",
+  "status": "CORRECTION_LOCAL_ONLY_NEW_SOURCE_APPROVAL_REQUIRED",
+  "confirmedCodeGap": {
+    "plans": "The plans handler does not call subscriptionCatalog when both BM_CHECKOUT_ENABLED and BM_S2_CATALOG_DIAGNOSTIC are false. Both must remain false in the approved all17-setting packet.",
+    "attestation": "The approved configuration-attestation handler verifies source/build/runtime settings, not Stripe runtime API permissions.",
+    "conclusion": "The approved paused candidate cannot supply the requested credential-permission evidence through these routes. No claim is made that an empty catalog establishes a missing or invalid Secret."
+  },
+  "localCorrection": {
+    "endpoint": "/api/platform/s2-stripe-readiness",
+    "method": "GET",
+    "authentication": "Normal confirmed platform-owner session; existing read-only Admin profile and active workspace checks",
+    "preconditions": "Existing full build/runtime attestation, exact S2 project/Preview identity, all17 settings unchanged, no activation-window bindings, restricted rk_test credential only",
+    "credentialCustody": "Installed Secret remains in server runtime; no local transfer/export/replacement",
+    "operations": ["fixed Starter price GET", "fixed Pro price GET", "fixed BuyerMatch portal configuration GET", "Checkout list GET limit1", "subscription list GET limit1"],
+    "boundaries": "Fixed api.stripe.com origin, fixed Dahlia version, no client selectors, no redirects, no retries, shared ten-second abort deadline, 128KiB per-response bound",
+    "output": "Attestation plus fixed operation classifications/HTTP statuses/booleans only. No secret, account records, session URL, buyer identity or raw provider response/error is returned or logged.",
+    "ui": "Separate explicit owner-only read check on the existing S2 attestation page; normal same-origin Auth remains internal to the application",
+    "accountProofLimit": "Exact globally scoped approved S2 resources bind the tested credential to the intended catalog/portal. No account-wide or cross-account permission claim is inferred.",
+    "permissionProofLimit": "Read success cannot establish write permissions or prove absence of additional permissions. Those remain explicitly NOT_TESTED / NOT_ESTABLISHED_BY_READS.",
+    "additionalConfirmedDefect": "Added the missing s2-billing-window TypeScript declaration after frontend typecheck exposed TS7016. No runtime guard behavior changed."
+  },
+  "verification": {
+    "affectedTests": 55,
+    "passed": 55,
+    "failed": 0,
+    "newTestCases": 10,
+    "lastFactoryRefinement": "44/44 directly affected checks rerun and passed; legacy route regression results retained",
+    "frontendTypecheck": "PASS",
+    "apiTypecheck": "PASS with strictNullChecks; initial ad-hoc command without this setting produced unrelated Zod optional-property diagnostics, not a passing check",
+    "scopedLint": "PASS, zero errors/warnings; initial new-test no-undef errors corrected",
+    "actualApiBundle": "PASS",
+    "frontendBuild": "PASS using Vite envFile=false; no rejected credential file read; existing bundle-size and mixed-import warnings retained",
+    "providerTestData": "All new network/permission test responses are synthetic. No new hosted permission result is claimed."
+  },
+  "hostedResultsThisContinuation": {
+    "serverRuntimePermissions": "NOT_EXECUTED",
+    "publishedCommit": null,
+    "newDeploymentId": null,
+    "authenticatedProviderPreflight": "NOT_EXECUTED",
+    "independentCleanup": "NOT_EXECUTED; no new deployment exists",
+    "providerWrites": 0,
+    "payments": 0,
+    "migrations": 0,
+    "productionOrMoneyMapChanges": 0
+  },
+  "nextApproval": "Approve the exact new code commit containing this correction in place of 2fe5ee8 for the existing one-Preview payment-free scope. Do not deploy or publish the changed source under the old pin. No new keys or configuration unpause is requested.",
+  "remainingGates": ["actual authenticated runtime readback", "independent same-run watchdog authority and cleanup", "hosted all17-setting preflight and legacy-route containment", "original buyer identity-key compatibility", "hosted buyer migration/privacy acceptance", "Pro subscription lifecycle", "legal approval", "independent encrypted restoration", "Production cutover authorization"],
+  "production": "NO-GO",
+  "newMilestone": null
+}
