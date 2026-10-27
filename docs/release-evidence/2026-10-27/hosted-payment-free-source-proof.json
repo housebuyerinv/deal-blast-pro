@@ -1,0 +1,53 @@
+{
+  "source": "4e79c99ac98d13bb030076aaf55a8289934d9ae4",
+  "tree": "cbc4e8d0079bcf8c49355fa9c125240d73c6ce2b",
+  "fileCount": 718,
+  "allGitBlobHashesVerified": true,
+  "pairedSettings": {
+    "runtime": {
+      "BM_APP_ORIGIN": "https://dbp-registration-s2-preview-housebuyerinv.vercel.app",
+      "BM_BILLING_VERIFIED": "false",
+      "BM_CHECKOUT_ENABLED": "false",
+      "BM_DELIVERY_MODE": "mock",
+      "BM_ENVIRONMENT": "staging",
+      "BM_LIVE_BILLING_ENABLED": "false",
+      "BM_LIVE_BILLING_VERIFIED": "false",
+      "BM_LIVE_DELIVERY_ENABLED": "false",
+      "BM_RESPONSE_ENABLED": "false",
+      "BM_S2_CATALOG_DIAGNOSTIC": "false",
+      "BM_STAGING_PROJECT_REF": "qxhhlprentrufobpcgna",
+      "BM_STRIPE_PORTAL_CONFIGURATION_ID": "bpc_1UTRxYL6efr9LhPIA0rP1HOJ",
+      "DBP_REGISTRATION_PAUSED": "true",
+      "DBP_REQUIRE_VERSIONED_PLATFORM_AGREEMENTS": "true",
+      "PUBLIC_APP_URL": "https://dbp-registration-s2-preview-housebuyerinv.vercel.app",
+      "SUPABASE_URL": "https://qxhhlprentrufobpcgna.supabase.co",
+      "VITE_SUPABASE_URL": "https://qxhhlprentrufobpcgna.supabase.co",
+      "BM_S2_ATTESTATION_ENABLED": "true",
+      "BM_S2_ATTESTATION_SOURCE_SHA": "4e79c99ac98d13bb030076aaf55a8289934d9ae4",
+      "BM_S2_ATTESTATION_RUN_ID": "d6408dbb-185b-46fc-88e8-2cafea5bfdd2"
+    },
+    "build": {
+      "BM_APP_ORIGIN": "https://dbp-registration-s2-preview-housebuyerinv.vercel.app",
+      "BM_BILLING_VERIFIED": "false",
+      "BM_CHECKOUT_ENABLED": "false",
+      "BM_DELIVERY_MODE": "mock",
+      "BM_ENVIRONMENT": "staging",
+      "BM_LIVE_BILLING_ENABLED": "false",
+      "BM_LIVE_BILLING_VERIFIED": "false",
+      "BM_LIVE_DELIVERY_ENABLED": "false",
+      "BM_RESPONSE_ENABLED": "false",
+      "BM_S2_CATALOG_DIAGNOSTIC": "false",
+      "BM_STAGING_PROJECT_REF": "qxhhlprentrufobpcgna",
+      "BM_STRIPE_PORTAL_CONFIGURATION_ID": "bpc_1UTRxYL6efr9LhPIA0rP1HOJ",
+      "DBP_REGISTRATION_PAUSED": "true",
+      "DBP_REQUIRE_VERSIONED_PLATFORM_AGREEMENTS": "true",
+      "PUBLIC_APP_URL": "https://dbp-registration-s2-preview-housebuyerinv.vercel.app",
+      "SUPABASE_URL": "https://qxhhlprentrufobpcgna.supabase.co",
+      "VITE_SUPABASE_URL": "https://qxhhlprentrufobpcgna.supabase.co",
+      "BM_S2_ATTESTATION_ENABLED": "true",
+      "BM_S2_ATTESTATION_SOURCE_SHA": "4e79c99ac98d13bb030076aaf55a8289934d9ae4",
+      "BM_S2_ATTESTATION_RUN_ID": "d6408dbb-185b-46fc-88e8-2cafea5bfdd2"
+    }
+  },
+  "physicalPathVerified": true
+}

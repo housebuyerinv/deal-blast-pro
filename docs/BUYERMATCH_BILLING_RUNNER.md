@@ -1,5 +1,13 @@
 # Billing-only implementation checkpoint
 
+Latest executed application: `4e79c99ac98d13bb030076aaf55a8289934d9ae4`, published
+to draft PR#2. See [actual payment-free hosted results](release-evidence/2026-10-27/HOSTED_PAYMENT_FREE_RESULT.md).
+One protected paused Preview passed owner runtime/all17-setting/five-GET checks and
+was automatically removed, with independent HTTP404 and pause/fallback readbacks.
+Full billing preflight remains incomplete. The one-Preview allowance is consumed;
+no new deployment or billing operation is authorized by that completed window.
+Older candidate/approval references below are historical.
+
 Latest candidate: `2fe5ee83389b6fd6981d93795eef92b57bc7c34f`.
 See [controlled payment-free preflight readiness](release-evidence/2026-10-27/CONTROLLED_PREFLIGHT_READINESS.md)
 for the legacy Checkout fixes, explicit approval purposes and exact withheld

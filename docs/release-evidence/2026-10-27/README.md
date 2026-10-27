@@ -1,4 +1,11 @@
-# Billing containment and watchdog — local verification
+# Billing containment and watchdog — evidence index
+
+Latest actual hosted results: [authorized payment-free S2 result](HOSTED_PAYMENT_FREE_RESULT.md).
+Published source `4e79c99ac98d13bb030076aaf55a8289934d9ae4`: owner runtime readback,
+all17 settings and independent automatic cleanup passed. Full preflight is still
+incomplete; no payment, migration, alias move or Production change occurred.
+
+## Earlier local verification (preserved)
 
 Candidate: `c00d59f048282343af5d81afe9655556aa285e75`.
 Prior candidate/evidence remains preserved. No push or hosted/provider change.

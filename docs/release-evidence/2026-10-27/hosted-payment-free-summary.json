@@ -1,0 +1,60 @@
+{
+  "date": "2026-10-27",
+  "publishedApplicationCommit": "4e79c99ac98d13bb030076aaf55a8289934d9ae4",
+  "applicationTree": "cbc4e8d0079bcf8c49355fa9c125240d73c6ce2b",
+  "pr": {"number": 2, "state": "open", "draft": true},
+  "runId": "d6408dbb-185b-46fc-88e8-2cafea5bfdd2",
+  "deploymentId": "dpl_Gt8PnE7kCuKcFY3ec8NuMZFL92mv",
+  "sourceVerification": {"gitBlobs": 718, "allMatched": true, "canonicalHostPathMatched": true, "privateNewDirectoryAclVerified": true},
+  "deployment": {"count": 1, "ready": true, "protection": "all", "aliases": [], "target": "preview", "currentState": "REMOVED"},
+  "authenticatedRuntimeReadback": {
+    "status": "HOSTED_PASS",
+    "evidence": "Actual owner UI result after its same-origin authenticated request, validated by the approved strict parser; no raw request/response trace retained",
+    "normalOwnerLogin": "PASS",
+    "buildRuntimeSettings": {"required": 17, "verified": 17},
+    "sourceDeploymentBinding": "PASS",
+    "buildSnapshotSha256": "adcfa592c61d12260f4fdd8255156121a4f07f7892bb712dd8303c6b11e80d95",
+    "stripeAccountBinding": "EXACT_APPROVED_S2_RESOURCES; separately verified native named-profile account acct_1UTRcRL6efr9LhPI TEST",
+    "checks": ["starter_price_read", "pro_price_read", "portal_configuration_read", "checkout_read", "subscription_read"],
+    "verifiedReadChecks": 5,
+    "restrictedTestKeyRequired": true,
+    "writePermissions": "NOT_TESTED",
+    "permissionExclusivity": "NOT_ESTABLISHED_BY_READS",
+    "credentialExportOrReplacement": false,
+    "screenshot": {"file": "hosted-stripe-readiness-4e79c99.jpg", "sha256": "79dab60fac2fbc46cc0b9b0d8c4686319cf0c89172db8f504bb813ad1609b183", "limit": "Captured the existing displayed result after automatic cleanup, without issuing another request"}
+  },
+  "cleanup": {
+    "automaticController": "HOSTED_PASS",
+    "launcherExitVerified": true,
+    "manualDeletion": false,
+    "independentProviderReadback": "HOSTED_PASS",
+    "removedDeploymentHttpStatus": 404,
+    "priorDeploymentsPreserved": 9,
+    "currentDeploymentCount": 9,
+    "fallback": "dpl_nr5RVunmUGdryPUtWkRkVdsA96pT",
+    "stripeEndpointDisabled": true,
+    "receiverHttpStatus": 503,
+    "sharedLeaseReleasedAfterVerifiedClosure": true
+  },
+  "s2ReadOnlyMetadata": {
+    "testAndLiveBillingFunctions": {"serviceOnlyExecution": true, "ownerLocking": true, "completedCheckout": true, "checkoutOwnership": true, "subscriptionOwnership": true},
+    "liveBillingEnabled": false,
+    "liveBillingVerified": false,
+    "portalPublicLoginEnabled": false,
+    "buyerPreservation": {"beforeAfterMatch": true, "buyers": 223, "provenance": 9, "nonstandardHashes": 8, "sha256": "fd6f9ff780aea29ba91684d06a8ac831fdcb753029085e7b4eaa9dcda7c790c4"}
+  },
+  "fullPreflight": {
+    "status": "INCOMPLETE_NOT_PASS",
+    "notCompleted": ["authenticated current/legacy route-denial coverage across reachable S2 runtimes", "normal Pro-fixture login condition", "complete remaining dependency/unrelated-account preservation and authority receipts"],
+    "authorizationBudget": "The one protected Preview was used and automatically removed; no second deployment authorized",
+    "approvalReviewInterruption": "One read-only SQL operation was not executed when approval review hit a usage limit. The same approved operation succeeded after reset; no bypass."
+  },
+  "localEngineering": {"newControllerChecks": 9, "passed": 9, "failed": 0, "providerTestEffects": "SYNTHETIC", "scopedOperatorLint": "PASS", "priorApplicationEvidence": "55 tests/typechecks/build retained"},
+  "productionContainmentReadback": {"pinnedTargetUnchanged": true, "deploymentsInPublicationWindow": 0},
+  "moneyMap": "NO_CALL_OR_CHANGE",
+  "prohibitedOperationsPerformed": {"purchases": 0, "checkoutActivation": 0, "portalSessions": 0, "subscriptionMutations": 0, "hostedMigrations": 0, "aliasMoves": 0, "secretReplacement": 0, "buyerDistributions": 0, "productionWrites": 0, "paidInfrastructure": 0},
+  "nextAuthorization": "One fresh protected paused payment-free Preview of the same exact source, for the remaining hosted preflight/route-denial checks only. Pro payment/activation remains separately unauthorized.",
+  "remainingReleaseGates": ["complete payment-free preflight", "original identity-key compatibility", "S2 buyer migration and hosted buyer/privacy acceptance", "Pro billing lifecycle and Portal issued-session containment", "legal approval", "independent encrypted restore", "Production cutover authorization"],
+  "newOverallMilestone": null,
+  "productionRelease": "NO-GO"
+}
