@@ -1,11 +1,13 @@
 import process from 'node:process';
 import { billingConfig, isSoftwarePrice } from './billing-config.js';
 import { checkoutStripe } from './checkout.js';
+import { requireS2BillingWindow } from './s2-billing-window.js';
 const deny = () => { throw Object.assign(new Error('BuyerMatch billing requires verified subscription ownership. Contact support if this persists.'), { status: 409 }); };
 const id = value => typeof value === 'string' ? value : value?.id;
 // Never accept a client customer/subscription ID or reuse CRM billing assignments.
 export async function subscriberPortal(db, user, operation = 'payment', version, env = process.env, stripe = checkoutStripe(env)) {
   const { origin, live } = billingConfig(env);
+  requireS2BillingWindow(user.id, operation, env);
   const configuration = env.BM_STRIPE_PORTAL_CONFIGURATION_ID;
   if (!configuration || !['payment', 'cancel', 'change'].includes(operation)) deny();
   const entitlement = await db.from('bm_entitlements').select('stripe_subscription_id').eq('owner_id', user.id).eq('product', 'buyermatch').maybeSingle();
@@ -36,6 +38,7 @@ export async function subscriberPortal(db, user, operation = 'payment', version,
     flow = { type: 'subscription_update_confirm', subscription_update_confirm: { subscription: subscription.id, items: [{ id: subscription.items.data[0].id, price: price.id, quantity: 1 }] } };
   }
   const returnUrl = `${origin}/app/buyermatch/plans?billing=returned`;
+  requireS2BillingWindow(user.id, operation, env);
   const portal = await stripe.billingPortal.sessions.create({ customer, configuration, return_url: returnUrl,
     flow_data: { ...flow, after_completion: { type: 'redirect', redirect: { return_url: returnUrl } } } });
   if (portal.livemode !== live || !portal.url?.startsWith('https://billing.stripe.com/')) deny();
