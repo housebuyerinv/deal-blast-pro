@@ -21,8 +21,8 @@ const input = {
 test("offline packet pins actual committed source, migration, ancestor and buyer route", () => {
   const p = prepareCurrentSourcePacket(input);
   assert.equal(p.source, CANDIDATE);
-  assert.equal(p.ahead, 19);
-  assert.equal(p.changedFileCount, 139);
+  assert.equal(p.ahead, 22);
+  assert.equal(p.changedFileCount, 151);
   assert.match(p.tree, /^[a-f0-9]{40}$/);
   assert.ok(p.changedFiles.includes("server/buyermatch/buyer-account.js"));
   assert.equal(p.migration.sha256, MIGRATION_HASH);

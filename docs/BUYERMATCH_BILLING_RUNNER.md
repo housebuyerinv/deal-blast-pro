@@ -1,5 +1,10 @@
 # Billing-only implementation checkpoint
 
+Latest implementation: `f5e59d9aa64c308f2add2a3c8dea593226984978`.
+See [provider transports and exact next authorization](release-evidence/2026-10-27/PROVIDER_TRANSPORTS.md).
+It adds actual transports, a read-only preflight, shared lease, legacy Portal denial
+and authenticated live-window readback. Earlier checkpoints below are historical.
+
 Latest local controls/source: `c00d59f048282343af5d81afe9655556aa285e75`.
 See [2026-10-27 verification](release-evidence/2026-10-27/README.md) for130 passing
 selected checks, actual detached-process/loopback evidence and the remaining
