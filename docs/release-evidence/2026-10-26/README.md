@@ -1,5 +1,22 @@
 # Milestone 1B continuation — evidence, not activation approval
 
+## Original-key / minimum capacity decision
+
+Eight targeted local config paths checked without reading values: seven absent;
+main `.env.local` has three unexpected write-capable principals and remains
+content-blocked. Previously rejected file untouched, no vault connector/CLI
+available, ambient secret-name presence false. Trusted original copy NOT VERIFIED,
+not proven lost. No keys retrieved/generated/installed or permissions changed.
+
+Current published minimum for isolated paid Supabase capacity is a separate Pro
+organization with one Micro project: baseline$25/month within included usage,
+not a hard ceiling/account-specific quote. Upfront plan fees, taxes/usage and
+compute/add-on Spend Cap exclusions require a separate budget decision; no
+existing organization upgrade or paid action proposed/executed. Current$0 scope
+is unchanged. See [concise decision](../../BUYERMATCH_KEY_RECOVERY_CAPACITY_DECISION.md)
+and `key-recovery-capacity-decision.json`. No tests rerun or milestone crossed;
+old223 compatibility remains separate. Production/MoneyMap/S2/QA unchanged.
+
 ## Inactive QA read-only review
 
 Ownership is confirmed (owner organization, signed-in Owner role). QA remains
