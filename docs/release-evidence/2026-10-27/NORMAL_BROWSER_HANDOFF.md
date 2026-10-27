@@ -1,5 +1,10 @@
 # Normal-browser handoff — locally prepared; NOT executed
 
+**Latest local implementation:** the supported application-native control is now
+implemented on `/app/s2-attestation`; see `S2_NATIVE_SESSION_CONTROL.md`. It is not
+deployed. The unsupported evaluation proposal below remains disabled. A new source
+review and bounded deployment authorization are required before owner sign-in.
+
 ## Compatibility correction (supersedes the proposed evaluation below)
 
 The available IAB Playwright evaluate API uses a **read-only DOM scope**, not the
