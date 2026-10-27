@@ -9,7 +9,7 @@ import {
   S2_RELEASE,
 } from "../buyermatch-s2-release.mjs";
 
-export const CANDIDATE = "f5e59d9aa64c308f2add2a3c8dea593226984978";
+export const CANDIDATE = "2fe5ee83389b6fd6981d93795eef92b57bc7c34f";
 export const REVIEWED_REMOTE = "531beb77c11a0b8275a321b69e0ce21200650339";
 export const BRANCH = "codex/buyermatch-1b-integration";
 export const MIGRATION =

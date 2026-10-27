@@ -1,0 +1,18 @@
+{
+  "originalApplicationPin": "f5e59d9aa64c308f2add2a3c8dea593226984978",
+  "originalLocalHead": "cc877ec666832a02af1e50613a63214deef4c63a",
+  "newCandidate": "2fe5ee83389b6fd6981d93795eef92b57bc7c34f",
+  "scope": "LOCAL_SYNTHETIC_ONLY",
+  "selectedChecks": {"affectedApplicationProviderWatchdogAndPromotions": 111, "loopback": 2, "sourcePacket": 8, "newThisBatch": 11, "failures": 0},
+  "newFixes": ["legacy S2 credit-pack and Pro-trial Checkout bypass", "payment-free approval purpose isolation"],
+  "typecheckAndApiBundles": "PASS",
+  "scopedLint": "0 errors; 2 existing unsuppressed warnings in Property Intelligence dynamic API",
+  "migrationSha256": "9bb5aa7eda7047863e1910ab40337388e9cfc0b6455539699bf637471eb114dd",
+  "hostedPreflight": "NOT EXECUTED; explicit authorization withheld",
+  "portalLifecycle": "BLOCKED",
+  "providerAuthorityAndRuntimePermissions": "Hosted verification required",
+  "legalAndIndependentEncryptedRecovery": "Not completed by local testing",
+  "pushesDeploymentsHostedWritesPaymentsMigrations": 0,
+  "production": "NO-GO",
+  "newOverallMilestone": null
+}

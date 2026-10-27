@@ -22,8 +22,8 @@ const input = {
 test("offline packet pins actual committed source, migration, ancestor and buyer route", () => {
   const p = prepareCurrentSourcePacket(input);
   assert.equal(p.source, CANDIDATE);
-  assert.equal(p.ahead, 22);
-  assert.equal(p.changedFileCount, 151);
+  assert.equal(p.ahead, 24);
+  assert.equal(p.changedFileCount, 158);
   assert.match(p.tree, /^[a-f0-9]{40}$/);
   assert.ok(p.changedFiles.includes("server/buyermatch/buyer-account.js"));
   assert.equal(p.migration.sha256, MIGRATION_HASH);
@@ -117,6 +117,7 @@ test("one migration only, non-force exact ref push and no generated provisioning
 
 test("payment-free packet forbids activation, Portal sessions, event generation and alias moves", () => {
   const p = preparePaymentFreePreflightPacket(input);
+  assert.equal(p.approvalScope,'payment-free-preflight');
   for (const k of [
     "checkoutActivationPermitted",
     "portalSessionsPermitted",

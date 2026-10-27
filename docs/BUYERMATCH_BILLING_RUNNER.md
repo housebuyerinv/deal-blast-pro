@@ -1,5 +1,10 @@
 # Billing-only implementation checkpoint
 
+Latest candidate: `2fe5ee83389b6fd6981d93795eef92b57bc7c34f`.
+See [controlled payment-free preflight readiness](release-evidence/2026-10-27/CONTROLLED_PREFLIGHT_READINESS.md)
+for the legacy Checkout fixes, explicit approval purposes and exact withheld
+authorization. All older candidate references below are historical.
+
 Latest implementation: `f5e59d9aa64c308f2add2a3c8dea593226984978`.
 See [provider transports and exact next authorization](release-evidence/2026-10-27/PROVIDER_TRANSPORTS.md).
 It adds actual transports, a read-only preflight, shared lease, legacy Portal denial
