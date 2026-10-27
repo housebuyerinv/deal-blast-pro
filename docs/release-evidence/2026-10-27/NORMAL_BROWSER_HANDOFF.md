@@ -1,5 +1,50 @@
 # Normal-browser handoff — locally prepared; NOT executed
 
+## Compatibility correction (supersedes the proposed evaluation below)
+
+The available IAB Playwright evaluate API uses a **read-only DOM scope**, not the
+page's application JavaScript realm. Actual credential-free loopback checks found:
+
+- DOM heading read: PASS.
+- `typeof globalThis`: `undefined`; `typeof fetch`: `undefined`.
+- Evaluating the proposed `globalThis.__dealBlastSupabaseClient` lookup failed
+  before reaching the dummy client. The previous Node VM test did not reproduce
+  this isolation and was insufficient evidence of browser compatibility.
+- A normal browser button successfully invoked the fixture's own dummy client
+  inside application code and rendered `SYNTHETIC UI COMPATIBILITY PASS - NOT
+  AUTHENTICATION`. This proves UI interoperability, not real session verification.
+
+`prepareBrowserVerification()` now always rejects this unsupported adapter. Do not
+use the old expression, alternate globals, DevTools, cookies, storage, CDP, token
+bridges or user console commands to work around the boundary. The pure verifier
+remains preparation code for a future reviewed application-native control. It now
+rejects clock rollback and bounds provider waiting to at most ten seconds without
+retry; a late request result is not accepted.
+
+The safest supported alternative is a small reviewed S2-only application-native
+read-only verification control: normal password login stays unchanged, the owner
+explicitly confirms login, application code calls its existing SDK's getUser(),
+and only a sanitized status is rendered for DOM observation. Origin, source,
+identity, timeout and account-change gates must remain enforced. This control is
+NOT implemented/deployed by the compatibility fixture, and requires a separately
+reviewed source candidate before any bounded deployment authorization. Existing
+fallback pages and a dashboard alone do not provide this new evidence.
+
+Ten focused local tests and scoped lint passed. The real browser fixture bound
+only owner-side 127.0.0.1, imported no app configuration/real SDK and used CSP
+`connect-src 'none'`. The sandbox-side listener was unreachable to IAB; moving the
+same fixture to owner-side loopback allowed the local compatibility check. The
+unreachable error-page tab also could not be bound because its generated data URL
+was rejected by browser URL policy; no warning/policy bypass was attempted.
+
+No hosted endpoint, authentication session, credential, deployment or provider
+setting was touched. No owner action is required now. Do not request login until
+the reviewed native verification control and its authorized execution path exist.
+Both outstanding hosted tests remain NOT TESTED. No new milestone.
+
+The following ordered proposal is retained as history; its step 4 is unsupported
+and must not be executed with the current browser tool.
+
 Existing Pro fixture: `dbp-s2-pro-1792721835370@example.com`.
 Existing fallback login (last verified in the preceding provider run):
 `https://dbp-registration-s2-7zijlxtxh-housebuyerinv.vercel.app/admin-login`.

@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { URL } from 'node:url';
-import vm from 'node:vm';
 import { verifyExistingBrowserHandoff as verify, prepareBrowserVerification, PRO_FIXTURE, EXISTING_LOGIN } from '../../scripts/testing/s2-browser-handoff.mjs';
 const time = 1793140000000;
 function setup(changes = {}) {
@@ -39,11 +38,23 @@ test('result arriving after handoff expiry is not accepted', async () => {
   const s = setup(); let calls = 0; s.input.now = () => time + (++calls === 1 ? 1000 : 121000);
   assert.equal((await verify(s.input)).status, 'UNVERIFIED');
 });
-test('prepared same-tab evaluation needs owner confirmation and returns no user/token', async () => {
-  assert.throws(() => prepareBrowserVerification({ ownerConfirmedSignedIn: false, confirmedAt: time }));
-  const s = setup();
-  const context = vm.createContext({ __dealBlastSupabaseClient: s.input.existingAppClient, location: { origin: s.input.browserOrigin }, Date: { now: () => time + 1000, parse: Date.parse } });
-  const result = await vm.runInContext(prepareBrowserVerification({ ownerConfirmedSignedIn: true, confirmedAt: time }), context);
-  assert.equal(JSON.stringify(result), '{"status":"BROWSER_AUTH_VERIFIED","fixtureVerified":true}');
-  assert.equal(s.calls(), 1);
+test('unsupported browser adapter cannot emit application-scope evaluation even after owner confirmation', () => {
+  for (const input of [undefined, {}, { ownerConfirmedSignedIn: true, confirmedAt: time }])
+    assert.throws(() => prepareBrowserVerification(input), /UNSUPPORTED_BROWSER_APP_SCOPE/);
+});
+test('clock rollback during server validation fails closed', async () => {
+  const s = setup(); let calls = 0;
+  s.input.now = () => time + (++calls < 3 ? 1000 : -1000);
+  assert.equal((await verify(s.input)).status, 'UNVERIFIED');
+});
+test('stalled provider fails closed within bounded wait; no retry', async () => {
+  const s = setup(); let calls = 0;
+  s.input.existingAppClient.auth.getUser = () => { calls++; return new Promise(() => {}); };
+  assert.equal((await verify({ ...s.input, timeoutMs: 5 })).status, 'UNVERIFIED');
+  assert.equal(calls, 1);
+});
+test('invalid timeout settings cannot cause a provider call', async () => {
+  for (const timeoutMs of [0, -1, 10001, Infinity, 1.1]) {
+    const s = setup(); assert.equal((await verify({ ...s.input, timeoutMs })).status, 'UNVERIFIED'); assert.equal(s.calls(), 0);
+  }
 });
