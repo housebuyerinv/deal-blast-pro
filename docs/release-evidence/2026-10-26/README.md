@@ -1,5 +1,21 @@
 # Milestone 1B continuation — evidence, not activation approval
 
+## Final existing-S2 test-scope review
+
+Source tracing confirms the subscriber billing paths do not use buyer identity,
+response or worker secrets. Pro TEST activation and remaining lifecycle are
+conditionally feasible on existing S2 without a new Supabase expense or buyer
+migration. This is NOT hosted verification or authority to write/activate anything.
+Normal buyer account/POF/history acceptance remains blocked by compatible identity
+setup and its uninstalled migration; direct RPC fixtures are not a substitute.
+
+See [scope decision](../../BUYERMATCH_EXISTING_S2_TEST_SCOPE_DECISION.md) and
+`existing-s2-test-scope-decision.json`. A separately reviewed billing-only operator
+packet must retain exact source/config/ownership and independent cleanup. Do not
+weaken or run the generic three-secret recovery packet. No new fixture, request,
+write, key, deployment or processing change; no completed tests rerun, hosted PASS
+or milestone claimed. Preserve the223 original identities and all prior evidence.
+
 ## Original-key / minimum capacity decision
 
 Eight targeted local config paths checked without reading values: seven absent;
