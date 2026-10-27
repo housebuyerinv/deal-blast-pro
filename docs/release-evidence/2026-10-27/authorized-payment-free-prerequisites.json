@@ -1,0 +1,41 @@
+{
+  "date": "2026-10-27",
+  "scope": "OWNER_AUTHORIZED_PAYMENT_FREE_HOSTED_PREFLIGHT",
+  "approvedSource": "2fe5ee83389b6fd6981d93795eef92b57bc7c34f",
+  "approvedTree": "c7ce668d96615dbd0980749d52403de52bd910d0",
+  "localHeadAtStart": "fec553a8c8be43b77ce042408a12061daece4fed",
+  "observedRemotePrHead": "531beb77c11a0b8275a321b69e0ce21200650339",
+  "prDraft": true,
+  "status": "STOPPED_BEFORE_PUBLICATION_AND_DEPLOYMENT",
+  "publishedCommit": null,
+  "newPreviewDeploymentId": null,
+  "actualReadbacks": {
+    "supabase": { "project": "qxhhlprentrufobpcgna", "name": "dbp-buyermatch-staging", "status": "ACTIVE_HEALTHY", "postgresMajor": 17 },
+    "stripeNamedProfile": { "profile": "buyermatch-s2", "account": "acct_1UTRcRL6efr9LhPI", "modes": ["test"] },
+    "stripeEndpoint": { "id": "we_1UTTc1L6efr9LhPICbZjgCHA", "livemode": false, "status": "disabled", "destination": "https://qxhhlprentrufobpcgna.supabase.co/functions/v1/stripe-webhook", "apiVersion": "2026-09-30.endive" },
+    "receiver": { "paused": true, "httpStatus": 503, "bodyMatchedExactPauseGuard": true },
+    "vercel": { "project": "prj_XglHAvS3zjuyLWvHkuNt5U8BoUtl", "name": "dbp-registration-s2", "team": "team_2ejXKYjjGXIFsIQTUMEqZ8Cf", "membership": "OWNER", "plan": "hobby", "planStatus": "active", "protection": "all", "gitDeployments": "disabled", "repositoryDispatchDisabled": true, "autoAssignCustomDomains": false, "ignoreBuildCommand": "exit 0" },
+    "fallback": { "id": "dpl_nr5RVunmUGdryPUtWkRkVdsA96pT", "projectAndOwnerMatch": true, "readyState": "READY", "target": null },
+    "linkedProductionProject": { "id": "prj_cZr8idNgoGky6Lg75OfDjrhSDkNp", "gitDeployments": "enabled", "candidateBranchSuppressionPresent": true },
+    "tools": { "node": "PIN_MATCH", "vercel": "PIN_MATCH", "supabase": "PIN_MATCH", "stripe": "PIN_MATCH" },
+    "previewSecretMetadata": { "BM_STRIPE_TEST_SECRET_KEY": "PRESENT_PREVIEW_SENSITIVE" }
+  },
+  "privateLocalChild": {
+    "method": "Vercel env run, exact S2 project/Preview, empty working directory, OS-only inherited environment",
+    "secretAvailability": "NOT_AVAILABLE_TO_CHILD",
+    "providerSecretMissing": "NOT_ESTABLISHED; metadata confirms installed Secret",
+    "stripeRuntimePermissionRequest": "NOT_RUN; no restricted TEST key supplied to child",
+    "inheritedConfigComparisons": {
+      "DBP_REQUIRE_VERSIONED_PLATFORM_AGREEMENTS": "MISMATCH", "DBP_REGISTRATION_PAUSED": "MATCH", "BM_CHECKOUT_ENABLED": "MATCH", "BM_ENVIRONMENT": "MATCH", "BM_STAGING_PROJECT_REF": "MATCH", "SUPABASE_URL": "MATCH", "VITE_SUPABASE_URL": "MATCH", "PUBLIC_APP_URL": "MATCH", "BM_APP_ORIGIN": "MISMATCH", "BM_STRIPE_PORTAL_CONFIGURATION_ID": "UNSET", "BM_LIVE_BILLING_ENABLED": "MATCH", "BM_BILLING_VERIFIED": "UNSET", "BM_LIVE_BILLING_VERIFIED": "UNSET", "BM_LIVE_DELIVERY_ENABLED": "MATCH", "BM_DELIVERY_MODE": "MISMATCH", "BM_RESPONSE_ENABLED": "UNSET", "BM_S2_CATALOG_DIAGNOSTIC": "UNSET"
+    },
+    "comparisonLimit": "Inherited provider configuration, NOT deployed build/runtime attestation. Reviewed deployment arguments supply all17 explicit overrides. No shared configuration correction is requested."
+  },
+  "blocker": "Required pre-deployment runtime-permission proof cannot be established through the private local child: installed Preview Secret is unavailable there. Do not infer missing installation or recover/extract/replace the Secret. Verify through an authenticated server-runtime readback before clearing this gate.",
+  "notVerified": ["current deployed candidate 17-setting attestation", "installed restricted-key API permissions", "current authenticated Pro fixture", "independent same-run watchdog provider cleanup authority", "available build quota", "all reachable legacy route containment", "automatic new-deployment cleanup"],
+  "cleanup": { "newDeploymentCreated": false, "cleanupRequired": false, "automaticCleanupPassClaimed": false },
+  "newLocalVerification": { "focusedReadbackTests": 5, "passed": 5, "failed": 0, "syntaxCheck": "PASS", "providersInTests": "SYNTHETIC" },
+  "mutations": { "push": 0, "deployments": 0, "providerConfiguration": 0, "migrations": 0, "purchases": 0, "portalSessions": 0, "aliasMoves": 0, "buyerChanges": 0, "productionOrMoneyMap": 0 },
+  "remainingLaunchGates": ["original identity-key compatibility", "authorized S2 buyer migration", "hosted buyer/privacy acceptance", "Pro billing lifecycle", "legal approval", "independent encrypted restoration", "Production cutover authorization"],
+  "production": "NO-GO",
+  "newOverallMilestone": null
+}
