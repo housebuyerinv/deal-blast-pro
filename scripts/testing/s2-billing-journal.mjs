@@ -61,7 +61,7 @@ export async function billingEvidenceStore(directory, plan) {
   };
   return {
     async claimRun() {
-      await write(plan.runId + ".claim.json", "wx", scope);
+      await write(scope.runId + ".claim.json", "wx", scope);
       claimed = true;
       return { claimed: true };
     },
@@ -77,7 +77,7 @@ export async function billingEvidenceStore(directory, plan) {
       // No resume of a different process. Journals are per-claim; exclusive create
       // on first entry prevents following a previously placed file or link.
       await write(
-        plan.runId + "." + String(sequence++).padStart(4, "0") + ".json",
+        scope.runId + "." + String(sequence++).padStart(4, "0") + ".json",
         "wx",
         data,
       );

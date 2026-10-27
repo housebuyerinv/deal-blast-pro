@@ -239,6 +239,7 @@ export async function runBillingStage(
     a.team === plan.team &&
     a.database === plan.database &&
     a.account === plan.account &&
+    a.endpoint === plan.endpoint &&
     a.livemode === false &&
     a.ownerAuthorized === true;
   let authority;

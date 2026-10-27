@@ -67,3 +67,16 @@ test("invalid or missing evidence root fails without creating directories", asyn
     assert.deepEqual(await readdir(base), []);
   });
 });
+
+test("caller mutation cannot redirect the validated evidence scope", () =>
+  fixture(async (base) => {
+    const mutable = { ...plan },
+      store = await billingEvidenceStore(base, mutable);
+    mutable.runId = "../outside";
+    await store.claimRun();
+    await store.journal(entry);
+    assert.deepEqual(
+      (await readdir(base)).sort(),
+      [plan.runId + ".0000.json", plan.runId + ".claim.json"].sort(),
+    );
+  }));

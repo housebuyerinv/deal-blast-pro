@@ -341,6 +341,17 @@ test("missing deployed server guard stops before opening the test window", async
   assert.notEqual((await f.run()).status, "PASS");
   assert.ok(!f.calls.includes("activate"));
 });
+
+test("unverified webhook ownership cannot mutate a different endpoint in the same sandbox", async () => {
+  const f = fixture(),
+    old = f.a.verifyAuthority;
+  f.a.verifyAuthority = async () => ({
+    ...(await old()),
+    endpoint: "we_foreign",
+  });
+  await assert.rejects(f.run(), /authority/);
+  assert.deepEqual(f.calls, []);
+});
 test("an operation finishing after the window cannot be recorded as PASS", async () => {
   const f = fixture(),
     old = f.a.runStep;
