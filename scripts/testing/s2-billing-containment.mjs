@@ -212,6 +212,9 @@ export function makeBillingContainment(input, receipt, ports, approvedSource) {
         p.runId !== plan.runId ||
         p.owner !== plan.owner ||
         p.runtimeAttested !== true ||
+        p.allReachableS2RuntimesCovered !== true ||
+        p.legacyPortalDenied !== true ||
+        p.providerLoginPageDisabled !== true ||
         p.operations !== "checkout" ||
         p.issuanceJournalComplete !== true ||
         !Array.isArray(p.issuedSessions) ||

@@ -59,6 +59,9 @@ function fixture() {
     owner: plan.owner,
     operations: "checkout",
     runtimeAttested: true,
+    allReachableS2RuntimesCovered: true,
+    legacyPortalDenied: true,
+    providerLoginPageDisabled: true,
     issuanceJournalComplete: true,
     issuedSessions: [],
   };
@@ -190,6 +193,9 @@ test("no-Portal proof requires runtime gate and complete issuance evidence, not 
   assert.equal(good.calls.length, 0);
   for (const change of [
     { runtimeAttested: false },
+    { allReachableS2RuntimesCovered: false },
+    { legacyPortalDenied: false },
+    { providerLoginPageDisabled: false },
     { issuanceJournalComplete: false },
     { operations: "payment" },
     { issuedSessions: ["bps_dummy"] },
