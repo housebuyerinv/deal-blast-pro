@@ -1,6 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { billingEvidenceStore } from "../../scripts/testing/s2-billing-journal.mjs";
 import {
   runBillingStage,
   BILLING_STEPS,
@@ -61,6 +65,7 @@ function fixture() {
     claims = new Set();
   let snapshots = 0;
   const a = {
+    releaseRun: async () => ({ released: true }),
     verifyApproval: async (_, d) => ({
       approved: true,
       mode: p.mode,
@@ -304,6 +309,26 @@ test("journal acknowledgement loss cannot become PASS even when readbacks are sa
   assert.equal((await f.run()).status, "CLOSURE_UNVERIFIED");
   assert.ok(!f.calls.includes("activate"));
 });
+test("runner composes with actual shared lock and durable journal; verified closure releases only the lock", async () => {
+  const f = fixture(),
+    base = await mkdtemp(path.join(tmpdir(), "bm-runner-public-"));
+  try {
+    const store = await billingEvidenceStore(base, f.p);
+    f.a.claimRun = store.claimRun;
+    f.a.releaseRun = store.releaseRun;
+    f.options.journal = store.journal;
+    assert.equal((await f.run()).status, "PASS");
+    await assert.rejects(
+      readFile(path.join(base, "dbp-s2-billing.lock.json")),
+      { code: "ENOENT" },
+    );
+    assert.ok(await readFile(path.join(base, f.p.runId + ".claim.json")));
+  } finally {
+    assert.equal(path.dirname(base), path.resolve(tmpdir()));
+    await rm(base, { recursive: true, force: true });
+  }
+});
+
 test("activation profile never authorizes a portal action", () => {
   const f = fixture();
   assert.equal(billingWindowBindings(f.p).BM_S2_BILLING_OPERATIONS, "checkout");
@@ -320,6 +345,15 @@ test("HOSTED lifecycle is blocked before any adapter call until provider-session
   f.p.profile = "lifecycle";
   await assert.rejects(f.run(), /Portal-session containment/);
   assert.deepEqual(f.calls, []);
+});
+
+test("unverified lock release requires operator review and never records final success", async () => {
+  const f = fixture();
+  f.a.releaseRun = async () => ({ released: false });
+  const r = await f.run();
+  assert.equal(r.status, "CLOSURE_UNVERIFIED");
+  assert.equal(r.requiresOperator, true);
+  assert.equal(f.journal.at(-1).status, "FAILED_OR_UNKNOWN");
 });
 
 test("wrong or unknown provider authority causes no mutations", async () => {

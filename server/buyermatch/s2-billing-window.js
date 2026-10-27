@@ -1,7 +1,23 @@
 import process from "node:process";
+import { URL } from "node:url";
 
 export const S2_BILLING_REF = "qxhhlprentrufobpcgna";
 export const S2_PRO_OWNER = "368f5f93-acf7-4cc3-9805-a4c0817506c3";
+export function isDedicatedS2Runtime(env = process.env) {
+  return (
+    env.VERCEL_PROJECT_ID === "prj_XglHAvS3zjuyLWvHkuNt5U8BoUtl" ||
+    env.BM_STAGING_PROJECT_REF === S2_BILLING_REF ||
+    ["SUPABASE_URL", "VITE_SUPABASE_URL"].some((k) => {
+      try {
+        return (
+          new URL(env[k] || "").hostname === S2_BILLING_REF + ".supabase.co"
+        );
+      } catch {
+        return false;
+      }
+    })
+  );
+}
 const uuid =
   /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
 const operations = new Set(["checkout", "payment", "change", "cancel"]);
@@ -23,8 +39,7 @@ export function requireS2BillingWindow(
   now = Date.now(),
 ) {
   const url = `https://${S2_BILLING_REF}.supabase.co`;
-  if (env.SUPABASE_URL !== url && env.BM_STAGING_PROJECT_REF !== S2_BILLING_REF)
-    return;
+  if (!isDedicatedS2Runtime(env)) return;
   const start = Date.parse(env.BM_S2_BILLING_STARTED_AT || "");
   const end = Date.parse(env.BM_S2_BILLING_EXPIRES_AT || "");
   const allowed = (env.BM_S2_BILLING_OPERATIONS || "").split(",");

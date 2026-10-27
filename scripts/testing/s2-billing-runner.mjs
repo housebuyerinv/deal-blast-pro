@@ -89,6 +89,7 @@ const schema = z
   .strict();
 const methods = [
   "claimRun",
+  "releaseRun",
   "verifyApproval",
   "verifyAuthority",
   "readPreflight",
@@ -384,7 +385,7 @@ export async function runBillingStage(
   } catch {
     /* Reflected below. */
   }
-  return {
+  const result = {
     mode: plan.mode,
     profile: plan.profile,
     source: plan.source,
@@ -399,4 +400,19 @@ export async function runBillingStage(
     closureVerified: verified && !journalFailed,
     requiresOperator: !verified || journalFailed,
   };
+  if (result.closureVerified) {
+    try {
+      if ((await call("releaseRun", result))?.released !== true) throw Error();
+    } catch {
+      result.status = "CLOSURE_UNVERIFIED";
+      result.closureVerified = false;
+      result.requiresOperator = true;
+      try {
+        await record("closure", "FAILED_OR_UNKNOWN");
+      } catch {
+        /* Evidence uncertainty retained. */
+      }
+    }
+  }
+  return result;
 }

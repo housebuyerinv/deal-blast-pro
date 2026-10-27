@@ -1,4 +1,5 @@
 import { cleanString, getAuthenticatedAccount } from './_accountAuth.js'
+import { isDedicatedS2Runtime } from '../server/buyermatch/s2-billing-window.js'
 
 function send(res: any, status: number, payload: any) {
   res.status(status).json(payload)
@@ -69,6 +70,12 @@ export default async function handler(req: any, res: any) {
     res.setHeader('Allow', 'POST')
     return send(res, 405, { ok: false, error: 'Method not allowed' })
   }
+
+  // S2 must use the independently owned BuyerMatch route and bounded window.
+  // Legacy CRM billing must never bypass that gate or reuse shared credentials.
+  if(isDedicatedS2Runtime()) return send(res,503,{
+    ok:false,code:'s2_legacy_portal_disabled',error:'Legacy billing access is disabled in S2.'
+  })
 
   try {
     const account = await getAuthenticatedAccount(req)

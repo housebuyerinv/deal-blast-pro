@@ -31,8 +31,8 @@ test("actual disk claim and fsynced journal survive process-store recreation", (
       entry,
     );
     const resumed = await billingEvidenceStore(base, plan);
-    await assert.rejects(resumed.claimRun(), { code: "EEXIST" });
-    assert.equal((await readdir(base)).length, 2);
+    await assert.rejects(resumed.claimRun(), /Existing run claim/);
+    assert.equal((await readdir(base)).length, 3);
   }));
 test("unclaimed, wrong-scope and secret-bearing entries create no evidence files", () =>
   fixture(async (base) => {
@@ -46,7 +46,7 @@ test("unclaimed, wrong-scope and secret-bearing entries create no evidence files
       { status: "secret" },
     ])
       await assert.rejects(store.journal({ ...entry, ...change }));
-    assert.equal((await readdir(base)).length, 1);
+    assert.equal((await readdir(base)).length, 2);
   }));
 test("preexisting journal evidence is never overwritten", () =>
   fixture(async (base) => {
@@ -77,6 +77,68 @@ test("caller mutation cannot redirect the validated evidence scope", () =>
     await store.journal(entry);
     assert.deepEqual(
       (await readdir(base)).sort(),
-      [plan.runId + ".0000.json", plan.runId + ".claim.json"].sort(),
+      [
+        plan.runId + ".0000.json",
+        plan.runId + ".claim.json",
+        "dbp-s2-billing.lock.json",
+      ].sort(),
+    );
+  }));
+
+test("distinct run IDs cannot acquire the same actual S2 resource lock concurrently", () =>
+  fixture(async (base) => {
+    const a = await billingEvidenceStore(base, plan),
+      b = await billingEvidenceStore(base, {
+        ...plan,
+        runId: "15a02678-ad8c-443e-8aa5-1ab8f93bbf88",
+      });
+    const claims = await Promise.allSettled([a.claimRun(), b.claimRun()]);
+    assert.equal(claims.filter((r) => r.status === "fulfilled").length, 1);
+  }));
+test("release requires recorded independent closure; run evidence and claim remain immutable", () =>
+  fixture(async (base) => {
+    const store = await billingEvidenceStore(base, plan);
+    await store.claimRun();
+    const result = {
+      ...plan,
+      status: "PASS",
+      closureVerified: true,
+      requiresOperator: false,
+    };
+    await assert.rejects(store.releaseRun(plan, result));
+    await store.journal({ ...entry, stage: "closure", status: "VERIFIED" });
+    assert.equal((await store.releaseRun(plan, result)).released, true);
+    const next = await billingEvidenceStore(base, {
+      ...plan,
+      runId: "15a02678-ad8c-443e-8aa5-1ab8f93bbf88",
+    });
+    assert.equal((await next.claimRun()).claimed, true);
+    assert.ok((await readdir(base)).includes(plan.runId + ".claim.json"));
+  }));
+
+test("an existing run claim cannot strand a new global lock or be overwritten", () =>
+  fixture(async (base) => {
+    await writeFile(path.join(base, plan.runId + ".claim.json"), "preserve");
+    const store = await billingEvidenceStore(base, plan);
+    await assert.rejects(store.claimRun(), /Existing run claim/);
+    assert.equal((await readdir(base)).length, 1);
+  }));
+test("foreign resource lock is preserved even after an otherwise verified closure", () =>
+  fixture(async (base) => {
+    const store = await billingEvidenceStore(base, plan);
+    await store.claimRun();
+    await store.journal({ ...entry, stage: "closure", status: "VERIFIED" });
+    await writeFile(path.join(base, "dbp-s2-billing.lock.json"), "foreign");
+    await assert.rejects(
+      store.releaseRun(plan, {
+        ...plan,
+        status: "PASS",
+        closureVerified: true,
+        requiresOperator: false,
+      }),
+    );
+    assert.equal(
+      await readFile(path.join(base, "dbp-s2-billing.lock.json"), "utf8"),
+      "foreign",
     );
   }));

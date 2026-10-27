@@ -1,5 +1,6 @@
 // Sanitized operational evidence only. Never store credentials, URLs or API bodies.
-import { open, lstat, realpath } from "node:fs/promises";
+import { open, lstat, realpath, readFile, unlink } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { z } from "zod";
 
@@ -48,7 +49,10 @@ export async function billingEvidenceStore(directory, plan) {
     throw Error("Evidence path mismatch");
   let claimed = false,
     sequence = 0;
+  let closureRecorded = false;
   const scope = { runId: plan.runId, source: plan.source, mode: plan.mode };
+  const lock = { ...scope, nonce: randomUUID() },
+    lockName = "dbp-s2-billing.lock.json";
   const write = async (filename, flags, value) => {
     // wx prevents existing claims being replaced; append handles use no truncation.
     const handle = await open(path.join(base, filename), flags, 0o600);
@@ -61,6 +65,15 @@ export async function billingEvidenceStore(directory, plan) {
   };
   return {
     async claimRun() {
+      try {
+        await lstat(path.join(base, scope.runId + ".claim.json"));
+        throw Error("Existing run claim; no retry");
+      } catch (error) {
+        if (error.code !== "ENOENT") throw error;
+      }
+      // One shared, independently custody-verified directory for ALL S2 runs.
+      // Per-run claims alone cannot exclude a conflicting run with another UUID.
+      await write(lockName, "wx", lock);
       await write(scope.runId + ".claim.json", "wx", scope);
       claimed = true;
       return { claimed: true };
@@ -81,7 +94,33 @@ export async function billingEvidenceStore(directory, plan) {
         "wx",
         data,
       );
+      if (data.stage === "closure")
+        closureRecorded = data.status === "VERIFIED";
       return { durable: true };
+    },
+    async releaseRun(_plan, result) {
+      if (
+        !claimed ||
+        !closureRecorded ||
+        result?.runId !== scope.runId ||
+        result.source !== scope.source ||
+        result.closureVerified !== true ||
+        result.requiresOperator !== false ||
+        !["PASS", "FAILED_CONTAINED"].includes(result.status)
+      )
+        throw Error("Verified closure required before releasing S2 lock");
+      const file = path.join(base, lockName),
+        info = await lstat(file);
+      if (
+        !info.isFile() ||
+        info.isSymbolicLink() ||
+        JSON.stringify(JSON.parse(await readFile(file, "utf8"))) !==
+          JSON.stringify(lock)
+      )
+        throw Error("S2 lock ownership uncertain; preserved");
+      await unlink(file);
+      claimed = false;
+      return { released: true }; // Run claim/evidence remain.
     },
   };
 }
