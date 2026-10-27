@@ -1,5 +1,11 @@
 # Billing-only implementation checkpoint
 
+Latest local controls/source: `c00d59f048282343af5d81afe9655556aa285e75`.
+See [2026-10-27 verification](release-evidence/2026-10-27/README.md) for130 passing
+selected checks, actual detached-process/loopback evidence and the remaining
+private-provider/Portal blockers. The implementation below records the prior
+checkpoint; its old source/packet must not substitute for the newer proposal.
+
 Application/runner candidate: `57976a5bb85cec906783173dfaa85b843ea801ca`.
 This supersedes `de9009e` for proposals using the new server-side window.
 No push, deployment, hosted write, payment or provider configuration changed.
