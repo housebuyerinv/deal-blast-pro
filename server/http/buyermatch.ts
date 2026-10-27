@@ -1,4 +1,5 @@
 import { subscriberPortal } from '../buyermatch/portal.js';
+import {s2BillingWindowStatus} from '../buyermatch/s2-billing-window.js';
 import {buyerProofReview} from '../buyermatch/buyer-proof-review.js';
 import { portalConsentEvidence } from '../buyermatch/portal-consent.js';
 import { subscriberAgreements, requireSubscriberAgreements } from '../buyermatch/onboarding.js';
@@ -97,6 +98,7 @@ export default async function handler(req: any, res: any) {
         : req.query;
     const action = String(body.action || "list");
     const readActions = new Set([
+      'billing-status',
       "list",
       "detail",
       "plans",
@@ -109,6 +111,10 @@ export default async function handler(req: any, res: any) {
     ]);
     if (req.method === "GET" && !readActions.has(action))
       fail("POST required", 405);
+    if(action==='billing-status'){
+      if(req.method!=='GET')fail('GET required',405);
+      return res.status(200).json(s2BillingWindowStatus(user));
+    }
     if (action === "access" || (!account.isOwnerAdmin && !["plans", "checkout", "onboarding", "onboarding-accept", "billing-portal"].includes(action) && !action.startsWith("admin-"))) {
       const entitlements = checked(await db.from("bm_entitlements")
         .select("product,status,period_start,period_end").eq("owner_id", user.id));

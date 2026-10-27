@@ -52,6 +52,17 @@ function fixture() {
     allowance: 50,
     stripe_subscription_id: "sub_Owned",
   };
+  const window = {
+    ...billingWindowBindings(plan),
+    schema: 1,
+    source,
+    projectId: plan.project,
+    deploymentId: "dpl_SyntheticOnly",
+    checkoutEnabled: true,
+    registrationPaused: true,
+    liveBillingDisabled: true,
+    deliveryDisabled: true,
+  };
   const opts = {
     approvedSource: source,
     now: () => time,
@@ -80,14 +91,6 @@ function fixture() {
                   : "user_dummy"),
             ...(slot.startsWith("supabase") ? { apikey: "dummy_public" } : {}),
           },
-    readWindow: async () => ({
-      ...billingWindowBindings(plan),
-      source,
-      protected: true,
-      registrationPaused: true,
-      liveBillingDisabled: true,
-      deliveryDisabled: true,
-    }),
     journal: async (entry) => {
       events.push(entry);
       return { durable: true };
@@ -105,6 +108,8 @@ function fixture() {
           role: "authenticated",
           email_confirmed_at: "2026-10-27T12:00:00Z",
         };
+      else if (u.pathname === "/api/buyermatch" && options.method === "GET")
+        value = window;
       else if (u.pathname === "/api/buyermatch") {
         assert.deepEqual(JSON.parse(options.body), {
           action: "checkout",
@@ -181,6 +186,7 @@ function fixture() {
   };
   return {
     plan,
+    window,
     opts,
     requests,
     events,
@@ -223,7 +229,7 @@ test("normal owner Auth and attested window precede Pro Checkout; capability rea
     f.requests[0].options.headers.get("authorization"),
     "Bearer user_dummy",
   );
-  const post = f.requests[1];
+  const post = f.requests.find((r) => r.options.method === "POST");
   assert.equal(post.url, S2.origin + "/api/buyermatch");
   assert.ok(
     post.options.headers.get("x-dbp-operation-key").startsWith(f.plan.runId),
@@ -354,8 +360,7 @@ for (const [label, mutate] of [
 test("wrong-runtime binding, expired window and service identity cannot create Checkout", async () => {
   for (const kind of ["runtime", "expired", "service"]) {
     const f = fixture();
-    if (kind === "runtime")
-      f.opts.readWindow = async () => ({ source: "wrong" });
+    if (kind === "runtime") f.window.source = "wrong";
     if (kind === "expired") f.opts.now = () => f.plan.expiresAt;
     if (kind === "service")
       f.opts.fetcher = async () =>
@@ -392,7 +397,7 @@ test("timeouts bound hung authority/credential callbacks as well as HTTP; errors
     await assert.rejects(f.make().readEntitlement(), /UNVERIFIED/);
   }
   const f = fixture();
-  f.opts.readWindow = async () => {
+  f.opts.privateOpenCheckout = async () => {
     throw Error("DUMMY_PRIVATE");
   };
   await assert.rejects(
@@ -510,6 +515,7 @@ test("hosted transport requires a pinned immutable Preview and independent sourc
     source,
     previewOrigin: f.opts.previewOrigin,
     deploymentId: f.opts.deploymentId,
+    protectionEnabled: true,
   });
   assert.equal((await f.make().readPortalConfiguration()).active, true);
 });

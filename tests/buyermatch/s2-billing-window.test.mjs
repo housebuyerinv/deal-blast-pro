@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  s2BillingWindowStatus,
   requireS2BillingWindow,
   S2_PRO_OWNER,
   S2_BILLING_REF,
@@ -23,6 +24,75 @@ const env = () => ({
   BM_S2_BILLING_EXPIRES_AT: new Date(when + 60000).toISOString(),
   BM_S2_BILLING_OPERATIONS: "checkout,payment,change,cancel",
   BM_CHECKOUT_ENABLED: "true",
+});
+
+test("S2 billing status projects only non-secret runtime bindings for the confirmed Pro fixture", () => {
+  const e = {
+    ...env(),
+    VERCEL_PROJECT_ID: "prj_XglHAvS3zjuyLWvHkuNt5U8BoUtl",
+    VERCEL_DEPLOYMENT_ID: "dpl_SyntheticOnly",
+    BM_S2_ATTESTATION_SOURCE_SHA: "a".repeat(40),
+  };
+  Object.defineProperty(e, "BUYERMATCH_IDENTITY_KEY", {
+    get() {
+      throw Error("No secret access");
+    },
+  });
+  const r = s2BillingWindowStatus(
+    { id: S2_PRO_OWNER, email_confirmed_at: "2026-10-27T12:00:00Z" },
+    e,
+  );
+  assert.equal(r.BM_S2_BILLING_RUN_ID, e.BM_S2_BILLING_RUN_ID);
+  assert.equal(r.checkoutEnabled, true);
+  assert.equal(Object.hasOwn(r, "BUYERMATCH_IDENTITY_KEY"), false);
+  assert.equal(Object.hasOwn(r, "protected"), false);
+  for (const key of [
+    "BM_S2_BILLING_OWNER_ID",
+    "BM_S2_BILLING_RUN_ID",
+    "BM_S2_BILLING_STARTED_AT",
+    "BM_S2_BILLING_OPERATIONS",
+  ])
+    assert.throws(
+      () =>
+        s2BillingWindowStatus(
+          { id: S2_PRO_OWNER, email_confirmed_at: "2026-10-27T12:00:00Z" },
+          { ...e, [key]: "DUMMY_SECRET_NOT_TO_REFLECT" },
+        ),
+      (error) =>
+        error.status === 503 && !error.message.includes("DUMMY_SECRET"),
+    );
+});
+test("status refuses foreign/unconfirmed actors and non-S2/missing-runtime provenance", () => {
+  const e = {
+    ...env(),
+    VERCEL_PROJECT_ID: "prj_XglHAvS3zjuyLWvHkuNt5U8BoUtl",
+    VERCEL_DEPLOYMENT_ID: "dpl_SyntheticOnly",
+    BM_S2_ATTESTATION_SOURCE_SHA: "a".repeat(40),
+  };
+  for (const u of [
+    { id: "foreign", email_confirmed_at: "2026-10-27T12:00:00Z" },
+    { id: S2_PRO_OWNER },
+  ])
+    assert.throws(
+      () => s2BillingWindowStatus(u, e),
+      (e) => e.status === 403,
+    );
+  assert.throws(
+    () =>
+      s2BillingWindowStatus(
+        { id: S2_PRO_OWNER, email_confirmed_at: "2026-10-27T12:00:00Z" },
+        { ...e, VERCEL_ENV: "production" },
+      ),
+    (e) => e.status === 404,
+  );
+  assert.throws(
+    () =>
+      s2BillingWindowStatus(
+        { id: S2_PRO_OWNER, email_confirmed_at: "2026-10-27T12:00:00Z" },
+        { ...e, BM_S2_ATTESTATION_SOURCE_SHA: "" },
+      ),
+    (e) => e.status === 503,
+  );
 });
 
 test("S2 window permits only the configured confirmed-fixture operation before its deadline", () => {

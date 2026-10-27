@@ -39,7 +39,6 @@ export function makeBillingTransports(
     headersFor,
     verifyApproval,
     verifyAuthority,
-    readWindow,
     journal,
     privateOpenCheckout,
     previewOrigin,
@@ -120,7 +119,8 @@ export function makeBillingTransports(
       plan.mode === "HOSTED" &&
       (a.deploymentId !== approvedDeploymentId ||
         a.previewOrigin !== origin ||
-        a.source !== plan.source)
+        a.source !== plan.source ||
+        a.protectionEnabled !== true)
     )
       fail();
   };
@@ -538,7 +538,6 @@ export function makeBillingTransports(
           plan.profile !== "activation" ||
           now() < plan.startedAt ||
           now() >= plan.expiresAt ||
-          typeof readWindow !== "function" ||
           typeof privateOpenCheckout !== "function"
         )
           fail();
@@ -546,26 +545,30 @@ export function makeBillingTransports(
           globalThis.AbortSignal.timeout(timeoutMs),
           ...(signal ? [signal] : []),
         ]);
-        const window = await step(
-            () => readWindow(plan, deadlineSignal),
-            deadlineSignal,
-          ),
-          bindings = billingWindowBindings(plan);
-        if (
-          window?.source !== plan.source ||
-          window.protected !== true ||
-          window.registrationPaused !== true ||
-          window.liveBillingDisabled !== true ||
-          window.deliveryDisabled !== true ||
-          Object.entries(bindings).some(([k, v]) => window[k] !== v)
-        )
-          fail();
         const me = await call("supabase-user", "/auth/v1/user", { signal });
-        // Auth-user requests need the actual user's bearer, never service-role identity.
         if (
           me.id !== plan.owner ||
           me.role !== "authenticated" ||
           !Number.isFinite(Date.parse(me.email_confirmed_at || ""))
+        )
+          fail();
+        const window = await call(
+            "application",
+            "/api/buyermatch?action=billing-status",
+            { signal },
+          ),
+          bindings = billingWindowBindings(plan);
+        if (
+          window?.source !== plan.source ||
+          window.projectId !== plan.project ||
+          !/^dpl_[A-Za-z0-9]+$/.test(window.deploymentId || "") ||
+          (approvedDeploymentId &&
+            window.deploymentId !== approvedDeploymentId) ||
+          window.checkoutEnabled !== true ||
+          window.registrationPaused !== true ||
+          window.liveBillingDisabled !== true ||
+          window.deliveryDisabled !== true ||
+          Object.entries(bindings).some(([k, v]) => window[k] !== v)
         )
           fail();
         if (now() >= plan.expiresAt) fail();
