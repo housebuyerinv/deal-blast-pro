@@ -209,7 +209,7 @@ export async function makeNativePlatformProvider(
             ? args
             : ["--import", observer, originals.vercel, ...args];
       const c = spawn(tool === "supabase" ? sqlExe : process.execPath, argv, {
-        env: env(),
+        env: { ...env(), NO_UPDATE_NOTIFIER: "1" },
         cwd: directory,
         shell: false,
         windowsHide: true,

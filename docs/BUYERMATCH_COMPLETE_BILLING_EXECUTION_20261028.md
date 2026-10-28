@@ -102,6 +102,11 @@ subscription sentinels, S2 Management API query access, project/team/protection,
 receiver pause, original fallback and deployment inventory. No hosted mutation or
 actual subscription cancellation is claimed as verified by these reads.
 
+An exact-commit read-only recheck also caught a provider-read timeout and stopped
+without arming. Its evidence is retained. The pinned Vercel CLI's unrelated update
+notifier is disabled only for operator child processes (`NO_UPDATE_NOTIFIER=1`);
+provider errors/timeouts still fail closed. No global Windows setting is changed.
+
 **Campaign readiness is NOT verified.** Fresh coverage found nine preserved S2
 deployments whose source provenance is older than, or missing from, the reviewed
 Portal/window guard set. Four have known older SHAs (including the fallback); five
