@@ -147,7 +147,7 @@ for (const [status, range] of [[401,'0-222/223'],[206,'0-222/223'],[200,'0-222/2
   });
 test('paused receiver requires exact actual deployed guard response', async () => {
   assert.equal(await readPausedReceiver(async (url, options) => {
-    assert.equal(url, S.url + '/functions/v1/stripe-webhook'); assert.equal(options.method, 'GET'); assert.equal(options.redirect, 'error');
+    assert.equal(url, S.url + '/functions/v1/stripe-webhook'); assert.equal(options.method, 'POST'); assert.equal(options.body, ''); assert.equal(options.redirect, 'error');
     return new Response(JSON.stringify({ ok: false, error: 'Staging webhook processing paused' }), { status: 503 });
   }), true);
 });

@@ -1,4 +1,5 @@
 import { subscriberPortal } from '../buyermatch/portal.js';
+import { activityPage, confirmedNetworkOwner, networkOperations } from '../buyermatch/operations.js';
 import {s2BillingWindowStatus} from '../buyermatch/s2-billing-window.js';
 import {buyerProofReview} from '../buyermatch/buyer-proof-review.js';
 import { portalConsentEvidence } from '../buyermatch/portal-consent.js';
@@ -89,7 +90,7 @@ export default async function handler(req: any, res: any) {
       )
     )
       fail("Active account required", 403);
-    const account = { isOwnerAdmin: isOwnerAdminEmail(user.email || "") };
+    const account = { isOwnerAdmin: confirmedNetworkOwner(user, isOwnerAdminEmail) };
     const body =
       req.method === "POST"
         ? typeof req.body === "string"
@@ -101,10 +102,12 @@ export default async function handler(req: any, res: any) {
       'billing-status',
       "list",
       "detail",
+      "activity",
       "plans",
       "access",
       "admin-list",
       "admin-usage",
+      "admin-operations",
       "admin-verify-provider",
       "documents",
       "onboarding",
@@ -139,6 +142,10 @@ export default async function handler(req: any, res: any) {
     const emit = (value: any) => res.status(200).json(value);
     if (action.startsWith("admin-")) {
       assertAdmin(account);
+      if (action === 'admin-operations') {
+        if (req.method !== 'GET') fail('GET required',405);
+        return emit(await networkOperations(db, account, body.page));
+      }
       if(action.startsWith('admin-buyer-proof-'))return emit(await buyerProofReview(db,user,body));
       if (action === 'admin-verify-provider') return emit(await verifyProductionResend());
       if (action === 'admin-usage') {
@@ -824,7 +831,11 @@ export default async function handler(req: any, res: any) {
       );
       return emit({ accepted: true });
     }
+    if (action === 'activity' && req.method !== 'GET') fail('GET required',405);
     const deal = await owned(body.id);
+    if (action === 'activity') return emit(checked(await db.rpc('bm_deal_activity', {
+      p_owner: user.id, p_deal: deal.id, p_page: activityPage(body.page),
+    })));
     if (action === "detail") {
       const offers = checked(
         await db

@@ -497,6 +497,14 @@ export default function BuyerMatchLanding() {
             )}
           </>
         )}
+        <section className="bm-section">
+          <p className="bm-eyebrow">CHOOSE THE RIGHT WORKFLOW</p>
+          <h2>Software access or separately arranged JV coordination.</h2>
+          <div className="grid gap-6 md:grid-cols-2">
+            <article className="bm-panel"><h3>Run your own disposition</h3><p>Starter and Pro include the published analysis and software-distribution allowances. Track deal progress, anonymous buyer responses and your private conversations in BuyerMatch. Your CRM subscription remains separate.</p><Link to="/buyermatch/pricing">Compare software plans</Link></article>
+            <article className="bm-panel"><h3>Managed Dispo / JV coordination</h3><p>Discuss a deal-specific scope before proceeding. Coordination requires separately approved written terms, contract and title review; a software subscription does not create a JV agreement. Automatic success fees remain disabled. No matches, delivery or closing are guaranteed.</p><Link to="/contact">Discuss a managed deal</Link></article>
+          </div>
+        </section>
         <section className="bm-section bm-faq">
           <p className="bm-eyebrow">BEFORE YOU GET STARTED</p>
           <h2>Good questions. Clear answers.</h2>

@@ -1,4 +1,5 @@
 import BuyerCriteriaEditor from "./BuyerCriteriaEditor";
+import { BuyerMatchOperations, DealActivity } from './BuyerMatchActivity';
 import BuyerProofReview from './BuyerProofReview';
 import { WorkspaceOverview, WorkflowSteps } from '../../components/buyermatch/WorkspaceOverview';
 import BuyerMatchConfiguration from "./BuyerMatchConfiguration";
@@ -371,6 +372,7 @@ function BuyerMatchScreen() {
         plans.isNetworkAdmin && (
           <>
             <AdminUsage metrics={data.metrics} />
+            <BuyerMatchOperations request={request} />
             <BuyerProofReview request={request}/>
             <section className="border border-slate-700 rounded-xl p-5 space-y-4">
               <h2 className="text-xl">Import buyers</h2>
@@ -949,7 +951,7 @@ function BuyerMatchScreen() {
               <select className={inputClass} value={property.serviceType || (id ? 'managed_dispo' : 'software')}
                 onChange={event => setProperty({...property,serviceType:event.target.value})}>
                 <option value="software">BuyerMatch software — no automatic success fee</option>
-                <option value="managed_dispo">Managed Dispo — separate deal-specific terms required</option>
+                <option value="managed_dispo">Managed Dispo / JV coordination — separate approved terms required</option>
               </select>
             </label>
             <div className="grid sm:grid-cols-3 gap-4">
@@ -1173,6 +1175,7 @@ function BuyerMatchScreen() {
               </section>
               <section className="border border-slate-700 rounded-xl p-5 space-y-3">
                 <h2 className="text-xl">Deal progress</h2>
+                <DealActivity key={data.deal.id} request={request} id={data.deal.id} />
                 {data.offers?.map((offer: RecordData) => (
                   <p key={offer.id}>
                     Network offer: $

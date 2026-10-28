@@ -80,7 +80,7 @@ try {
   // no Auth users, bucket contents, customer data, credentials or vault data are copied.
   await exec(
     `create role anon; create role authenticated; create role service_role bypassrls;
-    create schema auth; create table auth.users(id uuid primary key);
+    create schema auth; create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz,banned_until timestamptz);
     create function auth.uid() returns uuid language sql as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
     create function auth.jwt() returns jsonb language sql as $$select coalesce(nullif(current_setting('request.jwt.claims',true),''),'{}')::jsonb$$;
     create function auth.role() returns text language sql as $$select current_user::text$$;
@@ -187,12 +187,33 @@ try {
       removed: Object.keys(prior).filter((k) => !(k in after)),
     });
   }
-  assert.deepEqual(
-    await catalog(),
-    before,
-    "Legacy schema definitions, RLS, policies, grants, RPCs, indexes and triggers unchanged",
-  );
-  check(true, "Legacy schema unchanged after all eleven migrations");
+  // The approved secure-intake replacement intentionally changes this one legacy
+  // table and adds restrictive Storage policies. Compare every other object exactly.
+  const unaffected = (state) => ({
+    ...state,
+    columns: state.columns.filter(c => c.table_name !== 'buyer_portal_submissions'),
+    tables: state.tables.filter(c => c[0] !== 'buyer_portal_submissions'),
+    constraints: state.constraints.filter(c => c[0] !== 'buyer_portal_submissions'),
+    indexes: state.indexes.filter(c => c.tablename !== 'buyer_portal_submissions'),
+    policies: state.policies.filter(c => c.tablename !== 'buyer_portal_submissions' &&
+      !['bm_buyer_proof_no_direct_browser'].includes(c.policyname)),
+  });
+  const afterLegacy = await catalog();
+  assert.deepEqual(unaffected(afterLegacy),unaffected(before),
+    'Unrelated legacy definitions, RLS, grants, RPCs, indexes and triggers unchanged');
+  const oldIntakeColumns = before.columns.filter(c => c.table_name === 'buyer_portal_submissions');
+  assert.deepEqual(afterLegacy.columns.filter(c => c.table_name === 'buyer_portal_submissions' &&
+    oldIntakeColumns.some(old => old.column_name === c.column_name)), oldIntakeColumns,
+    'Every existing intake column and default is preserved');
+  assert.deepEqual(afterLegacy.constraints.filter(c => c[0] === 'buyer_portal_submissions'),
+    before.constraints.filter(c => c[0] === 'buyer_portal_submissions'),'Existing intake constraints preserved');
+  for (const old of before.indexes.filter(c => c.tablename === 'buyer_portal_submissions'))
+    assert.deepEqual(afterLegacy.indexes.find(c => c.indexname === old.indexname),old,'Existing intake indexes preserved');
+  const intake = (await db.query(`select has_table_privilege('anon','buyer_portal_submissions','SELECT,INSERT,UPDATE,DELETE') anon,
+    has_table_privilege('authenticated','buyer_portal_submissions','SELECT') review,
+    has_table_privilege('authenticated','buyer_portal_submissions','INSERT,UPDATE,DELETE') mutate`)).rows[0];
+  check(!intake.anon && intake.review && !intake.mutate,'Intake replacement preserves browser mutation containment');
+  check(true, 'Unrelated legacy schema unchanged after the current migration chain');
   assert.deepEqual(
     (
       await db.query(
@@ -229,12 +250,17 @@ try {
     check(
       (
         await db.query(
-          "select has_table_privilege('service_role',$1,'SELECT') and has_table_privilege('service_role',$1,'INSERT') and has_table_privilege('service_role',$1,'UPDATE') and has_table_privilege('service_role',$1,'DELETE') allowed",
+          "select has_table_privilege('service_role',$1,'SELECT') and has_table_privilege('service_role',$1,'INSERT') allowed",
           [t.relname],
         )
       ).rows[0].allowed,
-      `${t.relname}: server role retains CRUD`,
+      `${t.relname}: server role retains intended read/append access`,
     );
+    const appendOnly = ['bm_buyer_account_events','bm_buyer_proofs','bm_buyer_proof_reviews','bm_buyer_proof_uploads'].includes(t.relname);
+    const mutableNoDelete = t.relname === 'bm_buyer_accounts';
+    const writes = (await db.query("select has_table_privilege('service_role',$1,'UPDATE') u,has_table_privilege('service_role',$1,'DELETE') d",[t.relname])).rows[0];
+    check(writes.u === !appendOnly && writes.d === !(appendOnly || mutableNoDelete),`${t.relname}: exact server update/delete permissions`);
+    if (appendOnly || mutableNoDelete) check(!(await db.query("select has_table_privilege('service_role',$1,'TRUNCATE') allowed",[t.relname])).rows[0].allowed,`${t.relname}: server cannot bypass row triggers with TRUNCATE`);
     for (const role of ["anon", "authenticated"]) {
       const r = (
         await db.query(
@@ -251,20 +277,28 @@ try {
     )
   ).rows;
   for (const f of funcs.filter((f) => f.prosecdef)) {
+    if (f.signature === 'bm_submit_buyer_intake(uuid,jsonb)') {
+      check(f.anon && f.authenticated && f.server,'Validated public intake capability remains callable');
+      continue;
+    }
+    if (f.signature === 'bm_can_review_buyer_intake()') {
+      check(!f.anon && f.authenticated,'Owner review predicate is authenticated only');
+      continue;
+    }
     check(
       !f.anon && !f.authenticated,
       `${f.signature}: private SECURITY DEFINER RPC`,
     );
     check(
-      f.proconfig?.includes("search_path=public"),
+      f.proconfig?.some(c => ['search_path=public','search_path=""','search_path=public, pg_temp'].includes(c)),
       `${f.signature}: fixed search_path`,
     );
     check(f.server, `${f.signature}: server role retains execution`);
   }
   for (const f of funcs.filter((f) => !f.prosecdef))
     check(
-      f.return_type === "trigger",
-      `${f.signature}: invoker trigger only, not a privileged public RPC`,
+      f.return_type === "trigger" || (f.signature === 'bm_deal_activity(uuid,uuid,integer)' && f.server && !f.anon && !f.authenticated),
+      `${f.signature}: invoker trigger or explicit service-only read`,
     );
   const config = (
     await db.query("select enabled from bm_production_delivery_config")

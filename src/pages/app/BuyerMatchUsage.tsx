@@ -6,6 +6,7 @@ export function CommercialPlans({ plans }: { plans?: Data[] }) {
       <p>{plan.analysisAllowance} analyses per billing period</p>
       <p>{plan.distributionAllowance} Software distributions per billing period</p>
       <p>Up to {plan.maxDistributionFanout} qualified buyers per distribution</p>
+      <p className="text-sm">At most {plan.distributionAllowance * plan.maxDistributionFanout} invitations per billing period. Analysis requests are limited to 10 per hour.</p>
       <p className="text-sm text-slate-400">Availability and purchase controls are shown below. Limits do not guarantee buyer matches or delivery.</p>
     </article>)}
   </section>;

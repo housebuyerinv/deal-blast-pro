@@ -11,6 +11,7 @@ process.env.SUPABASE_URL = "https://fixture.invalid";
 process.env.SUPABASE_SERVICE_ROLE_KEY = "fixture-only";
 const calls = [];
 let email = "regular@example.invalid";
+let confirmedAt = '2026-01-01';
 const records = {
   account_profiles: [{ user_id: owner, account_status: "Active" }],
   workspaces: [],
@@ -103,7 +104,7 @@ globalThis.__buyerMatchFixture = {
   auth: {
     getUser: async (token) =>
       token === "valid"
-        ? { data: { user: { id: owner, email } }, error: null }
+        ? { data: { user: { id: owner, email, email_confirmed_at: confirmedAt } }, error: null }
         : { data: { user: null }, error: {} },
   },
   from: (table) => new Query(table),
@@ -430,6 +431,27 @@ test('owner-admin provider preflight fails closed outside Production without Buy
   email='housebuyerinv@gmail.com';calls.length=0;
   try {const r=await invoke('admin-verify-provider',{},'valid','GET');assert.equal(r.statusCode,200);assert.equal(r.body.authenticated,false);assert.equal(calls.some(name=>name.startsWith('bm_')),false);}
   finally {email='regular@example.invalid';}
+});
+
+test('unconfirmed owner cannot read network administration records',async()=>{
+  email='housebuyerinv@gmail.com';confirmedAt=null;calls.length=0;
+  try {
+    const response=await invoke('admin-operations',{},'valid','GET');
+    assert.equal(response.statusCode,403);
+    assert.equal(calls.some(name=>typeof name==='string'&&name.startsWith('bm_')),false);
+  } finally {email='regular@example.invalid';confirmedAt='2026-01-01';}
+});
+
+test('activity binds owner and deal to the authenticated subject, not submitted owner',async()=>{
+  calls.length=0;
+  const response=await invoke('activity',{id:dealId,page:'1',ownerId:'foreign'},'valid','GET');
+  assert.equal(response.statusCode,200);
+  const call=calls.find(item=>item.rpc==='bm_deal_activity');
+  assert.deepEqual(call.args,{p_owner:owner,p_deal:dealId,p_page:1});
+  calls.length=0;
+  assert.equal((await invoke('activity',{id:'33333333-3333-4333-8333-333333333333'},'valid','GET')).statusCode,404);
+  assert.equal(calls.some(item=>item.rpc==='bm_deal_activity'),false);
+  assert.equal((await invoke('activity',{id:dealId})).statusCode,405);
 });
 
 test('network approval requires recorded buyer invitation consent before any sync write',async()=>{

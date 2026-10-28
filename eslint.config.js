@@ -32,6 +32,13 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
+    files: ['tests/**/*.{js,mjs}'],
+    // Node's test runner supplies Web API globals; component fixtures also
+    // explicitly stub browser globals. Keep no-undef enabled for real typos.
+    languageOptions: { globals: { ...globals.node, ...globals.browser } },
+    rules: { 'no-redeclare': ['error', { builtinGlobals: false }] },
+  },
+  {
     files: ['src/**/*.{ts,tsx}', 'api/**/*.ts', 'server/http/**/*.ts', 'supabase/functions/**/*.ts'],
     languageOptions: {
       ecmaVersion: 'latest',

@@ -13,7 +13,7 @@ import {
 test("fresh DBP baseline and all migrations support the actual synthetic seed twice without duplication", async () => {
   const db = new PGlite();
   await db.exec(
-    `create role anon;create role authenticated;create role service_role;create schema auth;create table auth.users(id uuid primary key);create function auth.uid() returns uuid language sql as $$select null::uuid$$;create function auth.jwt() returns jsonb language sql as $$select '{}'::jsonb$$;create function auth.role() returns text language sql as $$select 'service_role'::text$$;create schema storage;create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);create table storage.objects(id uuid default gen_random_uuid(),bucket_id text,name text);`,
+    `create role anon;create role authenticated;create role service_role;create schema auth;create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz,banned_until timestamptz);create function auth.uid() returns uuid language sql as $$select null::uuid$$;create function auth.jwt() returns jsonb language sql as $$select '{}'::jsonb$$;create function auth.role() returns text language sql as $$select 'service_role'::text$$;create schema storage;create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);create table storage.objects(id uuid default gen_random_uuid(),bucket_id text,name text);`,
   );
   try {
     for (const source of stagingSources()) {
@@ -34,6 +34,10 @@ test("fresh DBP baseline and all migrations support the actual synthetic seed tw
       "select has_table_privilege('authenticated','bm_buyers','SELECT') as allowed",
     );
     assert.equal(privacy.rows[0].allowed, false);
+    for (const table of ['bm_buyer_account_events','bm_buyer_proofs','bm_buyer_proof_reviews','bm_buyer_proof_uploads']) {
+      assert.equal((await db.query("select has_table_privilege('service_role',$1,'UPDATE,DELETE,TRUNCATE') allowed",[table])).rows[0].allowed,false);
+      assert.equal((await db.query("select has_table_privilege('service_role',$1,'SELECT') and has_table_privilege('service_role',$1,'INSERT') allowed",[table])).rows[0].allowed,true);
+    }
     await db.exec(
       "create table dbp_staging_installation(project_ref text);insert into dbp_staging_installation values('fixture')",
     );
@@ -126,7 +130,7 @@ test("fresh DBP baseline and all migrations support the actual synthetic seed tw
           createUser: async (input) => {
             const user = { ...input, id: randomUUID() };
             users.push(user);
-            await db.query("insert into auth.users values($1)", [user.id]);
+            await db.query("insert into auth.users(id) values($1)", [user.id]);
             return { data: { user }, error: null };
           },
         },

@@ -56,8 +56,6 @@ const account = {
     text: "SYNTHETIC accuracy authorization",
   },
 };
-const text = (n) =>
-  typeof n === "string" ? n : (n?.children || []).map(text).join("");
 async function mountPanel(value = account, run = async () => ({})) {
   let tree;
   await act(async () => {

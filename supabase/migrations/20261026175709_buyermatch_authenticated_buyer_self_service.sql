@@ -37,12 +37,12 @@ create table public.bm_buyer_proof_reviews (
 create index bm_buyer_proofs_buyer_created on public.bm_buyer_proofs(buyer_id,created_at desc,id desc);
 create index bm_buyer_history_buyer_created on public.bm_exposures(buyer_id,created_at desc,id desc);
 alter table public.bm_buyer_proof_reviews enable row level security;
-revoke all on public.bm_buyer_proof_reviews from public,anon,authenticated;
+revoke all on public.bm_buyer_proof_reviews from public,anon,authenticated,service_role;
 grant select,insert on public.bm_buyer_proof_reviews to service_role;
 create trigger bm_buyer_proof_reviews_immutable before update or delete on public.bm_buyer_proof_reviews
  for each row execute function public.bm_audit_immutable();
 alter table public.bm_buyer_proof_uploads enable row level security;
-revoke all on public.bm_buyer_proof_uploads from public,anon,authenticated;
+revoke all on public.bm_buyer_proof_uploads from public,anon,authenticated,service_role;
 grant select,insert on public.bm_buyer_proof_uploads to service_role;
 create trigger bm_buyer_proof_uploads_immutable before update or delete on public.bm_buyer_proof_uploads
  for each row execute function public.bm_audit_immutable();
@@ -76,7 +76,9 @@ grant execute on function public.bm_buyer_revision_on_change() to service_role;
 alter table public.bm_buyer_accounts enable row level security;
 alter table public.bm_buyer_account_events enable row level security;
 alter table public.bm_buyer_proofs enable row level security;
-revoke all on public.bm_buyer_accounts,public.bm_buyer_account_events,public.bm_buyer_proofs from public,anon,authenticated;
+-- Reset inherited defaults as well: GRANT SELECT/INSERT alone does not remove
+-- UPDATE/DELETE/TRUNCATE already granted through Supabase default privileges.
+revoke all on public.bm_buyer_accounts,public.bm_buyer_account_events,public.bm_buyer_proofs from public,anon,authenticated,service_role;
 grant select,insert,update on public.bm_buyer_accounts to service_role;
 grant select,insert on public.bm_buyer_account_events,public.bm_buyer_proofs to service_role;
 insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
