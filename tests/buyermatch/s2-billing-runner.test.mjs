@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { billingEvidenceStore } from "../../scripts/testing/s2-billing-journal.mjs";
@@ -312,7 +312,7 @@ test("journal acknowledgement loss cannot become PASS even when readbacks are sa
 });
 test("runner composes with actual shared lock and durable journal; verified closure releases only the lock", async () => {
   const f = fixture(),
-    base = await mkdtemp(path.join(tmpdir(), "bm-runner-public-"));
+    base = await mkdtemp(path.join(await realpath(tmpdir()), "bm-runner-public-"));
   try {
     const store = await billingEvidenceStore(base, f.p);
     f.a.claimRun = store.claimRun;
@@ -325,7 +325,7 @@ test("runner composes with actual shared lock and durable journal; verified clos
     );
     assert.ok(await readFile(path.join(base, f.p.runId + ".claim.json")));
   } finally {
-    assert.equal(path.dirname(base), path.resolve(tmpdir()));
+    assert.equal(path.dirname(base), await realpath(tmpdir()));
     await rm(base, { recursive: true, force: true });
   }
 });

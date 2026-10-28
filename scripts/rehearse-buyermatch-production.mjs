@@ -191,6 +191,9 @@ try {
   // table and adds restrictive Storage policies. Compare every other object exactly.
   const unaffected = (state) => ({
     ...state,
+    functions: state.functions.map(f => ['insert_email_notification_log(', 'reserve_property_intelligence_credit(',
+      'finalize_property_intelligence_credit(', 'release_property_intelligence_credit('].some(name => f[0].startsWith(name))
+      ? [f[0],f[1],null] : f),
     columns: state.columns.filter(c => c.table_name !== 'buyer_portal_submissions'),
     tables: state.tables.filter(c => c[0] !== 'buyer_portal_submissions'),
     constraints: state.constraints.filter(c => c[0] !== 'buyer_portal_submissions'),
@@ -201,6 +204,12 @@ try {
   const afterLegacy = await catalog();
   assert.deepEqual(unaffected(afterLegacy),unaffected(before),
     'Unrelated legacy definitions, RLS, grants, RPCs, indexes and triggers unchanged');
+  for (const name of ['insert_email_notification_log','reserve_property_intelligence_credit','finalize_property_intelligence_credit','release_property_intelligence_credit']) {
+    const permissions = (await db.query(`select has_function_privilege('anon',oid,'execute') anon,
+      has_function_privilege('authenticated',oid,'execute') browser,has_function_privilege('service_role',oid,'execute') server
+      from pg_proc where pronamespace='public'::regnamespace and proname=$1`,[name])).rows;
+    check(permissions.length === 1 && permissions.every(p => !p.anon && !p.browser && p.server),`${name}: exact service-only correction`);
+  }
   const oldIntakeColumns = before.columns.filter(c => c.table_name === 'buyer_portal_submissions');
   assert.deepEqual(afterLegacy.columns.filter(c => c.table_name === 'buyer_portal_submissions' &&
     oldIntakeColumns.some(old => old.column_name === c.column_name)), oldIntakeColumns,

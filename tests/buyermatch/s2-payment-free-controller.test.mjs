@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, writeFile, copyFile, mkdir } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile, copyFile, mkdir, realpath } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
@@ -10,7 +10,7 @@ import { URL } from 'node:url';
 import { SCOPE, validateControllerPlan, scopedApiPath, ownedDeployment, launch, requireCanonicalDirectory } from '../../scripts/testing/s2-payment-free-controller.mjs';
 const sha=b=>createHash('sha256').update(b).digest('hex');
 async function fixture(patch={}) {
-  const coordinationRoot=await mkdtemp(path.join(tmpdir(),'bm-controller-synthetic-')), runId=randomUUID();
+  const coordinationRoot=await mkdtemp(path.join(await realpath(tmpdir()),'bm-controller-synthetic-')), runId=randomUUID();
   const root=path.join(coordinationRoot,runId);await mkdir(root);
   await copyFile('scripts/testing/s2-canary-http-observer.mjs',path.join(root,'observer.mjs'));
   const exited=spawnSync(process.execPath,['-e',''],{stdio:'ignore'});

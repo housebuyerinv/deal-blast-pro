@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, writeFile, realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { billingEvidenceStore } from "../../scripts/testing/s2-billing-journal.mjs";
@@ -11,7 +11,7 @@ const plan = {
 };
 const entry = { ...plan, stage: "checkout", status: "STARTED" };
 async function fixture(fn) {
-  const base = await mkdtemp(path.join(tmpdir(), "bm-public-evidence-"));
+  const base = await mkdtemp(path.join(await realpath(tmpdir()), "bm-public-evidence-"));
   try {
     await fn(base);
   } finally {

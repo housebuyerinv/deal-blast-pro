@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import process from "node:process";
 import { spawn } from "node:child_process";
 import { setTimeout } from "node:timers";
-import { readFile, mkdtemp, rm } from "node:fs/promises";
+import { readFile, mkdtemp, rm, realpath } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { fileURLToPath, URL } from "node:url";
 import path from "node:path";
@@ -18,7 +18,7 @@ const hash = createHash("sha256")
   .update(await readFile(process.execPath))
   .digest("hex");
 async function fixture(fn) {
-  const base = await mkdtemp(path.join(tmpdir(), "bm-operator-public-"));
+  const base = await mkdtemp(path.join(await realpath(tmpdir()), "bm-operator-public-"));
   try {
     const source = "c00d59f048282343af5d81afe9655556aa285e75",
       now = Date.now(),
@@ -88,8 +88,8 @@ async function fixture(fn) {
     state.make = () => makeStripeOperator(plan, options);
     await fn(state);
   } finally {
-    assert.equal(path.dirname(base), path.resolve(tmpdir()));
-    await rm(base, { recursive: true, force: true });
+    assert.equal(path.dirname(base), await realpath(tmpdir()));
+    await rm(base, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 }
 test("actual pinned child protocol uses named S2 context, strips output and preserves default profile", () =>
