@@ -53,6 +53,7 @@ const safety = () =>
       "fallbackVerified",
       "portalAccessEnded",
       "newCheckoutSessionsClosedOrCompleted",
+      "newTestSubscriptionsCanceled",
       "temporaryPreviewRemoved",
       "unrelatedDeploymentsUnchanged",
       "inflightOperationsReconciled",
@@ -71,6 +72,8 @@ function fixture() {
       scope: `subscription-${p.profile}`,
       mode: p.mode,
       planDigest: d,
+      cancelCampaignCreatedTestSubscription: true,
+      cleanupOperatorSource: source,
     }),
     verifyAuthority: async () => ({
       ...p,
@@ -94,15 +97,20 @@ function fixture() {
       serverWindowGuardVerified: true,
       versionedAgreementsVerified: true,
       noPriorUnreconciledCheckout: true,
+      cleanupCustomerIsolationVerified: true,
       build: { ...REQUIRED_S2_ENV },
       runtime: { ...REQUIRED_S2_ENV },
     }),
     verifyWatchdog: async (_, d) => ({
       independent: true,
       planDigest: d,
+      cancelCampaignCreatedTestSubscription: true,
+      cleanupOperatorSource: source,
       canCloseBothGates: true,
       canRemoveTemporaryPreview: true,
       canCloseProviderSessions: true,
+      canCancelOwnedTestSubscription: true,
+      cleanupOperatorSource: source,
       expiresAt: p.expiresAt,
     }),
     activateTestWindow: async (_, b) => {
@@ -137,6 +145,7 @@ function fixture() {
     "disableEndpoint",
     "pauseReceiver",
     "closeNewCheckoutSessions",
+    "closeNewTestSubscriptions",
     "closePortalSessions",
     "restoreRoutingAndRemoveTemporaryPreview",
   ])
@@ -265,6 +274,7 @@ for (const name of [
   "disableEndpoint",
   "pauseReceiver",
   "closeNewCheckoutSessions",
+  "closeNewTestSubscriptions",
   "closePortalSessions",
   "restoreRoutingAndRemoveTemporaryPreview",
 ])
@@ -312,7 +322,9 @@ test("journal acknowledgement loss cannot become PASS even when readbacks are sa
 });
 test("runner composes with actual shared lock and durable journal; verified closure releases only the lock", async () => {
   const f = fixture(),
-    base = await mkdtemp(path.join(await realpath(tmpdir()), "bm-runner-public-"));
+    base = await mkdtemp(
+      path.join(await realpath(tmpdir()), "bm-runner-public-"),
+    );
   try {
     const store = await billingEvidenceStore(base, f.p);
     f.a.claimRun = store.claimRun;
@@ -420,4 +432,35 @@ test("an operation finishing after the window cannot be recorded as PASS", async
   const result = await f.run();
   assert.equal(result.status, "FAILED_CONTAINED");
   assert.deepEqual(result.steps, []);
+});
+
+test("new cancellation permission is independently required before claiming or activating", async () => {
+  const f = fixture(),
+    old = f.a.verifyApproval;
+  f.a.verifyApproval = async (...args) => ({
+    ...(await old(...args)),
+    cancelCampaignCreatedTestSubscription: false,
+  });
+  await assert.rejects(f.run(), /approval/);
+  assert.deepEqual(f.calls, []);
+});
+test("watchdog lacking exact operator pin cannot activate", async () => {
+  const f = fixture(),
+    old = f.a.verifyWatchdog;
+  f.a.verifyWatchdog = async (...args) => ({
+    ...(await old(...args)),
+    cleanupOperatorSource: "f".repeat(40),
+  });
+  assert.notEqual((await f.run()).status, "PASS");
+  assert.ok(!f.calls.includes("activate"));
+});
+test("unknown cleanup customer isolation cannot activate", async () => {
+  const f = fixture(),
+    old = f.a.readPreflight;
+  f.a.readPreflight = async (...args) => ({
+    ...(await old(...args)),
+    cleanupCustomerIsolationVerified: false,
+  });
+  assert.notEqual((await f.run()).status, "PASS");
+  assert.ok(!f.calls.includes("activate"));
 });

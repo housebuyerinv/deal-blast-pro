@@ -65,12 +65,22 @@ function fixture() {
   };
   const opts = {
     approvedSource: source,
+    operatorSource: source,
+    subscriptionEvidenceStore: {
+      readSubscriptionEvidence: async () => ({
+        durable: true,
+        baseline: {},
+        creation: null,
+      }),
+    },
     now: () => time,
     timeoutMs: 1000,
     verifyApproval: async (_, digest) => ({
       approved: true,
       scope: "subscription-activation",
       planDigest: digest,
+      cancelCampaignCreatedTestSubscription: true,
+      cleanupOperatorSource: source,
       mode: plan.mode,
     }),
     verifyAuthority: async () => ({
@@ -385,6 +395,8 @@ test("read-only preflight approval cannot create Checkout even if runtime flags 
   f.opts.verifyApproval = async (_, digest) => ({
     approved: true,
     planDigest: digest,
+    cancelCampaignCreatedTestSubscription: true,
+    cleanupOperatorSource: source,
     mode: f.plan.mode,
     scope: "payment-free-preflight",
   });

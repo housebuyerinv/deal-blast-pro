@@ -49,6 +49,7 @@ export async function runIndependentBillingCleanup(
     "disableEndpoint",
     "pauseReceiver",
     "closeNewCheckoutSessions",
+    "closeNewTestSubscriptions",
     "closePortalSessions",
     "restoreRoutingAndRemoveTemporaryPreview",
   ];
@@ -72,6 +73,9 @@ export async function runIndependentBillingCleanup(
       approval?.approved !== true ||
       approval.planDigest !== digest ||
       approval.mode !== plan.mode ||
+      (plan.profile === "activation" &&
+        (approval.cancelCampaignCreatedTestSubscription !== true ||
+          !/^[a-f0-9]{40}$/.test(approval.cleanupOperatorSource || ""))) ||
       ![
         "payment-free-preflight",
         "subscription-activation",
@@ -110,19 +114,44 @@ export async function runIndependentBillingCleanup(
   };
   await record("closure", "STARTED");
   const results = await Promise.all(
-    names.map(async (name) => {
-      try {
-        return {
-          operation: name,
-          verified:
-            (await bounded((signal) => adapter[name](plan, signal), timeoutMs))
-              ?.verified === true,
-        };
-      } catch {
-        return { operation: name, verified: false };
-      }
-    }),
+    names
+      .filter((name) => name !== "closeNewTestSubscriptions")
+      .map(async (name) => {
+        try {
+          return {
+            operation: name,
+            verified:
+              (
+                await bounded(
+                  (signal) => adapter[name](plan, signal),
+                  timeoutMs,
+                )
+              )?.verified === true,
+          };
+        } catch {
+          return { operation: name, verified: false };
+        }
+      }),
   );
+  // First reconcile/expire Checkouts; then discover and close their owned subscription.
+  try {
+    const checkout = results.find(
+      (r) => r.operation === "closeNewCheckoutSessions",
+    );
+    results.push({
+      operation: "closeNewTestSubscriptions",
+      verified:
+        checkout?.verified === true &&
+        (
+          await bounded(
+            (signal) => adapter.closeNewTestSubscriptions(plan, signal),
+            timeoutMs,
+          )
+        )?.verified === true,
+    });
+  } catch {
+    results.push({ operation: "closeNewTestSubscriptions", verified: false });
+  }
   const verified = evidence && results.every((r) => r.verified);
   await record("closure", verified ? "VERIFIED" : "FAILED_OR_UNKNOWN");
   // This receipt proves cleanup CALLS only. Provider readback/preservation must

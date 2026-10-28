@@ -54,6 +54,8 @@ const adapter = {
     scope: "subscription-activation",
     mode: plan.mode,
     planDigest: digest,
+    cancelCampaignCreatedTestSubscription: true,
+    cleanupOperatorSource: source,
   }),
   verifyAuthority: async () => ({
     ...plan,
@@ -67,6 +69,7 @@ for (const method of [
   "disableEndpoint",
   "pauseReceiver",
   "closeNewCheckoutSessions",
+  "closeNewTestSubscriptions",
   "closePortalSessions",
   "restoreRoutingAndRemoveTemporaryPreview",
 ]) {

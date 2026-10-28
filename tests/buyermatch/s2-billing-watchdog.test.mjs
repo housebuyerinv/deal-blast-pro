@@ -80,7 +80,7 @@ for (const scenario of [
           assert.equal(result.reason, "CLOSE_REQUEST");
         if (scenario === "unknown-stop")
           assert.equal(result.reason, "UNKNOWN_STOP_STATE");
-        assert.equal(result.results.length, 5);
+        assert.equal(result.results.length, 6);
         const operations = (
           await readFile(path.join(base, "actual-operations.jsonl"), "utf8")
         )
@@ -91,6 +91,7 @@ for (const scenario of [
           "disableEndpoint",
           "pauseReceiver",
           "closeNewCheckoutSessions",
+          "closeNewTestSubscriptions",
           "closePortalSessions",
           "restoreRoutingAndRemoveTemporaryPreview",
         ])

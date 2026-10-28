@@ -97,6 +97,7 @@ const methods = [
   "activateTestWindow",
   "runStep",
   "closeNewCheckoutSessions",
+  "closeNewTestSubscriptions",
   "closePortalSessions",
   "disableEndpoint",
   "pauseReceiver",
@@ -118,6 +119,7 @@ const closedFields = [
   ...safeFields,
   "portalAccessEnded",
   "newCheckoutSessionsClosedOrCompleted",
+  "newTestSubscriptionsCanceled",
   "temporaryPreviewRemoved",
   "unrelatedDeploymentsUnchanged",
   "inflightOperationsReconciled",
@@ -235,7 +237,10 @@ export async function runBillingStage(
     approval?.approved !== true ||
     approval.planDigest !== digest(plan) ||
     approval.mode !== plan.mode ||
-    approval.scope !== `subscription-${plan.profile}`
+    approval.scope !== `subscription-${plan.profile}` ||
+    (plan.profile === "activation" &&
+      (approval.cancelCampaignCreatedTestSubscription !== true ||
+        !/^[a-f0-9]{40}$/.test(approval.cleanupOperatorSource || "")))
   )
     throw Error(
       "Billing approval unavailable; no activation or containment mutations",
@@ -284,6 +289,8 @@ export async function runBillingStage(
       pre.serverWindowGuardVerified !== true ||
       pre.versionedAgreementsVerified !== true ||
       pre.noPriorUnreconciledCheckout !== true ||
+      (plan.profile === "activation" &&
+        pre.cleanupCustomerIsolationVerified !== true) ||
       safeFields.some((f) => pre[f] !== true)
     )
       throw Error();
@@ -300,6 +307,9 @@ export async function runBillingStage(
       watcher.canCloseBothGates !== true ||
       watcher.canRemoveTemporaryPreview !== true ||
       watcher.canCloseProviderSessions !== true ||
+      (plan.profile === "activation" &&
+        (watcher.canCancelOwnedTestSubscription !== true ||
+          watcher.cleanupOperatorSource !== approval.cleanupOperatorSource)) ||
       watcher.expiresAt !== plan.expiresAt
     )
       throw Error();
@@ -366,11 +376,25 @@ export async function runBillingStage(
       )
     : [];
   let verified = false;
+  // Subscription closure must follow Checkout reconciliation and independently pass.
+  let subscriptionClosed = false;
+  try {
+    if (
+      authorityMatches(closureAuthority) &&
+      closures[2]?.status === "fulfilled" &&
+      closures[2].value?.verified === true
+    )
+      subscriptionClosed =
+        (await call("closeNewTestSubscriptions"))?.verified === true;
+  } catch {
+    /* Unknown closure keeps the run claim and cannot become PASS. */
+  }
   try {
     const state = await call("readClosure"),
       after = preservation(await call("readPreservation"));
     verified =
       authorityMatches(closureAuthority) &&
+      subscriptionClosed &&
       closures.length === 5 &&
       !!before &&
       closedFields.every((f) => state?.[f] === true) &&

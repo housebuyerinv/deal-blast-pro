@@ -31,7 +31,13 @@ const deny = () => {
   throw Error("Billing containment evidence unavailable; no retry");
 };
 
-export function makeBillingContainment(input, receipt, ports, approvedSource) {
+export function makeBillingContainment(
+  input,
+  receipt,
+  ports,
+  approvedSource,
+  { operatorSource } = {},
+) {
   // Cleanup remains allowed after expiry; this validates scope, not activation.
   const plan = validateBillingPlan(input, approvedSource, input.startedAt);
   const parsed = receiptSchema.safeParse(receipt);
@@ -211,7 +217,7 @@ export function makeBillingContainment(input, receipt, ports, approvedSource) {
         if (before.status === "open") {
           if (before.payment_status !== "unpaid") deny();
           // Provider supports expiration of OPEN sessions only. No payment, cancel,
-          // refund or subscription mutation is performed by cleanup.
+          // refund or subscription mutation is performed by this Checkout closer.
           checkSession(await request("POST", path + "/expire", {}, signal), r);
         }
         const after = await request("GET", path, undefined, signal);
@@ -240,6 +246,16 @@ export function makeBillingContainment(input, receipt, ports, approvedSource) {
       )
         deny();
       return { verified: true }; // Proven no issuance, never pretend to revoke a session.
+    }),
+    closeNewTestSubscriptions: wrap(async (signal) => {
+      await authority(signal);
+      if (typeof ports.closeCampaignSubscription !== "function") deny();
+      return ports.closeCampaignSubscription(
+        plan,
+        owned,
+        operatorSource,
+        signal,
+      );
     }),
     restoreRoutingAndRemoveTemporaryPreview: wrap(async (signal) => {
       await authority(signal);

@@ -1,6 +1,7 @@
 // Explicitly constructed operator transport. No env/file credential reads or CLI.
 // Raw provider responses stay inside private adapter calls; journals are allowlisted.
 import { createHash } from "node:crypto";
+import { closeCampaignSubscription } from "./s2-billing-subscription-cleanup.mjs";
 import { URL, URLSearchParams } from "node:url";
 import { setTimeout, clearTimeout } from "node:timers";
 import {
@@ -46,6 +47,9 @@ export function makeBillingTransports(
     fetcher,
     timeoutMs = 10000,
     now = Date.now,
+    subscriptionEvidenceStore,
+    operatorSource,
+    readCheckoutPolicy,
   } = {},
 ) {
   const plan = validateBillingPlan(input, approvedSource, input.startedAt);
@@ -96,7 +100,11 @@ export function makeBillingTransports(
     );
     if (ack?.durable !== true) fail();
   };
-  const scoped = async (signal, writingCheckout = false) => {
+  const scoped = async (
+    signal,
+    writingCheckout = false,
+    cancelingSubscription = false,
+  ) => {
     const consent = await step(
         () => verifyApproval(plan, digest, signal),
         signal,
@@ -112,6 +120,14 @@ export function makeBillingTransports(
         "subscription-lifecycle",
       ].includes(consent.scope) ||
       (writingCheckout && consent.scope !== "subscription-activation") ||
+      (cancelingSubscription &&
+        (consent.scope !== "subscription-activation" ||
+          consent.cancelCampaignCreatedTestSubscription !== true ||
+          consent.cleanupOperatorSource !== operatorSource)) ||
+      (writingCheckout &&
+        (consent.cancelCampaignCreatedTestSubscription !== true ||
+          consent.cleanupOperatorSource !== operatorSource ||
+          !/^[a-f0-9]{40}$/.test(operatorSource || ""))) ||
       a?.project !== plan.project ||
       a.team !== plan.team ||
       a.database !== plan.database ||
@@ -152,6 +168,7 @@ export function makeBillingTransports(
       await scoped(
         controller.signal,
         stage === "checkout" && method === "POST",
+        method === "DELETE",
       );
       if (controller.signal.aborted) fail();
       await record(stage, "STARTED", controller.signal);
@@ -203,7 +220,7 @@ export function makeBillingTransports(
         target.hash
       )
         fail();
-      if (method === "POST") {
+      if (method === "POST" || method === "DELETE") {
         if (slot.startsWith("stripe")) {
           headers.set("Content-Type", "application/x-www-form-urlencoded");
           body = new URLSearchParams(body).toString();
@@ -211,10 +228,13 @@ export function makeBillingTransports(
           headers.set("Content-Type", "application/json");
           body = JSON.stringify(body);
         }
-        headers.set(
-          slot.startsWith("stripe") ? "Idempotency-Key" : "X-DBP-Operation-Key",
-          plan.runId + ":" + stage + ":" + target.pathname,
-        );
+        if (method === "POST")
+          headers.set(
+            slot.startsWith("stripe")
+              ? "Idempotency-Key"
+              : "X-DBP-Operation-Key",
+            plan.runId + ":" + stage + ":" + target.pathname,
+          );
       }
       if (
         controller.signal.aborted ||
@@ -312,6 +332,57 @@ export function makeBillingTransports(
     return s;
   }
   const api = {
+    // Only the provenance validator can reach the private DELETE transport.
+    // There is deliberately no public generic subscription mutation API.
+    async closeCampaignSubscription(
+      requested,
+      receipt,
+      approvedOperator,
+      signal,
+    ) {
+      if (
+        JSON.stringify(requested) !== JSON.stringify(plan) ||
+        approvedOperator !== operatorSource ||
+        !subscriptionEvidenceStore ||
+        typeof readCheckoutPolicy !== "function"
+      )
+        fail();
+      return closeCampaignSubscription(
+        plan,
+        receipt,
+        {
+          readSubscriptionEvidence:
+            subscriptionEvidenceStore.readSubscriptionEvidence,
+          recordSubscriptionCreation:
+            subscriptionEvidenceStore.recordSubscriptionCreation,
+          claimSubscriptionCancellation:
+            subscriptionEvidenceStore.claimSubscriptionCancellation,
+          readApproval: (digest, s) => verifyApproval(plan, digest, s),
+          readAuthority: (s) => verifyAuthority(plan, s),
+          readCheckoutPolicy,
+          stripeRequest: async ({
+            method,
+            path,
+            body,
+            signal,
+            retries,
+            account,
+            mode,
+          }) => {
+            if (account !== plan.account || mode !== "test" || retries !== 0)
+              fail();
+            return call("stripe-runtime", path, {
+              method,
+              body,
+              signal,
+              stage: "closure",
+            });
+          },
+        },
+        operatorSource,
+        signal,
+      );
+    },
     async readAttestation(deploymentId, signal) {
       if (approvedDeploymentId && deploymentId !== approvedDeploymentId) fail();
       if (
@@ -543,6 +614,15 @@ export function makeBillingTransports(
     },
     async createProCheckout(signal) {
       try {
+        if (!subscriptionEvidenceStore) fail();
+        const evidence =
+          await subscriptionEvidenceStore.readSubscriptionEvidence(plan);
+        if (
+          evidence?.durable !== true ||
+          !evidence.baseline ||
+          evidence.creation
+        )
+          fail();
         if (
           plan.profile !== "activation" ||
           now() < plan.startedAt ||
