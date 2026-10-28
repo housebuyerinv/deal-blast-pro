@@ -8,7 +8,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import process from 'node:process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { setTimeout, clearTimeout } from 'node:timers';
-export const SCOPE = Object.freeze({ source:'4e79c99ac98d13bb030076aaf55a8289934d9ae4', project:'prj_XglHAvS3zjuyLWvHkuNt5U8BoUtl', team:'team_2ejXKYjjGXIFsIQTUMEqZ8Cf', database:'qxhhlprentrufobpcgna', account:'acct_1UTRcRL6efr9LhPI', endpoint:'we_1UTTc1L6efr9LhPICbZjgCHA', fallback:'dpl_nr5RVunmUGdryPUtWkRkVdsA96pT', alias:'dbp-registration-s2-preview-housebuyerinv.vercel.app' });
+export const SCOPE = Object.freeze({ source:'c4f19fea2060355565e7c0dad4141456b66d3817', project:'prj_XglHAvS3zjuyLWvHkuNt5U8BoUtl', team:'team_2ejXKYjjGXIFsIQTUMEqZ8Cf', database:'qxhhlprentrufobpcgna', account:'acct_1UTRcRL6efr9LhPI', endpoint:'we_1UTTc1L6efr9LhPICbZjgCHA', fallback:'dpl_nr5RVunmUGdryPUtWkRkVdsA96pT', alias:'dbp-registration-s2-preview-housebuyerinv.vercel.app' });
 const node='C:/Program Files/nodejs/node.exe', npm='C:/Users/CTL Katastrophic/AppData/Roaming/npm/node_modules/';
 const tools={vercel:npm+'vercel/dist/vc.js',supabase:npm+'supabase/dist/supabase.js',stripe:'C:/Users/CTL Katastrophic/AppData/Local/Microsoft/WinGet/Packages/Stripe.StripeCli_Microsoft.Winget.Source_8wekyb3d8bbwe/stripe.exe'};
 const pins={node:'b3094d0b49f9ad602262a9921551737bb97637c05dd357a06ae98188d7290aa3',vercel:'33542f1ec34ec6b9953ee7486c7ae5f9cc2a2b0225671ece4ed22fe8625bab86',supabase:'253caa8c31ee5976322d04a8bd7752622c0915e7943de3f74e2b73395c54a240',stripe:'88162aeacb9875bdb48b654a81f00ad45b9155a28545770144e7997f90efd486'};
