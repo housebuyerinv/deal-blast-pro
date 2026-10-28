@@ -31,6 +31,7 @@ export const EXECUTION_FILES = [
   "s2-billing-launch.mjs",
   "s2-billing-live-readers.mjs",
   "s2-billing-native-provider.mjs",
+  "s2-legacy-portal-coverage.mjs",
   "s2-stripe-native-watchdog.mjs",
   "s2-stripe-operator.mjs",
   "s2-stripe-campaign-args.mjs",

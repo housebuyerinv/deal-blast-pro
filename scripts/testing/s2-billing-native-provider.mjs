@@ -27,6 +27,7 @@ import {
   priorCheckoutReadSql,
 } from "./s2-billing-live-readers.mjs";
 import { validateBillingPlan } from "./s2-billing-runner.mjs";
+import { readLegacyPortalCoverage } from "./s2-legacy-portal-coverage.mjs";
 const deny = () => {
   throw Error("S2 native provider UNVERIFIED");
 };
@@ -555,137 +556,31 @@ export async function makeNativePlatformProvider(
       );
     },
     async readPortalCoverage(signal) {
-      const b = await evidence.read("platform-baseline"),
-        items = await inventory(signal);
-      if (
-        b.source !== plan.source ||
-        b.runId !== plan.runId ||
-        items.some((x) => !b.ids.includes(x.uid ?? x.id))
-      )
-        deny();
-      const observations = [];
-      for (const item of items) {
-        const d = (
-          await api(
-            "/v13/deployments/" +
-              (item.uid ?? item.id) +
-              "?withGitRepoInfo=true",
-            signal,
-          )
-        ).body;
-        if (
-          d?.projectId !== S2.project ||
-          d.ownerId !== S2.team ||
-          !/^dbp-registration-s2-[a-z0-9]+-housebuyerinv\.vercel\.app$/.test(
-            d.url || "",
-          )
-        )
-          deny();
-        const sourceValue = d.meta?.githubCommitSha ?? d.gitSource?.sha;
-        const deployedSource = /^[a-f0-9]{40}$/.test(sourceValue || "")
-          ? sourceValue
-          : null;
-        const sourceCovered = portalSourceMatches(deployedSource);
-        await evidence.create("portal-source-" + randomUUID(), {
-          id: d.id,
-          deployedSource: deployedSource ?? null,
-          sourceCovered,
-        });
-        if (!sourceCovered) {
-          observations.push({
-            id: d.id,
-            deployedSource: deployedSource ?? null,
-            sourceCovered: false,
-            settingsMatch: false,
-            windowExcluded: false,
-          });
-          continue;
-        }
-        // Read-only only. Never POST to a Portal-creation route to prove denial.
-        const get = async (endpoint) => {
-          const r = await run(
-            "vercel",
-            [
-              "curl",
-              endpoint,
-              "--deployment",
-              d.url,
-              "--scope",
-              S2.team,
-              "--",
-              "--request",
-              "GET",
-              "--write-out",
-              "\n%{http_code}",
-            ],
-            signal,
-          );
-          const lines = r.stdout.trim().split("\n"),
-            status = Number(lines.pop());
-          let body = null;
-          try {
-            body = JSON.parse(lines.join("\n"));
-          } catch {
-            /* Authentication or missing attestation stays UNKNOWN. */
-          }
-          return { status, body, exitCode: r.code };
-        };
-        const attestation = await get("/api/platform/s2-attestation");
-        const window = await get("/api/buyermatch?action=billing-status");
-        const identity = attestation.body?.identity;
-        const settingsMatch =
-          attestation.status === 200 &&
-          attestation.exitCode === 0 &&
-          identity?.deploymentId === d.id &&
-          identity.projectId === S2.project &&
-          identity.sourceSha === deployedSource &&
-          ["build", "runtime"].every((kind) =>
-            Object.entries(REQUIRED_S2_ENV).every(
-              ([k, v]) => attestation.body?.[kind]?.settings?.[k] === v,
-            ),
-          );
-        const w = window.body;
-        const windowExcluded =
-          window.status === 200 &&
-          window.exitCode === 0 &&
-          w?.source === deployedSource &&
-          w.projectId === S2.project &&
-          w.deploymentId === d.id &&
-          w.registrationPaused === true &&
-          w.liveBillingDisabled === true &&
-          w.deliveryDisabled === true &&
-          (w.BM_S2_BILLING_OPERATIONS === "checkout" ||
-            Date.parse(w.BM_S2_BILLING_EXPIRES_AT) <= Date.now());
-        await evidence.create("portal-runtime-" + randomUUID(), {
-          id: d.id,
-          attestationStatus: Number.isFinite(attestation.status)
-            ? attestation.status
-            : null,
-          windowStatus: Number.isFinite(window.status) ? window.status : null,
-          settingsMatch,
-          windowExcluded,
-        });
-        observations.push({
-          id: d.id,
-          deployedSource,
-          sourceCovered,
-          settingsMatch,
-          windowExcluded,
-        });
-      }
-      await evidence.create("portal-coverage-" + Date.now(), {
-        source: plan.source,
-        runId: plan.runId,
-        observations,
-      });
-      if (
-        observations.length !== items.length ||
-        observations.some(
-          (o) => !o.sourceCovered || !o.settingsMatch || !o.windowExcluded,
-        )
-      )
-        deny();
-      return { verified: true };
+      const b = await evidence.read("platform-baseline");
+      if (b.source !== plan.source || b.runId !== plan.runId) deny();
+      const http = async (host, endpoint, method, requestedSignal) => {
+        if (!["GET", "OPTIONS"].includes(method) ||
+            !/^dbp-registration-s2-[a-z0-9]+-housebuyerinv\.vercel\.app$/.test(host) ||
+            !endpoint.startsWith("/") || endpoint.includes("://")) deny();
+        // Never allow curl to provision a missing SSO automation bypass.
+        // Its native implementation reuses an existing automation entry; absence fails closed.
+        const project = (await api("/v9/projects/" + S2.project, requestedSignal)).body;
+        if (project?.id !== S2.project || project.accountId !== S2.team ||
+            project.ssoProtection?.deploymentType !== "all" ||
+            !Object.values(project.protectionBypass ?? {}).some(x => x.scope === "automation-bypass")) deny();
+        const r = await run("vercel", ["curl", "https://" + host + endpoint,
+          "--scope", S2.team, "--", "--request", method, "--max-time", "15",
+          "--max-redirs", "0", "--include", "--write-out", "\nSAFE_HTTP:%{http_code}"], requestedSignal);
+        const header = name => r.stdout.match(new RegExp("^" + name + ":\\s*([^\\r\\n]+)", "im"))?.[1]?.trim();
+        return { code: r.code, status: Number(r.stdout.match(/SAFE_HTTP:(\d{3})/)?.[1] || 0),
+          redirect: !!header("location"),
+          title: r.stdout.match(/<title>([^<]{0,160})<\/title>/i)?.[1] ?? null,
+          sso: /Authentication Required|vercel.com\/sso|Log in to Vercel/i.test(r.stdout),
+          firewallDenied: header("x-vercel-mitigated") === "deny" &&
+            header("x-vercel-error") === "FORBIDDEN",
+          requestId: header("x-vercel-id") ?? null };
+      };
+      return readLegacyPortalCoverage({ api, http, inventory, baseline: b, evidence }, signal);
     },
   };
 }
