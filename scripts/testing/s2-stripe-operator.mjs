@@ -128,7 +128,7 @@ export function makeStripeOperator(
         ].includes(consent.scope)
       )
         deny();
-      if (campaign && args[0] === "delete") {
+      if (campaign && (args[0] === "delete" || args[0] === "post")) {
         if (
           consent.scope !== "subscription-activation" ||
           consent.cleanupOperatorSource !== operatorSource ||
@@ -256,6 +256,231 @@ export function makeStripeOperator(
     return { id: e.id, livemode: false, url: e.url, status: e.status };
   };
   return {
+    async readPriorCheckoutStates(rows, signal) {
+      if (!Array.isArray(rows) || rows.length > 100) deny();
+      const statuses = [];
+      for (const r of rows) {
+        if (
+          !/^cs_test_[A-Za-z0-9]+$/.test(r.id || "") ||
+          !/^[a-f0-9-]{36}$/.test(r.checkoutId || "")
+        )
+          deny();
+        if (
+          stripeProfileAccount(
+            await run(["whoami", "--format", "json"], signal),
+          ) !== plan.account
+        )
+          deny();
+        const s = await run(
+          ["get", "/v1/checkout/sessions/" + r.id],
+          signal,
+          true,
+        );
+        if (
+          s.id !== r.id ||
+          s.livemode !== false ||
+          s.mode !== "subscription" ||
+          s.client_reference_id !== plan.owner ||
+          s.metadata?.dealBlastUserId !== plan.owner ||
+          s.metadata?.dbpProduct !== "buyermatch" ||
+          s.metadata?.dbpCheckoutId !== r.checkoutId
+        )
+          deny();
+        statuses.push(s.status);
+      }
+      return statuses;
+    },
+    async listCampaignCheckouts(signal) {
+      if (
+        stripeProfileAccount(
+          await run(["whoami", "--format", "json"], signal),
+        ) !== plan.account
+      )
+        deny();
+      const r = await run(
+        [
+          "get",
+          "/v1/checkout/sessions",
+          "-d",
+          "created[gte]=" + Math.floor(plan.startedAt / 1000),
+          "-d",
+          "limit=100",
+        ],
+        signal,
+        true,
+      );
+      if (
+        r.has_more !== false ||
+        !Array.isArray(r.data) ||
+        r.data.some((s) => s.livemode !== false)
+      )
+        deny();
+      return r.data.filter((s) => s.metadata?.dbpS2RunId === plan.runId);
+    },
+    async readSubscriptionInventory(signal) {
+      if (
+        stripeProfileAccount(
+          await run(["whoami", "--format", "json"], signal),
+        ) !== plan.account
+      )
+        deny();
+      const ids = [];
+      let cursor;
+      for (let i = 0; i < 10; i++) {
+        const r = await run(
+          [
+            "get",
+            "/v1/subscriptions",
+            "-d",
+            "limit=100",
+            "-d",
+            "status=all",
+            ...(cursor ? ["-d", "starting_after=" + cursor] : []),
+          ],
+          signal,
+          true,
+        );
+        if (
+          !Array.isArray(r.data) ||
+          typeof r.has_more !== "boolean" ||
+          r.data.some(
+            (s) => s.livemode !== false || !/^sub_[A-Za-z0-9]+$/.test(s.id),
+          )
+        )
+          deny();
+        ids.push(...r.data.map((s) => s.id));
+        if (new Set(ids).size !== ids.length) deny();
+        if (!r.has_more) return ids;
+        if (!r.data.length) deny();
+        cursor = r.data.at(-1).id;
+      }
+      deny();
+    },
+    async readSubscriptionSentinels(signal) {
+      if (
+        stripeProfileAccount(
+          await run(["whoami", "--format", "json"], signal),
+        ) !== plan.account
+      )
+        deny();
+      const result = [];
+      let cursor;
+      for (let i = 0; i < 10; i++) {
+        const r = await run(
+          [
+            "get",
+            "/v1/subscriptions",
+            "-d",
+            "limit=100",
+            "-d",
+            "status=all",
+            ...(cursor ? ["-d", "starting_after=" + cursor] : []),
+          ],
+          signal,
+          true,
+        );
+        if (
+          !Array.isArray(r.data) ||
+          typeof r.has_more !== "boolean" ||
+          r.data.some(
+            (s) => s.livemode !== false || !/^sub_[A-Za-z0-9]+$/.test(s.id),
+          )
+        )
+          deny();
+        result.push(
+          ...r.data
+            .filter((s) => s.metadata?.dbpS2RunId !== plan.runId)
+            .map((s) => ({
+              id: s.id,
+              customer: s.customer,
+              status: s.status,
+              cancel_at_period_end: s.cancel_at_period_end,
+              latest_invoice: s.latest_invoice,
+              items: s.items,
+            })),
+        );
+        if (!r.has_more) {
+          if (new Set(result.map((x) => x.id)).size !== result.length) deny();
+          return result.sort((a, b) => a.id.localeCompare(b.id));
+        }
+        if (!r.data.length) deny();
+        cursor = r.data.at(-1).id;
+      }
+      deny();
+    },
+    async readPortalConfiguration(signal) {
+      const p = await run(
+        ["get", "/v1/billing_portal/configurations/" + S2.portal],
+        signal,
+        true,
+      );
+      if (
+        p.id !== S2.portal ||
+        p.livemode !== false ||
+        typeof p.login_page?.enabled !== "boolean"
+      )
+        deny();
+      return { loginDisabled: p.login_page.enabled === false };
+    },
+    async closeCampaignCheckouts(receipt, signal) {
+      if (
+        receipt?.source !== plan.source ||
+        receipt.runId !== plan.runId ||
+        !Array.isArray(receipt.checkouts) ||
+        receipt.checkouts.length > 1 ||
+        typeof readCheckoutPolicy !== "function"
+      )
+        deny();
+      const p = await readCheckoutPolicy(signal);
+      if (
+        p?.source !== plan.source ||
+        p.runId !== plan.runId ||
+        p.issuanceJournalComplete !== true ||
+        p.inflightReconciled !== true ||
+        JSON.stringify([...p.sessionIds].sort()) !==
+          JSON.stringify(receipt.checkouts.map((x) => x.id).sort())
+      )
+        deny();
+      const validate = (s, r) => {
+        if (
+          s?.id !== r.id ||
+          s.livemode !== false ||
+          s.mode !== "subscription" ||
+          s.client_reference_id !== plan.owner ||
+          s.metadata?.dealBlastUserId !== plan.owner ||
+          s.metadata?.dbpS2RunId !== plan.runId ||
+          s.metadata?.dbpCheckoutId !== r.checkoutId ||
+          s.metadata?.dbpProduct !== "buyermatch" ||
+          s.created * 1000 < Math.floor(plan.startedAt / 1000) * 1000 ||
+          s.created * 1000 > plan.expiresAt ||
+          !["open", "expired", "complete"].includes(s.status)
+        )
+          deny();
+      };
+      for (const r of receipt.checkouts) {
+        if (!/^cs_test_[A-Za-z0-9]+$/.test(r.id)) deny();
+        if (
+          stripeProfileAccount(
+            await run(["whoami", "--format", "json"], signal),
+          ) !== plan.account
+        )
+          deny();
+        const p = "/v1/checkout/sessions/" + r.id,
+          s = await run(["get", p], signal, true);
+        validate(s, r);
+        if (s.status === "open") {
+          if (s.payment_status !== "unpaid") deny();
+          validate(
+            await run(["post", p + "/expire", "--confirm"], signal, true),
+            r,
+          );
+        }
+        const after = await run(["get", p], signal, true);
+        validate(after, r);
+        if (after.status === "open") deny();
+      }
+      return { verified: true };
+    },
     async readConnection(signal) {
       // Read-only actual credential proof; does not assert subscription_write.
       if (

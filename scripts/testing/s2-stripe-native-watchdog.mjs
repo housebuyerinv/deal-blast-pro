@@ -43,7 +43,7 @@ const env = () =>
       ].includes(k.toUpperCase()),
     ),
   );
-async function acl(files, signal) {
+export async function verifyNativeCustody(files, signal) {
   if (process.platform !== "win32" || !files.every(path.isAbsolute)) deny();
   for (const f of files) {
     const s = await lstat(f);
@@ -96,6 +96,7 @@ async function acl(files, signal) {
     deny();
   return value;
 }
+const acl = verifyNativeCustody;
 export async function makeNativeStripeWatchdog(
   plan,
   {
@@ -200,6 +201,43 @@ export async function makeNativeStripeWatchdog(
     verifyPreservation,
   });
   return {
+    listCampaignCheckouts: operator.listCampaignCheckouts,
+    readPriorCheckoutStates: operator.readPriorCheckoutStates,
+    readSubscriptionInventory: operator.readSubscriptionInventory,
+    readSubscriptionSentinels: operator.readSubscriptionSentinels,
+    readPortalConfiguration: operator.readPortalConfiguration,
+    disableEndpoint: async (_plan, signal) => {
+      if (JSON.stringify(_plan) !== JSON.stringify(plan)) deny();
+      const r = {
+        method: "POST",
+        path: "/v1/webhook_endpoints/" + plan.endpoint,
+        body: { disabled: true },
+        account: plan.account,
+        mode: "test",
+        retries: 0,
+        signal,
+      };
+      await operator.stripeRequest(r);
+      const after = await operator.stripeRequest({
+        ...r,
+        method: "GET",
+        body: undefined,
+      });
+      if (after.status !== "disabled") deny();
+      return { verified: true };
+    },
+    closeNewCheckoutSessions: async (requested, signal) => {
+      if (
+        readOnly ||
+        typeof readCheckoutReceipt !== "function" ||
+        JSON.stringify(requested) !== JSON.stringify(plan)
+      )
+        deny();
+      return operator.closeCampaignCheckouts(
+        await readCheckoutReceipt(requested, signal),
+        signal,
+      );
+    },
     readConnection: operator.readConnection,
     closeNewTestSubscriptions: async (requested, signal) => {
       if (readOnly) deny();
