@@ -1,5 +1,10 @@
 # BuyerMatch consolidated release-validation evidence
 
+> Current decision as of October28, after real local acceptance:
+> [BUYERMATCH_RELEASE_DECISION.md](BUYERMATCH_RELEASE_DECISION.md).
+> The chronology below is historical evidence and contains superseded source pins
+> and earlier dependencies; it is not current execution authority.
+
 ## Latest owner update — UNSURE retained; no immediate private action
 
 Directive6405771876 does not authorize provider contact or key recovery. The
