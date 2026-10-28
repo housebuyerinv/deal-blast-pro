@@ -6,6 +6,11 @@ import { setTimeout, clearTimeout } from "node:timers";
 import path from "node:path";
 import process from "node:process";
 import { validateBillingPlan } from "./s2-billing-runner.mjs";
+import { closeCampaignSubscription } from "./s2-billing-subscription-cleanup.mjs";
+import {
+  campaignRequestArgs,
+  campaignStripeArgs,
+} from "./s2-stripe-campaign-args.mjs";
 import {
   scopedStripeArgs,
   stripeProfileAccount,
@@ -38,6 +43,10 @@ export function makeStripeOperator(
     spawnProcess = spawn,
     environment = process.env,
     timeoutMs = 10000,
+    operatorSource,
+    subscriptionEvidenceStore,
+    readCheckoutPolicy,
+    verifyPreservation,
   } = {},
 ) {
   const plan = validateBillingPlan(input, approvedSource, input.startedAt);
@@ -83,7 +92,7 @@ export function makeStripeOperator(
       .filter((k) => typeof environment[k] === "string")
       .map((k) => [k, environment[k]]),
   );
-  async function run(args, external) {
+  async function run(args, external, campaign = false) {
     const signal = globalThis.AbortSignal.any([
       globalThis.AbortSignal.timeout(timeoutMs),
       ...(external ? [external] : []),
@@ -91,7 +100,7 @@ export function makeStripeOperator(
     let abort;
     try {
       return await Promise.race([
-        execute(args, signal),
+        execute(args, signal, campaign),
         new Promise((_, reject) => {
           abort = () =>
             reject(Error("S2_STRIPE_OPERATOR_UNVERIFIED; no automatic retry"));
@@ -103,7 +112,7 @@ export function makeStripeOperator(
       signal.removeEventListener("abort", abort);
     }
   }
-  async function execute(args, signal) {
+  async function execute(args, signal, campaign) {
     let timer, child;
     try {
       if (signal?.aborted) deny();
@@ -119,6 +128,22 @@ export function makeStripeOperator(
         ].includes(consent.scope)
       )
         deny();
+      if (campaign && args[0] === "delete") {
+        if (
+          consent.scope !== "subscription-activation" ||
+          consent.cleanupOperatorSource !== operatorSource ||
+          consent.cancelCampaignCreatedTestSubscription !== true ||
+          typeof verifyPreservation !== "function"
+        )
+          deny();
+        const p = await verifyPreservation(plan, signal);
+        if (
+          p?.verified !== true ||
+          p.planDigest !== digest ||
+          p.unchanged !== true
+        )
+          deny();
+      }
       const [file, folder] = await Promise.all([
         lstat(executable),
         lstat(root),
@@ -156,7 +181,7 @@ export function makeStripeOperator(
         signal?.aborted
       )
         deny();
-      const argv = scopedStripeArgs(args);
+      const argv = campaign ? campaignStripeArgs(args) : scopedStripeArgs(args);
       const raw = await new Promise((resolve, reject) => {
         let stdout = "",
           bytes = 0,
@@ -198,6 +223,7 @@ export function makeStripeOperator(
         });
       });
       const body = JSON.parse(raw);
+      if (body?.error) deny();
       if (signal?.aborted) deny();
       if (
         (
@@ -230,6 +256,128 @@ export function makeStripeOperator(
     return { id: e.id, livemode: false, url: e.url, status: e.status };
   };
   return {
+    async readConnection(signal) {
+      // Read-only actual credential proof; does not assert subscription_write.
+      if (
+        stripeProfileAccount(
+          await run(["whoami", "--format", "json"], signal),
+        ) !== plan.account
+      )
+        deny();
+      const e = endpoint(
+        await run(["webhook_endpoints", "retrieve", plan.endpoint], signal),
+      );
+      const p = await run(["get", "/v1/prices/" + S2.pro], signal, true);
+      const s = await run(
+        ["get", "/v1/subscriptions", "-d", "limit=1", "-d", "status=all"],
+        signal,
+        true,
+      );
+      if (
+        p.id !== S2.pro ||
+        p.livemode !== false ||
+        p.currency !== "usd" ||
+        p.unit_amount !== 11900 ||
+        !p.active ||
+        p.recurring?.interval !== "month" ||
+        !Array.isArray(s.data) ||
+        typeof s.has_more !== "boolean"
+      )
+        deny();
+      return {
+        account: plan.account,
+        livemode: false,
+        endpointDisabled: e.status === "disabled",
+        priceVerified: true,
+        subscriptionReadVerified: true,
+        cancellationWriteVerified: false,
+      };
+    },
+    async closeCampaignSubscription(
+      requested,
+      receipt,
+      approvedOperator,
+      signal,
+    ) {
+      if (
+        JSON.stringify(requested) !== JSON.stringify(plan) ||
+        approvedOperator !== operatorSource ||
+        !subscriptionEvidenceStore ||
+        typeof readCheckoutPolicy !== "function" ||
+        typeof verifyPreservation !== "function"
+      )
+        deny();
+      const approval = async (d, s) => {
+        const a = await verifyApproval(plan, d, s);
+        if (
+          a?.cleanupOperatorSource !== operatorSource ||
+          a.cancelCampaignCreatedTestSubscription !== true ||
+          a.scope !== "subscription-activation"
+        )
+          deny();
+        return a;
+      };
+      const preservation = async (s) => {
+        const p = await verifyPreservation(plan, s);
+        if (
+          p?.verified !== true ||
+          p.planDigest !== digest ||
+          p.unchanged !== true
+        )
+          deny();
+      };
+      return closeCampaignSubscription(
+        plan,
+        receipt,
+        {
+          readSubscriptionEvidence:
+            subscriptionEvidenceStore.readSubscriptionEvidence,
+          recordSubscriptionCreation:
+            subscriptionEvidenceStore.recordSubscriptionCreation,
+          claimSubscriptionCancellation:
+            subscriptionEvidenceStore.claimSubscriptionCancellation,
+          readCheckoutPolicy,
+          readApproval: approval,
+          readAuthority: async (s) => {
+            await approval(digest, s);
+            await preservation(s);
+            if (
+              stripeProfileAccount(
+                await run(["whoami", "--format", "json"], s),
+              ) !== plan.account
+            )
+              deny();
+            endpoint(
+              await run(["webhook_endpoints", "retrieve", plan.endpoint], s),
+            );
+            return {
+              project: plan.project,
+              team: plan.team,
+              database: plan.database,
+              account: plan.account,
+              endpoint: plan.endpoint,
+              livemode: false,
+              ownerAuthorized: true,
+            };
+          },
+          stripeRequest: async (r) => {
+            if (
+              r.account !== plan.account ||
+              r.mode !== "test" ||
+              r.retries !== 0
+            )
+              deny();
+            if (r.method === "DELETE") {
+              await approval(digest, r.signal);
+              await preservation(r.signal);
+            }
+            return run(campaignRequestArgs(r), r.signal, true);
+          },
+        },
+        operatorSource,
+        signal,
+      );
+    },
     async readIdentity(signal) {
       const who = await run(["whoami", "--format", "json"], signal);
       return { account: stripeProfileAccount(who), mode: "test" };
