@@ -1,10 +1,18 @@
 # BuyerMatch isolated synthetic acceptance
 
+**October 28 update:** WSL2 and Docker Engine are operational after the owner restart.
+The real isolated Supabase stack and all 76 schema sources ran successfully.
+Real Auth/email confirmation, Storage, buyer workflows, matching, security and
+browser acceptance passed. See the
+[executed full-stack results](../../docs/release-evidence/2026-10-28/LOCAL_FULL_STACK_ACCEPTANCE.md).
+That evidence supersedes the earlier runtime limitation and conditional hosted
+alternative below. No hosted or Stripe operations were performed.
+
 This is a new local namespace, not S2 and not a copy of S2. Existing S2 remains
 under preservation hold: 223 identities, nine provenance payloads, original keys,
 records, settings and all fallbacks are untouched. No original data was imported.
 
-## Executed now — $0, no hosted dependencies
+## Earlier in-memory checkpoint — $0, no hosted dependencies
 
 From the integration worktree:
 

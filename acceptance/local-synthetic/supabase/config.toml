@@ -36,3 +36,5 @@ enable_confirmations = true
 secure_password_change = true
 [analytics]
 enabled = false
+[edge_runtime]
+enabled = false
