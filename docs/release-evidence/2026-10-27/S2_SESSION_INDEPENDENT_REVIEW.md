@@ -1,5 +1,10 @@
 # Independent local source review
 
+Subsequent local implementation adds the denial mechanism described in
+`S2_NATIVE_DENIAL_CONTROL.md`. This review remains limited to the authentication,
+routing and autosave source it originally covered; it does not approve that new
+transport or grant deployment authorization.
+
 Reviewed initial commit: `d05a0011f272ca42efb7b8c4c6c2bb4608fbd6d8`.
 Reviewer: separate read-only agent `/root/review_s2_session_control`; the author
 did not treat its own review as independent. No hosted requests or credentials.

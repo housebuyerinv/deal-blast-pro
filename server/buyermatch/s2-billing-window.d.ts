@@ -6,6 +6,7 @@ export function isDedicatedS2Runtime(env?: Environment): boolean;
 export function requireS2BillingWindow(owner: string, operation: string, env?: Environment, now?: number): { runId: string; expiresAt: number } | undefined;
 export function s2BillingWindowStatus(user: { id?: string; email_confirmed_at?: string | null }, env?: Environment): {
   schema: 1; source: string; projectId: string; deploymentId: string;
+  pausedSettingsVerified: boolean; attestationRunId: string;
   registrationPaused: boolean; checkoutEnabled: boolean; liveBillingDisabled: boolean; deliveryDisabled: boolean;
   BM_S2_BILLING_OWNER_ID: string; BM_S2_BILLING_RUN_ID: string; BM_S2_BILLING_STARTED_AT: string;
   BM_S2_BILLING_EXPIRES_AT: string; BM_S2_BILLING_OPERATIONS: string;

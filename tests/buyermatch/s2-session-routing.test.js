@@ -30,7 +30,7 @@ const result = await build({ entryPoints: ['src/App.tsx'], bundle: true, write: 
   define: { 'import.meta.env.VITE_SUPABASE_URL': JSON.stringify('https://qxhhlprentrufobpcgna.supabase.co') },
   plugins: [{ name: 'routing-fixtures', setup(b) {
     b.onResolve({ filter: /.*/ }, a => {
-      if (a.kind === 'entry-point' || /^(react(?:\/.*)?|react-router-dom)$/.test(a.path) || /S2SessionVerification$|s2BrowserVerification$/.test(a.path)) return;
+      if (a.kind === 'entry-point' || /^(react(?:\/.*)?|react-router-dom)$/.test(a.path) || /S2SessionVerification$|S2DenialVerification$|s2BrowserVerification$|s2DenialVerification$/.test(a.path)) return;
       return { path: a.path, namespace: 'fixture' };
     });
     b.onLoad({ filter: /.*/, namespace: 'fixture' }, a => ({ contents:
@@ -51,13 +51,13 @@ async function mount({ uid = UID, subscribed = false, origin = 'https://dbp-regi
 }
 for (const subscribed of [false, true]) test('actual root route reaches Pro control with Free CRM; BuyerMatch subscribed=' + subscribed, async () => {
   const tree = await mount({ subscribed });
-  assert.equal(fixture.shell, 0); assert.equal(tree.root.findByType('button').children[0], 'Verify this browser session');
+  assert.equal(fixture.shell, 0); assert.equal(tree.root.findByProps({ 'data-s2-auth-check': true }).children[0], 'Verify this browser session');
   assert.ok(fixture.autosave.length > 0 && fixture.autosave.every(enabled => enabled === false));
   assert.equal(fixture.authReads, 0); assert.ok(fixture.requests.length > 0 && fixture.requests.every(r => r.url === '/api/account-status'));
   await act(() => tree.unmount());
 });
 for (const uid of ['synthetic-owner', 'wrong-user']) test('non-fixture account cannot trigger Pro check: ' + uid, async () => {
-  const tree = await mount({ uid }); assert.equal(tree.root.findByType('button').props.disabled, true); assert.equal(fixture.authReads, 0); assert.equal(fixture.shell, 0); await act(() => tree.unmount());
+  const tree = await mount({ uid }); assert.equal(tree.root.findByProps({ 'data-s2-auth-check': true }).props.disabled, true); assert.equal(fixture.authReads, 0); assert.equal(fixture.shell, 0); await act(() => tree.unmount());
 });
 test('Production host rejects route before protected account requests', async () => {
   const tree = await mount({ origin: 'https://deal-blast-pro.vercel.app' }); assert.ok(JSON.stringify(tree.toJSON()).includes('Not available.')); assert.equal(fixture.requests.length, 0); assert.equal(fixture.authReads, 0); assert.equal(fixture.shell, 0); await act(() => tree.unmount());

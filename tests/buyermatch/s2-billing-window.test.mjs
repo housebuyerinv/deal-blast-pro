@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { REQUIRED_S2_ENV } from '../../scripts/buyermatch-s2-release.mjs';
 import {
   s2BillingWindowStatus,
   requireS2BillingWindow,
@@ -24,6 +25,19 @@ const env = () => ({
   BM_S2_BILLING_EXPIRES_AT: new Date(when + 60000).toISOString(),
   BM_S2_BILLING_OPERATIONS: "checkout,payment,change,cancel",
   BM_CHECKOUT_ENABLED: "true",
+});
+test('denial readiness projects all17 pause verification and sanitized run binding without secret access', () => {
+  const e = { ...REQUIRED_S2_ENV, VERCEL_PROJECT_ID: 'prj_XglHAvS3zjuyLWvHkuNt5U8BoUtl', VERCEL_ENV: 'preview', VERCEL_DEPLOYMENT_ID: 'dpl_SyntheticOnly', BM_S2_ATTESTATION_SOURCE_SHA: 'a'.repeat(40), BM_S2_ATTESTATION_RUN_ID: '5bab24c5-e50c-4854-a051-610f4334943b' };
+  Object.defineProperty(e, 'STRIPE_SECRET_KEY', { get() { throw Error('Secret access prohibited'); } });
+  const actor = { id: S2_PRO_OWNER, email_confirmed_at: '2026-10-27T12:00:00Z' };
+  assert.equal(s2BillingWindowStatus(actor, e).pausedSettingsVerified, true);
+  assert.equal(s2BillingWindowStatus(actor, e).attestationRunId, e.BM_S2_ATTESTATION_RUN_ID);
+  assert.equal(s2BillingWindowStatus(actor, { ...e, BM_S2_ATTESTATION_RUN_ID: 'DUMMY_PRIVATE' }).attestationRunId, '');
+  for (const key of Object.keys(REQUIRED_S2_ENV)) {
+    const changed = { ...e, [key]: 'unexpected' };
+    try { assert.equal(s2BillingWindowStatus(actor, changed).pausedSettingsVerified, false); }
+    catch (error) { assert.equal(error.status, 404); }
+  }
 });
 
 test("S2 billing status projects only non-secret runtime bindings for the confirmed Pro fixture", () => {

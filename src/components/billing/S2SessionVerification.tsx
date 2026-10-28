@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAppStore } from '../../store/useAppStore';
 import { isS2VerificationOrigin, S2_AUTH_URL, S2_PRO_USER_ID, verifyS2ProSession } from '../../lib/s2BrowserVerification';
+import S2DenialVerification from './S2DenialVerification';
 
 export default function S2SessionVerification() {
   const userId = useAppStore(s => s.user?.id);
@@ -53,15 +54,16 @@ export default function S2SessionVerification() {
   }
 
   if (!available) return null;
+  const authEpoch = generation.current;
   return <section aria-labelledby="s2-session-heading" className="space-y-3 rounded border p-4">
     <h2 id="s2-session-heading" className="text-lg font-semibold">S2 Pro browser authentication</h2>
-    <p>Read-only verification of the existing Pro test identity. This does not authorize billing or run route-denial tests.</p>
+    <p>Read-only verification of the existing Pro test identity. This does not authorize billing or automatically run route-denial tests.</p>
     <label className="flex items-start gap-2">
       <input type="checkbox" checked={confirmed} disabled={attempted.current || userId !== S2_PRO_USER_ID}
         onChange={event => setConfirmed(event.target.checked)} />
       I have signed in privately as the existing Pro test account and explicitly confirm sign-in succeeded.
     </label>
-    <button type="button" disabled={!confirmed || attempted.current || userId !== S2_PRO_USER_ID}
+    <button type="button" data-s2-auth-check disabled={!confirmed || attempted.current || userId !== S2_PRO_USER_ID}
       className="rounded border px-4 py-2 disabled:opacity-50" onClick={verify}>Verify this browser session</button>
     <p role="status" aria-live="polite" data-s2-session-status={userId === S2_PRO_USER_ID ? status : 'UNVERIFIED'}>
       {userId !== S2_PRO_USER_ID ? 'Unverified. The existing Pro test account is required.' :
@@ -70,5 +72,7 @@ export default function S2SessionVerification() {
         status === 'UNVERIFIED' ? 'Unverified. No retry was attempted. Stop and report this status.' :
         'Not requested. No authentication check has run.'}
     </p>
+    <S2DenialVerification authenticated={status === 'VERIFIED' && userId === S2_PRO_USER_ID}
+      authEpoch={authEpoch} isCurrentAuth={() => generation.current === authEpoch && useAppStore.getState().user?.id === S2_PRO_USER_ID} />
   </section>;
 }

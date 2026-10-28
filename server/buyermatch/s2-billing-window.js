@@ -1,5 +1,6 @@
 import process from "node:process";
 import { URL } from "node:url";
+import { REQUIRED_S2_ENV } from '../../scripts/buyermatch-s2-release.mjs';
 
 export const S2_BILLING_REF = "qxhhlprentrufobpcgna";
 export const S2_PRO_OWNER = "368f5f93-acf7-4cc3-9805-a4c0817506c3";
@@ -63,6 +64,8 @@ export function s2BillingWindowStatus(user, env = process.env) {
     source: env.BM_S2_ATTESTATION_SOURCE_SHA,
     projectId: env.VERCEL_PROJECT_ID,
     deploymentId: env.VERCEL_DEPLOYMENT_ID,
+    pausedSettingsVerified: Object.entries(REQUIRED_S2_ENV).every(([key, value]) => env[key] === value),
+    attestationRunId: uuid.test(env.BM_S2_ATTESTATION_RUN_ID || '') ? env.BM_S2_ATTESTATION_RUN_ID : '',
     registrationPaused: env.DBP_REGISTRATION_PAUSED === "true",
     checkoutEnabled: env.BM_CHECKOUT_ENABLED === "true",
     liveBillingDisabled: env.BM_LIVE_BILLING_ENABLED === "false",

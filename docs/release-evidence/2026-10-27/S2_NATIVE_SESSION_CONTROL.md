@@ -1,5 +1,10 @@
 # S2 native session verification control — LOCAL ONLY
 
+Latest addition: the missing application-native denial transport is now implemented
+locally; see `S2_NATIVE_DENIAL_CONTROL.md`. It still needs final source review and
+bounded hosted authorization. Earlier references below to its absence describe
+the authentication-only review checkpoint, not the latest local implementation.
+
 Implemented at dedicated `/s2/session-verification`, outside CRM plan routing
 but behind the existing authenticated account/deactivation guard. The initial
 placement under `/app/s2-attestation` was rejected by independent review because

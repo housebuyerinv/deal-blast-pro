@@ -58,9 +58,9 @@ async function mount(origin = ORIGIN) {
   globalThis.window = { location: { origin } };
   let tree; await act(() => { tree = create(React.createElement(Panel)); }); return tree;
 }
-const checkbox = tree => tree.root.findByType('input');
-const button = tree => tree.root.findByType('button');
-const status = tree => tree.root.findByProps({ role: 'status' }).props['data-s2-session-status'];
+const checkbox = tree => tree.root.findAllByType('input')[0];
+const button = tree => tree.root.findByProps({ 'data-s2-auth-check': true });
+const status = tree => tree.root.findAllByProps({ role: 'status' }).find(node => 'data-s2-session-status' in node.props).props['data-s2-session-status'];
 async function confirm(tree) { await act(() => checkbox(tree).props.onChange({ target: { checked: true } })); }
 test('mount makes no Auth request; explicit confirmation required; one successful request', async () => {
   const tree = await mount(); assert.equal(fixture.calls, 0); assert.equal(button(tree).props.disabled, true);
