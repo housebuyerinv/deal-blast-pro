@@ -1,5 +1,32 @@
 # Independent local source review
 
+## Final transport review and correction
+
+The separate read-only reviewer inspected exact commit
+`5d830002c1fe2b84855656434b44e26121e13984`. It found one P2 defect: a completed
+denial result could remain visibly PASS after the approved run deadline until
+the separate Auth timer expired. No other blocking issue was found in the fixed
+routes, bearer privacy, runtime17/source/deployment/run guards, bounded response
+handling or stop/no-retry behavior.
+
+The corrected working tree adds deadline-aware render invalidation, a deadline
+timer, focus/visibility resume checks, rollback invalidation and missing-binding
+rejection. Historical completedOutcome is retained separately from live status.
+The reviewer re-inspected this correction and approved it for **separately
+authorized bounded hosted verification**, with no further blocking finding.
+That approval does not apply to the unchanged 5d83000 commit; use the new committed
+source containing this correction. Review was by a separate agent, not a human
+security certification; no credentials or hosted operations were used.
+
+42 directly affected local UI/routing/attestation checks passed, including four
+new expiry regressions; prior unaffected transport/window checks are retained.
+TypeScript, scoped lint and a synthetic-S2-configured bundle were verified locally.
+Neither this review nor local tests establish hosted success. Publication,
+deployment, authentication/test execution and cleanup require fresh explicit
+authorization. Both authenticated hosted tests remain NOT TESTED. No milestone.
+
+## Earlier authentication-only review
+
 Subsequent local implementation adds the denial mechanism described in
 `S2_NATIVE_DENIAL_CONTROL.md`. This review remains limited to the authentication,
 routing and autosave source it originally covered; it does not approve that new

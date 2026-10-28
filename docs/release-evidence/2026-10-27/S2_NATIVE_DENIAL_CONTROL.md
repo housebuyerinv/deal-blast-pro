@@ -1,5 +1,11 @@
 # Native denial-test mechanism — implemented locally, not executed hosted
 
+Final source-review correction: the live denial status now expires at its approved
+run deadline and rechecks on focus/visibility resume, independently of Auth expiry.
+Missing bindings and clock rollback cannot show current PASS. `completedOutcome`
+preserves the historical outcome separately from the live `status`; capture and
+interpret both explicitly. Four new UI regressions cover these cases.
+
 The dedicated S2 session-verification page now includes a separately gated denial
 control. No calls occur on mount or after authentication alone. The operator must
 provide the reviewed public source/deployment/run/deadline and explicitly confirm

@@ -9,12 +9,38 @@ export default function S2DenialVerification({ authenticated, authEpoch, isCurre
   const [source, setSource] = useState(''), [deploymentId, setDeployment] = useState('');
   const [runId, setRun] = useState(''), [deadline, setDeadline] = useState('');
   const [confirmed, setConfirmed] = useState(false), [busy, setBusy] = useState(false);
+  const [expired, setExpired] = useState(false);
   const [result, setResult] = useState<DenialResult | null>(null), [checks, setChecks] = useState<DenialCheck[]>([]);
   const attempted = useRef(false), active = useRef<AbortController | null>(null);
   useEffect(() => {
     setConfirmed(false);
     return () => active.current?.abort();
   }, [authenticated, authEpoch]);
+  useEffect(() => {
+    const binding = result?.binding;
+    if (!binding) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let lastObserved = Date.now();
+    const checkDeadline = () => {
+      const time = Date.now();
+      if (time < lastObserved || time < binding.completedAt || time >= binding.expiresAt) {
+        setExpired(true);
+        active.current?.abort();
+        return;
+      }
+      lastObserved = time;
+      if (timer !== undefined) clearTimeout(timer);
+      timer = setTimeout(checkDeadline, binding.expiresAt - time);
+    };
+    checkDeadline();
+    window.addEventListener('focus', checkDeadline);
+    document.addEventListener('visibilitychange', checkDeadline);
+    return () => {
+      if (timer !== undefined) clearTimeout(timer);
+      window.removeEventListener('focus', checkDeadline);
+      document.removeEventListener('visibilitychange', checkDeadline);
+    };
+  }, [result]);
   async function run() {
     if (!authenticated || !confirmed || attempted.current || !isCurrentAuth()) return;
     attempted.current = true;
@@ -31,7 +57,9 @@ export default function S2DenialVerification({ authenticated, authEpoch, isCurre
     });
     if (!controller.signal.aborted) { setResult(receipt); setChecks(receipt.checks); setBusy(false); }
   }
-  const visibleStatus = !authenticated && attempted.current ? 'UNVERIFIED' : busy ? 'CHECKING' : result?.status ?? 'NOT_TESTED';
+  const binding = result?.binding;
+  const invalidDeadline = Boolean(binding && (Date.now() < binding.completedAt || Date.now() >= binding.expiresAt));
+  const visibleStatus = attempted.current && (!authenticated || expired || invalidDeadline || result?.status === 'PASS' && !binding) ? 'UNVERIFIED' : busy ? 'CHECKING' : result?.status ?? 'NOT_TESTED';
   const locked = !authenticated || attempted.current;
   return <section aria-labelledby="s2-denial-heading" className="space-y-3 rounded border p-4">
     <h2 id="s2-denial-heading" className="text-lg font-semibold">Bounded S2 payment-free denial tests</h2>
@@ -45,7 +73,7 @@ export default function S2DenialVerification({ authenticated, authEpoch, isCurre
     <p role="status" aria-live="polite" data-s2-denial-status={visibleStatus}>{visibleStatus === 'PASS' ? 'PASS: exact expected denials and paused-runtime readbacks verified. Save the sanitized evidence before cleanup.' :
       visibleStatus === 'CHECKING' ? 'Checking fixed S2 routes; stop on first unexpected result.' :
       visibleStatus === 'UNVERIFIED' ? 'UNVERIFIED: stop, preserve evidence and invoke approved cleanup. No retry was attempted.' : 'NOT TESTED. No request has been made by this control.'}</p>
-    <pre data-s2-denial-evidence className="overflow-x-auto whitespace-pre-wrap break-words text-xs">{JSON.stringify({ status: visibleStatus, binding: result?.binding, checks }, null, 2)}</pre>
+    <pre data-s2-denial-evidence className="overflow-x-auto whitespace-pre-wrap break-words text-xs">{JSON.stringify({ status: visibleStatus, completedOutcome: result?.status ?? null, binding: result?.binding, checks }, null, 2)}</pre>
     <p>Results do not activate billing or prove cleanup. Capture this allowlisted evidence into the independent local run journal; if it is lost, the outcome remains UNKNOWN. An unexpected successful response requires review, never automatic expiration or cancellation.</p>
   </section>;
 }
