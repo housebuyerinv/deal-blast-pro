@@ -150,3 +150,10 @@ actual measurement; no current readiness estimate or success claim.
 Documentation review PASS; Linux resource, real encryption/isolation, complete
 staging acquisition/restore and independent custody tests remain NOT RUN.
 Production recovery remains NO-GO.
+# Local coverage preparation update
+
+`scripts/testing/recovery-coverage.mjs` now verifies full coverage, actual byte
+hashes/sizes and safe manifest paths without acquiring data or decrypting archives.
+The credential-free `synthetic-recovery-coverage.test.mjs` logical fixture passed;
+it is not native Linux, encrypted archive, independent key or Auth/Storage API proof.
+See `BUYERMATCH_FINAL_INDEPENDENT_ACCEPTANCE.md` for the consolidated current gates.
