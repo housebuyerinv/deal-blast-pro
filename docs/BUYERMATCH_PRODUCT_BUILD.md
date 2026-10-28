@@ -1,5 +1,10 @@
 # BuyerMatch product experience — implemented locally
 
+Current integrated completion: see
+[`BUYERMATCH_APPLICATION_BUILD_COMPLETION_20261027.md`](BUYERMATCH_APPLICATION_BUILD_COMPLETION_20261027.md).
+The earlier post-submission criteria/POF limitations described below are historical;
+authenticated self-service is implemented locally, with hosted acceptance pending.
+
 Directive 6421435583; October 26, 2026. Existing integration branch; DBP architecture
 and backend contracts retained. This is working application code, not a deployment
 or approval to accept payments. The security-only branch remains separate.

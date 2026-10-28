@@ -1,5 +1,11 @@
 # BuyerMatch local release candidate — October 26, 2026
 
+Latest local build-completion continuation:
+[`BUYERMATCH_APPLICATION_BUILD_COMPLETION_20261027.md`](BUYERMATCH_APPLICATION_BUILD_COMPLETION_20261027.md).
+It supersedes older source/migration pins below, adds real subscriber activity and
+owner operations, and corrects inherited grants in the unexecuted buyer-account
+draft. Hosted and Production gates remain pending; historical evidence below is retained.
+
 Follow-up continuation from `ddf1928f09f9e831376aec07ad6a56f17cbd3f26`:
 the unexecuted draft migration now invalidates stale portal revisions after legacy
 administrator changes, closing a reproduced lost-update defect. Its fingerprint
