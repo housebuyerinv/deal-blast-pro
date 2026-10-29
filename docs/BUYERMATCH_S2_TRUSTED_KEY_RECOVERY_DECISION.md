@@ -1,5 +1,31 @@
 # Existing S2 keys: metadata findings and one next decision
 
+## Current custody handoff — non-secret evidence only, October 29
+
+The retained metadata below identifies **provider custody**: the original
+October 1 branch-scoped Secret bindings remain documented in the owner team's
+original Vercel project. This does not identify the human installer/generator,
+prove an independently held backup exists or establish a legitimate export path.
+The current administrative account/team is not proof of original-key possession.
+
+**Human key custodian / independent backup holder: not verified.** Minimum owner
+action: privately identify the person/role who installed the October 1 bindings,
+or the already controlled vault/encrypted-backup custodian, and report only role/
+availability/provenance (all three, some labels, none found, or unsure). Do not
+send values, vault exports, screenshots or customer records. Do not reopen the
+rejected source or create a replacement key. This note authorizes no contact with
+a third party, vault/key access, provider retrieval or configuration mutation.
+
+If a trusted original copy is confirmed, a separate narrowly scoped private
+compatibility/recovery authorization is required before use; installing a name
+or possessing a newly generated value is not recovery. Preserve all 223 encrypted
+identities and nine provenance payloads. Existing evidence does not establish
+decryption compatibility or an independently validated restore.
+
+No duplicate Vercel inquiry was sent. The historical automated capability answer
+below is not human support confirmation; historical draft sections remain
+background, not instructions to resend or use an unsupported export method.
+
 ## Authorized inquiry executed — provider AI answered; human case blocked
 
 On October 26, the owner authorized the private $0 capability inquiry. It was

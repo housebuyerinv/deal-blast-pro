@@ -1,5 +1,5 @@
 # Proposed BuyerMatch Privacy and Buyer-Information Notice
-Version: buyermatch-review-v0.1-privacy-r2 | Revised: 2026-10-29
+Version: buyermatch-review-v0.1-privacy-r3 | Revised: 2026-10-29
 **DRAFT — NOT APPROVED — NOT FOR PUBLICATION OR ACCEPTANCE**
 
 [OWNER/COUNSEL VERIFY: controller/legal entity, address, privacy contact, effective
@@ -16,6 +16,21 @@ acceptance evidence; usage and billing/subscription references; and operational,
 security and support records. [VERIFY actual collected fields/analytics.]
 Use these to operate authorized matching, private distributions, scoped responses,
 subscription access, support, abuse prevention and required records.
+
+Property conversion functions additionally process property/unit/parcel and
+transaction references, source/JV attribution, dated stages and evidence
+references, offer amounts/status, earnest-money evidence/status, closing amounts,
+recorded projected/invoiced/received/refunded fees, failure reasons and correction/
+duplicate-review history. Owner-scoped buyer pseudonyms support recipient
+de-duplication and engagement reporting; they are not a claim of anonymization.
+Prior records remain when corrected or associated with another submission.
+No email-volume proxy, missing receipt amount or unrecorded outcome is fabricated
+as a verified conversion. These functions do not independently authenticate a
+customer-entered financial attestation or process a payment.
+[OWNER/COUNSEL DECISION: lawful basis and notices for conversion/source/JV records,
+evidence minimization, access and disputes, category-specific retention and any
+rights implications of append-only audit/correction history. Avoid direct buyer
+contacts, bank details, credentials and private document URLs in references.]
 
 ## Proof-of-funds documents and buyer self-service
 
@@ -55,6 +70,11 @@ consent, suppression and withdrawal processes per channel/territory.]
 
 ## Providers and sharing
 Supabase, Vercel and Stripe are part of the current test application stack.
+Netlify is the separately prepared hosting candidate; a Free account exists, but
+BuyerMatch has not been deployed there. This is not a statement that Netlify
+currently processes hosted BuyerMatch customer data. The final notice must name
+only the actual approved deployment's providers, purposes and enabled services;
+do not publish this test/candidate inventory as the final processor disclosure.
 [VERIFY final Production processors, purposes, regions, contracts, retention,
 subprocessors and cross-border safeguards; identify any delivery/analytics provider
 actually enabled.] Do not claim Stripe card details are stored by BuyerMatch or

@@ -1,5 +1,5 @@
 # Proposed BuyerMatch Software Subscription Terms
-Version: buyermatch-review-v0.1-terms-r2 | Revised: 2026-10-29
+Version: buyermatch-review-v0.1-terms-r3 | Revised: 2026-10-29
 **DRAFT — NOT APPROVED — NOT FOR PUBLICATION OR ACCEPTANCE**
 
 This draft becomes usable only after the bracketed decisions are resolved, the owner
@@ -58,7 +58,24 @@ and third-party information. Software is not a substitute for professional advic
 [COUNSEL REVIEW: appropriate disclaimers, availability commitments, liability,
 warranties, indemnity and remedies; none are silently finalized here.]
 
-## 6. Separate managed services and compensation
+## 6. Property conversion records (review addition)
+BuyerMatch can report recorded property/transaction stages, matches, recipient
+delivery, responses, offers, earnest-money evidence, outcomes and fee records.
+Some facts come from existing application records; others are customer-entered
+attestations with references. A recorded offer or receipt is not independent
+document authentication, escrow confirmation, bank reconciliation or proof that
+funds moved. Projected and invoiced fees are separate from recorded receipts.
+Recording a fee does not collect it or establish a right to compensation.
+
+Unresolved property identities and unknown amounts are labeled. Duplicate
+association requires review and retains original submissions and correction
+history. Cohort/window denominators, missing observations and non-linear stage
+history limit interpretation; analytics are not predicted closing probabilities,
+investment advice, an appraisal or a guarantee of transaction performance.
+[OWNER/COUNSEL DECISION: customer evidence/accuracy responsibilities, correction
+and dispute process, permitted access/use of conversion records and any additional
+disclosures for these functions. No legal classification is finalized here.]
+## 7. Separate managed services and compensation
 JV participation, introductions with separate compensation, brokerage-related
 activities or managed disposition require separately arranged, executed agreements.
 No success fee or managed service is included merely by subscribing. [COUNSEL
@@ -67,7 +84,7 @@ compensation disclosures and settlement process before offering those services.]
 Success-fee collection is currently OFF. This draft does not activate it or create
 a right to transaction compensation.
 
-## 7. Records and changes
+## 8. Records and changes
 See the proposed Privacy notice for retention/access decisions. Account deactivation
 does not automatically erase records. [OWNER/COUNSEL DECISION: termination, export
 availability, change notices, price-change handling and policy effective dates.]

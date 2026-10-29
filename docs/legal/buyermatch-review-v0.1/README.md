@@ -4,7 +4,7 @@ Four editable review drafts, NOT approved customer agreements. No file is deploy
 published, inserted into bm_documents, or accepted by a user. Outstanding commercial
 choices are deliberately bracketed; proposed defaults require explicit approval.
 
-October 29 revision: Terms and Privacy now carry `-r2` review versions. The retained
+October 29 revision: Terms and Privacy now carry `-r3` review versions. The retained
 directory name identifies the review series, not approval or final publication.
 Terms includes the approved 250/1,250 monthly invitation ceilings and 10/hour
 analysis limit; Privacy describes implemented private proof replacement/history,
@@ -29,8 +29,12 @@ brackets, receive approval and be separately published with consent evidence.
 Use BUYERMATCH_LEGAL_REVIEW_PACKET.md for the decision log. Governing law, seller,
 tax/territories, refunds/grace, proration/usage and retention remain unresolved.
 
-Drafting preparation is complete for the currently implemented scope. Formal legal
-approval, resolution of bracketed decisions, final versions and publication remain
+Drafting preparation is complete for the currently implemented scope.
+The r3 delta covers conversion/evidence/fee-record analytics, pseudonymous buyer
+references and retained corrections, plus accurate candidate-hosting disclosure.
+It adds no approval or publication authority. Renewal/refund choices remain open.
+
+Formal legal approval, resolution of bracketed decisions, final versions and publication remain
 blocked on owner/qualified reviewer decisions. See
 `docs/BUYERMATCH_LEGAL_PREPARATION_COMPLETION_20261029.md` for the complete
 behavior/coverage and consent-release handoff. No legal requirement is waived.

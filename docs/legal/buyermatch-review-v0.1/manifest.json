@@ -1,24 +1,28 @@
 {
-  "version": "buyermatch-review-v0.1-r2",
+  "version": "buyermatch-review-v0.1-r3",
   "approved": false,
   "publicationAllowed": false,
   "purpose": "owner-counsel-review-only",
   "files": [
     {
       "path": "TERMS.md",
-      "sha256": "9923c739b4f38acdc344369db9c3f9a35b26fe0eab26b2379cdc3b1bb5051a1c"
+      "sha256": "8be87d37d94ba1700c5ae58bb9334897e25d6c716e8952bf4dac6f5d1b49442d",
+      "version": "buyermatch-review-v0.1-terms-r3"
     },
     {
       "path": "RENEWAL_CANCELLATION.md",
-      "sha256": "e0c007b9579368af168c34eabe6ca8eb838d6b23b429ab4ae6b75619cec15a44"
+      "sha256": "e0c007b9579368af168c34eabe6ca8eb838d6b23b429ab4ae6b75619cec15a44",
+      "version": "buyermatch-review-v0.1-renewal"
     },
     {
       "path": "REFUNDS.md",
-      "sha256": "f8a31eecec2fcfb0c19134aa9afca4bf5a33055142a6a6b3002fcc861cdcfc43"
+      "sha256": "f8a31eecec2fcfb0c19134aa9afca4bf5a33055142a6a6b3002fcc861cdcfc43",
+      "version": "buyermatch-review-v0.1-refund"
     },
     {
       "path": "PRIVACY.md",
-      "sha256": "31f2f329d6f251935a8200206a13d8b0333a53fc8b8bc183d3760be226c666ac"
+      "sha256": "7cc8f9138c1a862d5d32fb362c7649377390d7a28f1b5af60b7354a8a937dbd7",
+      "version": "buyermatch-review-v0.1-privacy-r3"
     }
   ],
   "hashConvention": {

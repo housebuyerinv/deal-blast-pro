@@ -6,8 +6,28 @@ agreement flags, provider configuration or public legal pages were changed.
 
 ## Completed preparation
 
+### Current review delta — conversion intelligence and candidate hosting
+
+Terms/Privacy `-r3` now cover the implemented conversion journal: operator-entered
+attestations versus existing application facts, offers/EMD/outcomes and separate
+projected/invoiced/received/refunded fees, uncertain identities/amounts, source/JV
+attribution, owner-scoped buyer pseudonyms and retained correction/merge history.
+Recording fees does not collect money, prove bank reconciliation or grant a
+compensation right. Netlify is labeled an undeployed candidate, not an active
+customer-data processor. Approval/publication flags remain false.
+
+Minimum owner inputs for the reviewer are still legal seller/contact, actual
+service states/territories and precise service scope (software only versus any
+introductions/JV/managed activity). Counsel must then address that actual scope's
+licensing/compensation and other applicable requirements; no jurisdiction or
+exemption is invented. Owner decisions remain required for renewal/change/
+refund/grace rules, records/retention and support. The conversion audit history
+adds a specific retention/correction/rights question to that existing decision
+set. Final processor/region disclosures must follow the selected hosted stack.
+No terms were approved or published and no application behavior was changed.
+
 Existing editable drafts remain under `legal/buyermatch-review-v0.1/` with
-`approved=false` and `publicationAllowed=false`. Terms and Privacy have `-r2`
+`approved=false` and `publicationAllowed=false`. Terms and Privacy have `-r3`
 review versions and updated canonical UTF-8/LF review hashes. Renewal/Cancellation and Refund
 drafts are retained without inventing unresolved business decisions.
 
