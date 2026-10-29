@@ -30,6 +30,7 @@ import AuthCallback from './pages/public/AuthCallback'
 import AppShell from './components/layout/AppShell'
 
 import BuyerMatch from './pages/app/BuyerMatch'
+import BuyerMatchConversion from './pages/app/BuyerMatchConversion'
 import BuyerMatchResponse from './pages/public/BuyerMatchResponse'
 import BuyerMatchLanding from './pages/public/BuyerMatchLanding'
 import BuyerMatchDemo from './pages/public/BuyerMatchDemo'
@@ -373,6 +374,7 @@ function App() {
                   <Route path="dashboard" element={<Dashboard />} />
                   <Route path="submissions" element={<Submissions />} />
                   <Route path="inventory" element={<Inventory />} />
+                  <Route path="buyermatch/conversion" element={<BuyerMatchConversion />} />
                   <Route path="buyers" element={<Buyers />} />
                   <Route path="resources" element={<Resources />} />
                   <Route path="blast" element={<Blast />} />

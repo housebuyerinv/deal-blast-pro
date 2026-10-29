@@ -1,4 +1,6 @@
 import { subscriberPortal } from '../buyermatch/portal.js';
+import { conversionRequest } from '../buyermatch/conversion.js';
+import { conversionReport } from '../buyermatch/conversion-report.js';
 import { activityPage, confirmedNetworkOwner, networkOperations } from '../buyermatch/operations.js';
 import {s2BillingWindowStatus} from '../buyermatch/s2-billing-window.js';
 import {buyerProofReview} from '../buyermatch/buyer-proof-review.js';
@@ -99,6 +101,7 @@ export default async function handler(req: any, res: any) {
         : req.query;
     const action = String(body.action || "list");
     const readActions = new Set([
+      'conversion-report',
       'billing-status',
       "list",
       "detail",
@@ -125,6 +128,18 @@ export default async function handler(req: any, res: any) {
       if (action === "access") return res.status(200).json({ active,
         subscribed: entitlements.some((item: any) => item.product === "buyermatch") });
       if (!active) fail("An active BuyerMatch subscription is required. View BuyerMatch plans.", 403);
+    }
+    if (['conversion-report','conversion-record','conversion-review'].includes(action)) {
+      if (action !== 'conversion-report' && req.method !== 'POST') fail('POST required',405);
+      if (action === 'conversion-report') {
+        if (req.method !== 'GET') fail('GET required',405);
+        const { action: _action, ...filters } = z.object({ action: z.literal('conversion-report'),
+          market: z.string().max(80).optional(), source: z.string().max(80).optional(), jvPartner: z.string().max(80).optional(),
+          from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(), to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+          outcome: z.enum(['open','closed','lost','stalled','withdrawn','canceled','reopened']).optional(), windowDays: z.coerce.number().int().min(1).max(1095).optional() }).strict().parse(body);
+        return res.status(200).json(conversionReport(await conversionRequest(db,user.id,action,body),filters));
+      }
+      return res.status(200).json(await conversionRequest(db,user.id,action,body));
     }
     const owned = async (id: string) => {
       uuid.parse(id);

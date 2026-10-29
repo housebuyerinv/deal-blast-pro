@@ -17,6 +17,14 @@ async function cookie(s) {
   const result = await s.send('/', { headers: { authorization: s.basic } });
   assert.equal(result.status, 200); return result.headers.get('set-cookie').split(';')[0];
 }
+test('conversion actions pass through private transport but still require a user session', async () => {
+  const seen=[];const s=setup({buyermatch:(req,res)=>{seen.push(req.method==='GET'?req.query.action:req.body.action);res.status(200).json({ok:true});}});
+  const c=await cookie(s),headers={cookie:c,authorization:'Bearer synthetic-session','Content-Type':'application/json'};
+  assert.equal((await s.send('/api/buyermatch?action=conversion-report',{headers})).status,200);
+  for(const action of ['conversion-record','conversion-review']) assert.equal((await s.send('/api/buyermatch',{method:'POST',headers,body:JSON.stringify({action})})).status,200);
+  assert.equal((await s.send('/api/buyermatch?action=conversion-report',{headers:{cookie:c}})).status,401);
+  assert.deepEqual(seen,['conversion-report','conversion-record','conversion-review']);
+});
 test('valid independent profile and staging origin; original projects rejected', () => {
   const f = fixture(); assert.equal(netlifyProfile(f.env, f.context, instant).origin, f.origin);
   assert.equal(stagingOrigin(f.env), f.origin);

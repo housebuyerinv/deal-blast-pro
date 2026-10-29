@@ -247,6 +247,7 @@ function BuyerMatchScreen() {
         <p className="text-sm text-slate-400">{isAdmin ? 'Review buyer criteria, consent and evidence before eligibility. Network identities remain administrator-only.' : isPlans ? 'Independent BuyerMatch billing. Your DBP CRM subscription stays separate.' : 'Save the property. Understand buyer fit. Review before distribution.'}</p>
         <nav aria-label="BuyerMatch workspace" className="flex flex-wrap gap-5 text-sm">
           <NavLink end to="/app/buyermatch">My deals</NavLink>
+            <NavLink to="/app/buyermatch/conversion">Conversion intelligence</NavLink>
           <NavLink to="/app/buyermatch/plans">Plans & allowances</NavLink>
           {plans.isNetworkAdmin && (
             <NavLink to="/app/buyermatch/admin">Network admin</NavLink>

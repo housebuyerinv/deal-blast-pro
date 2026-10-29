@@ -9,8 +9,8 @@ export const protectedHeaders = {
   'X-Frame-Options': 'DENY', 'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
   'Strict-Transport-Security': 'max-age=31536000', 'X-Robots-Tag': 'noindex, nofollow, noarchive',
 };
-const readActions = new Set(['list', 'detail', 'activity', 'plans', 'access', 'documents', 'onboarding', 'admin-list', 'admin-usage', 'admin-operations']);
-const writeActions = new Set(['save', 'accept', 'onboarding-accept', 'analyze', 'upload', 'title', 'update', 'message',
+const readActions = new Set(['conversion-report','list', 'detail', 'activity', 'plans', 'access', 'documents', 'onboarding', 'admin-list', 'admin-usage', 'admin-operations']);
+const writeActions = new Set(['conversion-record','conversion-review','save', 'accept', 'onboarding-accept', 'analyze', 'upload', 'title', 'update', 'message',
   'admin-preview', 'admin-import', 'admin-sync-buyer', 'admin-buyer', 'admin-detail', 'admin-document', 'admin-progress', 'admin-review', 'admin-duplicates', 'admin-duplicate-review']);
 const json = (status, error, headers = {}) => new Response(JSON.stringify({ error }), { status, headers: { ...protectedHeaders, 'Content-Type': 'application/json', ...headers } });
 const mime = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.webp': 'image/webp', '.jpg': 'image/jpeg' };
