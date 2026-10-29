@@ -76,6 +76,17 @@ export function ConversionScreen({
   const [confirmed, setConfirmed] = useState(false),
     operation = useRef<{ value: string; key: string } | null>(null);
   const generation = useRef(0);
+  useEffect(() => {
+    setConfirmed(false);
+    setForm({
+      kind: "inventory_verified",
+      occurredAt: "",
+      reason: "other_documented",
+      verifier: "title",
+      status: "accepted",
+    });
+    operation.current = null;
+  }, [selected]);
   useEffect(
     () => () => {
       generation.current++;
@@ -132,7 +143,13 @@ export function ConversionScreen({
       );
       if (generation.current === run) {
         setData(result);
-        if (!selected) setSelected(result.rows[0]?.id || "");
+        setSelected((previous) =>
+          result.rows.some((row: Data) => row.id === previous)
+            ? previous
+            : result.rows[0]?.id || "",
+        );
+        setReviewedPair("");
+        setConfirmed(false);
       }
     } catch (e) {
       if (generation.current === run) {
@@ -163,7 +180,12 @@ export function ConversionScreen({
   }
   async function record(event: React.FormEvent) {
     event.preventDefault();
-    if (!confirmed || !selected || !form.occurredAt) return;
+    if (
+      !confirmed ||
+      !data?.rows.some((row: Data) => row.id === selected) ||
+      !form.occurredAt
+    )
+      return;
     let payload: Data = {};
     const kind = form.kind;
     if (kind === "identity")
@@ -695,7 +717,7 @@ export function ConversionScreen({
               </label>
               <button
                 className="btn btn-green"
-                disabled={busy || !selected || !confirmed}
+                disabled={busy || !row || !confirmed}
               >
                 Append evidence
               </button>

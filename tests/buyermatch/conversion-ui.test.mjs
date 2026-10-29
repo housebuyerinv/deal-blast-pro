@@ -103,6 +103,27 @@ test("screen loads actual report shape, filters, zero-data denominators and pres
         .props.onSubmit({ preventDefault() {} });
     });
     assert.equal(calls.at(-1).values.market, "Austin, TX");
+    await act(async () =>
+      view.root
+        .findByProps({ "aria-label": "market" })
+        .props.onChange({ target: { value: "No matching market" } }),
+    );
+    await act(async () =>
+      view.root
+        .findByProps({ "aria-label": "Conversion filters" })
+        .props.onSubmit({ preventDefault() {} }),
+    );
+    assert.equal(
+      view.root.findByProps({ "aria-label": "Transaction" }).props.value,
+      "",
+    );
+    assert.equal(
+      view.root
+        .findAllByType("button")
+        .find((button) => button.children.includes("Append evidence")).props
+        .disabled,
+      true,
+    );
   } finally {
     view?.unmount();
   }
