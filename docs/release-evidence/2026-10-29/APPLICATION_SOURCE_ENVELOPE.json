@@ -1,0 +1,2233 @@
+{
+  "schema": "buyermatch-application-source-envelope-v1",
+  "state": "LOCAL_SOURCE_PREPARED_NOT_DEPLOYMENT_AUTHORIZED",
+  "source": "68c5cf9f4d8fcd590e45dd536eab1eb29edecccc",
+  "tree": "e5aee3a9d5597bdd1f09e020d92e0cd741e9a510",
+  "isolatedDerivative": "f88503f78c105ccc3d39d4d2b7ed8263f128e85b",
+  "derivativeApplicationDelta": [],
+  "sourceHashEncoding": "SHA256 exact committed Git blob bytes, not Windows checkout bytes",
+  "executionAllowed": false,
+  "pushAllowed": false,
+  "spendingUsd": 0,
+  "compiledArtifact": false,
+  "hostedEvidence": false,
+  "credentialsIncluded": false,
+  "files": [
+    {
+      "path": "api/_accountAuth.ts",
+      "gitBlob": "29979756d72a33103ca4d235c56ce2cd52b7d30c",
+      "sha256": "65e47cc405d389a19586d67fdf65739f9d7c2bcbb0eea9b002fa77b49c164eec",
+      "bytes": 11533
+    },
+    {
+      "path": "api/_emailOperations.ts",
+      "gitBlob": "aa3a91efc433d9e79771355f51a9850a36fd1fe8",
+      "sha256": "9ef879372821e02534ae0e0090b3cc0189287539818161e52aedf6b974e8a2cd",
+      "bytes": 3164
+    },
+    {
+      "path": "api/_geoapify.ts",
+      "gitBlob": "56c0c1b18d60ff4b6cc6873018b99d1fb777a84a",
+      "sha256": "b4a1823ade00f1565e3aef7d7a51f58c977fee506bbf0fa1a46e7bd87dd31e5e",
+      "bytes": 2878
+    },
+    {
+      "path": "api/_registrationIntent.ts",
+      "gitBlob": "62a80e231cd73c4d9b55b13fedf837f6b3afa0e3",
+      "sha256": "68f63ead95246c1bf6583670dcb35612a5cd0694300ba62e2cbbc9c978702369",
+      "bytes": 2917
+    },
+    {
+      "path": "api/account-status.ts",
+      "gitBlob": "f5e2c13c3d9e0341bf0e41d7279dbab1fc194785",
+      "sha256": "4382e78d7859931277c2056b0aa0e13fd7b37756fc30829a761c0253f3f5aa01",
+      "bytes": 2798
+    },
+    {
+      "path": "api/create-billing-portal-session.ts",
+      "gitBlob": "c66dc93a3f149d890ee40e775242c485b5ef9abc",
+      "sha256": "97cd4fc2cc502ceb693b34dacced8cc1dcc702ed2230a5d81c2b664e064a7798",
+      "bytes": 4703
+    },
+    {
+      "path": "api/deactivate-account.ts",
+      "gitBlob": "7c43134a0701b8bcae5618b121aa29ae99749342",
+      "sha256": "bec5f50cea70c11d590193c905449ca877cb1d4fc53621ac2eae9be5e31e18c9",
+      "bytes": 3175
+    },
+    {
+      "path": "api/import-buyers.ts",
+      "gitBlob": "b44396b731c4a52ea358dfd4e03e362114638f6a",
+      "sha256": "03e74ff6966a9441f3f367dabc4c59c991f65bcba4c7d2b1be3e17e597663786",
+      "bytes": 16333
+    },
+    {
+      "path": "api/platform/[endpoint].ts",
+      "gitBlob": "089fdb5e2b403d5416c90296e64d15919cf5aa16",
+      "sha256": "e0a7333e940578eb442ca57660b877531465970d880bd7c2ca477dc75b33dd80",
+      "bytes": 1901
+    },
+    {
+      "path": "api/property-intelligence/[action].ts",
+      "gitBlob": "c06d003376713b06cf64010782bed939d3ed2e8b",
+      "sha256": "6a6e5640086a49d30d352aff87aa741c60b45507ef119e941c1e3b019776eb5f",
+      "bytes": 57406
+    },
+    {
+      "path": "api/property-intelligence/pro-trial-checkout.ts",
+      "gitBlob": "763854c9322f01aecc78107b43888aeb35d2ae78",
+      "sha256": "2f188d71e77bb3ffc8c2d30db2118371b24a434b028b49b6ad2948fb5d06d0fc",
+      "bytes": 7343
+    },
+    {
+      "path": "api/register-account.ts",
+      "gitBlob": "75c88fda744deedef6054ca84b53bdf01eb80fd4",
+      "sha256": "4280b1ac538730b85718c2c3e78a37304d4b310b5c138e904e9cb692bd502bfc",
+      "bytes": 10916
+    },
+    {
+      "path": "api/submission-notify.ts",
+      "gitBlob": "6cfa28d456db00ece7b171099dfa5c084d21ad42",
+      "sha256": "93514c24d9f3f70775dd5f3a68aa4c6137a94123ae6ec619b73284181775bac0",
+      "bytes": 5019
+    },
+    {
+      "path": "api/waitlist-admin.ts",
+      "gitBlob": "c4d3fff87f14eddda9be24c37337dba454d3bf58",
+      "sha256": "bbfb0e01247a144200d9686f01658d4a9db4e65ba4d327de2359d291138202d1",
+      "bytes": 2717
+    },
+    {
+      "path": "api/waitlist-register.ts",
+      "gitBlob": "bad3a7700feb00f6587a98546d53d6db359c9682",
+      "sha256": "00cd50ca4d67e2c49bf719441233be438a4e82c774b6f2e5292ef7e95ee4feb5",
+      "bytes": 5982
+    },
+    {
+      "path": "index.html",
+      "gitBlob": "25ff0ccd9292992dcaaad07641a8ed5a79940a2e",
+      "sha256": "00ad62756deffae026209d55e7f59595121b7b443c9c6a3764e2a6d8266c9245",
+      "bytes": 593
+    },
+    {
+      "path": "package-lock.json",
+      "gitBlob": "35f4ddbbada7ebb6c8295cd8c4b5c477106d1025",
+      "sha256": "34545d4d4cfb9302fcfcf1257c8a0fd79928691a27e39d62c25f32170a3f66e0",
+      "bytes": 229590
+    },
+    {
+      "path": "package.json",
+      "gitBlob": "85a6eb10d64f824323acf6476f86a4722a697ea8",
+      "sha256": "a7b2e8a9223433912b51e0d6136065f2be245d1a0cceef22a57a0ace684c0f1c",
+      "bytes": 1652
+    },
+    {
+      "path": "postcss.config.js",
+      "gitBlob": "2e7af2b7f1a6f391da1631d93968a9d487ba977d",
+      "sha256": "190c877db466995bf1482f4a16abd06e04a89ede3119341e2a86ff96e1737b27",
+      "bytes": 80
+    },
+    {
+      "path": "public/features/dbp-buyer-database.webp",
+      "gitBlob": "9d2cae0ad97ab9453c466e8d4e3b22a756d91fb3",
+      "sha256": "b4a2d0a1c6317b814e9e13668a317bc531b42a74bd5aa5322e53cdfac8b2db90",
+      "bytes": 123780
+    },
+    {
+      "path": "public/features/dbp-command-center.webp",
+      "gitBlob": "e3b82b9bef308bd1f40e60b9edc72a7be2f9b6db",
+      "sha256": "01e2724793bbfa0f67498fc4f51b8db56dcfe7b221f66f34c3e643db3f3fa6ea",
+      "bytes": 126602
+    },
+    {
+      "path": "public/features/dbp-deal-blast-builder.webp",
+      "gitBlob": "dfa582944452f859a86bf636afd36546e069d9d1",
+      "sha256": "a9705b8b4cf543009820d70bf40dd98a399bf5ad98bd19fc4984e02eebff5d19",
+      "bytes": 148108
+    },
+    {
+      "path": "public/features/dbp-deal-calculator.webp",
+      "gitBlob": "ba52d7f95a2089c86e925d4fe614648bd3e9f04f",
+      "sha256": "4b097aaeee1bb76a00b921cd56d9b5e85ff79fae6782159f2ec9844f6d796889",
+      "bytes": 117084
+    },
+    {
+      "path": "public/features/dbp-deal-details.webp",
+      "gitBlob": "da1a8236109e0978427be01864bf472dc8e946eb",
+      "sha256": "a4b0b79a8a34f4054f0b464f63c1e2a594696c2c670a3fa2d507dac1ffb408f1",
+      "bytes": 119532
+    },
+    {
+      "path": "public/features/dbp-resource-hub.webp",
+      "gitBlob": "c29be310deeba8672ac87c88d8787521cfae4002",
+      "sha256": "74cb1c90d98b736291d5c6d1cf8f50cbe1fdbc5ef8bf76298ba954574747ada3",
+      "bytes": 171166
+    },
+    {
+      "path": "server/buyermatch/availability.js",
+      "gitBlob": "732edff31aead719ce53875f517011395fffb581",
+      "sha256": "e9dda51dc9f9128949c1b96036e1410463398755742c1d62a316a9286cd969c3",
+      "bytes": 1374
+    },
+    {
+      "path": "server/buyermatch/billing-config.js",
+      "gitBlob": "685e1cb1b106bd3c890d5684957025a7eeb43b23",
+      "sha256": "f6b2d7a834de814844da9450cc5e4ec3ace8c56babaaf68202a0fc329abf4752",
+      "bytes": 2222
+    },
+    {
+      "path": "server/buyermatch/buyer-account.js",
+      "gitBlob": "e430c62c3b671084d7b90b110acc5e5b46013cef",
+      "sha256": "a164662c2792e1d0b3610fc8285e3933aca3cdfbcc15941cf88604103d26ee63",
+      "bytes": 10439
+    },
+    {
+      "path": "server/buyermatch/buyer-proof-review.js",
+      "gitBlob": "f86f17b73c499d0cb6d99ae7dfa8290f2bc9a01c",
+      "sha256": "4fed5f0e5c726d989832449b492b1b6468c3630a00cd9b6002b4c0632160dc2a",
+      "bytes": 2672
+    },
+    {
+      "path": "server/buyermatch/catalog.js",
+      "gitBlob": "e233dabe2ea51a164e1d0a3fe8cee66b76b61427",
+      "sha256": "fc271bd6aa5cdcefae3b452d5f4275fb5f4b8a438912942a88e08a6b2a34a6a4",
+      "bytes": 3939
+    },
+    {
+      "path": "server/buyermatch/checkout.js",
+      "gitBlob": "f73070d64d85c512c319a5c652b59105db1a3d03",
+      "sha256": "948069d30749206db4db40f59bc5b540bcf5c358d3a8b5eb562ee44a6bc849b2",
+      "bytes": 5688
+    },
+    {
+      "path": "server/buyermatch/conversation.js",
+      "gitBlob": "8275d39cbd1829891c7fbe414d630fb295450b09",
+      "sha256": "531e246685b4f76c86d22287bc7d7dda3962a9ddb12aa1ca634c2edfe08f6881",
+      "bytes": 347
+    },
+    {
+      "path": "server/buyermatch/deduplication.js",
+      "gitBlob": "b10bd0a42f568105fc2b3437674e25554f3ff9ff",
+      "sha256": "0ab8dfcbe423c5a2639ff370c7f1616ee0de3fdda4583ea9af603e9f3c1c8c3e",
+      "bytes": 1910
+    },
+    {
+      "path": "server/buyermatch/local-synthetic.js",
+      "gitBlob": "48f81ac704fbe1e5742eab5c91e94ed91a162ee2",
+      "sha256": "24578fdbfbc98b8e4ffde53dd1c0a8fd57cff604a1fbfd0980f186c99bf365a3",
+      "bytes": 1132
+    },
+    {
+      "path": "server/buyermatch/matching.js",
+      "gitBlob": "009ba7f4baf2e96b1d6754fcca13c70fd9e1775a",
+      "sha256": "8a914a7a1fcbe528d609d29e508654e496cca0cb8670f3e4c3fc869715fa0d46",
+      "bytes": 7510
+    },
+    {
+      "path": "server/buyermatch/onboarding.js",
+      "gitBlob": "07444130ccb414723d95b24e2a79b71024e74d65",
+      "sha256": "595cef983cc6e2a1c0df326735390f5a07690a919e4149a36f8247fa35a7ea14",
+      "bytes": 1324
+    },
+    {
+      "path": "server/buyermatch/operations.js",
+      "gitBlob": "79b44dc6c6ddc9d9aa9e42b4b6a2f1c19c23b5dd",
+      "sha256": "2e87a8d38f9f5617c07ff18db05b56bdd53afdbaafb313172376e4493e015758",
+      "bytes": 2668
+    },
+    {
+      "path": "server/buyermatch/outbox.js",
+      "gitBlob": "cdd1502c6a3073f6059a564c3e17d4e0c2ed41f9",
+      "sha256": "8b9c481588365114ebe04d4ab272bc79a497e98eedbb5231b2a376b81a82c386",
+      "bytes": 2303
+    },
+    {
+      "path": "server/buyermatch/portal-consent.js",
+      "gitBlob": "a0b5c6c78cf58a883077269f60e130b7f4b92d18",
+      "sha256": "5d37c01f40b53fbb4edf1b1c6f461ac0e0eb8a8a88cd915a51ca171edd256442",
+      "bytes": 1393
+    },
+    {
+      "path": "server/buyermatch/portal.js",
+      "gitBlob": "3734109aa61c97578c179653c4216ad11c546b0a",
+      "sha256": "c355862b2a726bbe8422756a4602d6b871d65812f04fe00e256d1fa3ee31f3bd",
+      "bytes": 4186
+    },
+    {
+      "path": "server/buyermatch/production-delivery.js",
+      "gitBlob": "8b366cb29c3084d704ff10974f3a79f17badd47c",
+      "sha256": "333ca114f01cdead2fa9ca60117b44cb0eaf9f13268d2cdbefa12acd7d8f4bee",
+      "bytes": 4038
+    },
+    {
+      "path": "server/buyermatch/provider-verification.js",
+      "gitBlob": "aef8381c50cdee2557705e5bcc238b470376107b",
+      "sha256": "2d91b9b713fbe3be7df71b629585a5352017b0b38095e77a740084235a9e6b23",
+      "bytes": 2330
+    },
+    {
+      "path": "server/buyermatch/provider.js",
+      "gitBlob": "17bf5a9da742e20e7e811ba5e408d1192f2e5900",
+      "sha256": "f485c29d949da53f24cc3c28b6a83334d119303084bad1c1a7eefd363879b5c6",
+      "bytes": 2316
+    },
+    {
+      "path": "server/buyermatch/response-config.js",
+      "gitBlob": "3a5c021e27aa8d1a36c2c9a9937be41ab9ffeff2",
+      "sha256": "4f978b8d654d20a6fdefda69d3173f6b6d42647f1c970491226245f8cf130bae",
+      "bytes": 1274
+    },
+    {
+      "path": "server/buyermatch/s2-attestation.js",
+      "gitBlob": "800c2438bef719493f91e03464ba01d65402ba59",
+      "sha256": "cf42f3110a39166997ba2e721dc7e5ddbcf3b7953d19b1361a5cf2dee2ee15d3",
+      "bytes": 4408
+    },
+    {
+      "path": "server/buyermatch/s2-billing-window.d.ts",
+      "gitBlob": "7b575a4e1968982510eb4cd491f3389f74dc2b71",
+      "sha256": "66ac45f3b571c855c8937e63e5342b07ed008b32250b3fd7e686a69584569080",
+      "bytes": 1041
+    },
+    {
+      "path": "server/buyermatch/s2-billing-window.js",
+      "gitBlob": "bb03603fbe98a7ed30324698533c113fb490444a",
+      "sha256": "913cfa7be2c51ffdcbfccf8c875835c14d3f7142d4572187cc45ed57a791fac7",
+      "bytes": 5134
+    },
+    {
+      "path": "server/buyermatch/s2-stripe-readiness.js",
+      "gitBlob": "0216d8d692716c7860dcf4fa3a141fa7ae70d2c1",
+      "sha256": "9d60988fca10118335ddab3846cbb158b66d9cabc8d703c6a4800c607319d11a",
+      "bytes": 3195
+    },
+    {
+      "path": "server/buyermatch/security.js",
+      "gitBlob": "c0e6cad67a103e0c6eb70e543ebdab73fdede7d0",
+      "sha256": "f6b2cb1cb1c4ec475b1c5e3a798de2fd6aa9c75a6dab2665b1dc3324ab2241b2",
+      "bytes": 8439
+    },
+    {
+      "path": "server/buyermatch/staging.js",
+      "gitBlob": "6eebedd46da49aa57c2aef059226ec5201156462",
+      "sha256": "2e18673585f4fe65a2269f3b36c5bdc487aa10fbe9737b22e7e736ec26191234",
+      "bytes": 1411
+    },
+    {
+      "path": "server/buyermatch/tokens.js",
+      "gitBlob": "d3ae9c9c19e1d110a12a1b417b04c19b3e343dcf",
+      "sha256": "82996a6163e622d66f3b6540cd13cfefbd681db97ecacb6a78ff8ea78dad7ed5",
+      "bytes": 1229
+    },
+    {
+      "path": "server/buyermatch/usage.js",
+      "gitBlob": "6f2eec924a9afbce920111650f312f2a42ceab72",
+      "sha256": "3f53c1cd38c3008c99aae2747ba118eee50f3d555442fc6c3645aa9a59eb844a",
+      "bytes": 835
+    },
+    {
+      "path": "server/buyermatch/workflow.js",
+      "gitBlob": "4520b65c57081aa69bdb83c011646a7550e10192",
+      "sha256": "0a992bf0088515e5093fb393dad013724318fafd734a108c1af3727a3f934c6e",
+      "bytes": 2646
+    },
+    {
+      "path": "server/http/buyermatch-buyer.ts",
+      "gitBlob": "3ed45f4765cc435e95de27cac05c15390fa035cb",
+      "sha256": "be8a3eb98ccb827dc93e64b0fd486b8f0132c9c65952dad2ee4cd22bb8efb0a5",
+      "bytes": 3249
+    },
+    {
+      "path": "server/http/buyermatch-response.ts",
+      "gitBlob": "f10b7ec73e59d1517063ea270b5d052516e670e4",
+      "sha256": "b025c4ea808a1e0e377759c7d9e7f088e9bb60573a2d820dd1f03b58cc5a8457",
+      "bytes": 3003
+    },
+    {
+      "path": "server/http/buyermatch-worker.ts",
+      "gitBlob": "1d9f58e656e58c2bd4d6bb1dce7a26b0f9c75165",
+      "sha256": "c0eb81862be66715c20c0cd9544035c3b90689a685fc986c145b1de2ebee73f8",
+      "bytes": 2858
+    },
+    {
+      "path": "server/http/buyermatch.ts",
+      "gitBlob": "a9fe9532375caf5f0e75c025f5b46c6d5b03ba59",
+      "sha256": "c2935168c5aa03a346b9773b13c8e11557971a50c68582d91eff42c498bb0968",
+      "bytes": 40858
+    },
+    {
+      "path": "server/http/email-operations.ts",
+      "gitBlob": "189d17e1899979c373c2df98fcbed577539eeca5",
+      "sha256": "e1ae7d49bf162b8cb0114fb70984dcd224c5319fcf3a0176955f1f65923f4139",
+      "bytes": 5199
+    },
+    {
+      "path": "server/http/s2-attestation.ts",
+      "gitBlob": "b00e04dd515e5585390b9e2f9c254ed6db606a29",
+      "sha256": "6661e0287c290f934fa66200f42a2d79978cd50b3f5a04471d7d49bb42703bb8",
+      "bytes": 3491
+    },
+    {
+      "path": "server/http/s2-stripe-readiness.ts",
+      "gitBlob": "dbce374f7d1c0ab20a2c48b24a3db99a916bdecb",
+      "sha256": "e873632b35fc039da8aded94370e30f53e0973bed67e4bc18aafd4e6f7d9af0a",
+      "bytes": 450
+    },
+    {
+      "path": "src/App.tsx",
+      "gitBlob": "2b66848fdd14b2c331ab855744f8d1338f731f3f",
+      "sha256": "fa4bc2947d3571fc721a6b826df0f5cb43dc27f9dc56ab8d2f8383c4d0d9d445",
+      "bytes": 17287
+    },
+    {
+      "path": "src/components/FirstLoginSetup.tsx",
+      "gitBlob": "8e1d3fcd4adbf94eaf7c01d7c085780c44077e89",
+      "sha256": "b92d31fdfccbbc9532c723b6119605f261d4cfe62c96afbf3f6738c320b8f4e0",
+      "bytes": 7695
+    },
+    {
+      "path": "src/components/LaunchPromoCode.tsx",
+      "gitBlob": "c96aa6248833c9da7806a1cfc626e341b1a43521",
+      "sha256": "ee2ab73531abc27610b68ba8b4ecb83506e0bdfde9b67ae83e80fc112e22ea5c",
+      "bytes": 2117
+    },
+    {
+      "path": "src/components/OnboardingTour.tsx",
+      "gitBlob": "362d0832eb19bc6d3ba67d8aa7916221b8ab29b5",
+      "sha256": "3113679c68f9e8a682c81a8c541dbe53eac782925951bbf68ea7d2b67fb5f2f9",
+      "bytes": 9058
+    },
+    {
+      "path": "src/components/Tooltip.tsx",
+      "gitBlob": "9a0fd08fe653b7146f99c0b89dce2c7ad43406db",
+      "sha256": "9a2a5069718c09129161c5684d049f5698d5bbcb059f33f5a499347ba4488380",
+      "bytes": 1090
+    },
+    {
+      "path": "src/components/UpgradeModal.tsx",
+      "gitBlob": "2d86191ceb7d004ca60296fa73dc435edd03759f",
+      "sha256": "1adced311f134d0d4d2aaaacffb4033e6d1c08e4a4417fde55a11f4f68a5df55",
+      "bytes": 1937
+    },
+    {
+      "path": "src/components/admin/AdminCreditOperations.tsx",
+      "gitBlob": "f4193a977ecd3baf9d2ed83fa1f9ffbc4e7e99fb",
+      "sha256": "5ee778578478d6dd5a1dc3946b22d1d2659f1ad712c81779efcad340a524f22e",
+      "bytes": 11026
+    },
+    {
+      "path": "src/components/admin/AdminCustomerLifecycle.tsx",
+      "gitBlob": "80119c08d67c145707261a36e8adc5eca90b45ed",
+      "sha256": "d5b340b5887e80cfa612f2e98f7437e7cedbac61c364f599c2776c0ea6e13a5d",
+      "bytes": 7269
+    },
+    {
+      "path": "src/components/billing/PlanStatusBadge.tsx",
+      "gitBlob": "cb46ded04416a9a76903ebad147afc6992f6b0a3",
+      "sha256": "c562458b14d2354b8b1ae21ae811bafbf6af0d1f11f3687898c2019edae87c4e",
+      "bytes": 1792
+    },
+    {
+      "path": "src/components/billing/ProTrialPromotionModal.tsx",
+      "gitBlob": "f9bc6d1fdb87aa651ba544b02fd2b21e3a310286",
+      "sha256": "ede357f84e279ea3de4fc5d5ff6d797369fd277fdee7a1f6c9a9d8d69403b1f7",
+      "bytes": 2823
+    },
+    {
+      "path": "src/components/billing/ProductUpdatesPreference.tsx",
+      "gitBlob": "e99cff1d63bb7716bfb1bf79a0e0437aeb6d7b9d",
+      "sha256": "152eeafe852a95d31199d244039222066842902b985fbaa0e6fcd7e7b7f219b3",
+      "bytes": 1577
+    },
+    {
+      "path": "src/components/billing/S2DenialVerification.tsx",
+      "gitBlob": "28fbba2fb95f5236a3a5d1893dda1b9766bc7109",
+      "sha256": "a971842f876f6cb488bd29e2a4659102f80d2e9d3732346b64611ca07a7c4f32",
+      "bytes": 6294
+    },
+    {
+      "path": "src/components/billing/S2SessionVerification.tsx",
+      "gitBlob": "a26b81f130f575ea11e1d26ffedfd8295985ef68",
+      "sha256": "523e2df111c31683c62cc5d0e48790c0fab1a2849b99f9fabcb5480f6109e41d",
+      "bytes": 4148
+    },
+    {
+      "path": "src/components/buyermatch/WorkspaceOverview.tsx",
+      "gitBlob": "985d60e45acdb223ec33d79e51ae3ca797eb29d0",
+      "sha256": "cda9925ecf0adda4d8edfe59abdb7303bc3686e8ab33e9d6a14f4be412db8de8",
+      "bytes": 5256
+    },
+    {
+      "path": "src/components/inventory/DealTerminalDrawer.tsx",
+      "gitBlob": "78e573ff36eda77528011977b1136fe875fddc53",
+      "sha256": "fee3a4a19ca127cb13cbef950a8b006a2431bf303e6b795e07eb946ce87e5d19",
+      "bytes": 72613
+    },
+    {
+      "path": "src/components/layout/AppShell.tsx",
+      "gitBlob": "a31702bc1ff462414711f1b21787d50c48d98897",
+      "sha256": "a9302162893f3f23d9b076a29612372579f69df5a5e36e4feadbbad8c52f5545",
+      "bytes": 21960
+    },
+    {
+      "path": "src/components/layout/PublicFooter.tsx",
+      "gitBlob": "f085cafbe3ae9c8784be9e03de28d6ef891e47ac",
+      "sha256": "171ac70150543277b7d3510015e24202b490a2e9945aa66f584d160e9f41cf87",
+      "bytes": 1221
+    },
+    {
+      "path": "src/components/layout/PublicNav.tsx",
+      "gitBlob": "74230d2ed3ccd26f080b353e14304f141b4eae12",
+      "sha256": "c9d44053fad4ed7a293ae3aa29cda402a673f96a2df3b621e5228f52ea2705af",
+      "bytes": 5399
+    },
+    {
+      "path": "src/components/layout/Sidebar.tsx",
+      "gitBlob": "c07963242639f16a6e2b822b6ba93df77cb67b2c",
+      "sha256": "2d519116e5d28dde48eba8d0bf0ec402988e4b6cef42be1935abbb096d2e65a8",
+      "bytes": 9057
+    },
+    {
+      "path": "src/components/layout/Topbar.tsx",
+      "gitBlob": "6290b7b8c22315525e550a97c0011e930001b1a1",
+      "sha256": "3e28e4f858b1c94a3b81ee1e0430fafebe57c8e16bf2c9951651ff0a066ddd52",
+      "bytes": 4055
+    },
+    {
+      "path": "src/components/ui/ErrorBoundary.tsx",
+      "gitBlob": "61e7ee2f1121f1c7f904d711b9ef0cc4ff0052b8",
+      "sha256": "950faa04cc3ef4a2f65068594c449d13c9813881eb6d60fcb3ca3eebda015358",
+      "bytes": 2712
+    },
+    {
+      "path": "src/components/ui/ErrorBoundary.tsx.bak-route-reset",
+      "gitBlob": "0f0b49d110b655320a19741e7df9a82a5f6c0532",
+      "sha256": "8c16e8d6d172a7cbdf562ebf9c5138e1cc197e8fe73bacf4e44cb22254233773",
+      "bytes": 2032
+    },
+    {
+      "path": "src/components/ui/ErrorBoundary.tsx.bak-show-real-error",
+      "gitBlob": "f39fb54556e6e2578b26ac3ee7d0d8525f28a760",
+      "sha256": "dd121ca1ee4671b7a48a1ca8564d8b0ab928d23ec8f46649d26a2361cb9d0950",
+      "bytes": 2325
+    },
+    {
+      "path": "src/content/releaseNotes.ts",
+      "gitBlob": "032c7ac9de97568948d839cf3d3ec94258d1d442",
+      "sha256": "77006542d72cc1b6155cffac4b69a8f4b8de948238b3a280e96d90f2ae1b5246",
+      "bytes": 3036
+    },
+    {
+      "path": "src/hooks/useBuyerMatchAccess.ts",
+      "gitBlob": "90d3fcfa8d9a4851ece9ab0e82eac779a6856760",
+      "sha256": "b283ec09cdbd618da1774d33ebdd928df58f043c9d21d084b9b4d0db1d698e56",
+      "bytes": 1858
+    },
+    {
+      "path": "src/index.css",
+      "gitBlob": "835eff166ca76cdfd2f9d004ed8a3393275e2b56",
+      "sha256": "13c93c5ca0fa50d1dd111285bf66e8d33612a272c5c51f5d004ed0d8c8c44147",
+      "bytes": 25268
+    },
+    {
+      "path": "src/lib/accessControl.ts",
+      "gitBlob": "87c372b5c5337ed93ca4ba746cac3bae7965d08e",
+      "sha256": "fccc1b277df137546a8718f419c48ecf0d21bb6bdf5e1c5571aa1b74faf64c8c",
+      "bytes": 739
+    },
+    {
+      "path": "src/lib/accountLifecycle.ts",
+      "gitBlob": "2b2b30fb362d067100b2ce13028150f3011744f5",
+      "sha256": "5978b8c9e1ae6f7834ad5697205cd0a7a411ddd509bf4ce1ff0e694a8926fe14",
+      "bytes": 1669
+    },
+    {
+      "path": "src/lib/accountNotifications.ts",
+      "gitBlob": "b46818b4e6926c67929975417ba74c3e6d9f23b5",
+      "sha256": "4470117d7f32bef289831e01001f670d337de17a4e67a9e644894ab256af6469",
+      "bytes": 1158
+    },
+    {
+      "path": "src/lib/accountProfile.ts",
+      "gitBlob": "fbd00e924fc57d4c7aa5c870c55d4d6445393cfc",
+      "sha256": "bf49b6788740897444cb988212d5c5806bb77381516ee4cd71809efd00c1a842",
+      "bytes": 15035
+    },
+    {
+      "path": "src/lib/accountRequestScope.ts",
+      "gitBlob": "7d6c98a15c22f5c4ea02b6ec84beafe31ab7250f",
+      "sha256": "116c7c88c20cdf67614a96a5c16c69e1eb4da324e3cd0184453101dbdfb6199a",
+      "bytes": 839
+    },
+    {
+      "path": "src/lib/appPersistence.ts",
+      "gitBlob": "177502bbcaf3a0d1eaeacb0710eda36fb4727136",
+      "sha256": "5d2ab7f0bb559a2e27aa9a311412bdcc34241e8459ba4ad2235e46cef50dcc1a",
+      "bytes": 1513
+    },
+    {
+      "path": "src/lib/billingLinks.ts",
+      "gitBlob": "ec1a85328e91d5f12ebc712d14c9854fe93e5e67",
+      "sha256": "dba8f6a9792870073f76bba36fbcd481c80d53554fee102e6aee4fcb304f605e",
+      "bytes": 4068
+    },
+    {
+      "path": "src/lib/buyerImport.d.ts",
+      "gitBlob": "776d278b3909f21ae8c015dd558aaece5f8e6cc3",
+      "sha256": "86db8bd21005560240ea02e022f4dc5f9005b7c9988e374747f67aae1749bacd",
+      "bytes": 496
+    },
+    {
+      "path": "src/lib/buyerImport.js",
+      "gitBlob": "a60040ea94f3b804d91691eff080802a9facf014",
+      "sha256": "493807d94917123a80e2f9d02359e9693fc5d1c453f3ec8fe52105f404159114",
+      "bytes": 16597
+    },
+    {
+      "path": "src/lib/buyerImportMerge.d.ts",
+      "gitBlob": "b5250520752540c47c6ec80117e8ebcc8c6a6b72",
+      "sha256": "674256f6641fe09a2363ca461f3a37750e14fe0d339c787f0e6b89b2a38f6236",
+      "bytes": 230
+    },
+    {
+      "path": "src/lib/buyerImportMerge.js",
+      "gitBlob": "d678cff2c6b5bf9811fb294011f239611118d8b6",
+      "sha256": "ebd569ada1f881c0ffdbb83067cc35893dcc0b19012f59ffbba67665c9b706ee",
+      "bytes": 2747
+    },
+    {
+      "path": "src/lib/buyerIntakeFeedback.ts",
+      "gitBlob": "ea7b4940658a6f0ff70ce80810755783dd308d6d",
+      "sha256": "0bb7a46e59aee476a0976fe9761793f1b767107ebebc8d1728b4bb46a9720624",
+      "bytes": 597
+    },
+    {
+      "path": "src/lib/buyerInvitationConsent.ts",
+      "gitBlob": "e53ea60cd8e86de553cc169050e143bcb8e55bf9",
+      "sha256": "0dae00ac91ecf13885f995640aab7acd4d0bfd99286b6c1ed8de0bc5c82de90e",
+      "bytes": 398
+    },
+    {
+      "path": "src/lib/buyerMatchAccess.ts",
+      "gitBlob": "d175ee60c0c5cc0b10d4eced8e396f352fec2aa5",
+      "sha256": "8c8d04d33806e87dec0b9eb85d7c6a2ef418e69629caa5ae48366d3a5ff034c3",
+      "bytes": 740
+    },
+    {
+      "path": "src/lib/buyerPortalSubmissionStorage.ts",
+      "gitBlob": "3aec09e1f77b8703fd334666f46817711da83bd4",
+      "sha256": "a36da587adc533d0e083e0ab5fe75ba5883c3d77add40447c6a2604a35d20ddf",
+      "bytes": 6898
+    },
+    {
+      "path": "src/lib/buyerPortalSubmissionStorage.ts.backup-before-dismiss",
+      "gitBlob": "155d79426c2cd6adf963b21698bdf2b73830d8f4",
+      "sha256": "78b00c29dc92065fea1d82e1c29ff51a601eb18c75c1ef3311e170070c136eb4",
+      "bytes": 1395
+    },
+    {
+      "path": "src/lib/buyerProofStorage.ts",
+      "gitBlob": "69f59038232088ad7a236afa30f9c5114d391139",
+      "sha256": "a7408ac37bd5f5a3907fb2c57ad7ce03a1d26a0b6004cf71b9cec4f0bd360ace",
+      "bytes": 6956
+    },
+    {
+      "path": "src/lib/buyerRecovery.ts",
+      "gitBlob": "ab539ed31f535950afa1916ea6497110cc67efa8",
+      "sha256": "02d07f9277d51b0ed3f91b4536d8729cc5002640ee46073333015d3ecf7ddf03",
+      "bytes": 13143
+    },
+    {
+      "path": "src/lib/buyerRestrictionReview.js",
+      "gitBlob": "2a36baf2922e8af3a0edad08478a9defd7dabc99",
+      "sha256": "361efb8d5c48538d248feafee0618d2f258024102de1abd3840a7a0b4dac440b",
+      "bytes": 1435
+    },
+    {
+      "path": "src/lib/buyerSupabaseSync.ts",
+      "gitBlob": "af278f4a8a561b0a301b4b6b80b435b7989ccc1c",
+      "sha256": "94ffe6951910c88be9b388ba740aa001eb2a8d6f4f5fd8df56bd378099faf6f4",
+      "bytes": 30523
+    },
+    {
+      "path": "src/lib/buyerSupabaseSync.ts.bak-delete-bad-request-fix",
+      "gitBlob": "13b7be286ae94d962bed91c4ed3aa359de0ce9c8",
+      "sha256": "a4132118b5b6317dc48050c9d63c0f67dad6140a92f92dc9708a077d76fb470d",
+      "bytes": 11985
+    },
+    {
+      "path": "src/lib/buyerSupabaseSync.ts.phase1backup",
+      "gitBlob": "809f73684f7d213e2e0c114a5f0d2320b62e4e15",
+      "sha256": "c444d7683a36efcb9d7aebff0794da23afb1dc1e9fe6f7a0594394152a4ebab4",
+      "bytes": 13657
+    },
+    {
+      "path": "src/lib/calculatorAccess.ts",
+      "gitBlob": "ef7e54167e6c1bb1dcf57e9648a251a9a8ab4fee",
+      "sha256": "7a10ae16e54b92bf75247018bf4c94bf3beb2900d5aa42e72691e05bea0dfb34",
+      "bytes": 4465
+    },
+    {
+      "path": "src/lib/cloudAutoSave.ts",
+      "gitBlob": "b56004ac7f8db8803078f8cec2290b323950e10b",
+      "sha256": "ac3e2b7efeda379126bc989f34869466d4914cd4ff9e7c135376cfd88d7312c3",
+      "bytes": 1971
+    },
+    {
+      "path": "src/lib/cloudSync.ts",
+      "gitBlob": "d96d51c1946f4ba5bb62fd731fe58295a296bec6",
+      "sha256": "489bcbe77197b9054959ba4c34c99d3eeaf864b4fa3d1ea781c97dd46571b0df",
+      "bytes": 5611
+    },
+    {
+      "path": "src/lib/cloudSync.ts.phase1backup",
+      "gitBlob": "ae5173b98d6d1fea4f05d83e6a7b2a4c4cbbb515",
+      "sha256": "213893b41901a66a39b574cc0e4298c270cb37a5ffcde2ba9ddb51939954d0b5",
+      "bytes": 1646
+    },
+    {
+      "path": "src/lib/completeRegistration.ts",
+      "gitBlob": "e1e23a4b1e3c55951731647c3265ceafda44ffb9",
+      "sha256": "347ee56e124baafb7e88d1952374ac63be06432fcc6d7d8e04410ba979119fe7",
+      "bytes": 1245
+    },
+    {
+      "path": "src/lib/constants.ts",
+      "gitBlob": "4ab354c232854c3500f161556127c69693e9f633",
+      "sha256": "271e82cd9ff2a8a0de1a8fe9a4982e9a12eb7000808175324f9ab5a403beb754",
+      "bytes": 7524
+    },
+    {
+      "path": "src/lib/contactSubmissionStorage.ts",
+      "gitBlob": "3cb033ff3652f821fd48dfc729edc6692ae48ef5",
+      "sha256": "1316dea876402fbf8edc6ef5d03cf8b3aca05bf1a97f738c1c0ffc7f27506f1a",
+      "bytes": 4633
+    },
+    {
+      "path": "src/lib/creativeFinanceParser.ts",
+      "gitBlob": "a4433b029afd429a22dd7cf9e1f810f1fbef49ad",
+      "sha256": "4b0553315482ffc3bb59f1b2414aa16302e45989454deeb2302eb7554fc7638a",
+      "bytes": 11249
+    },
+    {
+      "path": "src/lib/customerExperiencePolicies.ts",
+      "gitBlob": "2b5c97183ed94b355547e7688dec2278ad659ab1",
+      "sha256": "f793e8849265bfa8c81a4dacc3426c579713f7c541802d48ff8df92cbb71c766",
+      "bytes": 1174
+    },
+    {
+      "path": "src/lib/dealSubmissionStorage.ts",
+      "gitBlob": "361ff6bcdc758a6efdecf35c757f33f207334c20",
+      "sha256": "36bfd4def389f56223bfdd06a83fdde3795fc1d1d57b053ac02430fc946b8193",
+      "bytes": 21929
+    },
+    {
+      "path": "src/lib/emailNotificationSettings.ts",
+      "gitBlob": "e55a8e7469fd6a71b0fd4026545b7bde25896f37",
+      "sha256": "da22f7e659974a3b12d00377eb68179b98c104cb79ff7a2bfb2b6913fc9b9d00",
+      "bytes": 6404
+    },
+    {
+      "path": "src/lib/featureLaunch.ts",
+      "gitBlob": "b33dcf7a3e272ca233ec58d4510350f70c53b2b7",
+      "sha256": "9934474f7234234390b7a6ab3759b71c175055d4943d0b6402f0f546a4f8dfb6",
+      "bytes": 3562
+    },
+    {
+      "path": "src/lib/futureAddOns.ts",
+      "gitBlob": "6609d40631bf801a8106a2d15fd740dbad30b5f0",
+      "sha256": "a9992ff2f97c2067a061bfdb33afd1953775976cd61e6dac4edc0d12976f80f1",
+      "bytes": 773
+    },
+    {
+      "path": "src/lib/importedBuyerMatching.d.ts",
+      "gitBlob": "bbcac956196b1bf1fb5258b47ddb57211beb0358",
+      "sha256": "8811d3711a9f090d6e7ab62faafc54e3616b6e7c0828f824b580169bfe011ecf",
+      "bytes": 121
+    },
+    {
+      "path": "src/lib/importedBuyerMatching.js",
+      "gitBlob": "5ca1edab8bb4669bd98e87360e2831cb81c7abcd",
+      "sha256": "6eabf6e35d2253af8401ff5cb14eaffd048a906a853edfcf495118c6e4d96abe",
+      "bytes": 3394
+    },
+    {
+      "path": "src/lib/inventoryDownload.ts",
+      "gitBlob": "3f05d6948e48baa47b52d1be794fc92f5d7f6e1c",
+      "sha256": "f1d28fcb25d35bc500c831df1450fea8dac32a8ecb151fbc34680e403b1d5a6c",
+      "bytes": 26217
+    },
+    {
+      "path": "src/lib/inventoryStorage.ts",
+      "gitBlob": "d8222a3b8f96b2ffe4493071debfc12ffe327271",
+      "sha256": "746eca0348a839ec521ff5c52d9203a592283c7aeb384fc545b2770884ef6d7e",
+      "bytes": 2256
+    },
+    {
+      "path": "src/lib/matchingEngine.ts",
+      "gitBlob": "63aac74d008cd4c896060f83f3a80e2399015e4d",
+      "sha256": "9a66dbc66b0652e6cb79a955c3cdb7b37fcb4c084ee7488a9d7edca60f1d23d7",
+      "bytes": 7597
+    },
+    {
+      "path": "src/lib/matchingEngine.ts.bak-force-match-panel-2",
+      "gitBlob": "e9573e502f6b3a53d99446a78889e64bffdb3522",
+      "sha256": "ebe42390765a693aade0e94734fe7bb7ca26a3d7f110bf84554be6b78c99699e",
+      "bytes": 4486
+    },
+    {
+      "path": "src/lib/matchingEngine.ts.bak-safe-arrays",
+      "gitBlob": "4b20a00218b46c8816f471cd6cddedd3df01e2f0",
+      "sha256": "1f64bdd24ebad3430bdcc77b839de8b7fca026d0fb7495b91b937d8c37cc582f",
+      "bytes": 4491
+    },
+    {
+      "path": "src/lib/matchingEngine.ts.bak-safe-match-ui-final",
+      "gitBlob": "e9573e502f6b3a53d99446a78889e64bffdb3522",
+      "sha256": "ebe42390765a693aade0e94734fe7bb7ca26a3d7f110bf84554be6b78c99699e",
+      "bytes": 4486
+    },
+    {
+      "path": "src/lib/mockData.ts",
+      "gitBlob": "dd3b4c2068539515462914cd572a6f72401120dc",
+      "sha256": "b10ecc372f628ad17458681342cc4a144d03c632ddd28d31197d54181862e84a",
+      "bytes": 18737
+    },
+    {
+      "path": "src/lib/ownerPreviewSession.ts",
+      "gitBlob": "d6fb567da871270cfb8363878d7b3bf470e3eddb",
+      "sha256": "8a8c929d3e0f6944f85e773e5f5e1c186069c0881cc823eeba88fdc5cf9a3b3c",
+      "bytes": 1159
+    },
+    {
+      "path": "src/lib/persistedWorkspaceSync.ts",
+      "gitBlob": "3e508528f70d496dbc76ec751843a1c263fb6b1d",
+      "sha256": "7cafbf499c3dad12b135268cbbc71a0c30a355835c5662e7abf0e0c2a03ff299",
+      "bytes": 450
+    },
+    {
+      "path": "src/lib/planAccess.ts",
+      "gitBlob": "21a1a0e3f4ac627387e83f7d40006a8246a2b9c5",
+      "sha256": "e76a620f0e6b6066ce4281af6cee3341d5645a4f33f753700f0d6a146dfef29f",
+      "bytes": 8544
+    },
+    {
+      "path": "src/lib/planEntitlements.ts",
+      "gitBlob": "32adc6951d6ea96947502abb0e606dab8ae2ef1d",
+      "sha256": "57fd3de5923c5de53a6924a75de5a023d96c6d776d8e9324d2fe93959e1f50db",
+      "bytes": 4093
+    },
+    {
+      "path": "src/lib/planPricing.ts",
+      "gitBlob": "39ae37ddeff02dc25a3ece57ba9a144b7c2224e3",
+      "sha256": "8f14f3d0b7631015913f25d5b0c8a315c444abe054f1ba8e18e61fa8d4e0c33f",
+      "bytes": 5662
+    },
+    {
+      "path": "src/lib/promotionConfig.ts",
+      "gitBlob": "e2e915d22fe5c6922834e3b8c9dc6cb2205f30e4",
+      "sha256": "056371c5a7bd5de6d6b91a59710a85ff902a897b9c8050603ec2b2c39ee6f498",
+      "bytes": 707
+    },
+    {
+      "path": "src/lib/propertyIntelligence/mockProvider.ts",
+      "gitBlob": "97c115dc08f3d3115df3b33f9778ee3b5e926b9d",
+      "sha256": "a6733dd180b83262915b68d70c0806f4d236f3c06c00163329ebbedff924f12e",
+      "bytes": 6416
+    },
+    {
+      "path": "src/lib/propertyIntelligence/providerRegistry.ts",
+      "gitBlob": "4805a9ded12a98d419daeeb8e273e8dbfe810fe1",
+      "sha256": "3282dc00decd3d49cf2a57f0308e0e0f98214e8b223a0439f2d106d339880774",
+      "bytes": 1342
+    },
+    {
+      "path": "src/lib/propertyIntelligence/providers/attomProvider.ts",
+      "gitBlob": "21a7f80588fb111c270ebff14bf7dfe35f3baccd",
+      "sha256": "2f53f28a12661257ef2ee524dbfdd434e921c53236791f8c79b3d4dbb6d0103f",
+      "bytes": 163
+    },
+    {
+      "path": "src/lib/propertyIntelligence/providers/regridProvider.ts",
+      "gitBlob": "e1e87ed848509bfea04e03964a45d1a6a2bf3bae",
+      "sha256": "f52a8d50ff4b08c58cf951d2dd558664a505326772ec15e84e1c541a21b82bf0",
+      "bytes": 165
+    },
+    {
+      "path": "src/lib/propertyIntelligence/providers/rentcastProvider.ts",
+      "gitBlob": "d528f3ef8a29f11d18b29c8601f44d4306a625d0",
+      "sha256": "5058445cc43eaa9ba7d6c15153f952d76e6c712f00ce3c88fafe00eef1e21a0f",
+      "bytes": 3358
+    },
+    {
+      "path": "src/lib/propertyIntelligence/types.ts",
+      "gitBlob": "a60eda0abebee20e86eb2b98e05e6f34ff2282ef",
+      "sha256": "6d57d20e4c6778b0a3f5d07bc6c5890d10c5354c5df29715517432f4738c3839",
+      "bytes": 4957
+    },
+    {
+      "path": "src/lib/propertyIntelligencePolicy.ts",
+      "gitBlob": "a8573812aaefe075f16a25764cf26e265c1f7e3e",
+      "sha256": "358f538d6481f47bf54b45056c89aac99c89020e115a4a449b55c913607e17f2",
+      "bytes": 1959
+    },
+    {
+      "path": "src/lib/s2BrowserVerification.ts",
+      "gitBlob": "1e3df07fdea883628d0b3cfb6ed8febce356601d",
+      "sha256": "ca004916fd51843dae4a50358b339d5123d3bbf43cac833af86d37ea8c3139dc",
+      "bytes": 1862
+    },
+    {
+      "path": "src/lib/s2DenialVerification.ts",
+      "gitBlob": "7c7e46c0689afcf0914031f5886fa5b1e2e3a74c",
+      "sha256": "737230c745db84f376201f693290c399e27a07510822cb67f8461cc2005a56d7",
+      "bytes": 8993
+    },
+    {
+      "path": "src/lib/submissionInventoryIdentity.ts",
+      "gitBlob": "e5b1316fb24e5324fd6d9ff83cf3203ef3a9daa0",
+      "sha256": "a8d697c08ec60532cfdcc42c5ddef14c443883e00efb68d5d7e2d4bcb4475fea",
+      "bytes": 699
+    },
+    {
+      "path": "src/lib/submissionNotifications.ts",
+      "gitBlob": "527cc9999e8ca4df15d600fbf355d84286c04334",
+      "sha256": "4bf42b145afb9e01a1510c107e77544d848ab558cd8c6de06bf3e813fa0fdfc9",
+      "bytes": 3483
+    },
+    {
+      "path": "src/lib/subscriberDestination.ts",
+      "gitBlob": "352aedfa06196bc0bc652dd4725b78a6418f7924",
+      "sha256": "a973f25a904de638d0f996e06b2a17e68ef44faf495d2e6cb28e2cdcbaf6b758",
+      "bytes": 510
+    },
+    {
+      "path": "src/lib/supabase.ts",
+      "gitBlob": "657eea0550ef0a92c11721069f9c2c0a6eb0f778",
+      "sha256": "222e4b14c50a31c88edcd44d1d25b5ac49fab0611b71258ed5728e0ea97f9a06",
+      "bytes": 742
+    },
+    {
+      "path": "src/lib/supabaseClient.ts",
+      "gitBlob": "8a98701dcdef3df3e40391273578b0dc96dc6e22",
+      "sha256": "66a7ef6a7372faddeece254c0eb310b6d892752d8f7d84092c524c3af4b02a70",
+      "bytes": 60
+    },
+    {
+      "path": "src/lib/types.ts",
+      "gitBlob": "70187cdcc3f268376c1bda42acb1271656f0d827",
+      "sha256": "4a6fa55d63163e37bad7a24b40f2014bad65e0c499b5ed09c36add716fede23c",
+      "bytes": 13117
+    },
+    {
+      "path": "src/lib/utils.ts",
+      "gitBlob": "09fb77373c2369f77af14dafb7d8e308ea3d4062",
+      "sha256": "215f32fc552d715abd64faf96ffcc8c9eff4f195ec8fc6f403a43d442c3d4407",
+      "bytes": 2627
+    },
+    {
+      "path": "src/lib/waitlistStorage.ts",
+      "gitBlob": "b22a310cf2796a3cd09bb032b94e3d5ca3e6e470",
+      "sha256": "8ecaa28194b34d035e9b072cdf90b6fed6627233561d998ae2d539179080f95c",
+      "bytes": 1498
+    },
+    {
+      "path": "src/lib/workspaceName.ts",
+      "gitBlob": "33e87abddf2d7b24a2a1cd6b836dbcbce1f42bdf",
+      "sha256": "599ea4f9e1f6d5512b3ddfd5119c81d435d668f75ff9b90ad997dfb092d2cb6b",
+      "bytes": 1560
+    },
+    {
+      "path": "src/main.tsx",
+      "gitBlob": "1878a9f6e642cd3bcd4b4f9d814662b575c0feaf",
+      "sha256": "4dfef0a431a05d879c358fdd59249146dc6e68bbb58dd1738a659b0ed270bf14",
+      "bytes": 425
+    },
+    {
+      "path": "src/pages/app/Analytics.tsx",
+      "gitBlob": "3f3cbae0a23e9cfd937663b1ac64ad859b98258d",
+      "sha256": "17024f21b8b41f38e7956d541de1f293d99604482be46eb99a38e11fbe27a9e0",
+      "bytes": 112582
+    },
+    {
+      "path": "src/pages/app/Blast.tsx",
+      "gitBlob": "1d0829e8b5f0080a2ffaff93339ac6acedc115f0",
+      "sha256": "f6aa0c7ea62e3855a8fa7d2a23e458f44997efe435be9237e04f0de4d9e67ced",
+      "bytes": 26126
+    },
+    {
+      "path": "src/pages/app/Blast.tsx.bak-disable-crashing-buyer-profile-link",
+      "gitBlob": "c18de8fcc7f6eb2ed6b5a61b4ec994af2a7ddd78",
+      "sha256": "b0a8792358504c0f05c78fad49dba50d763d4101d8a782d9dbb3cd8f4fe2a16c",
+      "bytes": 23869
+    },
+    {
+      "path": "src/pages/app/Blast.tsx.bak-force-match-panel-2",
+      "gitBlob": "f313c9d266ad38c32be5e600d61e28750fd33eaf",
+      "sha256": "7fc9d560fc6eac97d143e999694154bf843d499624d95bafd61d885dd05d2576",
+      "bytes": 21815
+    },
+    {
+      "path": "src/pages/app/Blast.tsx.bak-safe-match-ui-final",
+      "gitBlob": "f313c9d266ad38c32be5e600d61e28750fd33eaf",
+      "sha256": "7fc9d560fc6eac97d143e999694154bf843d499624d95bafd61d885dd05d2576",
+      "bytes": 21815
+    },
+    {
+      "path": "src/pages/app/BuyerCriteriaEditor.tsx",
+      "gitBlob": "4832b7d00094bbf2edef1bc0d5c833d9a8643da8",
+      "sha256": "2a5324ed54d8fb47dd3d14f49253cb17ac4466ed18a69939e98e5f8d713d0d88",
+      "bytes": 5344
+    },
+    {
+      "path": "src/pages/app/BuyerMatch.tsx",
+      "gitBlob": "6a774bd1a5f63a3a0463c4e5be0ddfa4a256584a",
+      "sha256": "62c8369660e2e23db731a67a2227c2cbd4074c2d5f15dcdbc4b677fb0a59268a",
+      "bytes": 62263
+    },
+    {
+      "path": "src/pages/app/BuyerMatchActivity.tsx",
+      "gitBlob": "0eaa5b2dffb8d84e5410df420ad29df0c057664c",
+      "sha256": "c5e4963a6248986941add787d4639ee711f8203100a5e1e1b8320c78ca5a5192",
+      "bytes": 5863
+    },
+    {
+      "path": "src/pages/app/BuyerMatchConfiguration.tsx",
+      "gitBlob": "a1d6075c036f16c403e0b896dea911044759dd2c",
+      "sha256": "f65829abf3043a6ef5e469a64607ae3ef50ab6a02d38eed33ce93671c55c0de8",
+      "bytes": 7774
+    },
+    {
+      "path": "src/pages/app/BuyerMatchUsage.tsx",
+      "gitBlob": "72c2dbce38842feb689d395460489dbda6a49117",
+      "sha256": "bbe134ab21f5d95345580a3ba6635762c16851305cd792d19d3e226fe34b2e33",
+      "bytes": 5687
+    },
+    {
+      "path": "src/pages/app/BuyerProofReview.tsx",
+      "gitBlob": "d63b7a3189370a617e8679f028b009eef8ee854b",
+      "sha256": "c0f730e8d90b0e981788a86a6d0e801d85f900a586bcf810ea89f7b22ca22448",
+      "bytes": 4504
+    },
+    {
+      "path": "src/pages/app/Buyers.backup-1782872632225.tsx",
+      "gitBlob": "d6bb7ec85a17ad92b05b7a9d6cf091c7aa63ecc1",
+      "sha256": "1ad1b6a86f578b4a6e89aa6f5978e8da823c1093276c5de3c29dc5b080785f78",
+      "bytes": 224188
+    },
+    {
+      "path": "src/pages/app/Buyers.force-grid-update-backup-1782875114854.tsx",
+      "gitBlob": "d528c1733a343bcea565a7c1d4d9b5dd7b6501f0",
+      "sha256": "6fd4b1e9455dcce278362d9332d25f96674bb6426cc2c48ea6ca4a031e29c7ae",
+      "bytes": 230350
+    },
+    {
+      "path": "src/pages/app/Buyers.local-save-values-backup-1782874856795.tsx",
+      "gitBlob": "5b57e59b4c459c5a8bb3121baa74c5a07d5de2a9",
+      "sha256": "d8b4e95c6513d902ec35ad7fc12ddfc206e8f2514606803a36c9a1dc049c5a8a",
+      "bytes": 229344
+    },
+    {
+      "path": "src/pages/app/Buyers.name-save-backup-1782874621924.tsx",
+      "gitBlob": "06000d6b6ad8b10d46edbdd9f757697ff2a3a6df",
+      "sha256": "94992ab8d51df47026be56250eb6d0f1803ab4280cc9a5514778aaa02bcba794",
+      "bytes": 227478
+    },
+    {
+      "path": "src/pages/app/Buyers.strategy-backup-1782874324764.tsx",
+      "gitBlob": "c96d87ec2efd393d11ff4746622a50d416d1f86d",
+      "sha256": "5085ba0c67235c301827b794d97db2fcc36f3046e6eddedb7013e27b59414dc7",
+      "bytes": 226710
+    },
+    {
+      "path": "src/pages/app/Buyers.tsx",
+      "gitBlob": "f771407fee92c7645e7b7e225416996d4200d76a",
+      "sha256": "6c328cb4959278c04c3955e9febdb91fda66b42204fe95629a091841c3407463",
+      "bytes": 334741
+    },
+    {
+      "path": "src/pages/app/Buyers.tsx.backup-before-buyer-review-dismiss",
+      "gitBlob": "6593624277ac2e1fc802edd7cbff61e47a127e33",
+      "sha256": "815d57ee351790eed60cb4968db84daba09a49463d78a5dd548ca9767fcf0269",
+      "bytes": 100255
+    },
+    {
+      "path": "src/pages/app/Buyers.tsx.backup-before-submission-table",
+      "gitBlob": "78de0edb0d4d7775783d409b6cba9a7d19d4922d",
+      "sha256": "098063db4b6807934c8f73c2d77a0888b9f15ba2dd6935406ab53bf5c16fc63c",
+      "bytes": 99859
+    },
+    {
+      "path": "src/pages/app/Buyers.tsx.backup-before-supabase",
+      "gitBlob": "00e8601a196bbc2fad85b5bb0d26e6d90d0587eb",
+      "sha256": "bd634b0f033aaa1cc667fb984f0d323452c1a8babd5df645135b5865adf1de5b",
+      "bytes": 101502
+    },
+    {
+      "path": "src/pages/app/Buyers.tsx.bak-before-blob-open-file",
+      "gitBlob": "2be0b49fa8d309b00ee54df1c8f0f10977119b1f",
+      "sha256": "0a561e9ac0a4c402722a7e72156973e51adbd0797d762032dda2941af28addf5",
+      "bytes": 99348
+    },
+    {
+      "path": "src/pages/app/Buyers.tsx.bak-before-queue-close-only",
+      "gitBlob": "08007fd12aa5d1ec3ccfb7ee2c4effc58acb23d2",
+      "sha256": "23ae0e786bd1b21e114588ea20c6886d9cf8646a0844e2c71641860a341d330a",
+      "bytes": 97424
+    },
+    {
+      "path": "src/pages/app/Buyers.tsx.bak-before-safe-review-center",
+      "gitBlob": "08007fd12aa5d1ec3ccfb7ee2c4effc58acb23d2",
+      "sha256": "23ae0e786bd1b21e114588ea20c6886d9cf8646a0844e2c71641860a341d330a",
+      "bytes": 97424
+    },
+    {
+      "path": "src/pages/app/Buyers.tsx.bak-buyer-review-force",
+      "gitBlob": "08007fd12aa5d1ec3ccfb7ee2c4effc58acb23d2",
+      "sha256": "23ae0e786bd1b21e114588ea20c6886d9cf8646a0844e2c71641860a341d330a",
+      "bytes": 97424
+    },
+    {
+      "path": "src/pages/app/Buyers.tsx.bak-dc-state",
+      "gitBlob": "cb65efa9b60dfc118f5cda664ed277f017c37f5e",
+      "sha256": "68748e0cf0f8588511258f87d2bce4ffaea555808c8e859dbd4ba76db2ff124c",
+      "bytes": 165567
+    },
+    {
+      "path": "src/pages/app/Buyers.tsx.bak-delete-bad-request-fix",
+      "gitBlob": "c197748c88f2b3af2f5cc748d8b2fc6a82788e73",
+      "sha256": "250bffcfd8f4684f921436414466c265de6d897d3c4fc548ff4a4b52cd71fb66",
+      "bytes": 167089
+    },
+    {
+      "path": "src/pages/app/Buyers.tsx.bak-hydrate-buyer-cards-from-data",
+      "gitBlob": "7d6004ec5edeedb0484bedf213e5ce99466b8f2c",
+      "sha256": "c1f88126d86804552563fade55d3b2b9464c6298bb5d26f45b23d9d162cb4d7c",
+      "bytes": 170639
+    },
+    {
+      "path": "src/pages/app/Buyers.tsx.bak-pagination-12",
+      "gitBlob": "698da2c97758078ca7076db983fa6584d0482fcb",
+      "sha256": "c71ca35f9b7e51dc8aac0cdc8252f2126c8126aaf8e86a66c48ccaa5dbd5110e",
+      "bytes": 264954
+    },
+    {
+      "path": "src/pages/app/Buyers.tsx.bak-parse-defaults-email-domain",
+      "gitBlob": "650a0ac0976133829012dc8ca1f6a7131f06489a",
+      "sha256": "f45f97035c39ffd5e27c80dea33929d42091308d97c41fe54a4b12a6b1d3608c",
+      "bytes": 167115
+    },
+    {
+      "path": "src/pages/app/Buyers.tsx.bak-real-fix",
+      "gitBlob": "08007fd12aa5d1ec3ccfb7ee2c4effc58acb23d2",
+      "sha256": "23ae0e786bd1b21e114588ea20c6886d9cf8646a0844e2c71641860a341d330a",
+      "bytes": 97424
+    },
+    {
+      "path": "src/pages/app/Buyers.tsx.bak-supabase-delete-sync",
+      "gitBlob": "35ce89d0421ed65471217ea4f634ba341147f7db",
+      "sha256": "6bdc41c70af8948ddabf038e82f7dfbd16862211ff62def8d39c358420a679c8",
+      "bytes": 165599
+    },
+    {
+      "path": "src/pages/app/Buyers.tsx.bak-visible-review-center",
+      "gitBlob": "08007fd12aa5d1ec3ccfb7ee2c4effc58acb23d2",
+      "sha256": "23ae0e786bd1b21e114588ea20c6886d9cf8646a0844e2c71641860a341d330a",
+      "bytes": 97424
+    },
+    {
+      "path": "src/pages/app/Buyers.tsx.broken-after-patch",
+      "gitBlob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "src/pages/app/Buyers.tsx.broken-jsx-after-review-center",
+      "gitBlob": "f551264d05dadffa68acf67b74e7d3d193283cd2",
+      "sha256": "a6fd3829d94731e0a90f39082435466f58e28845d702832df72d0bc29902464d",
+      "bytes": 98913
+    },
+    {
+      "path": "src/pages/app/Dashboard.tsx",
+      "gitBlob": "44c8932d5704b648ece786b9d91fe18efcd34723",
+      "sha256": "f1e71143be23ba26ef3d592993e7c21080d52e013736d33a8455a9d2598a8923",
+      "bytes": 36092
+    },
+    {
+      "path": "src/pages/app/Dashboard.tsx.backup-before-dashboard-count-forcepatch",
+      "gitBlob": "a95e4e529d59d5f9ef64f648f3b46021ad100f43",
+      "sha256": "3d957ec47379aaba82696e7e9c2c34d9be465d904ad30db0131f22dfa14c4aad",
+      "bytes": 25899
+    },
+    {
+      "path": "src/pages/app/Dashboard.tsx.backup-before-dashboard-supabase-buyer-count",
+      "gitBlob": "e8a38bf8cced8040044b61d27cf19df433a68e5e",
+      "sha256": "a9dfa1321b81d57437137ea543f21bb6a9fc068aeb925df240fd40f3c9851072",
+      "bytes": 25802
+    },
+    {
+      "path": "src/pages/app/Dashboard.tsx.bak-buyer-review-button-force",
+      "gitBlob": "e8a38bf8cced8040044b61d27cf19df433a68e5e",
+      "sha256": "a9dfa1321b81d57437137ea543f21bb6a9fc068aeb925df240fd40f3c9851072",
+      "bytes": 25802
+    },
+    {
+      "path": "src/pages/app/DealCalculator.tsx",
+      "gitBlob": "7dda40a6139b3f648e3d1c911115b8ae5382b077",
+      "sha256": "745649f937ae54e1063337e415041479c430cbaac9ab6a2cec1a5ec86a87839d",
+      "bytes": 164401
+    },
+    {
+      "path": "src/pages/app/DealIntakeWizard.tsx",
+      "gitBlob": "32b63cde9086ae0cd58c7ac3977663dede5f5899",
+      "sha256": "8d79f11bd4a9c129ce48a77a3469d23fdda9b616f42a459ec3ba091aca406b16",
+      "bytes": 31202
+    },
+    {
+      "path": "src/pages/app/FollowUps.tsx",
+      "gitBlob": "2ba59a0368191fb726d51bfc87a245d4311c23f6",
+      "sha256": "78f4951e8ccb14bb8c4d0fac07ba0bdf345edc070be254ec84a1008e5e15dd12",
+      "bytes": 45805
+    },
+    {
+      "path": "src/pages/app/HotZones.tsx",
+      "gitBlob": "403c2f1d5c7966e694c521d98b7db1e46b83f18f",
+      "sha256": "17f974cf032cfdd2d2244f9e008ca50cf5b16c3027f8d13f0e0348225d446d8f",
+      "bytes": 4684
+    },
+    {
+      "path": "src/pages/app/Inventory.tsx",
+      "gitBlob": "90fc174e252444eba06800ca1656cc49ae7f2dbe",
+      "sha256": "b2beddc8185f87eff12e4e1d1feb0723c798001e26548fbdc909eb56c662d7e4",
+      "bytes": 51896
+    },
+    {
+      "path": "src/pages/app/ManualIntake.tsx",
+      "gitBlob": "b7932d5768a20f083a0b689da194b1c462029672",
+      "sha256": "a9fe5c60c9201372a26541288691b89e2289c8db3b7d7867cd878bdd3d9f3000",
+      "bytes": 785
+    },
+    {
+      "path": "src/pages/app/Pipeline.tsx",
+      "gitBlob": "8e3016feec348384ecd3204b77983b7a55fa2fea",
+      "sha256": "a5bebb4644bc85aa439b722591fc8b4702453eab8dec9b6bb6694bb5d230682e",
+      "bytes": 37599
+    },
+    {
+      "path": "src/pages/app/Resources.tsx",
+      "gitBlob": "e7a7f4addb12db0abd274ff4e6d67a86f2665739",
+      "sha256": "6d6eebe935a5e6240a290980bef3304489390e6dd1a862bdf8664c46b0fc3194",
+      "bytes": 41226
+    },
+    {
+      "path": "src/pages/app/S2Attestation.tsx",
+      "gitBlob": "ce9dc5494cc5e7eb07b7aceca3a40ccfcefd9e00",
+      "sha256": "42da73dda105398108176830815fcafad4e1360fe8d7388bc407d10f12eceda6",
+      "bytes": 6874
+    },
+    {
+      "path": "src/pages/app/Settings.tsx",
+      "gitBlob": "d25f7850a8a485e5f9ba91aa6955b2930c8ab81b",
+      "sha256": "c062e48e5a8a21259611cd0aa2e47c2c409c87de63be7a641b36e5b085639f91",
+      "bytes": 356553
+    },
+    {
+      "path": "src/pages/app/Settings.tsx.bak-20260602-130328",
+      "gitBlob": "5172dfe017d4086f3af503312fe5c4283cb339bc",
+      "sha256": "965bb662332c8b50634ef35debe2742901688ba17b77c07687599c9495a388bb",
+      "bytes": 122923
+    },
+    {
+      "path": "src/pages/app/Settings.tsx.bak-demo-confirmations",
+      "gitBlob": "32dbad96f64044736a87ab7f94056e43818b9d10",
+      "sha256": "0cf187b267b7ac5f99f65da1acaee6cb5fd437865f8e2e784b9fe6d14206cd62",
+      "bytes": 135936
+    },
+    {
+      "path": "src/pages/app/Settings.tsx.bak-diagnostics-confirmations",
+      "gitBlob": "605c836af8b0fd175e18dec782161d70959611f5",
+      "sha256": "c476d0a296667fd9940c5210cf339f61a6a7c1d9043800d3e3909de561ef5719",
+      "bytes": 136356
+    },
+    {
+      "path": "src/pages/app/Settings.tsx.bak-final-20260604-085437",
+      "gitBlob": "ddb1639b2178eb1d26752f754c6481139a6edfeb",
+      "sha256": "63d20bca7c0df63c801c113801b07c6a74bcc502e26a36f39424f342c4e8d82f",
+      "bytes": 134719
+    },
+    {
+      "path": "src/pages/app/Settings.tsx.bak-postbuild-20260602-130441",
+      "gitBlob": "ee84e73d8f2e4368bf1f6d154c09f3af2125b28b",
+      "sha256": "c15205a635d7a1f563193d1961c6ea33c5814d6683619f896b047cf25b3b7ad1",
+      "bytes": 134123
+    },
+    {
+      "path": "src/pages/app/Settings.tsx.bak-pricingfix-20260603-192405",
+      "gitBlob": "c521fc1ffd5d1a9daae9ec57f8161f80ec637773",
+      "sha256": "9e811373c40d5b3936dfcda8e2ae824a49a9ed22418ea6a8b26c37224012ede0",
+      "bytes": 134259
+    },
+    {
+      "path": "src/pages/app/Settings.tsx.bak-team-button",
+      "gitBlob": "b76d271cbdba953579101c0b897d848a3f8a0548",
+      "sha256": "0e0a0c93419b7a57f9bcbe6a107554f47c44de84c8062fdeb722be52d173ddc5",
+      "bytes": 136340
+    },
+    {
+      "path": "src/pages/app/Settings.tsx.bak-team-button-2",
+      "gitBlob": "6155a44dad11a436d6daf27a41b590b3dd60029d",
+      "sha256": "82ab0264ca7fb24b3d22c7f7240054c53c809d49e429c53cad391cc9e2905f1b",
+      "bytes": 136341
+    },
+    {
+      "path": "src/pages/app/Submissions.tsx",
+      "gitBlob": "6ba21129c8aa80169c896289a2650d0104581e03",
+      "sha256": "3b50787be1d527d908b6cb9561f7086cb8039e83cc9cc1aaaf89d36f68017dc6",
+      "bytes": 64781
+    },
+    {
+      "path": "src/pages/app/Upgrade.tsx",
+      "gitBlob": "24892b2b1f36bd5779e27690149ee7e7f807b5ff",
+      "sha256": "28a6a26b57f31aae450c7261bada44bdf6904328ec2ff1df2d858d59c2632b8f",
+      "bytes": 12065
+    },
+    {
+      "path": "src/pages/app/Upgrade.tsx.bak-final-20260604-085437",
+      "gitBlob": "d33a97fc4be4b1d2a523ce490332cdb4b68cea0e",
+      "sha256": "fd0d4bf9637877d189799b5ee46206ffefbce0a929696f075e5e1c8ffc4dbd29",
+      "bytes": 7379
+    },
+    {
+      "path": "src/pages/app/Upgrade.tsx.bak-pricingfix-20260603-192405",
+      "gitBlob": "d33a97fc4be4b1d2a523ce490332cdb4b68cea0e",
+      "sha256": "fd0d4bf9637877d189799b5ee46206ffefbce0a929696f075e5e1c8ffc4dbd29",
+      "bytes": 7379
+    },
+    {
+      "path": "src/pages/app/WhatsNew.tsx",
+      "gitBlob": "959843438c8ea59f600169b3a3361515ca3e630b",
+      "sha256": "27e99195e510bd1297c6eff8f0398361e3e19027b90b4935186dbc265d3a8d2d",
+      "bytes": 4226
+    },
+    {
+      "path": "src/pages/public/AcceptableUse.tsx",
+      "gitBlob": "f4f075bad2648ce57aa287e62b9efdd290b6aa5f",
+      "sha256": "98a6aa9a2732ac27e92bf6acc87bc709cc40a2675dc48ed35c1c68def4ef09f1",
+      "bytes": 1677
+    },
+    {
+      "path": "src/pages/public/AuthCallback.tsx",
+      "gitBlob": "b0d8dcc606f30f982edf231887361e38777ae43e",
+      "sha256": "7b116c1362f86fcd47631dd666fb03f9556c6b2718ded7bbe34720fb00c6f634",
+      "bytes": 7975
+    },
+    {
+      "path": "src/pages/public/BuyerMatchAccount.tsx",
+      "gitBlob": "e0b93856d4c8312a34af73ee82ab13bb9e5e6f15",
+      "sha256": "2dc266d953b4a1ddf1bd98313e10625aa9d0361f1d41112eb27c74c6d729ebf7",
+      "bytes": 26616
+    },
+    {
+      "path": "src/pages/public/BuyerMatchBuyerHelp.tsx",
+      "gitBlob": "5e49afd7ad5d9e821220766e5d19a8e9273c57ec",
+      "sha256": "cd433cbfb8da2faa3c8fd6c387e19af4ec3d8090dfea4d774a778d1fb4c67032",
+      "bytes": 5689
+    },
+    {
+      "path": "src/pages/public/BuyerMatchDemo.tsx",
+      "gitBlob": "26fe80aeabb1c195da28734e164795a91b3db1c9",
+      "sha256": "55aa5f8921815372f17dfa485674022d5b05e6fe79de631ff151fe3bf91b3c30",
+      "bytes": 26141
+    },
+    {
+      "path": "src/pages/public/BuyerMatchLanding.tsx",
+      "gitBlob": "c902991a54b8ebd2c4a3909b2c5cfa034c7f58b3",
+      "sha256": "e6c8ee567da07d2844e8662999a2a0fde851c17ab943c2b4f58325ab5caf6c52",
+      "bytes": 23815
+    },
+    {
+      "path": "src/pages/public/BuyerMatchResponse.tsx",
+      "gitBlob": "5e0bf43e0066002bdfb0b19085b6ee9ab87f111b",
+      "sha256": "1e3ef86bba7710a423cd067b70de59302040bc6e14691cf6b109313198d0c0ad",
+      "bytes": 8967
+    },
+    {
+      "path": "src/pages/public/BuyerPortal.tsx",
+      "gitBlob": "f0e2506db3395783c724929d8c8fe2acafd1683c",
+      "sha256": "53b2618a5993948ee286d213907c7edca029b3a22c0b25ccd2c0349063f95b7a",
+      "bytes": 38962
+    },
+    {
+      "path": "src/pages/public/BuyerPortal.tsx.backup-before-submission-table",
+      "gitBlob": "dcc7e9fab34ffc0a3aec4a08d12334db1da98c00",
+      "sha256": "9eaf8d2a156c70fec9b89b1bf18b1cd846895f2cb28727ddf1b40826c715eee4",
+      "bytes": 22528
+    },
+    {
+      "path": "src/pages/public/BuyerPortal.tsx.backup-before-supabase",
+      "gitBlob": "2577503f0cae1e5b246fc64c5a700331a6b29722",
+      "sha256": "a2e5012b76de47ccc2b951ac18480f0320386eac54a0092e295af745ffec6d7d",
+      "bytes": 23241
+    },
+    {
+      "path": "src/pages/public/BuyerPortal.tsx.bak-buyer-files-force",
+      "gitBlob": "5c9e358683a21d18769e5e401f706f72e53b1741",
+      "sha256": "f7ed1bf6d768db6db875f161bcce583d4d81945fe136eb4a0ffca3d82b94a92b",
+      "bytes": 22440
+    },
+    {
+      "path": "src/pages/public/BuyerPortal.tsx.bak-filedata-real",
+      "gitBlob": "5c9e358683a21d18769e5e401f706f72e53b1741",
+      "sha256": "f7ed1bf6d768db6db875f161bcce583d4d81945fe136eb4a0ffca3d82b94a92b",
+      "bytes": 22440
+    },
+    {
+      "path": "src/pages/public/BuyerPortal.tsx.bak-real-fix",
+      "gitBlob": "5c9e358683a21d18769e5e401f706f72e53b1741",
+      "sha256": "f7ed1bf6d768db6db875f161bcce583d4d81945fe136eb4a0ffca3d82b94a92b",
+      "bytes": 22440
+    },
+    {
+      "path": "src/pages/public/Contact.tsx",
+      "gitBlob": "5f16b575017d1ad0564ac8d20b02b8ba84aec694",
+      "sha256": "25a183b480e9fd40ef99bbc5baf7317bb7f4636fcdeb4fcd933cb6781670c75e",
+      "bytes": 6066
+    },
+    {
+      "path": "src/pages/public/Features.tsx",
+      "gitBlob": "d2c719060e0b1484521d38a37177739fd16a1ff7",
+      "sha256": "9bdc907bc38de30e01db5874065fd6f63559297ba61557f942898b20d56df3dc",
+      "bytes": 24128
+    },
+    {
+      "path": "src/pages/public/ForgotPassword.tsx",
+      "gitBlob": "9770df06c7221c37a4f26c6e6aa7b34d5fbc3e2f",
+      "sha256": "4c7a18fa9895d6773efc53afa307a56335d27c1336d631ced5eb7b35cc7b62fb",
+      "bytes": 1968
+    },
+    {
+      "path": "src/pages/public/Landing.tsx",
+      "gitBlob": "d9d9a6e32a67635088c4d13b5954cd17e38339d5",
+      "sha256": "2a97e591b53c52fbe09b2487e59aa04f736f49d47cc9d3688e8c13f240229d43",
+      "bytes": 10413
+    },
+    {
+      "path": "src/pages/public/Landing.tsx.bak-public-copy",
+      "gitBlob": "2c848b6321dda3afaaa056f3aeece32f74e1669e",
+      "sha256": "07c609ebe513409edf57b1e8b2508d8d322f0f1259b9635126d404f4669e8588",
+      "bytes": 6880
+    },
+    {
+      "path": "src/pages/public/Login.tsx",
+      "gitBlob": "18ab1f522e15ff3ceaa8512db22b42f3d6fa319d",
+      "sha256": "91fa3cbd24c9c084beea9cfe7fa3b006da2ee00ded2d703b53726a86aeea18aa",
+      "bytes": 5936
+    },
+    {
+      "path": "src/pages/public/Portal.tsx",
+      "gitBlob": "893db9ee9b675621339b64a20a570958eba7437c",
+      "sha256": "7c21fb321bdadaaf3c022425cd0ffdf88b6b85ed3097e1326abd5b71c2cd5133",
+      "bytes": 49220
+    },
+    {
+      "path": "src/pages/public/Portal.tsx.bak-20260602-130645",
+      "gitBlob": "00905eed97c6054aa5bbb7b511e265e13efb7d17",
+      "sha256": "324c383b47c6c20757027e0b17acb1fecc7d12f734aa430750f31ebb1016573c",
+      "bytes": 12935
+    },
+    {
+      "path": "src/pages/public/Portal.tsx.bak-debtsection-20260603-191116",
+      "gitBlob": "743c67e517dfab96e2031b723309c96098cc00c9",
+      "sha256": "3671e295ccf133170ba1c6a87d36f2df45ee364e2112228757333bed26a0663b",
+      "bytes": 42696
+    },
+    {
+      "path": "src/pages/public/Portal.tsx.bak-debtsection-post-20260603-191156",
+      "gitBlob": "43a4fba6c13e2abaef1872d5246e0965eb71633e",
+      "sha256": "661f9d633e085bbbfdadd9d7abae22f12ca820e6b6ad333eba7ae9354be7009c",
+      "bytes": 48613
+    },
+    {
+      "path": "src/pages/public/Portal.tsx.bak-final-20260604-085437",
+      "gitBlob": "e3f8227df6967ceb793603ddc4fcba77fa309cea",
+      "sha256": "4bf24a6c3ae44ae17eec65c29580d4c22f64d0b5fbf5904a1119c5ed7c596f80",
+      "bytes": 48791
+    },
+    {
+      "path": "src/pages/public/Portal.tsx.bak-postedit-20260602-130825",
+      "gitBlob": "743c67e517dfab96e2031b723309c96098cc00c9",
+      "sha256": "3671e295ccf133170ba1c6a87d36f2df45ee364e2112228757333bed26a0663b",
+      "bytes": 42696
+    },
+    {
+      "path": "src/pages/public/Portal.tsx.bak-pricingfix-20260603-192405",
+      "gitBlob": "e3f8227df6967ceb793603ddc4fcba77fa309cea",
+      "sha256": "4bf24a6c3ae44ae17eec65c29580d4c22f64d0b5fbf5904a1119c5ed7c596f80",
+      "bytes": 48791
+    },
+    {
+      "path": "src/pages/public/Pricing.tsx",
+      "gitBlob": "d3f7f3a6f5765b987ddaa1a5824d035a476cd56b",
+      "sha256": "dfdb0e543847ba8710bfed8347e3e9c79f6117bb6c783564a63f70557b7e2775",
+      "bytes": 14443
+    },
+    {
+      "path": "src/pages/public/Pricing.tsx.bak-final-20260604-085437",
+      "gitBlob": "8c5d72f60a92bfdb859754ee152589f1f7a6ed71",
+      "sha256": "f5512749ee2e3efc82d3a798490aac10aa2ccdfda6e41436261243889816ec8f",
+      "bytes": 9406
+    },
+    {
+      "path": "src/pages/public/Pricing.tsx.bak-pricingfix-20260603-192405",
+      "gitBlob": "8c5d72f60a92bfdb859754ee152589f1f7a6ed71",
+      "sha256": "f5512749ee2e3efc82d3a798490aac10aa2ccdfda6e41436261243889816ec8f",
+      "bytes": 9406
+    },
+    {
+      "path": "src/pages/public/Pricing.tsx.bak-public-copy",
+      "gitBlob": "a167dc26e98f62dcf4f94f475d23095d471c8c89",
+      "sha256": "0958e2c7cd858a7d1ad77e21a3143becaf4ff4a8d6c19c32b0c29b600a7d15db",
+      "bytes": 7031
+    },
+    {
+      "path": "src/pages/public/Privacy.tsx",
+      "gitBlob": "e13c53e2b8bc385f6bf1d402c7fd096d1221d760",
+      "sha256": "226bf94f74304e6b614e5a4edf5474b9b65daf46ac7e37221f5f7437b4f0b5d3",
+      "bytes": 4342
+    },
+    {
+      "path": "src/pages/public/RefundPolicy.tsx",
+      "gitBlob": "4cb6e21185b3fdacd4d83ebf90471efe80328f27",
+      "sha256": "286c1fab998d3ea4ee99cff1522fc2b04caefe4b6091b4141d66dbbae9fd007b",
+      "bytes": 3437
+    },
+    {
+      "path": "src/pages/public/Register.tsx",
+      "gitBlob": "146d22bebb79f5fa36d8e48689baf3f85065812c",
+      "sha256": "5fb90ac47367b66b79d1861284e32a18a384e9e400d25b69110e6118e56129f3",
+      "bytes": 8836
+    },
+    {
+      "path": "src/pages/public/ResetPassword.tsx",
+      "gitBlob": "5b531570e037bb387d90760e28ddf92c2e935601",
+      "sha256": "5887ea43139638ee5f4b7bb14045e3eef31928bc36e82830f6d051edb22c9a6f",
+      "bytes": 3864
+    },
+    {
+      "path": "src/pages/public/Security.tsx",
+      "gitBlob": "4e3c9f702eb835f96e3c282ecd51783aa501899a",
+      "sha256": "e9ebdf9e27e69b4bf32913b86aa92138f186915c3d6821ec83e5c80fdae9d06d",
+      "bytes": 3526
+    },
+    {
+      "path": "src/pages/public/Terms.tsx",
+      "gitBlob": "a8bd70abd7601cad167a3ac9d7601f8f121d44e2",
+      "sha256": "d965c01d9cacfc9e868ee934891d267de6fe86beafb95e7470651ad2b4e639ba",
+      "bytes": 5105
+    },
+    {
+      "path": "src/pages/public/VerifyEmail.tsx",
+      "gitBlob": "c91d61adbeee8029d2e42e37fbcf160d5e772f3d",
+      "sha256": "72aefc401a2862d6ae891ada42a3b69332514d6875f599b3fd5940bad5bc6da5",
+      "bytes": 3064
+    },
+    {
+      "path": "src/pages/public/Waitlist.tsx",
+      "gitBlob": "baf16cb868e63661442b9ba588215981274cc335",
+      "sha256": "7dfcad18d24e47ca129625199e4c1c7b40b1c5a14eb418f3721367ae31a26c9b",
+      "bytes": 129
+    },
+    {
+      "path": "src/server/creditPacks.ts",
+      "gitBlob": "c2e0c0b425455665878a1b7bb15fc687f86b6a9c",
+      "sha256": "c259889dfa52693cb76fb4c40194473cb24679752eab4cfa9314222fa0a49684",
+      "bytes": 1073
+    },
+    {
+      "path": "src/server/hotZones.ts",
+      "gitBlob": "57af2039eb3323d9e31601129c1153e51b32320d",
+      "sha256": "d430560f638422e34b101b9bb04c5a302f019c88fa4563c04320f9fda128808e",
+      "bytes": 1008
+    },
+    {
+      "path": "src/server/platformActions.ts",
+      "gitBlob": "749bee39e136eaf41354c515bcc6e96d9d527545",
+      "sha256": "8900b7f4d4bd336d1d96cde1c6b821660371faa0ccd952d438d33c2dc7e82ba3",
+      "bytes": 35407
+    },
+    {
+      "path": "src/server/proTrialCheckoutAuthorization.ts",
+      "gitBlob": "10c17a74a01b2b5878e0cac8769cfa39fb3b3d10",
+      "sha256": "707af73cc8491777ed52daae0eaf6f9052f36f32fd1066a8c144663848eec05b",
+      "bytes": 733
+    },
+    {
+      "path": "src/server/stripePromotionVerification.ts",
+      "gitBlob": "d16273dd67e408db79b13ebc1715c3762da86de2",
+      "sha256": "2fbcc8670b0785c88c0f2457180df47c9f84419e87d1f30dca872c6387dd3ee9",
+      "bytes": 465
+    },
+    {
+      "path": "src/services/apiAdapter.stub.ts",
+      "gitBlob": "13283303ea728a4d58c75069a9bd3ff6da73bd77",
+      "sha256": "46d62590df70509ccda4fbad90360baa298f006e6767f78d0a1667262386b307",
+      "bytes": 2887
+    },
+    {
+      "path": "src/services/localStorageAdapter.ts",
+      "gitBlob": "9e03b74f0878d1ed917426842ae092cd3a94fc43",
+      "sha256": "3e0b218393c330fe2a0f4db4e401b32c8cd228ed1873ea22082b0c9f283d2b3a",
+      "bytes": 5370
+    },
+    {
+      "path": "src/services/storage.ts",
+      "gitBlob": "9f032f39684a2698258a168ed729d4b6fa9999fe",
+      "sha256": "6bf954ca9f028af0fb9503047de9a7b9557fe8cd16f57139817bf8cc9c8580a7",
+      "bytes": 952
+    },
+    {
+      "path": "src/services/storageAdapter.ts",
+      "gitBlob": "08b7b85ea771f6088c4c84aa1688c39c7bf0b11f",
+      "sha256": "7a0d9f74f885794658edfbcbacf3e59a00e708c4508d821b3ea178c5ab6a28ef",
+      "bytes": 2460
+    },
+    {
+      "path": "src/store/useAppStore.ts",
+      "gitBlob": "40792f61636dd046f5af5ae055b0577340ba7a67",
+      "sha256": "0890debbc9cb3154becc160290a3e0c66e704f8997a3c901d6e6cda1563d62da",
+      "bytes": 91708
+    },
+    {
+      "path": "src/store/useAppStore.ts.bak-supabase-delete-sync",
+      "gitBlob": "58f9262b0077433b082aaaee2192448d7d604dcc",
+      "sha256": "f586cbc2c592aa98ae38c2d899b946f78209bfe240aeb6d2b54a4e3e0ebf2294",
+      "bytes": 62208
+    },
+    {
+      "path": "src/store/useAppStore.ts.phase1backup",
+      "gitBlob": "9af61da06b74a1f67e1302faf3fb62782ee72ea9",
+      "sha256": "cd50670a38c5afaf620e5151863f59cfc4a1407cfd012922c4ffb5285f84f11c",
+      "bytes": 64631
+    },
+    {
+      "path": "src/vite-env.d.ts",
+      "gitBlob": "39ff3c71f6963fd0eba1ce62c459bc1f00e9a0b4",
+      "sha256": "c1a9d46112be96d89085413b9178ccfdef5a15cdec861b10020af0476cea7694",
+      "bytes": 43
+    },
+    {
+      "path": "supabase/functions/_shared/buyermatchBilling.ts",
+      "gitBlob": "f9347bfaa400c1061ddc0ac7bbbbf3a75cce501a",
+      "sha256": "e99c176226f5ff3fcca1fb89fbba83da1e9f13363f400bc8a871d00fa74601e2",
+      "bytes": 8106
+    },
+    {
+      "path": "supabase/functions/_shared/buyermatchPlans.json",
+      "gitBlob": "a5fdd4d1951ade9cd8400184f0e6acac58794009",
+      "sha256": "338d567d0bba83ad430f04d63e01ffc547d86a81fa2ea890cb1bbef703bb4f42",
+      "bytes": 406
+    },
+    {
+      "path": "supabase/functions/buyermatch-delivery/index.ts",
+      "gitBlob": "72a3f3681118c0439dfe7c32e8ff805c10aef920",
+      "sha256": "9d1618584ba7b53aa1b97e3d94261c2b95851736f3068c87410db509fe5deccd",
+      "bytes": 2970
+    },
+    {
+      "path": "supabase/functions/email-outbox-worker/index.ts",
+      "gitBlob": "67d4eaa91cbee15ce8033079aa5df8f12b29eb29",
+      "sha256": "0f630910948bdc738b917ce28550c05576400d51583af66417940b1faa2696c2",
+      "bytes": 3776
+    },
+    {
+      "path": "supabase/functions/notify-submission/index.ts",
+      "gitBlob": "488743150f390f20697bf7708285507b3de3e602",
+      "sha256": "7808627868ad1b2475e2b51fd61dd5fb3c355c5676ff47436a1d744122926dde",
+      "bytes": 37887
+    },
+    {
+      "path": "supabase/functions/resend-webhook/index.ts",
+      "gitBlob": "84feefbad6e7adb2ddace9b09ea5427d956dd176",
+      "sha256": "8222ec371d53e4cae097cb462ba386ea3ef9b5bfbc225c2ba292267720d5e0a4",
+      "bytes": 4631
+    },
+    {
+      "path": "supabase/functions/stripe-webhook/index.ts",
+      "gitBlob": "8970a4fad0fc2587c8436a9397e371d28ba5e317",
+      "sha256": "23e7b5fedc0de652ee4fbeb73633eb74e6aaba74b1c662ec653248d4cc9978fe",
+      "bytes": 40742
+    },
+    {
+      "path": "supabase/migrations/20260707120000_create_contact_submissions.sql",
+      "gitBlob": "0a93bc4ac3f8af1bbd8874d86c98a08d56f6cd06",
+      "sha256": "ac44100b6a5ab816efe975235892c3903cf9b08f3695e555e292c616c9970e25",
+      "bytes": 1359
+    },
+    {
+      "path": "supabase/migrations/20260707123000_contact_submissions_owner_read.sql",
+      "gitBlob": "9dd0645608e567baa017078b9d3a13d35676107e",
+      "sha256": "c2e29fb0536baf22a409b2f9864ce586d66bc282015e3dddc4f35773a86b905c",
+      "bytes": 702
+    },
+    {
+      "path": "supabase/migrations/20260711015000_deal_submissions_public_insert.sql",
+      "gitBlob": "8a111a88e2f988f7436a4f344fcc5401dee4b7ce",
+      "sha256": "bfefd1d9a1ee344a090451f9283e85c1fb9d4737c1fcbf776503096dd08681c6",
+      "bytes": 581
+    },
+    {
+      "path": "supabase/migrations/20260711020500_deal_submissions_public_insert_check.sql",
+      "gitBlob": "e539f989df71acc42707980c1a835ffd669f443c",
+      "sha256": "028ed864e55ba75762c9c82f75daabd3aea15a76c0e1a095abcae6d9e6ada499",
+      "bytes": 218
+    },
+    {
+      "path": "supabase/migrations/20260711033000_email_notification_settings.sql",
+      "gitBlob": "a9bbbf4698731f596369ae6d2a5cb4d5bef14597",
+      "sha256": "27fc552625cad5c10800bbc6e76f76e398d4141f22f3304ca6b9605a4e326061",
+      "bytes": 4286
+    },
+    {
+      "path": "supabase/migrations/20260712010000_add_new_account_email_notifications.sql",
+      "gitBlob": "90447fd52e3fd7c0f7f2da638313a9ac4ce80326",
+      "sha256": "5c43116de94519eb3a1f79afe458a54e404ed76f96da69efdf31be1cad99ef74",
+      "bytes": 231
+    },
+    {
+      "path": "supabase/migrations/20260712011500_email_notification_log_rpc.sql",
+      "gitBlob": "ab2b44e4d2f2a5b51c9b68cc05905ac659635e18",
+      "sha256": "7058653614218cf50bb6238099e8ba51e8708f84736a2b1b85a3f9819d867daf",
+      "bytes": 1892
+    },
+    {
+      "path": "supabase/migrations/20260712023000_buyer_proof_storage_rls.sql",
+      "gitBlob": "33e4553c3e6ef24ed0a9ad476e257577b536133e",
+      "sha256": "4f818ee0b8cd70235220e7b9f06e9b6d49f32a7cc2614c5bb8441aa230d9a939",
+      "bytes": 1490
+    },
+    {
+      "path": "supabase/migrations/20260712180000_registration_durability.sql",
+      "gitBlob": "f8f3d996bf3a8634530cc7abcd1a75ccef4cd1af",
+      "sha256": "53fb1c9ae3b479470fd83e026918653123ff9e8f0d206b2669dbac9e4b9732e8",
+      "bytes": 4352
+    },
+    {
+      "path": "supabase/migrations/20260715120000_cloud_snapshots_user_isolation.sql",
+      "gitBlob": "1aa17e04c5482091871f02f40a8f3275ef0f9df6",
+      "sha256": "99ec025bf666251031d6b97e00bfac192d74693f25b9333ad572d1b1b69b811e",
+      "bytes": 1214
+    },
+    {
+      "path": "supabase/migrations/20260715133000_create_waitlist_entries.sql",
+      "gitBlob": "1c7320e16e26411fc7c84aa4373d4027807af0fc",
+      "sha256": "c102712e3a538767f74623fd27da64862e903385c7daf386654946678057f504",
+      "bytes": 1028
+    },
+    {
+      "path": "supabase/migrations/20260715134500_grant_waitlist_insert.sql",
+      "gitBlob": "c26e21a7c3ebd08ee2b71bd0538f003b38de9ee1",
+      "sha256": "9366a8d7af7a71feac801dd7827d1980512d8d4a6a48895dd6b82ab94768cf53",
+      "bytes": 64
+    },
+    {
+      "path": "supabase/migrations/20260715135000_relax_waitlist_insert_policy.sql",
+      "gitBlob": "640f45cd0f0bed6e400194650905ceed9c7199eb",
+      "sha256": "be1c93d5117c93addaa0b3879372490493b63afba69f6280108152b5fad2e1c5",
+      "bytes": 219
+    },
+    {
+      "path": "supabase/migrations/20260715143000_account_deactivation_status.sql",
+      "gitBlob": "0c9cb116cd9d97332c93cd6c1375de4e2b56b54d",
+      "sha256": "d088317b25e06de7b9310fecd5f3b3c2cea31fb3a45867b348a64050b28679c3",
+      "bytes": 1385
+    },
+    {
+      "path": "supabase/migrations/20260715152000_waitlist_email_delivery_status.sql",
+      "gitBlob": "75f35aea2c7d1bb5065777c3679a4374b2895b39",
+      "sha256": "6f278c9ec674549b12202a2c035d700c3bc92fdc8f1a6da65cdcc8fc672e709e",
+      "bytes": 814
+    },
+    {
+      "path": "supabase/migrations/20260716090000_workspace_buyers_rls_and_limits.sql",
+      "gitBlob": "d0053c1fd1cce63f0fa1151aed5f6e633d9532ff",
+      "sha256": "583ec161770f106e85c6e2a0ed8748f3cc1190e557d6574adabec60bee9c9d24",
+      "bytes": 6664
+    },
+    {
+      "path": "supabase/migrations/20260716103000_permanent_free_plan_defaults.sql",
+      "gitBlob": "b57a72d5b3c1dfd31a7ab5b41e2d788f659922da",
+      "sha256": "e1996f94a5d9641170469b381007c91e7080bd5548519ffc27bf17179932f15c",
+      "bytes": 543
+    },
+    {
+      "path": "supabase/migrations/20260716113000_property_intelligence_credits.sql",
+      "gitBlob": "bac0de3fdab5e0c9ff83eb345cd972553b5e0f2b",
+      "sha256": "1548cffd8b6ecca75291c0b873f654a438b48ad95fda5a631c150353ac9a06a6",
+      "bytes": 11966
+    },
+    {
+      "path": "supabase/migrations/20260716123000_update_buyer_capacity_limits.sql",
+      "gitBlob": "1a38c250f95407a294d4263565d093b84496f080",
+      "sha256": "8de58a5cbc736c7cb5f2cc4146450072552002507f52e844cad2dd203fb0d61f",
+      "bytes": 357
+    },
+    {
+      "path": "supabase/migrations/20260716170000_account_lifecycle_and_buyer_capacity.sql",
+      "gitBlob": "873dbdb652e90c4d6555585d6d0bceec9106f4b9",
+      "sha256": "b8ca8e22dc981ed8abcd2c619bc6a0bbbb48e92cd2ac30c8876a14e8861eafc4",
+      "bytes": 2428
+    },
+    {
+      "path": "supabase/migrations/20260716190000_stripe_customer_portal_fields.sql",
+      "gitBlob": "6812c85fbf83f5dc75939ed83b9d298386a72017",
+      "sha256": "f26bb5d81f90ee25633c9fec646688225fd4cfa916d497e1c7c83b59a8ebed23",
+      "bytes": 1076
+    },
+    {
+      "path": "supabase/migrations/20260716203000_plan_downgrade_and_billing_preferences.sql",
+      "gitBlob": "a5ca0cadf739c4cc2ff018f291ba756dbbe8148d",
+      "sha256": "c2400e198adf2518e3dc66871e3e8d713b227b822d369231f5ca6b15037bb533",
+      "bytes": 3441
+    },
+    {
+      "path": "supabase/migrations/20260716213000_account_profile_identity_fields.sql",
+      "gitBlob": "35015dee74693cd48743e99c150b38f5655489bb",
+      "sha256": "0d3e2bde1950687377da1c949fddfc62c1a23c3cbcc90ae67aab4a40881740dc",
+      "bytes": 3086
+    },
+    {
+      "path": "supabase/migrations/20260717001000_email_change_audit_workspace_events.sql",
+      "gitBlob": "6e7fc32d5eafc87533e4b83d9658f8d3536c282f",
+      "sha256": "7c9ba875848541ef9bea994df64b1a1ada3575e195329d718dc978a78cdaebfd",
+      "bytes": 2581
+    },
+    {
+      "path": "supabase/migrations/20260717120000_account_profile_onboarding_state.sql",
+      "gitBlob": "5f7085ffa33650aad2b22b548ac26f9f2995676c",
+      "sha256": "8a251235571f8a75e695ee68bf0011bff1ab4ef7de4a0fd1f04e5bb3ff5a3e78",
+      "bytes": 386
+    },
+    {
+      "path": "supabase/migrations/20260717121000_deal_submission_conversion_metadata.sql",
+      "gitBlob": "5d30f9d1adec4dfc931fcda4c7c1ecc4799ef1be",
+      "sha256": "94c49f2c4eb14522e13c8d893e9d7d462ec40a31d1bf314cc55b596159310165",
+      "bytes": 421
+    },
+    {
+      "path": "supabase/migrations/20260717133000_buyer_portal_approval_metadata.sql",
+      "gitBlob": "b5fb6337a1cc6d47f2496ad5e37d771b5b271b29",
+      "sha256": "170df59f79d60240d75149814f43758039d9ebe1feb0edf6343363e4d02a02a9",
+      "bytes": 319
+    },
+    {
+      "path": "supabase/migrations/20260717160000_owner_admin_buyer_capacity_unlimited.sql",
+      "gitBlob": "a5b29687111313a27b2e184fcf377ad79073a083",
+      "sha256": "a9db30daf29205540a5e99734d345904ddb68a14a6262f910bec46558c7bcff9",
+      "bytes": 2937
+    },
+    {
+      "path": "supabase/migrations/20260723143000_reserve_submission_inventory_conversion.sql",
+      "gitBlob": "4b6a9d3c334ef3312e7fe725e3ec863f32f4d799",
+      "sha256": "b151136e90c8576c9cfe4479c5724cbe5fedc67d8e6e71641be1c138f5cf799f",
+      "bytes": 3522
+    },
+    {
+      "path": "supabase/migrations/20260729193000_durable_submission_inventory.sql",
+      "gitBlob": "25dec92654e9f16b155be48da0073c07f78dae47",
+      "sha256": "70902ac0cbba6e58b0fe036f11046fdd7c12f2f85012938e030ca45a5d099292",
+      "bytes": 12372
+    },
+    {
+      "path": "supabase/migrations/20260802221500_submission_workspace_review_rls.sql",
+      "gitBlob": "bc4024e74401978983e5e5859ead8e55740d2350",
+      "sha256": "d0a987e33a4ccd68e4c3db4f012af6edc55fad966c0bb6e03fa145fc30fc0019",
+      "bytes": 2913
+    },
+    {
+      "path": "supabase/migrations/20260802233000_backfill_workspace_assigned_converted_inventory.sql",
+      "gitBlob": "053cdeb273e25ddd9d820497613048aeae2e22dc",
+      "sha256": "9be1ae49801d7215df57355cb836e0078437a3dd3725c90ea7160fdf60b5e7bb",
+      "bytes": 2547
+    },
+    {
+      "path": "supabase/migrations/20260802234500_assign_legacy_submission_workspace_and_backfill.sql",
+      "gitBlob": "906c39f3cac8fe14d64e6d046f72a532208ab538",
+      "sha256": "c380f3f9cfd6186294e2292aa1980bc8b1d8dab07ac8bdf7ae69bd06384c0c59",
+      "bytes": 2669
+    },
+    {
+      "path": "supabase/migrations/20260802235500_resolve_legacy_workspace_from_durable_evidence.sql",
+      "gitBlob": "6d2e3bd775c9007c5186c1e44b165fbde2c8dda4",
+      "sha256": "2ad64cdc3b6b292213e27ccfa6cb28cc371c72541ab9872e3182469b2e216462",
+      "bytes": 3090
+    },
+    {
+      "path": "supabase/migrations/20260803000500_backfill_legacy_conversion_metadata_variants.sql",
+      "gitBlob": "8fb43aa9e1f190e2e8bc5eb32ba4b2df9cf59d50",
+      "sha256": "d230e37bddf37daa93bfcec45961a0919b7f027d73527bab84f9e2cf8bda363d",
+      "bytes": 3418
+    },
+    {
+      "path": "supabase/migrations/20260803013000_credit_email_closing_foundation.sql",
+      "gitBlob": "3b6c24f8648d6722add365e8f422a3a4e696f032",
+      "sha256": "585cfdf6d0ae64a1b20a130ad00713599e0f7e95aa1ec6069ef494944e6f0fe4",
+      "bytes": 17172
+    },
+    {
+      "path": "supabase/migrations/20260803020000_backfill_active_included_credit_grants.sql",
+      "gitBlob": "6a7bf161d35ece268e79da6dfd4b9950f14c2bb3",
+      "sha256": "97bd7de7e5a6aff21d1fb05f91e87e983b11e8519fe69cafd02471b5a701996e",
+      "bytes": 1177
+    },
+    {
+      "path": "supabase/migrations/20260803024500_atomic_admin_credit_adjustments.sql",
+      "gitBlob": "3ac33d8deefb3f371acf3f815179ad955aa16b04",
+      "sha256": "f633b12b5f8ad9a6b6f63f25fcb31eaff4e56dbb767cd9aca2e83a8afec4ee52",
+      "bytes": 2599
+    },
+    {
+      "path": "supabase/migrations/20260803143000_update_property_intelligence_credit_policy.sql",
+      "gitBlob": "d7a6f9f0fc28bfd18e359a46426f1a928a6f3a23",
+      "sha256": "ab1a47f1fbee1e2c3d82011c843aa8fcf63347108b401dace17db8c35a730030",
+      "bytes": 3818
+    },
+    {
+      "path": "supabase/migrations/20260803190000_harden_email_outbox_delivery.sql",
+      "gitBlob": "b2ed1e806a69fe144ae17f54934cab34de23bf81",
+      "sha256": "8a6a25e8cce86de50f91e648b0db75017d69ff13b691414a06a5c72c90e645fd",
+      "bytes": 2384
+    },
+    {
+      "path": "supabase/migrations/20260810123000_list_email_outbox_operations.sql",
+      "gitBlob": "b4443b0bf65540c1678c2f0a2a34ceb748072264",
+      "sha256": "c75e4ce2dc6c2cb63e010c954c73d7a411418ce82ac93e10edc01983631bb95b",
+      "bytes": 1192
+    },
+    {
+      "path": "supabase/migrations/20260815160000_property_intelligence_history_audit.sql",
+      "gitBlob": "76cdc65d84afc4a915e2d2efa0d00e97e6334c5f",
+      "sha256": "62c541c43added8b53beb501e909c00acb9c6472f519a82b97a6eb19a746f077",
+      "bytes": 4851
+    },
+    {
+      "path": "supabase/migrations/20260821150000_trial_paid_credit_safety.sql",
+      "gitBlob": "098e0ff64430973bd877e8e1a1a65025521e9c95",
+      "sha256": "f469815b5466a64a63cc4db017f1fa50ffece88f49b8c3497cb724c97ab76a28",
+      "bytes": 5109
+    },
+    {
+      "path": "supabase/migrations/20260821153000_pro_trial_eligibility_and_promotion_preferences.sql",
+      "gitBlob": "10585efc635c2b7a2d02408ee0a83d01961f53b0",
+      "sha256": "76d5375ca2f497a9ea6726e876dd1879d1cc72a2f0ce321de151b3c86d94db83",
+      "bytes": 1189
+    },
+    {
+      "path": "supabase/migrations/20260821160000_announcement_campaigns.sql",
+      "gitBlob": "fd4c04de662ac45b4ac4220525bac3d341185f85",
+      "sha256": "2e59b58d2863d4f19f1a2a26e86044f98dd4d421d72085c479f6f73be1152021",
+      "bytes": 1248
+    },
+    {
+      "path": "supabase/migrations/20260930120000_buyermatch_foundation.sql",
+      "gitBlob": "676186b9570e4d63520f75a5af8bcc7b84e8e3c3",
+      "sha256": "7295520362bbfb8bec6fdab15b2669397ba786e31b4eea7a74da130c7366faab",
+      "bytes": 8248
+    },
+    {
+      "path": "supabase/migrations/20260930130000_buyermatch_workflow.sql",
+      "gitBlob": "4e5a26579eb24a9f62840db6a180deb7d827c171",
+      "sha256": "750098d818cc871fbe89ff8435d1bc7ff340fd05569054c888979fe11d037866",
+      "bytes": 12151
+    },
+    {
+      "path": "supabase/migrations/20260930140000_buyermatch_analysis_concurrency.sql",
+      "gitBlob": "4597acf23a4f32b23304207f6db8f27e8c6224b7",
+      "sha256": "434bf9d7baa14abc37e2f62b4ee8b4ca7b52e11abfc699c34eb55814f58b1872",
+      "bytes": 2415
+    },
+    {
+      "path": "supabase/migrations/20260930150000_buyermatch_billing.sql",
+      "gitBlob": "90c48215ab049b0855b49617680566ae2cc28dd3",
+      "sha256": "427119f837a1d18331da680719373ac8b41cc186a95eadd89d7376ed92bdc107",
+      "bytes": 2989
+    },
+    {
+      "path": "supabase/migrations/20260930160000_buyermatch_agreements_imports.sql",
+      "gitBlob": "a626bf88004834e3cbc96a2dd36c39c4c1fa8495",
+      "sha256": "c5501ec1672557a849e4197a591c7d604bb4b0fec2c5e222fa36cb1fc95d4866",
+      "bytes": 3510
+    },
+    {
+      "path": "supabase/migrations/20260930170000_buyermatch_outbox_claim.sql",
+      "gitBlob": "a89758652c83efb98deb52edb2e799b7105c963b",
+      "sha256": "91d3bda7566d1894a94f4dd76941e128544a220651e5f1aa856cc29da59d0e2d",
+      "bytes": 1800
+    },
+    {
+      "path": "supabase/migrations/20260930180000_buyermatch_document_publishing.sql",
+      "gitBlob": "e4b8c1126cdb6f5b157ed179b47e58b51e1143f5",
+      "sha256": "877822006df11324de717905bb7b22b125d3580a5815a2ddadd2b58c0283cb2f",
+      "bytes": 733
+    },
+    {
+      "path": "supabase/migrations/20260930190000_buyermatch_reminders.sql",
+      "gitBlob": "88713e914f24b659fcdb087970ab6667e7db8a86",
+      "sha256": "6ecfdaf1e51074a05c0a7795a61ebf7a1a16cf13ddca655ab054fccc2ad7ef62",
+      "bytes": 1195
+    },
+    {
+      "path": "supabase/migrations/20261001090000_buyermatch_test_commerce_delivery.sql",
+      "gitBlob": "6206ac50db4c1ec81bcb045236899471e47ef758",
+      "sha256": "8290f3c4c3f64ea7cfec0fff52c5a4bf6913a66a2b36a82f98b9e6efec0aba96",
+      "bytes": 16798
+    },
+    {
+      "path": "supabase/migrations/20261002190115_buyermatch_response_scope.sql",
+      "gitBlob": "a7e04edd89065577bacc428ae2d021559bd23e38",
+      "sha256": "1a34889963f594acc23eddc82afc1080b38a1da022681c2b667eaacd4409ae97",
+      "bytes": 5358
+    },
+    {
+      "path": "supabase/migrations/20261003001913_buyermatch_production_outbox.sql",
+      "gitBlob": "d296a85b8ac3b8a56943f5027f7c2c23c3214188",
+      "sha256": "2b9d312d634a5a1db6827a51cfa14169550803b6df67d2e04a815f4a82b95e13",
+      "bytes": 4897
+    },
+    {
+      "path": "supabase/migrations/20261005203000_buyermatch_messages.sql",
+      "gitBlob": "f9cb406f075d5cbc9b91460fd594e70d9cf2acd7",
+      "sha256": "848fa822ec5d9701667b0b218bb5b37552f4d934bbdcb7fcd84aed9cefb487b2",
+      "bytes": 3398
+    },
+    {
+      "path": "supabase/migrations/20261006010617_buyermatch_live_billing_boundary.sql",
+      "gitBlob": "cbe2a25f4b104e6b8d42a6f2bce8e2ae96bd0b12",
+      "sha256": "09315c9f55628ec5b0fcaad3eb8ec8288f5533cffac8084ef825698ddeeca150",
+      "bytes": 2091
+    },
+    {
+      "path": "supabase/migrations/20261006010804_buyermatch_conversation_safety.sql",
+      "gitBlob": "7020661e4c72f140ea9be82879702e0b211df72d",
+      "sha256": "fe422d8d8b88c870ec781d78c9bdce39880b0d0cf50245fede2e155d6e5877f1",
+      "bytes": 7674
+    },
+    {
+      "path": "supabase/migrations/20261006013219_buyermatch_portal_sync_atomic.sql",
+      "gitBlob": "3be1e61791109a222cd80afa59f1f148c18f4079",
+      "sha256": "14db83fea4794c61f3d15cf89dde2404c77d458d956663bbd0bef10ee15e5c39",
+      "bytes": 2422
+    },
+    {
+      "path": "supabase/migrations/20261006013640_buyermatch_software_distribution.sql",
+      "gitBlob": "d2552c79f68e0926d2b46babcf1fa2cd76700fa6",
+      "sha256": "f8f26d6703d74a1b2d3132ad6bf5a9243042e113625c6124d85db8302043ba89",
+      "bytes": 5842
+    },
+    {
+      "path": "supabase/migrations/20261006030201_buyermatch_usage_accounting.sql",
+      "gitBlob": "541b275d5be545ff62d2ac6ded6e6b23983b8529",
+      "sha256": "3fd92f3a4bd384dac491c43f7232d17248c51b12d5339d9c41007b1364a26f35",
+      "bytes": 12762
+    },
+    {
+      "path": "supabase/migrations/20261006043844_buyermatch_commercial_limits.sql",
+      "gitBlob": "779910ef3f27461a1487d0c21a4ecc38eb06f378",
+      "sha256": "5d3ac2b66d4ef6f8f765ad7dd0b5d090120f3086454b572426a6a74e454af46a",
+      "bytes": 10712
+    },
+    {
+      "path": "supabase/migrations/20261006164348_buyermatch_subscription_plan_changes.sql",
+      "gitBlob": "a3209180ce543f2e5da3c0029929459c9d59ca85",
+      "sha256": "b50b778e8f2eb065d05c4f3aeb9c2e3afa5bb9b7681b9ceb0ab7d2ec8bf10290",
+      "bytes": 1633
+    },
+    {
+      "path": "supabase/migrations/20261006184631_buyermatch_callback_isolation.sql",
+      "gitBlob": "db782a78270d332313b815077f7d1cc92995073a",
+      "sha256": "aff3491b3d75bf0a90e045d02567f1e29de7bf2e7e7aa146777c869f3dab48f6",
+      "bytes": 3959
+    },
+    {
+      "path": "supabase/migrations/20261018165041_buyermatch_analysis_version_guard.sql",
+      "gitBlob": "0212bcb3db1d48e22addee5c2d2c77f821eff485",
+      "sha256": "400cfc8887aaf776e678446eb1cfa15ef9a179e15c0c30e3de3d7fd5871c11e1",
+      "bytes": 1101
+    },
+    {
+      "path": "supabase/migrations/20261019233315_registration_create_only_provisioning.sql",
+      "gitBlob": "96b68a7a865df42d7fddf7c02fd6bd8d0bcdb948",
+      "sha256": "d3ba74f22223b6afa8af96624c00e272b911a7d81dabf6de92d617775b1ffd28",
+      "bytes": 4491
+    },
+    {
+      "path": "supabase/migrations/20261022141326_buyermatch_owned_subscription_plan_changes.sql",
+      "gitBlob": "666da8308e08bb9ccecab14a22a5842b8ed1fa1c",
+      "sha256": "24fa34d899c27dc2a5bf69d188c40e1bcd7f5ea81bc292b48d930b6aaba573f8",
+      "bytes": 3265
+    },
+    {
+      "path": "supabase/migrations/20261023153356_buyermatch_completed_checkout_guards.sql",
+      "gitBlob": "a63b72ba0ca037265f603eb6187edac238e8bd8e",
+      "sha256": "efd58655720d339d5f4096959413d9d1385ae3fff09ff49124937b94887e46a0",
+      "bytes": 3793
+    },
+    {
+      "path": "supabase/migrations/20261024000845_buyermatch_private_buyer_intake.sql",
+      "gitBlob": "9d7a06286f99ae823de4d9b789ad62ac0f3bc372",
+      "sha256": "fec2e79a02ca93e1cb3a360a03bfb1eb1e9ae627c5380fdc45b7316655f8a811",
+      "bytes": 13049
+    },
+    {
+      "path": "supabase/migrations/20261026175709_buyermatch_authenticated_buyer_self_service.sql",
+      "gitBlob": "78d187360e07dbf199f06c122ae244bf4aeb612b",
+      "sha256": "02ee1f74b1ef5945b60f754a500c1482bc5c464928e796871126681204d0dbae",
+      "bytes": 20149
+    },
+    {
+      "path": "supabase/migrations/20261028025423_buyermatch_deal_activity.sql",
+      "gitBlob": "6bde153ebe1da318dde406429b3067a65fff7e6c",
+      "sha256": "d41c802ace12156c92b4414b2b00219c9ce401dabf56afe3f7a4d0a6406e9054",
+      "bytes": 2712
+    },
+    {
+      "path": "supabase/migrations/20261028025900_buyermatch_explicit_criteria_version.sql",
+      "gitBlob": "30aeee6d7bc7ba02b96031d193db208882d1e515",
+      "sha256": "4f3fad4c94e80b9521b87ec9368602df221c08cae5b4627ca962235b00cb8fde",
+      "bytes": 769
+    },
+    {
+      "path": "supabase/migrations/20261028031838_buyermatch_service_function_permissions.sql",
+      "gitBlob": "80fefdeadaee034ff8de9e82bd5be1c1db35c855",
+      "sha256": "94ec46b41d7f0cc9ce0adf2a6608ab4a7f741dd6d986f1531d61d562eb76e434",
+      "bytes": 1303
+    },
+    {
+      "path": "tailwind.config.js",
+      "gitBlob": "6eafaec99b7a62720045abb2773368e646f1097f",
+      "sha256": "dc02699fe017616b71233b50e6cd94cb5899274811495a641e94ddc5f7616a83",
+      "bytes": 620
+    },
+    {
+      "path": "tsconfig.app.json",
+      "gitBlob": "e5a86550df847b3ab07a1cad029f06c12e780cd1",
+      "sha256": "302749f5248d7df13f34024c5e57cededf856d5617dd8906201bdc45d8006180",
+      "bytes": 575
+    },
+    {
+      "path": "tsconfig.json",
+      "gitBlob": "1ffef600d959ec9e396d5a260bd3f5b927b2cef8",
+      "sha256": "770b4140bbb581e2dfd9ea9946ffc9c75a1d86ba7d2db5f77c83e37cbdf9d808",
+      "bytes": 119
+    },
+    {
+      "path": "tsconfig.node.json",
+      "gitBlob": "f807947f97a7ea984c448408db3e55cd0070d387",
+      "sha256": "e7e3cf511bcf2b1916169b18af2c2c0d44d06ad71ccb891197da3763e2230b86",
+      "bytes": 435
+    },
+    {
+      "path": "vercel.json",
+      "gitBlob": "bbe538f4f39c88f090dda36bdfa19385d0951fca",
+      "sha256": "acda45c19360b7177685abd6a2fd9634e88e8ac419df9cc59c40472c4a39d3c9",
+      "bytes": 842
+    },
+    {
+      "path": "vite.config.mjs",
+      "gitBlob": "bd889f6f6c5f7d45ef6036b54bb16ebd794e8c16",
+      "sha256": "2912fc2f3a0df7f7599fda945d9860ee362a94f9ae632e1841888cd81b07fb20",
+      "bytes": 1234
+    }
+  ],
+  "sourceInventoryDigest": "9ac043e24e3e75be19bf7144e2ff44ae3e8c186809ba45845d01da36cd9add40",
+  "pendingS2Inventory": [
+    {
+      "path": "supabase/migrations/20261026175709_buyermatch_authenticated_buyer_self_service.sql",
+      "gitBlob": "78d187360e07dbf199f06c122ae244bf4aeb612b",
+      "sha256": "02ee1f74b1ef5945b60f754a500c1482bc5c464928e796871126681204d0dbae",
+      "bytes": 20149,
+      "hostedApplicationStatus": "NOT_VERIFIED_NOW",
+      "applyAuthorized": false
+    },
+    {
+      "path": "supabase/migrations/20261028025423_buyermatch_deal_activity.sql",
+      "gitBlob": "6bde153ebe1da318dde406429b3067a65fff7e6c",
+      "sha256": "d41c802ace12156c92b4414b2b00219c9ce401dabf56afe3f7a4d0a6406e9054",
+      "bytes": 2712,
+      "hostedApplicationStatus": "NOT_VERIFIED_NOW",
+      "applyAuthorized": false
+    },
+    {
+      "path": "supabase/migrations/20261028025900_buyermatch_explicit_criteria_version.sql",
+      "gitBlob": "30aeee6d7bc7ba02b96031d193db208882d1e515",
+      "sha256": "4f3fad4c94e80b9521b87ec9368602df221c08cae5b4627ca962235b00cb8fde",
+      "bytes": 769,
+      "hostedApplicationStatus": "NOT_VERIFIED_NOW",
+      "applyAuthorized": false
+    },
+    {
+      "path": "supabase/migrations/20261028031838_buyermatch_service_function_permissions.sql",
+      "gitBlob": "80fefdeadaee034ff8de9e82bd5be1c1db35c855",
+      "sha256": "94ec46b41d7f0cc9ce0adf2a6608ab4a7f741dd6d986f1531d61d562eb76e434",
+      "bytes": 1303,
+      "hostedApplicationStatus": "NOT_VERIFIED_NOW",
+      "applyAuthorized": false
+    }
+  ],
+  "productionMigrationDisposition": {
+    "ready": false,
+    "freshLedgerAndDependenciesRequired": true,
+    "blanketDbPushAllowed": false,
+    "unrelatedForwardManifestUsed": false,
+    "supersededDoNotReplay": "20261022141326_buyermatch_owned_subscription_plan_changes.sql",
+    "finalGuardCandidate": "20261023153356_buyermatch_completed_checkout_guards.sql",
+    "existingS2PrivateIntakeMustNotReplay": "20261024000845_buyermatch_private_buyer_intake.sql",
+    "historyRepairIsNotExecutionEvidence": true
+  },
+  "publication": {
+    "integrationBranchGuard": true,
+    "anyOtherBranchSafeToPublish": false,
+    "separateAuthorizationRequired": true
+  },
+  "runtime": {
+    "stagingHelperRejectsProductionEnvironment": true,
+    "stagingHelperRejectsProductionDatabase": true,
+    "stagingHelperRequiresExplicitPreviewOrigin": true,
+    "independentProductionBillingDeliveryResponseGatesImplemented": true,
+    "productionRuntimeState": "IMPLEMENTED_GUARDED_NOT_HOSTED_VERIFIED_UNBOUND",
+    "productionRuntimeVerified": false,
+    "productionGateEvidence": "STATIC_COMMITTED_SOURCE_INSPECTION_NOT_RUNTIME_ACCEPTANCE",
+    "productionBindings": "UNBOUND_REQUIRES_EXACT_OWNER_APPROVED_RELEASE_SCOPE",
+    "authRedirects": "VERIFY_AGAINST_ACTUAL_APPROVED_ORIGIN_BEFORE_HOSTED_EXECUTION",
+    "mandatoryPausedOverrides": {
+      "DBP_REQUIRE_VERSIONED_PLATFORM_AGREEMENTS": "true",
+      "DBP_REGISTRATION_PAUSED": "true",
+      "BM_CHECKOUT_ENABLED": "false",
+      "BM_LIVE_BILLING_ENABLED": "false",
+      "BM_BILLING_VERIFIED": "false",
+      "BM_LIVE_BILLING_VERIFIED": "false",
+      "BM_LIVE_DELIVERY_ENABLED": "false",
+      "BM_DELIVERY_MODE": "disabled",
+      "BM_RESPONSE_ENABLED": "false"
+    }
+  },
+  "retainedEvidence": [
+    "docs/release-evidence/2026-10-28/LOCAL_FULL_STACK_ACCEPTANCE.md",
+    "docs/release-evidence/2026-10-28/LOCAL_FULL_STACK_RESULTS.json",
+    "docs/BUYERMATCH_FINAL_INDEPENDENT_ACCEPTANCE.md",
+    "docs/BUYERMATCH_ISOLATED_IMPLEMENTATION_CHECKPOINT.md"
+  ],
+  "rollback": {
+    "executableNow": false,
+    "application": "ONLY_SEPARATELY_APPROVED_CONTAINMENT_ROUTE",
+    "schema": "RETAIN_ADDITIVE_GUARDS_EVIDENCE_AND_PAUSES_NO_WEAKER_SQL",
+    "deleteBuyerData": false,
+    "replaceKeys": false
+  },
+  "blockers": [
+    "HOSTED_BILLING_ACCEPTANCE_BLOCKED_NO_CURRENT_AUTHORIZED_CAMPAIGN",
+    "ORIGINAL_KEY_CUSTODY_AND_INDEPENDENT_ENCRYPTED_RECOVERY_UNVERIFIED",
+    "LEGAL_APPROVAL_PENDING",
+    "PRODUCTION_BINDINGS_SCHEMA_AND_EFFECTIVE_PAUSES_REQUIRE_SEPARATE_REVIEW_AND_AUTHORITY",
+    "HOSTED_MIGRATION_DEPLOYMENT_CUTOVER_AND_PUBLIC_ACTIVATION_NOT_AUTHORIZED"
+  ]
+}
