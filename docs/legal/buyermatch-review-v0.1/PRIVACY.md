@@ -1,5 +1,5 @@
 # Proposed BuyerMatch Privacy and Buyer-Information Notice
-Version: buyermatch-review-v0.1-privacy | Prepared: 2026-10-23
+Version: buyermatch-review-v0.1-privacy-r2 | Revised: 2026-10-29
 **DRAFT — NOT APPROVED — NOT FOR PUBLICATION OR ACCEPTANCE**
 
 [OWNER/COUNSEL VERIFY: controller/legal entity, address, privacy contact, effective
@@ -16,6 +16,32 @@ acceptance evidence; usage and billing/subscription references; and operational,
 security and support records. [VERIFY actual collected fields/analytics.]
 Use these to operate authorized matching, private distributions, scoped responses,
 subscription access, support, abuse prevention and required records.
+
+## Proof-of-funds documents and buyer self-service
+
+Proof attachments use authorized private upload and time-limited authorized
+download access; they are not public profile attachments. A failed upload is not
+an attached document. A linked, authenticated buyer can upload a replacement, but
+earlier documents and review history are retained rather than overwritten.
+Replacement documents remain pending review; replacement does not itself verify
+funds, renew an expired proof or reactivate opted-out invitations. Review access
+is restricted to the application's authorized policy reviewer, not every user
+with an administrator label. Upload/review status is not an independent bank
+balance, authenticity or transaction-funding guarantee.
+
+Do not include account numbers, unnecessary financial details, documents or private
+download/invitation links in ordinary support messages. [OWNER/COUNSEL DECISION:
+minimum necessary proof content, permitted redaction, document categories, review
+process, reviewer responsibilities and a secure support channel.] Set precise
+retention/deletion periods below; retaining replacement evidence is current
+behavior, not an approved indefinite-retention policy.
+
+Buyers can update their private acquisition criteria and view linked invitation,
+response and conversation history. Criteria changes remain subject to review.
+Invitation-consent withdrawal does not require purchasing a subscription or
+accepting a new agreement. Criteria updates do not automatically reverse an
+existing opt-out. [OWNER/COUNSEL DECISION: final notice text, re-enrollment process,
+lawful contact basis and auditable consent withdrawal handling.]
 
 ## Restricted buyer and workspace access
 Public analysis must not disclose private buyer identifiers/contact criteria.

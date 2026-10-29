@@ -1,5 +1,5 @@
 # Proposed BuyerMatch Software Subscription Terms
-Version: buyermatch-review-v0.1-terms | Prepared: 2026-10-23
+Version: buyermatch-review-v0.1-terms-r2 | Revised: 2026-10-29
 **DRAFT — NOT APPROVED — NOT FOR PUBLICATION OR ACCEPTANCE**
 
 This draft becomes usable only after the bracketed decisions are resolved, the owner
@@ -20,8 +20,11 @@ or compensation rights from software access.
 
 ## 2. Plans and limits
 Starter: USD59 per month, 20 analyses, 10 software distributions and up to 25 buyers
-per distribution. Pro: USD119 per month, 50 analyses, 25 software distributions and
-up to 50 buyers per distribution. One subscription quantity; customer-selected
+per distribution, with a maximum of 250 invitations per monthly allowance period.
+Pro: USD119 per month, 50 analyses, 25 software distributions and up to 50 buyers
+per distribution, with a maximum of 1,250 invitations per monthly allowance period.
+Analysis requests are additionally limited to 10 analyses in a rolling hour.
+One subscription quantity; customer-selected
 quantity multiplication is unavailable. These limits describe software allowances,
 not a promise of that many eligible buyers, delivered messages or responses.
 
@@ -61,6 +64,8 @@ activities or managed disposition require separately arranged, executed agreemen
 No success fee or managed service is included merely by subscribing. [COUNSEL
 DECISION: jurisdiction-specific licensing, permitted activities, parties,
 compensation disclosures and settlement process before offering those services.]
+Success-fee collection is currently OFF. This draft does not activate it or create
+a right to transaction compensation.
 
 ## 7. Records and changes
 See the proposed Privacy notice for retention/access decisions. Account deactivation

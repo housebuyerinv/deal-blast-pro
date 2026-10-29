@@ -1,12 +1,12 @@
 {
-  "version": "buyermatch-review-v0.1",
+  "version": "buyermatch-review-v0.1-r2",
   "approved": false,
   "publicationAllowed": false,
   "purpose": "owner-counsel-review-only",
   "files": [
     {
       "path": "TERMS.md",
-      "sha256": "a94e460174671e91a7a00989c175d8e1d6a19a85ef7e35c73a3751ca180964c7"
+      "sha256": "9923c739b4f38acdc344369db9c3f9a35b26fe0eab26b2379cdc3b1bb5051a1c"
     },
     {
       "path": "RENEWAL_CANCELLATION.md",
@@ -18,7 +18,13 @@
     },
     {
       "path": "PRIVACY.md",
-      "sha256": "880b11bdabafcb06129c19a2d7f41938cefb3354459b06059174a8042ad76520"
+      "sha256": "31f2f329d6f251935a8200206a13d8b0333a53fc8b8bc183d3760be226c666ac"
     }
-  ]
+  ],
+  "hashConvention": {
+    "algorithm": "SHA-256",
+    "encoding": "UTF-8",
+    "lineEndings": "LF",
+    "normalization": "CRLF and lone CR to LF only; no trimming or Unicode normalization"
+  }
 }
