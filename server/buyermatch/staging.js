@@ -1,8 +1,13 @@
 import { URL } from "node:url";
 import process from "node:process";
 import {localSyntheticOrigin} from './local-synthetic.js';
+import { netlifyStagingOrigin } from '../netlify/profile.mjs';
 export const PRODUCTION_SUPABASE_REF = "aigvnbxiydbzzqbetlhl";
 export function assertStaging(env = process.env) {
+  if (env.NETLIFY || env.BM_HOSTING_PROFILE === 'netlify-private-v1') {
+    netlifyStagingOrigin(env);
+    return env.SUPABASE_URL;
+  }
   const local = localSyntheticOrigin(env);
   if (local) return local;
   if (env.BM_ENVIRONMENT !== "staging" || env.VERCEL_ENV === "production")
@@ -25,6 +30,7 @@ export function assertStaging(env = process.env) {
 }
 export function stagingOrigin(env = process.env) {
   assertStaging(env);
+  if (env.BM_HOSTING_PROFILE === 'netlify-private-v1') return netlifyStagingOrigin(env);
   if (localSyntheticOrigin(env)) return env.BM_APP_ORIGIN;
   const url = new URL(env.BM_APP_ORIGIN || "");
   if (

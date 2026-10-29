@@ -1,0 +1,28 @@
+# Private, unpublished synthetic acceptance candidate only. No Git auto-link.
+[build]
+  command = "npm run build:netlify"
+  publish = ".netlify/buyermatch/publish"
+  functions = ".netlify/buyermatch/functions"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+[functions]
+  node_bundler = "esbuild"
+
+# Every page, asset and API passes through the same private gate. No application
+# bytes are placed in publish/, so alternate CDN asset URLs cannot bypass it.
+[[redirects]]
+  from = "/*"
+  to = "/.netlify/functions/buyermatch"
+  status = 200
+  force = true
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Cache-Control = "no-store"
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "no-referrer"
+    X-Robots-Tag = "noindex, nofollow, noarchive"

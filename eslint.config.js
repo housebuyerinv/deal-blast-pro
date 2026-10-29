@@ -32,6 +32,10 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
+    files: ['server/netlify/*.mjs'],
+    languageOptions: { globals: { ...globals.node, ...globals.browser } },
+  },
+  {
     files: ['tests/**/*.{js,mjs}'],
     // Node's test runner supplies Web API globals; component fixtures also
     // explicitly stub browser globals. Keep no-undef enabled for real typos.

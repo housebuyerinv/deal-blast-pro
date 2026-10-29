@@ -4,6 +4,9 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "build:netlify": "node scripts/build-buyermatch-netlify.mjs",
+    "test:netlify": "node --test tests/netlify/*.test.mjs",
+    "test:netlify:package": "node --test tests/netlify/artifact.package.mjs",
     "dev": "vite",
     "build": "node scripts/build-buyermatch-s2-attestation.mjs && tsc -b && vite build --config vite.config.mjs --configLoader native",
     "preview": "vite preview",
