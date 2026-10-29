@@ -1,0 +1,90 @@
+{
+  "schema": "buyermatch-offline-build-artifact-v1",
+  "source": "68c5cf9f4d8fcd590e45dd536eab1eb29edecccc",
+  "tree": "e5aee3a9d5597bdd1f09e020d92e0cd741e9a510",
+  "state": "BUILD_VERIFIED_SYNTHETIC_UNBOUND_NOT_DEPLOYMENT_APPROVAL",
+  "compiledArtifact": true,
+  "syntheticPublicBindings": true,
+  "dotenvLoaded": false,
+  "hostedCalls": false,
+  "disabledBuildAttestation": true,
+  "deployableWithTheseBindings": false,
+  "nodeTarget": "22",
+  "sourceArchiveSha256": "367fd270d7d95333548528381dbfd34ba1575d1b562304f22142b1216c7dfd70",
+  "files": [
+    {
+      "path": "api/platform/[endpoint].mjs",
+      "bytes": 1788820,
+      "sha256": "08615f937675345ec981929763b436e4602272c9a2ed178532cfa7a1fb13c7a9"
+    },
+    {
+      "path": "server/http/buyermatch-buyer.mjs",
+      "bytes": 980140,
+      "sha256": "f9bc5c2a533fe4dc6ca3fc84c23104b410205f1c7486674d621a442969b50955"
+    },
+    {
+      "path": "server/http/buyermatch-response.mjs",
+      "bytes": 965457,
+      "sha256": "c01feb7ddc109b6a6a43c72dc9409f909d3d7b992cb6e55743901a344787aed6"
+    },
+    {
+      "path": "server/http/buyermatch-worker.mjs",
+      "bytes": 977503,
+      "sha256": "ea6bda7302e45d123ad87fd41ec4ba817a3fc73d7a7cb006d28da4aba853eb10"
+    },
+    {
+      "path": "server/http/buyermatch.mjs",
+      "bytes": 1740474,
+      "sha256": "709c456c939d0bcf6b1677d64c11440ddbd6f4c4f715c64d630e0a4f156b7dd9"
+    },
+    {
+      "path": "static/assets/index-CteNrp5F.css",
+      "bytes": 111089,
+      "sha256": "797a9eb8884b38523b64515067e037112e20b2b37e2d07f3d49af7ca64527a19"
+    },
+    {
+      "path": "static/assets/index-D48oUuPB.js",
+      "bytes": 1925901,
+      "sha256": "d88ef01002e26440b8882dfac44a1cb5550f9781954c637360175d9a2ae58b82"
+    },
+    {
+      "path": "static/features/dbp-buyer-database.webp",
+      "bytes": 123780,
+      "sha256": "b4a2d0a1c6317b814e9e13668a317bc531b42a74bd5aa5322e53cdfac8b2db90"
+    },
+    {
+      "path": "static/features/dbp-command-center.webp",
+      "bytes": 126602,
+      "sha256": "01e2724793bbfa0f67498fc4f51b8db56dcfe7b221f66f34c3e643db3f3fa6ea"
+    },
+    {
+      "path": "static/features/dbp-deal-blast-builder.webp",
+      "bytes": 148108,
+      "sha256": "a9705b8b4cf543009820d70bf40dd98a399bf5ad98bd19fc4984e02eebff5d19"
+    },
+    {
+      "path": "static/features/dbp-deal-calculator.webp",
+      "bytes": 117084,
+      "sha256": "4b097aaeee1bb76a00b921cd56d9b5e85ff79fae6782159f2ec9844f6d796889"
+    },
+    {
+      "path": "static/features/dbp-deal-details.webp",
+      "bytes": 119532,
+      "sha256": "a4b0b79a8a34f4054f0b464f63c1e2a594696c2c670a3fa2d507dac1ffb408f1"
+    },
+    {
+      "path": "static/features/dbp-resource-hub.webp",
+      "bytes": 171166,
+      "sha256": "74cb1c90d98b736291d5c6d1cf8f50cbe1fdbc5ef8bf76298ba954574747ada3"
+    },
+    {
+      "path": "static/index.html",
+      "bytes": 705,
+      "sha256": "e16c6e511efc7c4c88726cc4ea31fa99020b272ed718500bd5dac241cb7afc0f"
+    }
+  ],
+  "artifactDigest": "3a08100dd189e91bbc26399166e858ee08ea82688293da8bb2a971b3a013e809",
+  "outputDirectory": "node_modules/.cache/buyermatch-app-release-AjMIZQ/artifact",
+  "originalSourceModified": false,
+  "executionAllowed": false
+}

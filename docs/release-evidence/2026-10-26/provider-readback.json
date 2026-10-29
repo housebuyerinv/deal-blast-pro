@@ -1,0 +1,42 @@
+{
+  "asOf": "2026-10-26T22:44:51.338Z",
+  "scope": "S2_READ_ONLY",
+  "stripe": {
+    "executablePinMatches": true,
+    "authorizedAccounts": [
+      {
+        "id": "acct_1UTRcRL6efr9LhPI",
+        "modes": [
+          "test"
+        ]
+      }
+    ],
+    "scopeVerified": true,
+    "endpoint": {
+      "id": "we_1UTTc1L6efr9LhPICbZjgCHA",
+      "status": "disabled",
+      "livemode": false,
+      "url": "https://qxhhlprentrufobpcgna.supabase.co/functions/v1/stripe-webhook",
+      "apiVersion": "2026-09-30.endive",
+      "events": [
+        "checkout.session.completed",
+        "checkout.session.expired",
+        "checkout.session.async_payment_succeeded",
+        "customer.subscription.created",
+        "customer.subscription.updated",
+        "customer.subscription.deleted",
+        "invoice.paid",
+        "invoice.payment_succeeded",
+        "invoice.payment_failed",
+        "invoice.payment_action_required",
+        "charge.refunded"
+      ]
+    }
+  },
+  "receiver": {
+    "httpStatus": 405,
+    "methodRejected": true,
+    "pauseState": "UNKNOWN_FROM_GET_METHOD_REJECTION",
+    "pauseVerified": false
+  }
+}

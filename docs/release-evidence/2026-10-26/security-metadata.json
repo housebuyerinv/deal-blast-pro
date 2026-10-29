@@ -1,0 +1,101 @@
+{
+  "scope": "HOSTED_READ_ONLY_SECURITY_METADATA_NOT_ACCEPTANCE_TEST",
+  "asOfUtc": "2026-10-26 22:56:36 UTC",
+  "tables": [
+    {
+      "table_name": "bm_buyers",
+      "rls_enabled": true,
+      "anon_table_access": false,
+      "authenticated_table_access": false,
+      "anon_column_access": false,
+      "authenticated_column_access": false
+    },
+    {
+      "table_name": "bm_entitlements",
+      "rls_enabled": true,
+      "anon_table_access": false,
+      "authenticated_table_access": false,
+      "anon_column_access": false,
+      "authenticated_column_access": false
+    },
+    {
+      "table_name": "bm_events",
+      "rls_enabled": true,
+      "anon_table_access": false,
+      "authenticated_table_access": false,
+      "anon_column_access": false,
+      "authenticated_column_access": false
+    },
+    {
+      "table_name": "bm_exposures",
+      "rls_enabled": true,
+      "anon_table_access": false,
+      "authenticated_table_access": false,
+      "anon_column_access": false,
+      "authenticated_column_access": false
+    },
+    {
+      "table_name": "bm_imports",
+      "rls_enabled": true,
+      "anon_table_access": false,
+      "authenticated_table_access": false,
+      "anon_column_access": false,
+      "authenticated_column_access": false
+    },
+    {
+      "table_name": "bm_messages",
+      "rls_enabled": true,
+      "anon_table_access": false,
+      "authenticated_table_access": false,
+      "anon_column_access": false,
+      "authenticated_column_access": false
+    },
+    {
+      "table_name": "bm_offers",
+      "rls_enabled": true,
+      "anon_table_access": false,
+      "authenticated_table_access": false,
+      "anon_column_access": false,
+      "authenticated_column_access": false
+    },
+    {
+      "table_name": "bm_outbox",
+      "rls_enabled": true,
+      "anon_table_access": false,
+      "authenticated_table_access": false,
+      "anon_column_access": false,
+      "authenticated_column_access": false
+    },
+    {
+      "table_name": "bm_responses",
+      "rls_enabled": true,
+      "anon_table_access": false,
+      "authenticated_table_access": false,
+      "anon_column_access": false,
+      "authenticated_column_access": false
+    }
+  ],
+  "functions": [
+    {
+      "slug": "stripe-webhook",
+      "status": "ACTIVE",
+      "version": 35,
+      "verifyJwt": false,
+      "bundleSha256": "713469ad1acfe02c3cef5e5f833b4f2f4060b1bee1c9698389f676a71396ccd0"
+    },
+    {
+      "slug": "buyermatch-delivery",
+      "status": "ACTIVE",
+      "version": 32,
+      "verifyJwt": false,
+      "bundleSha256": "57c31c0162f0faa085289d359076682fb95f2eb838d89b8a5abcc069ef979925"
+    },
+    {
+      "slug": "resend-webhook",
+      "status": "ACTIVE",
+      "version": 30,
+      "verifyJwt": false,
+      "bundleSha256": "865806aeeccfa68189b32ec016629cffce50f292bd8a3421181d0a73269eb201"
+    }
+  ]
+}

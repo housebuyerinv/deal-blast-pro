@@ -1,0 +1,174 @@
+{
+  "status": "INDEPENDENT_PREPARATION_COMPLETE_HOSTED_BLOCKED",
+  "sourceCommit": "f47bd4d78d8efae425658cba638b15651e1d44f4",
+  "project": "qxhhlprentrufobpcgna",
+  "stripeTestAccount": "acct_1UTRcRL6efr9LhPI",
+  "additionalBudgetUsd": 0,
+  "previewLimit": 1,
+  "maximumPreviewMinutes": 30,
+  "executionAllowed": false,
+  "historicalMetadataAsOfUtc": "2026-10-26 22:51:10 UTC",
+  "freshMetadataRequiredAtExecution": true,
+  "migrations": {
+    "project": "qxhhlprentrufobpcgna",
+    "pending": [
+      {
+        "name": "20261026175709_buyermatch_authenticated_buyer_self_service.sql",
+        "version": "20261026175709",
+        "canonicalSha256": "02ee1f74b1ef5945b60f754a500c1482bc5c464928e796871126681204d0dbae"
+      },
+      {
+        "name": "20261028025423_buyermatch_deal_activity.sql",
+        "version": "20261028025423",
+        "canonicalSha256": "d41c802ace12156c92b4414b2b00219c9ce401dabf56afe3f7a4d0a6406e9054"
+      },
+      {
+        "name": "20261028025900_buyermatch_explicit_criteria_version.sql",
+        "version": "20261028025900",
+        "canonicalSha256": "4f3fad4c94e80b9521b87ec9368602df221c08cae5b4627ca962235b00cb8fde"
+      },
+      {
+        "name": "20261028031838_buyermatch_service_function_permissions.sql",
+        "version": "20261028031838",
+        "canonicalSha256": "94ec46b41d7f0cc9ce0adf2a6608ab4a7f741dd6d986f1531d61d562eb76e434"
+      }
+    ],
+    "replayIntake": false,
+    "executionAllowed": false,
+    "rollback": "Transactional failure rolls back only the active migration. After a commit retain additive guards, pause processing and roll back application routing; never drop audit tables or restore broad grants."
+  },
+  "cases": [
+    {
+      "id": "identity",
+      "area": "buyer",
+      "description": "Confirmed normal buyer login and permitted profile/criteria updates",
+      "status": "CURRENT_HOSTED_NOT_TESTED"
+    },
+    {
+      "id": "pof",
+      "area": "buyer",
+      "description": "Private POF replace/expiry/review, stale revision and retained prior evidence",
+      "status": "CURRENT_HOSTED_NOT_TESTED"
+    },
+    {
+      "id": "history",
+      "area": "buyer",
+      "description": "Invitations, interest/decline/conversation and complete private history",
+      "status": "CURRENT_HOSTED_NOT_TESTED"
+    },
+    {
+      "id": "subscriber",
+      "area": "subscriber",
+      "description": "Owned deal submission, valid/invalid facts, private analysis and quotas",
+      "status": "CURRENT_HOSTED_NOT_TESTED"
+    },
+    {
+      "id": "outreach",
+      "area": "subscriber",
+      "description": "Consented preparation, recorded distribution and latest response tracking",
+      "status": "CURRENT_HOSTED_NOT_TESTED"
+    },
+    {
+      "id": "admin",
+      "area": "admin",
+      "description": "Owner-only buyer/deal/proof review, operations and closing audit",
+      "status": "CURRENT_HOSTED_NOT_TESTED"
+    },
+    {
+      "id": "billing",
+      "area": "billing",
+      "description": "Pro activation, Starter boundary, CRM separation, tier/cancel/renewal/failure",
+      "status": "CURRENT_HOSTED_NOT_TESTED"
+    },
+    {
+      "id": "replay",
+      "area": "billing",
+      "description": "Real signed duplicate/out-of-order reconciliation without duplicate access",
+      "status": "CURRENT_HOSTED_NOT_TESTED"
+    },
+    {
+      "id": "portal",
+      "area": "billing",
+      "description": "Only approved products/fixed quantity; independently contained issued sessions",
+      "status": "CURRENT_HOSTED_NOT_TESTED"
+    },
+    {
+      "id": "denial",
+      "area": "security",
+      "description": "Cross-owner/document/legacy-route denial and immutable audit protection",
+      "status": "CURRENT_HOSTED_NOT_TESTED"
+    },
+    {
+      "id": "cleanup",
+      "area": "containment",
+      "description": "Independent pause/disable/removal plus unchanged fallback/cohort fingerprints",
+      "status": "CURRENT_HOSTED_NOT_TESTED"
+    }
+  ],
+  "keyCustody": {
+    "trustedAccessibleOriginal": "NOT_VERIFIED",
+    "permanentLossEstablished": false,
+    "rejectedSourcesRead": false,
+    "keysReplaced": false,
+    "preservedIdentityCount": 223,
+    "preservedProvenanceCount": 9
+  },
+  "legal": {
+    "approved": false,
+    "publicationAllowed": false,
+    "files": [
+      {
+        "path": "TERMS.md",
+        "sha256Matches": true
+      },
+      {
+        "path": "RENEWAL_CANCELLATION.md",
+        "sha256Matches": true
+      },
+      {
+        "path": "REFUNDS.md",
+        "sha256Matches": true
+      },
+      {
+        "path": "PRIVACY.md",
+        "sha256Matches": true
+      }
+    ]
+  },
+  "localValidation": {
+    "fullRun": {
+      "cases": 912,
+      "initialPass": 895,
+      "initialFail": 17
+    },
+    "affectedCanonicalRerun": {
+      "cases": 56,
+      "pass": 55,
+      "cleanupBusy": 1
+    },
+    "finalOperatorRerun": {
+      "cases": 7,
+      "pass": 7,
+      "fail": 0
+    },
+    "typeScript": "PASS",
+    "lintErrors": 0,
+    "existingLintWarnings": 92,
+    "applicationAndApiBuilds": "PASS",
+    "migrationRehearsal": {
+      "migrations": 28,
+      "assertions": 333
+    },
+    "recovery": "SYNTHETIC_LOGICAL_FIXTURE_ONLY_NOT_ENCRYPTED_RECOVERY"
+  },
+  "blockers": [
+    "Trusted compatible original keys",
+    "Private Pro fixture login",
+    "Fresh exact-source hosted authorization",
+    "Issued Portal-session containment verification",
+    "Positive signup/new-profile acceptance requires separately scoped registration policy; registration remains paused",
+    "Owner/counsel legal approval",
+    "Independent Linux/storage/key custody and encrypted restore",
+    "Production cutover/public activation authorization"
+  ]
+}

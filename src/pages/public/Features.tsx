@@ -119,6 +119,14 @@ export default function Features() {
     <div className="min-h-screen overflow-x-hidden bg-[#080A10] text-[#E6E8EE]">
       <PublicNav />
       <main>
+        <section aria-label="Discover BuyerMatch" className="mx-auto my-8 max-w-7xl rounded-2xl border border-[#22C55E]/30 bg-[#22C55E]/5 p-6 sm:p-8">
+          <p className="text-sm font-semibold text-[#22C55E]">BUYERMATCH  -  POWERED BY DEAL BLAST PRO</p>
+          <h2 className="mt-3 text-2xl font-semibold">Private buyer matching. A separate software subscription.</h2>
+          <p className="mt-3 max-w-3xl text-[#C5CAD6]">Compare your deal with recorded buyer criteria, review anonymous matches, and distribute eligible deals through secure invitations. A paid DBP CRM subscription is not required.</p>
+          <p className="mt-3 text-sm text-[#C5CAD6]">Starter $59/month  -  Pro $119/month. A separate monthly subscription. Explore plans, the product guide and a no-delivery interactive demo.</p>
+          <Link to="/buyermatch" className="btn btn-primary mt-5 inline-flex px-5 py-3">Explore BuyerMatch &amp; compare plans</Link>
+        </section>
+
         <section className="relative overflow-hidden border-b border-[#252A38]">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_72%_18%,rgba(34,197,94,.2),transparent_30%),radial-gradient(circle_at_12%_12%,rgba(59,130,246,.18),transparent_34%)]" />
           <div className="relative mx-auto max-w-7xl px-5 py-20 text-center sm:px-6 lg:py-28">

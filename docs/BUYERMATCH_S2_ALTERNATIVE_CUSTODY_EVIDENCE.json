@@ -1,0 +1,75 @@
+{
+  "status": "METADATA_ONLY_NO_SECRET_RECOVERY",
+  "directive": 6405583960,
+  "originalBindingMetadata": {
+    "label": "original-staging-branch",
+    "project": "prj_cZr8idNgoGky6Lg75OfDjrhSDkNp",
+    "available": true,
+    "decryptRequested": false,
+    "paginationComplete": true,
+    "bindings": [
+      {
+        "id": "2nmcvYdjWzvMCpHW",
+        "key": "BUYERMATCH_IDENTITY_KEY",
+        "type": "sensitive",
+        "visibility": "secret",
+        "target": [
+          "preview"
+        ],
+        "gitBranch": "codex/buyermatch-network",
+        "createdAt": 1790867064687,
+        "updatedAt": 1790867064687
+      },
+      {
+        "id": "jdq944J5T2YLEQSe",
+        "key": "BM_RESPONSE_SECRET",
+        "type": "sensitive",
+        "visibility": "secret",
+        "target": [
+          "preview"
+        ],
+        "gitBranch": "codex/buyermatch-network",
+        "createdAt": 1790867064687,
+        "updatedAt": 1790867064687
+      },
+      {
+        "id": "nqWF9gGigqVCshcg",
+        "key": "BM_WORKER_SECRET",
+        "type": "sensitive",
+        "visibility": "secret",
+        "target": [
+          "preview"
+        ],
+        "gitBranch": "codex/buyermatch-network",
+        "createdAt": 1790867064687,
+        "updatedAt": 1790867064687
+      }
+    ],
+    "totalMetadataRows": 21
+  },
+  "originalProjectIdentity": {
+    "available": true,
+    "id": "prj_cZr8idNgoGky6Lg75OfDjrhSDkNp",
+    "teamId": "team_2ejXKYjjGXIFsIQTUMEqZ8Cf",
+    "name": "deal-blast-pro",
+    "expectedOwnerTeam": true,
+    "secretValuesRead": false
+  },
+  "targetMetadataAttempt": {
+    "project": "dbp-registration-s2",
+    "available": false,
+    "errorCode": "INVALID_ARGUMENT"
+  },
+  "ownerIndependentVaultAvailability": "UNSURE",
+  "rejectedSeedAccessed": false,
+  "secretValuesRetrieved": false,
+  "providerMutations": false,
+  "original130Retained": true,
+  "newLocalReleasePathTests": {
+    "passed": 10,
+    "failed": 0,
+    "notHosted": true
+  },
+  "providerTransferSupported": "UNKNOWN",
+  "recommendation": "One owner-authorized secret-free $0 provider capability inquiry; no transfer/read/mutation is authorized by preparation"
+}

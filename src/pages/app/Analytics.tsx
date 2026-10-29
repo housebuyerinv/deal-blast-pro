@@ -1,6 +1,7 @@
 
 import { useAppStore } from '../../store/useAppStore'
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 
 const safeLower = (value: any) => String(value ?? '').toLowerCase();
 
@@ -33,6 +34,7 @@ export default function Analytics() {
   if (deals.length === 0) {
     return (
       <div className="empty-state card p-8">
+        <Link to="/app/buyermatch/conversion">BuyerMatch property conversion intelligence</Link>
         <div>No data loaded yet.</div>
         <button onClick={() => useAppStore.getState().runSampleWorkflow()} className="btn btn-green mt-4">
           Generate Demo Data
@@ -1020,6 +1022,7 @@ export default function Analytics() {
   return (
     <div>
       <div className="text-3xl font-semibold tracking-tight mb-1">Analytics</div>
+      <Link to="/app/buyermatch/conversion">BuyerMatch property conversion intelligence</Link>
       <div className="text-[#8B92A3] mb-1">Real-time performance across deals, buyers, and blasts</div>
       <div className="text-xs text-[#64748B] mb-6 font-mono tabular-nums">{dateTimeStr}</div>
 

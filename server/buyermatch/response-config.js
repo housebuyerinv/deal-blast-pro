@@ -1,10 +1,16 @@
 import process from "node:process";
 import { assertStaging, PRODUCTION_SUPABASE_REF } from "./staging.js";
 import { billingConfig } from './billing-config.js';
+import { netlifyProductionOrigin } from '../netlify/production.mjs';
 
 // Receiving an external response is independent of staging-only invitation
 // issuance, mock delivery and sandbox checkout. Production must opt in explicitly.
 export function responseEnvironment(env = process.env) {
+  if (env.BM_HOSTING_PROFILE === 'netlify-production-v1') { netlifyProductionOrigin(env); return 'production'; }
+  if (env.BM_LOCAL_SYNTHETIC === 'true') {
+    assertStaging(env);
+    return 'staging';
+  }
   if (env.VERCEL_ENV !== "production") {
     assertStaging(env);
     return "staging";

@@ -1,0 +1,60 @@
+{
+  "scope": "READ_ONLY_S2_AGGREGATES_AND_LOCAL_SOURCE_ASSESSMENT",
+  "date": "2026-10-26",
+  "project": "qxhhlprentrufobpcgna",
+  "applicationSource": "de9009e165cb15709497e538118d1ceda013cdb5",
+  "readTransactions": "BEGIN READ ONLY; statement_timeout 10s; SELECT aggregates/catalog metadata; ROLLBACK",
+  "buyers": {
+    "total": 223,
+    "markedSynthetic": 223,
+    "notMarkedSynthetic": 0,
+    "nonemptyIdentityCiphertext": 223,
+    "threePartIdentityCiphertextShape": 223,
+    "expectedIvTagEncodedShape": 223,
+    "nonemptySourceCiphertext": 9,
+    "threePartSourceCiphertextShape": 9,
+    "distinctIdentityHashes": 223,
+    "expected64HexHmacFormat": 215,
+    "otherHashFormat": 8,
+    "otherHashMinMaxLength": [36, 36],
+    "exposuresLinkedToOtherHashFormat": 8,
+    "preservationFingerprintMd5": "921606e4037c7ce1a1675cad156d689b",
+    "fingerprintUse": "Aggregate drift indicator only, not cryptographic backup integrity or recovery proof",
+    "successfulDecryptionVerified": false,
+    "singleKeyCohortVerified": false
+  },
+  "relationships": {
+    "exposures": 297,
+    "responseTokens": 147,
+    "duplicateReviews": 0,
+    "mergedBuyerLinks": 0,
+    "intakeSubmissions": 0,
+    "newSelfServiceTablesPresent": 0,
+    "buyerForeignKeyDependents": ["bm_buyers.merged_into", "bm_duplicate_reviews.source_id", "bm_duplicate_reviews.target_id", "bm_exposures.buyer_id"]
+  },
+  "backupAvailability": {
+    "providerPage": "https://supabase.com/dashboard/project/qxhhlprentrufobpcgna/database/backups/scheduled",
+    "observedProject": "dbp-buyermatch-staging",
+    "observedPlan": "FREE",
+    "visibleMessage": "Free Plan does not include project backups.",
+    "providerScheduledBackupAvailable": false,
+    "independentOriginalKeyCopy": "UNSURE_NOT_CONFIRMED_LOST",
+    "verifiedIndependentS2FullRestore": false,
+    "historicalEncryptedArtifacts": "Preserved; no claim they contain S2 data or originals; not opened/mounted",
+    "providerKeyCopySupport": "Unsupported according to Vercel automated response; human confirmation unavailable at zero-dollar support gate"
+  },
+  "localVerification": {
+    "fixedPublicDummyKeyConstantsOnly": true,
+    "realRecoveryOrReplacementKeysGenerated": false,
+    "tests": 3,
+    "passed": 3,
+    "failed": 0,
+    "scopedLint": "PASS",
+    "claims": ["Different key cannot decrypt original identity/source payloads", "Different key changes identity HMAC", "Retained ciphertext decrypts when original dummy key is restored", "Format alone does not prove key compatibility"]
+  },
+  "secretsOrRawCiphertextOrBuyerIdentitiesExported": false,
+  "permissionsOrProviderConfigurationOrDataChanged": false,
+  "productionAndMoneyMapAccessed": false,
+  "decision": "NO_GO_IN_PLACE_KEY_REPLACEMENT; parallel isolated clean cohort is a conditional preservation strategy, not recovery of legacy plaintext",
+  "replacementExecutionAuthorized": false
+}

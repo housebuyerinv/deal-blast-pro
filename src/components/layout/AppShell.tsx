@@ -1,5 +1,5 @@
 
-﻿import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import Sidebar from './Sidebar'
 import Topbar from './Topbar'
 import { useAppStore } from '../../store/useAppStore'
@@ -191,12 +191,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }
   if (user && (buyerMatchRoute || buyerMatchOnly)) {
     const allowed = hasOwnerAdminAccess || buyerMatch.active || location.pathname === '/app/buyermatch/plans' || location.pathname === '/app/settings'
-    return <div className="min-h-screen bg-[#0A0C12] text-[#E6E8EE]">
-      <nav aria-label="BuyerMatch navigation" className="flex flex-wrap gap-4 border-b border-[#252A38] p-4">
-        <Link to="/app/buyermatch">BuyerMatch</Link>
+    return <div className="bm-site min-h-screen bg-[#0A0C12] text-[#E6E8EE]">
+      <nav aria-label="BuyerMatch navigation" className="flex flex-wrap items-center gap-4 border-b border-[#252A38] px-5 py-4 text-sm">
+        <Link to="/app/buyermatch" className="font-semibold text-emerald-400 text-lg mr-auto">BuyerMatch <span className="text-xs text-slate-500 font-normal ml-2">by Deal Blast Pro</span></Link>
         <Link to="/app/buyermatch/plans">Plans & billing</Link>
         <Link to="/app/settings">Account & settings</Link>
         <Link to="/contact">Help</Link>
+        <Link to="/buyermatch/how-it-works">Product guide</Link>
         {!buyerMatchOnly && <Link to="/app/dashboard">DBP dashboard</Link>}
         <button onClick={() => { void supabase.auth.signOut().then(() => logout()) }}>Sign out</button>
       </nav>
@@ -383,8 +384,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </main>
       </div>
 
-      <OnboardingTour />
-      <ProTrialPromotionModal />
+      {/* The read-only operator page must not prompt preference/provisioning writes. */}
+      {location.pathname !== '/app/s2-attestation' && <>
+        <OnboardingTour />
+        <ProTrialPromotionModal />
+      </>}
 
       {/* Global Deal Terminal Drawer */}
       {currentDealId && (

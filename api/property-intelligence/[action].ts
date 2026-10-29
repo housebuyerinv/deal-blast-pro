@@ -7,6 +7,7 @@ import {
   readGeoapifyConfig,
 } from '../_geoapify.js'
 import { handlePlatformAction } from '../../src/server/platformActions.js'
+import {isS2LegacyCheckout} from '../../server/buyermatch/s2-billing-window.js'
 import { getIncludedPropertyIntelligenceCredits } from '../../src/lib/propertyIntelligencePolicy.js'
 
 const RENTCAST_BASE_URL = 'https://api.rentcast.io/v1'
@@ -788,6 +789,7 @@ export default async function handler(req: any, res: any) {
   }
 
   const action = clean(req.query.action)
+  if(isS2LegacyCheckout(action,req.method))return send(res,503,{ok:false,code:'s2_legacy_checkout_disabled',error:'Legacy checkout is disabled in S2.'})
   const config = readRuntimeConfig()
   const internal = internalEnabled(req)
   let account: Awaited<ReturnType<typeof getAuthenticatedAccount>>

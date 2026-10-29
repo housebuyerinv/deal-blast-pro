@@ -87,7 +87,8 @@ export default function Upgrade() {
   return (
     <div className="max-w-4xl mx-auto p-6">
       <div className="mb-6">
-        <div className="text-2xl font-semibold">Upgrade Plan</div>
+        <div className="text-2xl font-semibold">DBP CRM plans</div>
+        <p className="mt-3 text-sm text-slate-400">Looking for private buyer matching? <a className="text-emerald-400 underline" href="/app/buyermatch/plans">BuyerMatch Starter $59/mo and Pro $119/mo</a> are separate subscriptions. CRM annual pricing and launch promotions do not apply to BuyerMatch.</p>
         <div className="text-[#8B92A3]">Current: <span className="text-white font-medium">{currentPlanLabel}</span> - Plan prices match Settings & Trial.</div>
       </div>
 

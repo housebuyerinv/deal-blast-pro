@@ -16,6 +16,7 @@ import Features from './pages/public/Features'
 import Contact from './pages/public/Contact'
 import Privacy from './pages/public/Privacy'
 import Terms from './pages/public/Terms'
+import NetlifyLegalDocument from './pages/public/NetlifyLegalDocument'
 import Security from './pages/public/Security'
 import RefundPolicy from './pages/public/RefundPolicy'
 import AcceptableUse from './pages/public/AcceptableUse'
@@ -29,8 +30,12 @@ import AuthCallback from './pages/public/AuthCallback'
 import AppShell from './components/layout/AppShell'
 
 import BuyerMatch from './pages/app/BuyerMatch'
+import BuyerMatchConversion from './pages/app/BuyerMatchConversion'
 import BuyerMatchResponse from './pages/public/BuyerMatchResponse'
 import BuyerMatchLanding from './pages/public/BuyerMatchLanding'
+import BuyerMatchDemo from './pages/public/BuyerMatchDemo'
+import BuyerMatchBuyerHelp from './pages/public/BuyerMatchBuyerHelp'
+import BuyerMatchAccount from './pages/public/BuyerMatchAccount'
 import Dashboard from './pages/app/Dashboard'
 import Submissions from './pages/app/Submissions'
 import Inventory from './pages/app/Inventory'
@@ -39,6 +44,9 @@ import Resources from './pages/app/Resources'
 import Blast from './pages/app/Blast'
 import DealCalculator from './pages/app/DealCalculator'
 import Settings from './pages/app/Settings'
+import S2Attestation from './pages/app/S2Attestation'
+import S2SessionVerification from './components/billing/S2SessionVerification'
+import { isS2VerificationOrigin } from './lib/s2BrowserVerification'
 import ManualIntake from './pages/app/ManualIntake'
 import FollowUps from './pages/app/FollowUps'
 import Analytics from './pages/app/Analytics'
@@ -229,7 +237,10 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 function App() {
-  useCloudAutoSave()
+  const routeLocation = useLocation()
+  const readOnlyS2Session = routeLocation.pathname === '/s2/session-verification' &&
+    isS2VerificationOrigin(window.location.origin, import.meta.env.VITE_SUPABASE_URL || '')
+  useCloudAutoSave(!readOnlyS2Session)
   const initializeStore = useAppStore(s => s.initialize)
   const billingStatus = useAppStore(s => s.trial.billingStatus)
   const billingUserId = useAppStore(s => s.user?.id)
@@ -307,17 +318,33 @@ function App() {
   return (
     <ErrorBoundary>
       <Routes>
+        <Route path="/s2/session-verification" element={
+          isS2VerificationOrigin(window.location.origin, import.meta.env.VITE_SUPABASE_URL || '') ?
+            <ProtectedRoute><div className="mx-auto max-w-3xl p-6"><S2SessionVerification /></div></ProtectedRoute> :
+            <p>Not available.</p>
+        } />
         <Route path="/" element={<Landing />} />
         <Route path="/buyermatch" element={<BuyerMatchLanding />} />
         <Route path="/buyermatch/pricing" element={<BuyerMatchLanding />} />
+        <Route path="/buyermatch/features" element={<BuyerMatchLanding />} />
+        <Route path="/buyermatch/how-it-works" element={<BuyerMatchLanding />} />
+        <Route path="/buyermatch/demo" element={<BuyerMatchDemo />} />
+        <Route path="/buyermatch/demo/plans" element={<BuyerMatchDemo />} />
+        <Route path="/buyermatch/demo/buyers" element={<BuyerMatchDemo />} />
+        <Route path="/buyermatch/demo/admin" element={<BuyerMatchDemo />} />
+        <Route path="/buyermatch/demo/deals/:id" element={<BuyerMatchDemo />} />
+        <Route path="/buyermatch/buyers" element={<BuyerPortal product="buyermatch" />} />
+        <Route path="/buyermatch/buyers/help" element={<BuyerMatchBuyerHelp />} />
+        <Route path="/buyermatch/buyers/account" element={<BuyerMatchAccount />} />
         <Route path="/buyermatch/*" element={<Navigate to={location.pathname.replace(/^\/buyermatch/, '/app/buyermatch')} replace />} />
         <Route path="/buyer-response" element={<BuyerMatchResponse />} />
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/features" element={<Features />} />
         <Route path="/contact" element={<Contact />} />
-        <Route path="/privacy" element={<Privacy />} />
-        <Route path="/terms" element={<Terms />} />
-        <Route path="/refund-policy" element={<RefundPolicy />} />
+        <Route path="/privacy" element={<NetlifyLegalDocument name="privacy" fallback={<Privacy />} />} />
+        <Route path="/terms" element={<NetlifyLegalDocument name="terms" fallback={<Terms />} />} />
+        <Route path="/refund-policy" element={<NetlifyLegalDocument name="refunds" fallback={<RefundPolicy />} />} />
+        <Route path="/renewal-cancellation" element={<NetlifyLegalDocument name="renewal" fallback={<Terms />} />} />
         <Route path="/acceptable-use" element={<AcceptableUse />} />
         <Route path="/security" element={<Security />} />
         <Route path="/waitlist" element={<Waitlist />} />
@@ -347,11 +374,13 @@ function App() {
                   <Route path="dashboard" element={<Dashboard />} />
                   <Route path="submissions" element={<Submissions />} />
                   <Route path="inventory" element={<Inventory />} />
+                  <Route path="buyermatch/conversion" element={<BuyerMatchConversion />} />
                   <Route path="buyers" element={<Buyers />} />
                   <Route path="resources" element={<Resources />} />
                   <Route path="blast" element={<Blast />} />
                   <Route path="calculator" element={<DealCalculator />} />
                   <Route path="settings" element={<Settings />} />
+                  <Route path="s2-attestation" element={<S2Attestation />} />
                   <Route path="upgrade" element={<Upgrade />} />
                   <Route path="intake" element={<ManualIntake />} />
                   <Route path="followups" element={<FollowUps />} />

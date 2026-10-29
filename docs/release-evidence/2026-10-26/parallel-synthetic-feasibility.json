@@ -1,0 +1,81 @@
+{
+  "scope": "READ_ONLY_RESOURCE_AND_SOURCE_FEASIBILITY_NO_PROVISIONING",
+  "date": "2026-10-26",
+  "assessmentBaseline": "78a67fd66f7d65567161f815ae4f14427b13dd7f",
+  "applicationCandidate": "de9009e165cb15709497e538118d1ceda013cdb5",
+  "supabase": {
+    "organization": "urpdjybbquuaoevpvpcj",
+    "plan": "free",
+    "projectsMetadata": [
+      {"ref": "qxhhlprentrufobpcgna", "name": "dbp-buyermatch-staging", "status": "ACTIVE_HEALTHY", "disposition": "PRESERVE_UNCHANGED"},
+      {"ref": "aigvnbxiydbzzqbetlhl", "name": "deal-blast-pro", "status": "ACTIVE_HEALTHY", "disposition": "PRODUCTION_DO_NOT_TOUCH"},
+      {"ref": "bwlreupczckklrxdsdcj", "name": "Deal Blast Pro QA", "status": "INACTIVE", "disposition": "NOT_VERIFIED_EMPTY_OR_DISPOSABLE_DO_NOT_RESUME_OR_REPURPOSE"}
+    ],
+    "activeFreeProjects": 2,
+    "documentedOwnerAdminActiveLimitAcrossOrganizations": 2,
+    "actualCreateForm": "BLOCKED_CREATE_BUTTON_DISABLED",
+    "actualQuotaMessage": "The organization has members who have exceeded their free project limits; housebuyerinv (Limit: 2 free projects)",
+    "newOrganizationAddsFreeSlot": false,
+    "databaseBranching": "NOT_FREE; documented Micro compute starts at USD0.01344/hour plus applicable usage; no account quote or branch requested",
+    "newProjectOrQaResumeCompatibleWithZeroBudgetAndPreservingBothActiveProjects": false
+  },
+  "vercel": {
+    "team": "team_2ejXKYjjGXIFsIQTUMEqZ8Cf",
+    "planObserved": "Hobby",
+    "dashboardVisibleProjectCount": 5,
+    "documentedHobbyProjectLimit": 200,
+    "connectorInventoryDisagreedWithDashboard": true,
+    "newProjectReserved": false,
+    "remainingBuildRuntimeQuota": "NOT_VERIFIED",
+    "planEligibilityForCommercialDevelopment": "NOT_ESTABLISHED; Hobby terms restrict personal/non-commercial use",
+    "existingS2AliasAndProject": "PRESERVE; proposed environment would require different project and origin"
+  },
+  "stripe": {
+    "existingDedicatedS2TestSandbox": "acct_1UTRcRL6efr9LhPI",
+    "existingSandboxAndResources": "PRESERVE_UNCHANGED",
+    "preferredNewEnvironmentBoundary": "SEPARATE_OWNER_CONTROLLED_GENERAL_SANDBOX; no cloned event destinations or live configuration",
+    "documentedSandboxLimit": 5,
+    "actualAdditionalSandboxCapacityAndAuthorization": "NOT_VERIFIED",
+    "newSandboxCreated": false,
+    "testEventsPurchasesOrPaymentStateChanges": false,
+    "testPaymentsUseRealFunds": false,
+    "existingPricesNotTransferableAcrossSandboxAccounts": true,
+    "proposedNewCatalogEconomicsOnly": {"starterUsdMonthly":59,"proUsdMonthly":119,"quantity":1},
+    "existingSignedReplayAndStarterEvidence": "RETAINED_HISTORICAL_NOT_REPEATED"
+  },
+  "localResources": {
+    "dockerCliVisibleInCurrentCodexPath": false,
+    "podmanCliVisibleInCurrentCodexPath": false,
+    "nativeLinuxOrIndependentStorage": "OWNER_PREVIOUSLY_REPORTED_UNAVAILABLE; not re-requested",
+    "fullLocalSupabaseRuntime": "NOT_VERIFIED; no install/start attempted",
+    "localTestsEquivalentToHostedAcceptance": false
+  },
+  "sourceConstraints": [
+    "Generic application staging guard can accept a non-Production ref only when frontend/server/origin agree",
+    "Webhook pause guard explicitly pins original S2 ref; unchanged candidate will remain503 on a different staging ref",
+    "Owner/receiver/watchdog/binding helpers are pinned to original S2 resources and cannot be silently retargeted",
+    "New isolated schema/fixtures/configuration require separately reviewed execution; not a secret-only switch"
+  ],
+  "feasibility": "TECHNICALLY_POSSIBLE_BUT_NO_CURRENT_VERIFIED_ZERO_DOLLAR_HOSTED_BACKEND_CAPACITY",
+  "configurationOnlyReady": false,
+  "original223IdentityCompatibility": "UNVERIFIED_SEPARATE_RELEASE_BLOCKER",
+  "resourcesCreatedOrResumedOrPaused": false,
+  "keysGeneratedOrInstalled": false,
+  "hostedDatabaseWritesOrMigrations": false,
+  "deploymentsOrAliasChanges": false,
+  "providerSettingsChanged": false,
+  "budgetOrPlanChanges": false,
+  "productionOrMoneyMapProjectDataInspected": false,
+  "metadataOnlyExistingProjectInventoryRead": true,
+  "testsRerun": false,
+  "milestoneCrossed": null,
+  "quotaScreenshot": "synthetic-environment-free-quota-gate.png",
+  "sources": [
+    "https://supabase.com/docs/guides/platform/billing-on-supabase",
+    "https://supabase.com/docs/guides/platform/manage-your-usage/branching",
+    "https://vercel.com/docs/limits",
+    "https://vercel.com/legal/terms",
+    "https://docs.stripe.com/sandboxes",
+    "https://docs.stripe.com/sandboxes/dashboard/manage"
+  ]
+}

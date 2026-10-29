@@ -280,10 +280,14 @@ export const criteriaSchema = z
     financingPreferences: z.array(text).optional(),
   })
   .strict()
-  .refine(
-    (c) =>
-      c.minPrice === undefined ||
-      c.maxPrice === undefined ||
-      c.minPrice <= c.maxPrice,
-    "Invalid price range",
-  );
+  .superRefine((criteria, context) => {
+    for (const [minimum, maximum] of [
+      ['minPrice', 'maxPrice'], ['minSqft', 'maxSqft'], ['minUnits', 'maxUnits'],
+    ]) {
+      if (criteria[minimum] !== undefined && criteria[maximum] !== undefined &&
+          criteria[minimum] > criteria[maximum]) {
+        context.addIssue({ code: z.ZodIssueCode.custom, path: [maximum],
+          message: 'Maximum must be greater than or equal to minimum.' });
+      }
+    }
+  });

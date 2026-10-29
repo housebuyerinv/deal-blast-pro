@@ -1,4 +1,5 @@
 import { getAuthenticatedAccount } from '../_accountAuth.js'
+import {isS2LegacyCheckout} from '../../server/buyermatch/s2-billing-window.js'
 import { handlePlatformAction } from '../../src/server/platformActions.js'
 import { PRO_TRIAL_PROMOTION } from '../../src/lib/promotionConfig.js'
 import { canCreateProTrialCheckout } from '../../src/server/proTrialCheckoutAuthorization.js'
@@ -16,6 +17,7 @@ export default async function handler(req: any, res: any) {
   }
 
   let account: Awaited<ReturnType<typeof getAuthenticatedAccount>>
+  if(isS2LegacyCheckout('pro-trial-checkout',req.method))return send(res,503,{ok:false,code:'s2_legacy_checkout_disabled',error:'Legacy checkout is disabled in S2.'})
   try {
     account = await getAuthenticatedAccount(req)
   } catch (error: any) {

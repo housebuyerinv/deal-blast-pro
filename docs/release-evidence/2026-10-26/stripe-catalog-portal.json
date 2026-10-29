@@ -1,0 +1,80 @@
+{
+  "asOf": "2026-10-26T22:46:16.808Z",
+  "account": "acct_1UTRcRL6efr9LhPI",
+  "readOnly": true,
+  "prices": [
+    {
+      "id": "price_1UTRdfL6efr9LhPIchNeE7u1",
+      "product": "prod_VUQUX4x8PnLdDQ",
+      "active": true,
+      "livemode": false,
+      "amount": 5900,
+      "currency": "usd",
+      "type": "recurring",
+      "recurring": {
+        "interval": "month",
+        "interval_count": 1,
+        "meter": null,
+        "trial_period_days": null,
+        "usage_type": "licensed"
+      }
+    },
+    {
+      "id": "price_1UTRdrL6efr9LhPIpYKIYIyd",
+      "product": "prod_VUQU9Vrwk0sC5u",
+      "active": true,
+      "livemode": false,
+      "amount": 11900,
+      "currency": "usd",
+      "type": "recurring",
+      "recurring": {
+        "interval": "month",
+        "interval_count": 1,
+        "meter": null,
+        "trial_period_days": null,
+        "usage_type": "licensed"
+      }
+    }
+  ],
+  "portal": {
+    "id": "bpc_1UTRxYL6efr9LhPIA0rP1HOJ",
+    "active": true,
+    "livemode": false,
+    "isDefault": true,
+    "returnUrl": null,
+    "features": {
+      "paymentMethodUpdate": {
+        "enabled": true,
+        "payment_method_configuration": null
+      },
+      "subscriptionCancel": {
+        "cancellation_reason": {
+          "enabled": false,
+          "feedback_options": [],
+          "options": [
+            "too_expensive",
+            "missing_features",
+            "switched_service",
+            "unused",
+            "other"
+          ]
+        },
+        "enabled": true,
+        "mode": "at_period_end",
+        "proration_behavior": "none"
+      },
+      "subscriptionUpdate": {
+        "billing_cycle_anchor": "unchanged",
+        "default_allowed_updates": [
+          "price"
+        ],
+        "enabled": true,
+        "proration_behavior": "create_prorations",
+        "schedule_at_period_end": {
+          "conditions": []
+        },
+        "trial_update_behavior": "end_trial"
+      }
+    }
+  }
+}

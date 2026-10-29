@@ -1,0 +1,134 @@
+{
+  "scope": "HOSTED_READ_ONLY_METADATA_NOT_MIGRATION_EXECUTION",
+  "asOfUtc": "2026-10-26 22:51:10 UTC",
+  "metadata": {
+    "catalog": [
+      {
+        "price": "price_1UTRdrL6efr9LhPIpYKIYIyd",
+        "product": "buyermatch",
+        "version": "buyermatch-pro-v1",
+        "approved": true,
+        "allowance": 50
+      },
+      {
+        "price": "price_1UTRdfL6efr9LhPIchNeE7u1",
+        "product": "buyermatch",
+        "version": "buyermatch-starter-v1",
+        "approved": true,
+        "allowance": 20
+      }
+    ],
+    "project": "qxhhlprentrufobpcgna",
+    "new_tables": [],
+    "auth_columns": [
+      "id",
+      "email",
+      "email_confirmed_at",
+      "banned_until"
+    ],
+    "live_billing": {
+      "enabled": false,
+      "verified": false
+    },
+    "buyer_columns": [
+      "id",
+      "identity_ciphertext",
+      "identity_hash",
+      "criteria",
+      "status",
+      "verification_evidence",
+      "criteria_verified_at",
+      "last_active_at",
+      "verification_level",
+      "consent_evidence",
+      "opted_out_at",
+      "import_id",
+      "created_at",
+      "source_ciphertext",
+      "merged_into",
+      "synthetic"
+    ],
+    "required_tables": [
+      "account_profiles",
+      "bm_buyers",
+      "bm_deals",
+      "bm_exposures",
+      "bm_messages",
+      "bm_offers",
+      "bm_outbox",
+      "bm_response_tokens"
+    ],
+    "database_version": "17.11",
+    "bm_browser_grants": 0,
+    "migration_history": [
+      {
+        "name": "dbp_buyermatch_staging_baseline",
+        "version": "20260930214015"
+      },
+      {
+        "name": "buyermatch_response_scope",
+        "version": "20261002190707"
+      },
+      {
+        "name": "buyermatch_production_outbox",
+        "version": "20261003153720"
+      },
+      {
+        "name": "buyermatch_messages",
+        "version": "20261006004549"
+      },
+      {
+        "name": "buyermatch_live_billing_boundary",
+        "version": "20261006011349"
+      },
+      {
+        "name": "buyermatch_conversation_safety",
+        "version": "20261006011353"
+      },
+      {
+        "name": "buyermatch_portal_sync_atomic",
+        "version": "20261006013352"
+      },
+      {
+        "name": "buyermatch_software_distribution",
+        "version": "20261006014318"
+      },
+      {
+        "name": "buyermatch_usage_accounting",
+        "version": "20261006030756"
+      },
+      {
+        "name": "buyermatch_commercial_limits",
+        "version": "20261006044305"
+      },
+      {
+        "name": "buyermatch_subscription_plan_changes",
+        "version": "20261006164506"
+      },
+      {
+        "name": "buyermatch_callback_isolation",
+        "version": "20261006185234"
+      },
+      {
+        "name": "buyermatch_analysis_version_guard",
+        "version": "20261018165152"
+      },
+      {
+        "name": "buyermatch_owned_subscription_plan_changes_preserve_guards",
+        "version": "20261022235049"
+      },
+      {
+        "name": "buyermatch_completed_checkout_guards",
+        "version": "20261023155333"
+      },
+      {
+        "name": "buyermatch_private_buyer_intake",
+        "version": "20261024000845"
+      }
+    ],
+    "new_bucket_exists": false,
+    "service_bypassrls": true,
+    "storage_objects_rls": true,
+    "audit_function_exists": true
+  }
+}

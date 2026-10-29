@@ -4,8 +4,10 @@ export const BUYER_PROOF_BUCKET = 'buyer-proof-files'
 export const BUYER_REVIEW_MAX_FILE_SIZE = 20 * 1024 * 1024
 
 const ALLOWED_BUYER_REVIEW_EXTENSIONS = new Set(['pdf', 'jpg', 'jpeg', 'png', 'webp', 'doc', 'docx', 'txt', 'csv'])
-const ALLOWED_BUYER_REVIEW_MIME_PREFIXES = ['image/']
 const ALLOWED_BUYER_REVIEW_MIME_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
   'application/pdf',
   'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -72,14 +74,26 @@ const fileToDataUrl = (file: File) => {
 export function validateBuyerReviewDocument(file: File, maxBytes = BUYER_REVIEW_MAX_FILE_SIZE) {
   const extension = String(file.name || '').split('.').pop()?.toLowerCase() || ''
   const mimeType = file.type || 'application/octet-stream'
-  const allowedMime = ALLOWED_BUYER_REVIEW_MIME_TYPES.has(mimeType) || ALLOWED_BUYER_REVIEW_MIME_PREFIXES.some(prefix => mimeType.startsWith(prefix))
+  const allowedMime = ALLOWED_BUYER_REVIEW_MIME_TYPES.has(mimeType) || mimeType === 'application/octet-stream'
 
-  if (!ALLOWED_BUYER_REVIEW_EXTENSIONS.has(extension) && !allowedMime) {
+  if (!ALLOWED_BUYER_REVIEW_EXTENSIONS.has(extension) || !allowedMime) {
     throw new Error('Unsupported file type. Upload PDF, JPG, JPEG, PNG, WEBP, DOC, DOCX, TXT, or CSV.')
   }
 
-  if (file.size > maxBytes) {
+  if (file.size <= 0 || file.size > maxBytes) {
     throw new Error(`File is too large. Maximum size is ${Math.round(maxBytes / 1024 / 1024)} MB.`)
+  }
+}
+
+export async function uploadBuyerProofBatch(files: File[], proofType: string, otherLabel: string,
+  upload: typeof uploadBuyerProofFile = uploadBuyerProofFile) {
+  if (!files.length || files.length > 10) throw new Error('Choose between one and ten proof files.')
+  // Validate the entire selection before creating any remote object.
+  files.forEach(file => validateBuyerReviewDocument(file))
+  const results = await Promise.allSettled(files.map(file => upload(file, proofType, otherLabel, { validate: true })))
+  return {
+    uploaded: results.filter((row): row is PromiseFulfilledResult<BuyerProofFileMeta> => row.status === 'fulfilled').map(row => row.value),
+    failedCount: results.filter(row => row.status === 'rejected').length,
   }
 }
 

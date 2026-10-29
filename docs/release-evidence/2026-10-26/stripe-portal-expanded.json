@@ -1,0 +1,45 @@
+{
+  "asOf": "2026-10-26T22:48:25.594Z",
+  "account": "acct_1UTRcRL6efr9LhPI",
+  "requestedApiVersion": "2026-08-26.dahlia",
+  "id": "bpc_1UTRxYL6efr9LhPIA0rP1HOJ",
+  "livemode": false,
+  "active": true,
+  "isDefault": true,
+  "subscriptionUpdate": {
+    "billing_cycle_anchor": "unchanged",
+    "default_allowed_updates": [
+      "price"
+    ],
+    "enabled": true,
+    "products": [
+      {
+        "adjustable_quantity": {
+          "enabled": false,
+          "maximum": null,
+          "minimum": 1
+        },
+        "prices": [
+          "price_1UTRdfL6efr9LhPIchNeE7u1"
+        ],
+        "product": "prod_VUQUX4x8PnLdDQ"
+      },
+      {
+        "adjustable_quantity": {
+          "enabled": false,
+          "maximum": null,
+          "minimum": 1
+        },
+        "prices": [
+          "price_1UTRdrL6efr9LhPIpYKIYIyd"
+        ],
+        "product": "prod_VUQU9Vrwk0sC5u"
+      }
+    ],
+    "proration_behavior": "create_prorations",
+    "schedule_at_period_end": {
+      "conditions": []
+    },
+    "trial_update_behavior": "end_trial"
+  }
+}

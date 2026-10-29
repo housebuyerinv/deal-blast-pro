@@ -1,0 +1,14 @@
+{
+  "baseline": "ddf1928f09f9e831376aec07ad6a56f17cbd3f26",
+  "focusedTests": 46,
+  "focusedFailures": 0,
+  "addedTests": 16,
+  "frontendTypecheck": "PASS",
+  "apiTypecheck": "PASS",
+  "serverBundle": {
+    "status": "PASS",
+    "bytes": 129299
+  },
+  "appBuild": "RETAINED_PASS_FROM_BASELINE_APPLICATION_SOURCES_UNCHANGED",
+  "scope": "No hosted migration, deployment or billing lifecycle executed"
+}

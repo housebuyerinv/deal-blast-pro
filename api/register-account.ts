@@ -1,73 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { createHash } from 'node:crypto'
-import { getSupabaseAdminClient } from './_accountAuth.js'
-
-type StepStatus = 'pending' | 'ok' | 'skipped' | 'failed'
-
-type RegistrationDiagnostics = Record<string, {
-  status: StepStatus
-  detail?: string
-  id?: string
-}>
-
-function send(res: any, status: number, payload: any) {
-  res.status(status).json(payload)
-}
-
-function readSupabaseEnv() {
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
-  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error('Supabase registration environment is not configured.')
-  }
-
-  return { supabaseUrl, supabaseAnonKey, serviceRoleKey }
-}
-
-function cleanString(value: any) {
-  return String(value || '').trim()
-}
-
-function parseJsonBody(value: any) {
-  if (typeof value !== 'string') return value || {}
-  const cleaned = value.replace(/^\uFEFF/, '').trim()
-  if (!cleaned) return {}
-  return JSON.parse(cleaned)
-}
-
-function isInternalTestRequest(req: any, body: any) {
-  const configuredKey = process.env.REGISTRATION_TEST_KEY
-  const providedKey = cleanString(req.headers['x-dealblast-registration-test-key'] || body.registrationTestKey)
-  return Boolean(configuredKey && providedKey && providedKey === configuredKey && body.internalTestMode === true)
-}
-
-function isPublicRegistrationEnabled() {
-  // Public signup is enabled for the launched product. Registration still
-  // flows through Supabase Auth and the normal workspace provisioning path.
-  return true
-}
-
-function publicDiagnostics(input: RegistrationDiagnostics, includeDetails: boolean) {
-  return Object.fromEntries(
-    Object.entries(input).map(([key, value]) => [
-      key,
-      includeDetails ? value : { status: value.status },
-    ]),
-  )
-}
-
-async function findUserByEmail(adminClient: any, email: string) {
-  for (let page = 1; page <= 20; page += 1) {
-    const { data, error } = await adminClient.auth.admin.listUsers({ page, perPage: 1000 })
-    if (error) throw error
-    const match = data?.users?.find((user: any) => String(user.email || '').toLowerCase() === email)
-    if (match) return match
-    if (!data?.users || data.users.length < 1000) break
-  }
-  return null
-}
+import { getBearerToken, getSupabaseAdminClient } from './_accountAuth.js'
+import { signRegistrationIntent, verifyRegistrationIntent, registrationDestination } from './_registrationIntent.js'
 
 async function notifyAccountCreated(input: {
   supabaseUrl: string
@@ -128,348 +62,114 @@ async function notifyAccountCreated(input: {
   return payload
 }
 
-async function upsertRegistrationRows(input: {
-  adminClient: any
-  diagnostics: RegistrationDiagnostics
-  userId: string
-  email: string
-  name: string
-  company: string
-  role: string
-  plan: string
-  billingStatus: string
-  trialStatus: string
-  paymentStatus: string
-}) {
-  const { adminClient, diagnostics } = input
-
-  const { error: profileError } = await adminClient
-    .from('account_profiles')
-    .upsert({
-      user_id: input.userId,
-      email: input.email,
-      full_name: input.name,
-      display_name: input.name.split(/\s+/)[0] || input.name,
-      business_name: input.company || null,
-      company: input.company || null,
-      role: input.role,
-    }, { onConflict: 'user_id' })
-  if (profileError) throw profileError
-  diagnostics.profile = { status: 'ok', id: input.userId, detail: 'Profile upserted' }
-
-  const workspaceName = input.company || `${input.name}'s Workspace`
-  const { data: workspace, error: workspaceError } = await adminClient
-    .from('workspaces')
-    .upsert({
-      owner_user_id: input.userId,
-      owner_email: input.email,
-      name: workspaceName,
-    }, { onConflict: 'owner_user_id' })
-    .select('id')
-    .single()
-  if (workspaceError) throw workspaceError
-  const workspaceId = workspace.id
-  diagnostics.workspace = { status: 'ok', id: workspaceId, detail: 'Workspace upserted' }
-
-  const { error: planError } = await adminClient
-    .from('workspace_plan_assignments')
-    .upsert({
-      workspace_id: workspaceId,
-      user_id: input.userId,
-      plan_name: input.plan,
-      billing_status: input.billingStatus,
-      trial_status: input.trialStatus,
-      payment_status: input.paymentStatus,
-      source: 'Admin Register',
-    }, { onConflict: 'workspace_id' })
-  if (planError) throw planError
-  diagnostics.plan = { status: 'ok', id: workspaceId, detail: 'Plan assigned' }
-
-  const idempotencyKey = `new_account_created:${input.userId}`
-  const { error: eventError } = await adminClient
-    .from('account_registration_events')
-    .upsert({
-      user_id: input.userId,
-      workspace_id: workspaceId,
-      email: input.email,
-      event_type: 'new_account_created',
-      idempotency_key: idempotencyKey,
-      status: 'created',
-      diagnostics,
-    }, { onConflict: 'idempotency_key' })
-  if (eventError) throw eventError
-  diagnostics.event = { status: 'ok', id: idempotencyKey, detail: 'Registration event recorded' }
-
-  return { workspaceId, workspaceName, idempotencyKey }
+const clean = (value: unknown) => typeof value === 'string' ? value.trim() : ''
+const neutral = { ok: true, message: 'Check your email to continue, or sign in if you already have an account.' }
+async function documents(admin: ReturnType<typeof getSupabaseAdminClient>) {
+  if (process.env.DBP_REQUIRE_VERSIONED_PLATFORM_AGREEMENTS !== 'true') return []
+  const { data, error } = await admin.from('bm_documents').select('id,kind,version,document_hash,content')
+    .in('kind', ['platform_terms', 'privacy']).eq('current', true).eq('approved', true)
+  if (error || data?.length !== 2) throw new Error('Platform agreement configuration unavailable')
+  return data
 }
 
 export default async function handler(req: any, res: any) {
-  if(req.method==='GET') {
-    res.setHeader('Cache-Control','no-store')
-    if(process.env.DBP_REQUIRE_VERSIONED_PLATFORM_AGREEMENTS!=='true') return send(res,200,{required:false,documents:[]})
-    try {
-      const {data,error}=await getSupabaseAdminClient().from('bm_documents').select('id,kind,version,document_hash,content').in('kind',['platform_terms','privacy']).eq('current',true).eq('approved',true)
-      if(error || data?.length!==2) return send(res,503,{error:'Approved platform agreements are not configured.'})
-      return send(res,200,{required:true,documents:data})
-    } catch {return send(res,503,{error:'Platform agreement configuration unavailable.'})}
+  res.setHeader('Cache-Control', 'no-store')
+  if (!['GET', 'POST'].includes(req.method)) {
+    res.setHeader('Allow', 'GET, POST')
+    return res.status(405).json({ ok: false, error: 'Method not allowed' })
   }
-  if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST')
-    return send(res, 405, { ok: false, error: 'Method not allowed' })
+  if (req.method === 'POST' && process.env.DBP_REGISTRATION_PAUSED === 'true') {
+    return res.status(503).json({ ok: false, error: 'New registrations are temporarily paused. Existing customers can sign in.' })
   }
-
-  const diagnostics: RegistrationDiagnostics = {
-    validation: { status: 'pending' },
-    auth: { status: 'pending' },
-    profile: { status: 'pending' },
-    workspace: { status: 'pending' },
-    plan: { status: 'pending' },
-    event: { status: 'pending' },
-    notification: { status: 'pending' },
-    emailConfirmation: { status: 'pending' },
-  }
-
   try {
-    const { supabaseUrl, supabaseAnonKey, serviceRoleKey } = readSupabaseEnv()
-    let body: any = {}
-    try {
-      body = parseJsonBody(req.body)
-    } catch {
-      diagnostics.validation = { status: 'failed', detail: 'Invalid JSON body' }
-      return send(res, 400, {
-        ok: false,
-        error: 'Invalid JSON body.',
-        code: 'invalid_json',
-        diagnostics: publicDiagnostics(diagnostics, false),
+    const admin = getSupabaseAdminClient()
+    if (req.method === 'GET' && req.query?.action === 'status') {
+      const bearer = getBearerToken(req)
+      if (!bearer) return res.status(401).json({ ok: false, error: 'Sign in required.' })
+      const { data, error } = await admin.auth.getUser(bearer)
+      const user = data.user
+      if (error || !user?.email || !user.email_confirmed_at || user.is_anonymous) return res.status(401).json({ ok: false, error: 'A verified session is required.' })
+      const profile = await admin.from('account_profiles').select('user_id').eq('user_id', user.id).maybeSingle()
+      if (profile.error) throw new Error('Account verification unavailable')
+      let intent
+      try { intent = verifyRegistrationIntent(user.user_metadata?.registration_intent, user.email, process.env.SUPABASE_SERVICE_ROLE_KEY || '') } catch { /* Existing logins need no registration intent. */ }
+      return res.status(200).json({ ok: true, provisioned: Boolean(profile.data), destination: registrationDestination(intent) })
+    }
+    if (req.method === 'GET') return res.status(200).json({ required: process.env.DBP_REQUIRE_VERSIONED_PLATFORM_AGREEMENTS === 'true', documents: await documents(admin) })
+    let body: any
+    try { body = typeof req.body === 'string' ? JSON.parse(req.body.replace(/^\uFEFF/, '')) : req.body || {} }
+    catch { return res.status(400).json({ ok: false, error: 'Invalid JSON body.' }) }
+    if (body.action === 'complete') {
+      const bearer = getBearerToken(req)
+      if (!bearer) return res.status(401).json({ ok: false, error: 'Sign in to complete registration.' })
+      const { data, error } = await admin.auth.getUser(bearer)
+      const user = data.user
+      if (error || !user?.email || !user.email_confirmed_at || user.is_anonymous) return res.status(401).json({ ok: false, error: 'A verified session is required.' })
+      // Existing customers log in without any registration-side writes.
+      const profile = await admin.from('account_profiles').select('user_id').eq('user_id', user.id).maybeSingle()
+      if (profile.error) throw new Error('Account verification unavailable')
+      if (profile.data) return res.status(200).json({ ok: true, created: false })
+      let intent
+      try { intent = verifyRegistrationIntent(user.user_metadata?.registration_intent, user.email, process.env.SUPABASE_SERVICE_ROLE_KEY || '') }
+      catch { return res.status(409).json({ ok: false, error: 'Registration could not be completed. Contact support to review your account.' }) }
+      const result = await admin.rpc('dbp_provision_registration', {
+        p_user: user.id, p_email: user.email.toLowerCase(), p_name: intent.name, p_company: intent.company,
+        p_role: intent.role, p_plan: intent.plan, p_documents: intent.documents,
+        p_require_documents: process.env.DBP_REQUIRE_VERSIONED_PLATFORM_AGREEMENTS === 'true',
       })
-    }
-
-    const name = cleanString(body.name)
-    const email = cleanString(body.email).toLowerCase()
-    const password = String(body.password || '')
-    const company = cleanString(body.company)
-    const role = cleanString(body.role) || 'Admin'
-    const requestedPlan = cleanString(body.plan) || 'Free'
-    const plan = requestedPlan === 'Free Demo' ? 'Free' : requestedPlan
-    const internalTestMode = isInternalTestRequest(req, body)
-    const includeDiagnostics = internalTestMode || body.includeDiagnostics === true
-
-    if (!internalTestMode && !isPublicRegistrationEnabled()) {
-      diagnostics.validation = { status: 'failed', detail: 'Public registration is waitlist-only in production' }
-      return send(res, 403, {
-        ok: false,
-        error: 'Deal Blast Pro is currently waitlist-only. Join the waitlist to request access.',
-        code: 'registration_waitlist_only',
-        waitlistUrl: '/waitlist',
-        diagnostics: publicDiagnostics(diagnostics, includeDiagnostics),
-      })
-    }
-
-    if (!name || !email || !password) {
-      diagnostics.validation = { status: 'failed', detail: 'Name, email, and password are required' }
-      return send(res, 400, { ok: false, error: 'Name, email, and password are required.', diagnostics: publicDiagnostics(diagnostics, includeDiagnostics) })
-    }
-    if (password.length < 6) {
-      diagnostics.validation = { status: 'failed', detail: 'Password too short' }
-      return send(res, 400, { ok: false, error: 'Password must be at least 6 characters.', diagnostics: publicDiagnostics(diagnostics, includeDiagnostics) })
-    }
-    diagnostics.validation = { status: 'ok' }
-
-    const origin = cleanString(req.headers.origin) || 'https://deal-blast-pro.vercel.app'
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-    })
-    const adminClient = serviceRoleKey
-      ? createClient(supabaseUrl, serviceRoleKey, {
-          auth: {
-            persistSession: false,
-            autoRefreshToken: false,
-          },
-        })
-      : null
-
-    let platformDocuments:any[]=[]
-    if(process.env.DBP_REQUIRE_VERSIONED_PLATFORM_AGREEMENTS==='true') {
-      if(!adminClient) return send(res,503,{error:'Agreement storage unavailable.'})
-      const {data,error}=await adminClient.from('bm_documents').select('*').in('kind',['platform_terms','privacy']).eq('current',true).eq('approved',true)
-      if(error || data?.length!==2) return send(res,503,{error:'Approved platform agreements unavailable.'})
-      platformDocuments=data
-      if(body.agreementsAccepted!==true || !name || !platformDocuments.every(doc=>body.platformAgreements?.some((a:any)=>a.id===doc.id&&a.hash===doc.document_hash)&&createHash('sha256').update(doc.content).digest('hex')===doc.document_hash)) return send(res,400,{error:'Review and accept the current platform agreements.'})
-    }
-    let authUser: any = adminClient ? await findUserByEmail(adminClient, email) : null
-    let session: any = null
-    let authCreated = false
-
-    if (authUser) {
-      diagnostics.auth = { status: 'ok', id: authUser.id, detail: 'Existing Auth user reused' }
-      diagnostics.emailConfirmation = {
-        status: authUser.email_confirmed_at ? 'ok' : 'skipped',
-        detail: authUser.email_confirmed_at ? 'Email already confirmed' : 'Existing user has pending confirmation',
+      if (result.error) throw new Error('Atomic account provisioning failed')
+      if (result.data.created && process.env.BM_ENVIRONMENT !== 'staging') {
+        // Notification failure must not roll back or falsely report failure of a committed account.
+        try {
+          await notifyAccountCreated({ supabaseUrl: process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '',
+            supabaseAnonKey: process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '',
+            origin: new URL(process.env.PUBLIC_APP_URL || 'https://deal-blast-pro.vercel.app').origin,
+            userId: user.id, workspaceId: result.data.workspaceId, email: user.email,
+            name: intent.name, company: intent.company, role: intent.role, plan: intent.plan,
+            billingStatus: intent.plan === 'Free' ? 'Free Active' : 'Pending Payment',
+            trialStatus: intent.plan === 'Free' ? 'Free Active' : 'Pending Payment',
+            paymentConfirmed: intent.plan === 'Free' ? 'No payment required' : 'Pending Stripe checkout',
+            emailVerified: 'Yes', createdAt: user.created_at })
+        } catch { console.error('[Deal Blast Pro] Account created; registration notification unavailable') }
       }
-    } else if (internalTestMode) {
-      if (!adminClient) throw new Error('Internal registration test mode requires SUPABASE_SERVICE_ROLE_KEY.')
-      const { data, error } = await adminClient.auth.admin.createUser({
-        email,
-        password,
-        email_confirm: true,
-        user_metadata: {
-          full_name: name,
-          display_name: name.split(/\s+/)[0] || name,
-          business_name: company,
-          company,
-          role,
-          plan,
-          internal_test: true,
-        },
-      })
-      if (error) throw error
-      authUser = data.user
-      authCreated = true
-      diagnostics.auth = { status: 'ok', id: authUser.id, detail: 'Auth user created with admin test flow' }
-      diagnostics.emailConfirmation = { status: 'skipped', detail: 'Admin test flow did not send Supabase confirmation email' }
-    } else {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${origin}/auth/callback`,
-          data: {
-            full_name: name,
-            display_name: name.split(/\s+/)[0] || name,
-            business_name: company,
-            company,
-            role,
-            plan,
-          },
-        },
-      })
-
-      if (error) {
-        diagnostics.auth = { status: 'failed', detail: error.message }
-        diagnostics.emailConfirmation = { status: error.message.toLowerCase().includes('email rate limit') ? 'failed' : 'pending', detail: error.message }
-        return send(res, 400, {
-          ok: false,
-          error: error.message,
-          rateLimitHint: error.message.toLowerCase().includes('rate limit')
-            ? 'Supabase Auth email delivery is rate-limited. Wait for the project email window to reset or configure production SMTP.'
-            : undefined,
-          diagnostics: publicDiagnostics(diagnostics, includeDiagnostics),
-        })
-      }
-
-      authUser = data.user
-      session = data.session
-      authCreated = true
-      diagnostics.auth = { status: 'ok', id: authUser?.id, detail: 'Auth signup requested' }
-      diagnostics.emailConfirmation = {
-        status: authUser?.email_confirmed_at ? 'ok' : 'ok',
-        detail: authUser?.email_confirmed_at ? 'Email already confirmed' : 'Supabase confirmation email requested',
-      }
+      return res.status(200).json({ ok: true, ...result.data, destination: registrationDestination(intent) })
     }
-
-    if (!authUser?.id) {
-      diagnostics.auth = { status: 'failed', detail: 'No Auth user id returned' }
-      return send(res, 500, { ok: false, error: 'Account was not created.', diagnostics: publicDiagnostics(diagnostics, includeDiagnostics) })
+    if (body.action && body.action !== 'start') return res.status(400).json({ ok: false, error: 'Invalid registration request.' })
+    const product = body.product || 'crm'
+    if (!['crm', 'buyermatch'].includes(product) || (product === 'buyermatch' && !['starter', 'pro'].includes(body.tier))) return res.status(400).json({ ok: false, error: 'Select a valid product and plan.' })
+    const name = clean(body.name), email = clean(body.email).toLowerCase(), company = clean(body.company)
+    const password = typeof body.password === 'string' ? body.password : ''
+    // BuyerMatch never assigns a paid CRM plan or trusts a client-supplied role.
+    if (product === 'buyermatch' && body.role && body.role !== 'Admin') return res.status(400).json({ ok: false, error: 'Invalid registration details.' })
+    const role = product === 'buyermatch' ? 'Admin' : clean(body.role) || 'Admin'
+    const plan = product === 'buyermatch' ? 'Free' : body.plan === 'Free Demo' ? 'Free' : clean(body.plan) || 'Free'
+    const docs = await documents(admin)
+    if (!name || !email || password.length < 6 || password.length > 1024) return res.status(400).json({ ok: false, error: 'Name, email and a valid password are required.' })
+    if (docs.length && (body.agreementsAccepted !== true || !docs.every(doc =>
+      body.platformAgreements?.some((d: any) => d.id === doc.id && d.hash === doc.document_hash) &&
+      createHash('sha256').update(doc.content).digest('hex') === doc.document_hash))) return res.status(400).json({ ok: false, error: 'Review and accept the current platform agreements.' })
+    let intent
+    try { intent = signRegistrationIntent({ version: 1, email, name, company, role, plan, product, ...(product === 'buyermatch' ? { tier: body.tier } : {}),
+      documents: docs.map(doc => ({ id: doc.id, hash: doc.document_hash })), expires: Date.now() + 7 * 86400000,
+    }, process.env.SUPABASE_SERVICE_ROLE_KEY || '') }
+    catch { return res.status(400).json({ ok: false, error: 'Invalid registration details.' }) }
+    const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || ''
+    const key = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || ''
+    const auth = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } })
+    const origin = new URL(process.env.PUBLIC_APP_URL || 'https://deal-blast-pro.vercel.app').origin
+    // Keep Auth signup rate limits, CAPTCHA support and email confirmation; never admin-create a public user.
+    const { data, error } = await auth.auth.signUp({ email, password, options: {
+      emailRedirectTo: `${origin}/auth/callback`, captchaToken: clean(body.captchaToken) || undefined,
+      data: { full_name: name, registration_intent: intent },
+    } })
+    if (error) {
+      if (error.status === 429) return res.status(429).json({ ok: false, error: 'Please wait before trying registration again.' })
+      if (error.code !== 'user_already_exists' && error.code !== 'email_exists') return res.status(400).json({ ok: false, error: 'Registration could not be started. Check your details and try again.' })
+      return res.status(200).json(neutral)
     }
-
-    if (!adminClient) {
-      diagnostics.profile = { status: 'skipped', detail: 'SUPABASE_SERVICE_ROLE_KEY is required for durable profile creation' }
-      diagnostics.workspace = { status: 'skipped', detail: 'SUPABASE_SERVICE_ROLE_KEY is required for durable workspace creation' }
-      diagnostics.plan = { status: 'skipped', detail: 'SUPABASE_SERVICE_ROLE_KEY is required for durable plan assignment' }
-      diagnostics.event = { status: 'skipped', detail: 'SUPABASE_SERVICE_ROLE_KEY is required for durable event recording' }
-      throw new Error('Registration Auth succeeded but durable registration storage is not configured. Add SUPABASE_SERVICE_ROLE_KEY and retry reconciliation.')
-    }
-
-    for(const document of platformDocuments) {
-      const {error}=await adminClient.rpc('bm_accept_document',{p_owner:authUser.id,p_deal:null,p_document:document.id,p_hash:document.document_hash,p_signature:name})
-      if(error) throw new Error('Agreement acceptance could not be recorded. Please retry registration.')
-    }
-    const billingStatus = plan === 'Free' ? 'Free Active' : 'Pending Payment'
-    const paymentStatus = plan === 'Free' ? 'No payment required' : 'Pending Stripe checkout'
-    const { workspaceId, workspaceName, idempotencyKey } = await upsertRegistrationRows({
-      adminClient,
-      diagnostics,
-      userId: authUser.id,
-      email,
-      name,
-      company,
-      role,
-      plan,
-      billingStatus,
-      trialStatus: billingStatus,
-      paymentStatus,
-    })
-
-    const notification = await notifyAccountCreated({
-      supabaseUrl,
-      supabaseAnonKey,
-      origin,
-      userId: authUser.id,
-      workspaceId,
-      email,
-      name,
-      company,
-      role,
-      plan,
-      billingStatus,
-      trialStatus: billingStatus,
-      paymentConfirmed: paymentStatus,
-      emailVerified: authUser.email_confirmed_at ? 'Yes' : 'No',
-      createdAt: authUser.created_at || new Date().toISOString(),
-    })
-    const providerMessageId = notification?.emailResult?.results?.find((result: any) => result?.providerMessageId)?.providerMessageId || null
-    diagnostics.notification = {
-      status: notification?.skipped ? 'skipped' : 'ok',
-      id: providerMessageId || idempotencyKey,
-      detail: notification?.skipped ? notification.reason || 'Notification skipped' : 'Notification sent or duplicate-suppressed',
-    }
-
-    await adminClient
-      .from('account_registration_events')
-      .update({
-        status: notification?.skipped ? 'notification_skipped' : 'notification_sent',
-        diagnostics,
-        notification_response: notification,
-        provider_message_id: providerMessageId,
-      })
-      .eq('idempotency_key', idempotencyKey)
-
-    return send(res, 200, {
-      ok: true,
-      reconciled: !authCreated,
-      user: {
-        id: authUser.id,
-        email: authUser.email,
-        createdAt: authUser.created_at,
-        emailVerified: Boolean(authUser.email_confirmed_at),
-      },
-      session: session
-        ? {
-            access_token: session.access_token,
-            refresh_token: session.refresh_token,
-          }
-        : null,
-      workspace: {
-        id: workspaceId,
-        ownerEmail: email,
-        name: workspaceName,
-      },
-      plan: {
-        name: plan,
-        billingStatus,
-      },
-      notification,
-      diagnostics: publicDiagnostics(diagnostics, includeDiagnostics),
-    })
-  } catch (error: any) {
-    console.error('[Deal Blast Pro] Registration API failed:', error)
-    return send(res, 500, {
-      ok: false,
-      error: error?.message || 'Registration failed.',
-      diagnostics: publicDiagnostics(diagnostics, true),
-    })
+    return res.status(200).json({ ...neutral, ...(data.session ? { session: data.session } : {}) })
+  } catch {
+    console.error('[Deal Blast Pro] Registration provisioning unavailable')
+    return res.status(503).json({ ok: false, error: 'Registration is temporarily unavailable. Please retry or contact support.' })
   }
 }

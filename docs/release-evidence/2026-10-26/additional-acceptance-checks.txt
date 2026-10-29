@@ -1,0 +1,12 @@
+✔ acceptance gate: expired or revoked invitation can remain in own history without permitting a new claim (33.3894ms)
+✔ acceptance gate: personal history uses the authorized invitation property snapshot rather than a later deal edit (10.936ms)
+✔ acceptance gate: expired proof cannot be approved and rejection preserves immutable file evidence and buyer state (24.471ms)
+✔ acceptance gate: paid renewal advances the same subscription period once without erasing prior usage (40.4327ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2661.6948

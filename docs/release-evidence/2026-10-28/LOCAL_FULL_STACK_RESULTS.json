@@ -1,0 +1,63 @@
+{
+  "mode": "LOCAL_REAL_SERVICES",
+  "results": [
+    {
+      "name": "real signup, local SMTP confirmation, password login, Free CRM provisioning",
+      "status": "PASS"
+    },
+    {
+      "name": "buyer create, private profile, criteria revision and stale update rejection",
+      "status": "PASS"
+    },
+    {
+      "name": "real private Storage proof upload, byte-exact signed download, replay and replacement",
+      "status": "PASS"
+    },
+    {
+      "name": "subscriber deal creation, real matching, private result and idempotent usage",
+      "status": "PASS"
+    },
+    {
+      "name": "delivered synthetic invitation, HTTP response replay and isolated private history",
+      "status": "PASS"
+    },
+    {
+      "name": "unauthenticated, legacy route and disabled-account denial over real HTTP",
+      "status": "PASS"
+    }
+  ],
+  "billing": "NOT_RUN_NO_STRIPE_OPERATIONS",
+  "browser": {
+    "status": "PASS",
+    "checks": [
+      "normal buyer sign-in",
+      "profile save and reload persistence",
+      "private history",
+      "native-date proof replacement retained prior files",
+      "normal subscriber sign-in",
+      "Pro usage and CRM separation",
+      "browser deal creation",
+      "hourly limit denial",
+      "distribution disabled",
+      "sign-out"
+    ]
+  },
+  "boundaries": [
+    {
+      "name": "proof expiry, expired upload rejection and browser-saved profile persistence",
+      "status": "PASS"
+    },
+    {
+      "name": "actual authenticated local policy-owner proof review and immutable audit",
+      "status": "PASS"
+    },
+    {
+      "name": "entitled cross-owner deal denial and real hourly analysis limit",
+      "status": "PASS"
+    }
+  ],
+  "privateFiles": "PASS_HTTP_DENIAL",
+  "positivePrivateMatches": 1,
+  "hostedOperations": false,
+  "stripeOperations": false
+}

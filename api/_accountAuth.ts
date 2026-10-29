@@ -1,4 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
+import {localSyntheticOrigin} from '../server/buyermatch/local-synthetic.js'
+import { netlifyStagingOrigin } from '../server/netlify/profile.mjs'
+import { netlifyProductionOrigin } from '../server/netlify/production.mjs'
 
 const PLAN_RANK: Record<string, number> = {
   free: 0,
@@ -31,6 +34,10 @@ export function cleanString(value: any) {
 }
 
 export function getSupabaseAdminClient() {
+  if (process.env.BM_HOSTING_PROFILE === 'netlify-production-v1') netlifyProductionOrigin(process.env)
+  else if (process.env.NETLIFY || process.env.BM_HOSTING_PROFILE === 'netlify-private-v1') netlifyStagingOrigin(process.env)
+  // Reject a mixed/hosted local profile before creating any client or Auth call.
+  localSyntheticOrigin(process.env)
   const supabaseUrl = cleanString(process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL)
   const serviceRoleKey = cleanString(process.env.SUPABASE_SERVICE_ROLE_KEY)
   if (!supabaseUrl || !serviceRoleKey) {

@@ -1,0 +1,22 @@
+{
+  "scope": "LOCAL_DRAFT_ONLY_NO_EXECUTION",
+  "encoding": "Exact working-tree bytes, verify Git blob before any later approved migration",
+  "files": [
+    {
+      "path": "server/buyermatch/buyer-account.js",
+      "sha256": "a164662c2792e1d0b3610fc8285e3933aca3cdfbcc15941cf88604103d26ee63"
+    },
+    {
+      "path": "server/buyermatch/buyer-proof-review.js",
+      "sha256": "4fed5f0e5c726d989832449b492b1b6468c3630a00cd9b6002b4c0632160dc2a"
+    },
+    {
+      "path": "server/http/buyermatch-buyer.ts",
+      "sha256": "be8a3eb98ccb827dc93e64b0fd486b8f0132c9c65952dad2ee4cd22bb8efb0a5"
+    },
+    {
+      "path": "supabase/migrations/20261026175709_buyermatch_authenticated_buyer_self_service.sql",
+      "sha256": "f01e51063d02480646422e2f8aa37a29e9d9de3cf8769072bbabadfd32e9a65d"
+    }
+  ]
+}

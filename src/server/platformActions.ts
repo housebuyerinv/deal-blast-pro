@@ -1,4 +1,5 @@
 import { readCreditPacks, publicCreditPacks } from './creditPacks.js'
+import {isS2LegacyCheckout} from '../../server/buyermatch/s2-billing-window.js'
 import { aggregateHotZones } from './hotZones.js'
 import { PRO_TRIAL_PROMOTION } from '../lib/promotionConfig.js'
 import { canCreateProTrialCheckout } from './proTrialCheckoutAuthorization.js'
@@ -11,6 +12,7 @@ const escapeHtml=(value:any)=>clean(value).replace(/[&<>"']/g,char=>({"&":"&amp;
 
 export async function handlePlatformAction(action:string,req:any,res:any,account:any){
   const send=(status:number,payload:any)=>{res.status(status).json(payload);return true}
+  if(isS2LegacyCheckout(action,req.method))return send(503,{ok:false,code:'s2_legacy_checkout_disabled',error:'Legacy checkout is disabled in S2.'})
   const workspaceId=clean(account.workspace?.id||account.plan?.workspace_id)
   if(action==='recent-searches'){
     if(req.method!=='GET')return send(405,{ok:false,error:'Method not allowed'})

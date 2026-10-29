@@ -1,0 +1,16 @@
+✔ offline packet pins actual committed source, migration, ancestor and buyer route (567.3797ms)
+✔ reviewed newer candidate cannot silently revert to historical canary or remote drift (0.4332ms)
+✔ rejects ambiguous, shell-injected and overlapping preparation paths (0.2842ms)
+✔ paused Preview argv supplies all 17 settings twice and binds exact attestation identity (523.8886ms)
+✔ one migration only, non-force exact ref push and no generated provisioning commands (547.5246ms)
+✔ invalid run identity cannot produce deployment instructions (396.7046ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2165.1862
+
+Scoped lint exit: 0

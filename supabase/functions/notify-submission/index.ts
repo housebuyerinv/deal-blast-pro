@@ -90,13 +90,6 @@ function getServiceClient() {
   return createClient(url, serviceKey)
 }
 
-function getAnonClient() {
-  const url = Deno.env.get('SUPABASE_URL') || Deno.env.get('NOTIFY_SUPABASE_URL')
-  const anonKey = Deno.env.get('SUPABASE_ANON_KEY') || Deno.env.get('NOTIFY_SUPABASE_ANON_KEY')
-  if (!url || !anonKey) return null
-  return createClient(url, anonKey)
-}
-
 async function safeAdminTestRecipients(req: Request) {
   const token = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '').trim()
   const client = getServiceClient()
@@ -230,8 +223,8 @@ async function writeLog(input: {
     idempotency_key: input.idempotencyKey || null,
   }
 
-  const logClient = getServiceClient() || getAnonClient()
-  const logClientType = getServiceClient() ? 'service-rpc' : 'anon-rpc'
+  const logClient = getServiceClient()
+  const logClientType = 'service-rpc'
   if (!logClient) return { ok: false, via: 'none', error: 'Missing Supabase logging client env' }
 
   const { error } = await logClient.rpc('insert_email_notification_log', {

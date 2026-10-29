@@ -1,0 +1,31 @@
+{
+  "asOf": "2026-10-26T23:01:15.042Z",
+  "account": "acct_1UTRcRL6efr9LhPI",
+  "readOnly": true,
+  "classic": {
+    "hasMore": false,
+    "items": [
+      {
+        "id": "we_1UTTc1L6efr9LhPICbZjgCHA",
+        "livemode": false,
+        "status": "disabled",
+        "url": "https://qxhhlprentrufobpcgna.supabase.co/functions/v1/stripe-webhook"
+      }
+    ]
+  },
+  "v2": {
+    "nextPage": null,
+    "items": [
+      {
+        "id": "we_1UTTc1L6efr9LhPICbZjgCHA",
+        "livemode": false,
+        "status": "disabled",
+        "type": "webhook_endpoint",
+        "eventsFrom": [
+          "@self"
+        ],
+        "url": null
+      }
+    ]
+  }
+}

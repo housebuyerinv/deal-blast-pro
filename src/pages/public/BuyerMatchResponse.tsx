@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 export default function BuyerMatchResponse() {
   const [token, setToken] = useState(() => window.location.hash.slice(1));
   const generation = useRef(0);
+  const pending = useRef(false);
   const [kind, setKind] = useState("interested");
   const [amount, setAmount] = useState("");
   const [terms, setTerms] = useState("");
@@ -12,6 +13,7 @@ export default function BuyerMatchResponse() {
   useEffect(() => {
     const reopen = () => {
       generation.current += 1;
+      pending.current = false;
       setToken(window.location.hash.slice(1));
       window.history.replaceState(null, "", window.location.pathname);
       setKind("interested");
@@ -30,8 +32,11 @@ export default function BuyerMatchResponse() {
     };
   }, []);
   async function loadConversation() {
+    if (pending.current) return;
+    pending.current = true;
     const started = generation.current;
     setBusy(true);
+    setMessage("");
     try {
       const response = await fetch('/api/buyermatch-response', { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, operationKey: crypto.randomUUID(), kind: 'conversation' }) });
@@ -40,10 +45,13 @@ export default function BuyerMatchResponse() {
       if (started === generation.current) setConversation(data);
     } catch (error: any) {
       if (started === generation.current) { setConversation(null); setMessage(error.message); }
-    } finally { if (started === generation.current) setBusy(false); }
+    } finally { if (started === generation.current) { pending.current = false; setBusy(false); } }
   }
   async function submit() {
+    if (pending.current) return;
+    pending.current = true;
     const started = generation.current;
+    const submittedKind = kind;
     setBusy(true);
     setMessage("");
     try {
@@ -68,9 +76,9 @@ export default function BuyerMatchResponse() {
         throw new Error(data?.error || "Your response could not be recorded.");
       if (started !== generation.current) return;
       setMessage(
-        kind === "unsubscribe"
+        submittedKind === "unsubscribe"
           ? "You have been opted out of this network."
-          : kind === "message"
+          : submittedKind === "message"
             ? "Your message has been sent."
             : "Your response has been recorded.",
       );
@@ -78,13 +86,17 @@ export default function BuyerMatchResponse() {
       if (started === generation.current)
         setMessage(e.message || "Response unavailable");
     } finally {
-      if (started === generation.current) setBusy(false);
+      if (started === generation.current) { pending.current = false; setBusy(false); }
     }
   }
   return (
-    <main className="min-h-screen bg-slate-950 text-white p-8">
-      <div className="max-w-lg mx-auto space-y-5">
-        <h1 className="text-2xl">DBP Private Network response</h1>
+    <main className="bm-site min-h-screen text-white p-5 sm:p-8">
+      <div className="bm-panel max-w-lg mx-auto space-y-5">
+        <p className="bm-eyebrow">BUYERMATCH · PRIVATE INVITATION</p>
+        <h1 className="text-2xl">BuyerMatch private deal response</h1>
+        <p className="text-sm text-slate-400">Powered by Deal Blast Pro. No subscriber plan is required to respond to your invitation.</p>
+        <p className="text-sm text-slate-400">Responses and messages belong to this invitation only. This is not an account-wide buyer history.</p>
+        <a href="/buyermatch/buyers/help#responses" target="_blank" rel="noopener noreferrer" className="text-sm text-emerald-300 underline">Buyer help (opens in a new tab)</a>
         <p>
           This private link is limited to the deal you received. Do not forward
           it.
@@ -100,7 +112,10 @@ export default function BuyerMatchResponse() {
               void submit();
             }}
             className="space-y-4"
+            aria-busy={busy}
           >
+            <fieldset disabled={busy} className="space-y-4">
+            <legend className="sr-only">Private deal response</legend>
             <label className="block">
               Response
               <select
@@ -184,6 +199,7 @@ export default function BuyerMatchResponse() {
             >
               {busy ? "Recording…" : "Submit response"}
             </button>
+            </fieldset>
           </form>
         )}
         {message && <p role="status">{message}</p>}

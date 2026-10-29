@@ -1,3 +1,5 @@
+import { subscriberDestination } from '../../lib/subscriberDestination'
+import { completeRegistration } from '../../lib/completeRegistration'
 import { useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -62,6 +64,7 @@ export default function AuthCallback() {
           return
         }
 
+        const destination = !isEmailChangeCallback ? await completeRegistration() : '/app/settings'
         const userEmail = data.user.email
         let syncedEmailResult: Awaited<ReturnType<typeof syncVerifiedAuthEmailToProfile>> | null = null
         if (isEmailChangeCallback) {
@@ -89,7 +92,8 @@ export default function AuthCallback() {
         }, userEmail)
         const fullName = profileNames.name
 
-        const startNewAccount = window.sessionStorage.getItem('dealblastpro:start-new-account') === 'true'
+        window.sessionStorage.removeItem('dealblastpro:start-new-account')
+      const startNewAccount = false // Server provisioning owns workspace creation.
         const previousAccountStatus = settings?.deletionRequest?.accountStatus
         const newWorkspace = startNewAccount || ['Deleted', 'Deactivated'].includes(String(previousAccountStatus || ''))
         login(userEmail, fullName, {
@@ -129,7 +133,7 @@ export default function AuthCallback() {
             navigate('/app/settings', { replace: true })
           } else {
             toast.success('Email verified. Welcome back.')
-            navigate('/app/dashboard', { replace: true })
+            navigate(subscriberDestination('', destination), { replace: true })
           }
         }
       } catch (err: any) {

@@ -1,10 +1,14 @@
 import { Link } from 'react-router-dom'
 
 const footerLinks = [
-  { to: '/pricing', label: 'Pricing' },
-  { to: '/features', label: 'Features' },
+  { to: '/buyermatch', label: 'BuyerMatch' },
+  { to: '/buyermatch/pricing', label: 'BuyerMatch pricing' },
+  { to: '/buyermatch/buyers', label: 'BuyerMatch buyer intake' },
+  { to: '/buyermatch/buyers/help', label: 'Buyer guide' },
+  { to: '/pricing', label: 'CRM pricing' },
+  { to: '/features', label: 'CRM features' },
   { to: '/portal', label: 'Submit Deal' },
-  { to: '/buyer-portal', label: 'Buyer Portal' },
+  { to: '/buyer-portal', label: 'DBP buyer intake' },
   { to: '/contact', label: 'Contact' },
   { to: '/privacy', label: 'Privacy Policy' },
   { to: '/terms', label: 'Terms of Service' },

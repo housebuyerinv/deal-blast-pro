@@ -1,0 +1,26 @@
+{
+  "approved": false,
+  "publicationAllowed": false,
+  "files": [
+    {
+      "path": "TERMS.md",
+      "sha256": "a94e460174671e91a7a00989c175d8e1d6a19a85ef7e35c73a3751ca180964c7",
+      "matchesReviewedManifest": true
+    },
+    {
+      "path": "RENEWAL_CANCELLATION.md",
+      "sha256": "e0c007b9579368af168c34eabe6ca8eb838d6b23b429ab4ae6b75619cec15a44",
+      "matchesReviewedManifest": true
+    },
+    {
+      "path": "REFUNDS.md",
+      "sha256": "f8a31eecec2fcfb0c19134aa9afca4bf5a33055142a6a6b3002fcc861cdcfc43",
+      "matchesReviewedManifest": true
+    },
+    {
+      "path": "PRIVACY.md",
+      "sha256": "880b11bdabafcb06129c19a2d7f41938cefb3354459b06059174a8042ad76520",
+      "matchesReviewedManifest": true
+    }
+  ]
+}

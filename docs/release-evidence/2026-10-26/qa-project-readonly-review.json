@@ -1,0 +1,68 @@
+{
+  "scope": "READ_ONLY_QA_OWNERSHIP_DEPENDENCIES_RETENTION_ASSESSMENT",
+  "date": "2026-10-26",
+  "baseline": "1731a436d8db299c2eefd1cc52ca22e41f81b1a3",
+  "project": {
+    "ref": "bwlreupczckklrxdsdcj",
+    "name": "Deal Blast Pro QA",
+    "organization": "urpdjybbquuaoevpvpcj",
+    "createdAt": "2026-08-21T18:23:51.045721Z",
+    "region": "us-east-1",
+    "databaseMajorVersionMetadata": "17",
+    "status": "INACTIVE",
+    "dashboardStatus": "PAUSED"
+  },
+  "ownership": {
+    "organizationName": "House Buyer Investments",
+    "plan": "FREE",
+    "signedInAccount": "housebuyerinv",
+    "signedInRoleObserved": "Owner",
+    "teamMemberCountObserved": 1,
+    "projectTransferOrRoleChange": false
+  },
+  "dependencies": {
+    "developmentBranchesReturned": [],
+    "edgeFunctions": [
+      {"name": "stripe-webhook", "version": 1, "functionMetadataStatus": "ACTIVE", "verifyJwtMetadata": false, "createdAtMilliseconds": 1787342577487, "updatedAtMilliseconds": 1787342577487}
+    ],
+    "functionMetadataMeaning": "Deployed function metadata; not proof it runs while project is paused or that it has external callers. Signature verification not inspected; verify_jwt=false alone is not a vulnerability finding.",
+    "orgGitHubIntegrationUi": "No repository connection listed; Add connection shown",
+    "orgVercelIntegrationUi": "Install Vercel integration shown; no existing managed connection listed",
+    "currentInspectedApplicationSourceRefMatches": 0,
+    "localGitHistoryMatches": "Only the previous feasibility checkpoint; 24 locally available refs, no proof of uncached remote history or other repositories",
+    "manualDeploymentEnvironmentReferences": "UNKNOWN_NOT_INSPECTED",
+    "stripeDestinationConsumers": "UNKNOWN_NO_ENDPOINT_CALLED_OR_STRIPE_ACCOUNT_CONFIGURATION_READ",
+    "databaseJobsWebhooksAndExternalConsumers": "UNKNOWN_DATABASE_NOT_QUERIED_WHILE_PAUSED"
+  },
+  "retention": {
+    "providerVisibleNotice": "All data, including backups and storage objects, remains safe.",
+    "resumeUntilDateShown": "2027-10-19",
+    "afterDateVisibleNotice": "Project no longer resumable, but data remains available for download",
+    "downloadBackupControlsVisible": true,
+    "backupsOrStorageDownloadedOrOpened": false,
+    "databaseAuthStorageContentsOrCounts": "UNKNOWN",
+    "encryptedArchiveIntegrityOrRestore": "NOT_VERIFIED",
+    "customerOrPersonalDataPresence": "UNKNOWN",
+    "ownerRetentionLegalHoldOrDeletionApproval": "NOT_ESTABLISHED",
+    "classification": "RETAIN_UNCHANGED; not verified disposable",
+    "resumeDeadlineIsDeletionAuthorization": false
+  },
+  "capacity": {
+    "activeFreeProjectsAlreadyOccupied": 2,
+    "pausedQaCurrentlyConsumesActiveSlot": false,
+    "deletingQaWouldFreeActiveSlot": false,
+    "resumingQaWouldNeedAdditionalActiveCapacity": true,
+    "zeroDollarReuseWhilePreservingBothActiveProjects": "BLOCKED"
+  },
+  "secretsReadOrFilesInspected": false,
+  "customerRowsRead": false,
+  "databaseConnectionOrEndpointProbeAttempted": false,
+  "projectResumedPausedDeletedRepurposedOrModified": false,
+  "providerIntegrationSettingsChanged": false,
+  "productionOrMoneyMapProjectDataAccessed": false,
+  "testsRerun": false,
+  "originalS2IdentityCompatibility": "UNRESOLVED_SEPARATE_BLOCKER",
+  "milestoneCrossed": null,
+  "decision": "NO_GO_QA_REPURPOSE; preserve paused project, no active-capacity benefit from deletion",
+  "evidenceScreenshot": "qa-paused-retention.png"
+}

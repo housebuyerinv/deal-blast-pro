@@ -1,0 +1,8 @@
+{
+  "vendor": "Vercel CLI 58.9.0 installed routing generator",
+  "vendorChunkSha256": "46a38068802d3fc947239d7b3c446902df0957c308830a6f51a85b683b7732f7",
+  "sourcePath": "api/platform/[endpoint].ts",
+  "src": "^/api/platform/([^/]+)$",
+  "destinations": ["/api/platform/[endpoint].ts?endpoint=$1", "/api/platform/[endpoint]?endpoint=$1"],
+  "evidenceLimit": "Pinned vendor functions executed locally; original hosted request envelope was not captured"
+}

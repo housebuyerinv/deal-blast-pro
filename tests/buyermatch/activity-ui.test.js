@@ -1,0 +1,51 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import React from 'react';
+import { create, act } from 'react-test-renderer';
+import { build } from 'esbuild';
+import { createRequire } from 'node:module';
+const compiled=await build({entryPoints:['src/pages/app/BuyerMatchActivity.tsx'],bundle:true,write:false,format:'cjs',platform:'node',jsx:'automatic',external:['react']});
+const module={exports:{}};
+new Function('require','module','exports',compiled.outputFiles[0].text)(createRequire(import.meta.url),module,module.exports);
+const {DealActivity,BuyerMatchOperations}=module.exports;
+const text=node=>typeof node==='string'?node:(node?.children||[]).map(text).join('');
+const button=(view,label)=>view.root.findAllByType('button').find(node=>text(node.toJSON?.()||{children:node.children})===label);
+const result=(page=0)=>({page,hasMore:page===0,summary:{reserved:2,accepted:1,delivered:1,pending:1,interests:1,offers:0,declines:0,suppressed:0},history:page===0?[{id:'r1',buyerRef:'BM-SYNTHETIC',kind:'interested',created_at:'2026-01-01'}]:[]});
+test('deal activity loads only on explicit read, shows actual summary and paginated history',async()=>{
+  const calls=[];const request=async(...args)=>{calls.push(args);return result(args[1].page);};let view;
+  await act(async()=>{view=create(React.createElement(DealActivity,{request,id:'owned-deal'}));});
+  assert.equal(calls.length,0);
+  await act(async()=>button(view,'Load deal activity').props.onClick());
+  assert.deepEqual(calls[0],['activity',{id:'owned-deal',page:0},true]);
+  assert.match(text(view.toJSON()),/BM-SYNTHETIC/);assert.match(text(view.toJSON()),/Provider accepted/);
+  await act(async()=>button(view,'Next').props.onClick());
+  assert.deepEqual(calls[1][1],{id:'owned-deal',page:1});assert.match(text(view.toJSON()),/No buyer responses/);
+  assert.equal(button(view,'Next').props.disabled,true);
+  act(()=>view.unmount());
+});
+test('failed refresh removes stale private history and never echoes provider errors',async()=>{
+  let fail=false;const request=async()=>{if(fail)throw new Error('PRIVATE TOKEN');return result();};let view;
+  await act(async()=>{view=create(React.createElement(DealActivity,{request,id:'owned-deal'}));});
+  await act(async()=>button(view,'Load deal activity').props.onClick());fail=true;
+  await act(async()=>button(view,'Refresh activity').props.onClick());
+  assert.doesNotMatch(text(view.toJSON()),/BM-SYNTHETIC|PRIVATE TOKEN/);assert.match(text(view.toJSON()),/Records could not be loaded/);
+  act(()=>view.unmount());
+});
+test('deal change invalidates an in-flight response before it can reveal prior activity',async()=>{
+  let resolve;const request=()=>new Promise(done=>{resolve=done;});let view;
+  await act(async()=>{view=create(React.createElement(DealActivity,{request,id:'first'}));});
+  act(()=>{void button(view,'Load deal activity').props.onClick();});
+  await act(async()=>view.update(React.createElement(DealActivity,{request,id:'second'})));
+  await act(async()=>resolve(result()));
+  assert.doesNotMatch(text(view.toJSON()),/BM-SYNTHETIC/);
+  assert.equal(button(view,'Load deal activity').props.disabled,false);
+  act(()=>view.unmount());
+});
+test('owner console uses one read-only action and renders empty states without mutation buttons',async()=>{
+  const calls=[];const request=async(...args)=>{calls.push(args);return {page:0,hasMore:false,entitlements:[],reconciliations:[],deliveryErrors:[],audit:[]};};let view;
+  await act(async()=>{view=create(React.createElement(BuyerMatchOperations,{request}));});
+  assert.equal(calls.length,0);await act(async()=>button(view,'Load operating records').props.onClick());
+  assert.deepEqual(calls,[['admin-operations',{page:0},true]]);
+  assert.equal(view.root.findAllByType('button').length,3);
+  assert.match(text(view.toJSON()),/No records on this page/);act(()=>view.unmount());
+});

@@ -1,0 +1,467 @@
+{
+  "head": "d7c0a785765ca62c5292c5bab1a6523088c4660a",
+  "prHead": "c4f19fea2060355565e7c0dad4141456b66d3817",
+  "unpublishedCommits": [
+    "6994cbd490151be8ac590650759a42c691681b7c",
+    "07466bf8f06254d2dd5f128df7c499c7ee9e9e1c",
+    "06d3fadf1ee0ecf88b4cac6869da4fe2932f9340",
+    "f47bd4d78d8efae425658cba638b15651e1d44f4",
+    "a8e641d2d153120b12bb8ea92d1cc1ca72a59f7e",
+    "783a578d9d280b673399096d105dcfc8618f0dca",
+    "d7de9db4cab30f2e48e1d2e231b60f315d82993d",
+    "d7c0a785765ca62c5292c5bab1a6523088c4660a"
+  ],
+  "trackedFiles": 802,
+  "unpublishedChangedFiles": 74,
+  "scannedTextAndHistoryBlobs": 793,
+  "suspiciousPaths": [],
+  "credentialPatternFindings": [
+    {
+      "path": "scripts/testing/s2-browser-compatibility-fixture.mjs",
+      "blob": "bb38d208ea99d9a1196d513f5282ee80fd00d407",
+      "rule": "credential-url",
+      "line": 7,
+      "unpublishedPath": false,
+      "currentTree": true,
+      "disposition": "FALSE_POSITIVE_SYNTHETIC_NO_CREDENTIALS_HTML_ALREADY_PUBLISHED"
+    },
+    {
+      "path": "tests/s2-owner-confirmation.test.mjs",
+      "blob": "93b0cd753c79765329e2b54ad6b92a1860fc4e6e",
+      "rule": "provider-token",
+      "line": 9,
+      "unpublishedPath": false,
+      "currentTree": true,
+      "disposition": "EXPLICIT_DUMMY_TEST_LITERAL_ALREADY_PUBLISHED"
+    },
+    {
+      "path": "tests/s2-owner-private-entry.test.ps1",
+      "blob": "3e8f6b4a9f4978faf1502046ea882e6cd514890a",
+      "rule": "provider-token",
+      "line": 10,
+      "unpublishedPath": false,
+      "currentTree": true,
+      "disposition": "EXPLICIT_DUMMY_TEST_LITERAL_ALREADY_PUBLISHED"
+    },
+    {
+      "path": "tests/s2-owner-private-entry.test.ps1",
+      "blob": "3e8f6b4a9f4978faf1502046ea882e6cd514890a",
+      "rule": "provider-token",
+      "line": 20,
+      "unpublishedPath": false,
+      "currentTree": true,
+      "disposition": "EXPLICIT_DUMMY_TEST_LITERAL_ALREADY_PUBLISHED"
+    }
+  ],
+  "scope": "HEAD tree plus every blob introduced by unpublished commits; content never included in report",
+  "limitations": [
+    "Pattern scan is not proof of absence of every possible secret",
+    "Binary screenshots require visual review",
+    "Ignored private runtime files are not opened or included"
+  ],
+  "keylikeLiteralReview": [
+    {
+      "path": "docs/BUYERMATCH_S2_HOSTED_ATTESTATION_2026-10-25.json",
+      "line": 146,
+      "rule": "keylike-literal",
+      "syntheticContext": false,
+      "disposition": "METADATA_ABSENCE_STATUS_NOT_SECRET"
+    },
+    {
+      "path": "docs/BUYERMATCH_S2_HOSTED_ATTESTATION_2026-10-25.json",
+      "line": 147,
+      "rule": "keylike-literal",
+      "syntheticContext": true,
+      "disposition": "METADATA_ABSENCE_STATUS_NOT_SECRET"
+    },
+    {
+      "path": "docs/BUYERMATCH_S2_HOSTED_ATTESTATION_2026-10-25.json",
+      "line": 148,
+      "rule": "keylike-literal",
+      "syntheticContext": true,
+      "disposition": "METADATA_ABSENCE_STATUS_NOT_SECRET"
+    },
+    {
+      "path": "tests/buyermatch/operations.test.js",
+      "line": 19,
+      "rule": "keylike-literal",
+      "syntheticContext": true,
+      "disposition": "SYNTHETIC_TEST_LITERAL"
+    },
+    {
+      "path": "tests/buyermatch/production-delivery.test.js",
+      "line": 78,
+      "rule": "keylike-literal",
+      "syntheticContext": false,
+      "disposition": "EXPLICIT_ZERO_BYTE_TEST_KEY"
+    },
+    {
+      "path": "tests/registration-handler.test.mjs",
+      "line": 38,
+      "rule": "keylike-literal",
+      "syntheticContext": true,
+      "disposition": "SYNTHETIC_TEST_LITERAL"
+    }
+  ],
+  "asOfLocalDate": "2026-10-28",
+  "applicationAcceptanceHead": "d7c0a785765ca62c5292c5bab1a6523088c4660a",
+  "additionalConsolidationCommitPending": true,
+  "connectivity": "PASS",
+  "selectedMilestoneAncestry": "PASS_ALL_13",
+  "localNetworkAndReconciliationAncestry": "PASS",
+  "remoteBase": "501cb6a4566211f6828633f862163420fed9c016",
+  "branch": "codex/buyermatch-1b-integration",
+  "remoteComparison": {
+    "ahead": 8,
+    "behind": 0,
+    "insertions": 2975,
+    "deletions": 48
+  },
+  "changedPaths": [
+    {
+      "status": "A",
+      "path": "acceptance/local-synthetic/README.md"
+    },
+    {
+      "status": "A",
+      "path": "acceptance/local-synthetic/supabase/.gitignore"
+    },
+    {
+      "status": "A",
+      "path": "acceptance/local-synthetic/supabase/config.toml"
+    },
+    {
+      "status": "M",
+      "path": "api/_accountAuth.ts"
+    },
+    {
+      "status": "A",
+      "path": "docs/BUYERMATCH_APPLICATION_BUILD_COMPLETION_20261027.md"
+    },
+    {
+      "status": "A",
+      "path": "docs/BUYERMATCH_FINAL_INDEPENDENT_ACCEPTANCE.md"
+    },
+    {
+      "status": "M",
+      "path": "docs/BUYERMATCH_LOCAL_RELEASE_CANDIDATE.md"
+    },
+    {
+      "status": "M",
+      "path": "docs/BUYERMATCH_PRODUCT_BUILD.md"
+    },
+    {
+      "status": "M",
+      "path": "docs/R2_STAGING_RECOVERY_RUNBOOK.md"
+    },
+    {
+      "status": "A",
+      "path": "docs/release-evidence/2026-10-27/C4_HOSTED_WINDOW_RESULT.md"
+    },
+    {
+      "status": "A",
+      "path": "docs/release-evidence/2026-10-27/FINAL_INDEPENDENT_PREPARATION.json"
+    },
+    {
+      "status": "A",
+      "path": "docs/release-evidence/2026-10-27/c4-active-run.json"
+    },
+    {
+      "status": "A",
+      "path": "docs/release-evidence/2026-10-27/c4-authority-ready.json"
+    },
+    {
+      "status": "A",
+      "path": "docs/release-evidence/2026-10-27/c4-controller-result.json"
+    },
+    {
+      "status": "A",
+      "path": "docs/release-evidence/2026-10-27/c4-independent-cleanup.json"
+    },
+    {
+      "status": "A",
+      "path": "docs/release-evidence/2026-10-27/c4-private-login-ready.png"
+    },
+    {
+      "status": "A",
+      "path": "docs/release-evidence/2026-10-27/c4-source-verification.json"
+    },
+    {
+      "status": "A",
+      "path": "docs/release-evidence/2026-10-28/LOCAL_FULL_STACK_ACCEPTANCE.md"
+    },
+    {
+      "status": "A",
+      "path": "docs/release-evidence/2026-10-28/LOCAL_FULL_STACK_RESULTS.json"
+    },
+    {
+      "status": "A",
+      "path": "docs/release-evidence/2026-10-28/LOCAL_RUNTIME_INSTALLATION.md"
+    },
+    {
+      "status": "A",
+      "path": "docs/release-evidence/2026-10-28/browser-buyer-proof.png"
+    },
+    {
+      "status": "A",
+      "path": "docs/release-evidence/2026-10-28/browser-subscriber.png"
+    },
+    {
+      "status": "M",
+      "path": "eslint.config.js"
+    },
+    {
+      "status": "M",
+      "path": "scripts/rehearse-buyermatch-production.mjs"
+    },
+    {
+      "status": "A",
+      "path": "scripts/run-isolated-buyermatch-acceptance.mjs"
+    },
+    {
+      "status": "A",
+      "path": "scripts/setup-local-buyermatch-acceptance.mjs"
+    },
+    {
+      "status": "A",
+      "path": "scripts/testing/buyermatch-final-acceptance.mjs"
+    },
+    {
+      "status": "A",
+      "path": "scripts/testing/buyermatch-local-api.mjs"
+    },
+    {
+      "status": "A",
+      "path": "scripts/testing/buyermatch-local-stack.config.mjs"
+    },
+    {
+      "status": "A",
+      "path": "scripts/testing/isolated-buyermatch-fixture.mjs"
+    },
+    {
+      "status": "A",
+      "path": "scripts/testing/local-full-stack-acceptance.mjs"
+    },
+    {
+      "status": "A",
+      "path": "scripts/testing/local-full-stack-boundaries.mjs"
+    },
+    {
+      "status": "A",
+      "path": "scripts/testing/local-full-stack-final-check.mjs"
+    },
+    {
+      "status": "A",
+      "path": "scripts/testing/local-full-stack-runtime.mjs"
+    },
+    {
+      "status": "A",
+      "path": "scripts/testing/local-loopback-containers.mjs"
+    },
+    {
+      "status": "A",
+      "path": "scripts/testing/recovery-coverage.mjs"
+    },
+    {
+      "status": "M",
+      "path": "scripts/testing/s2-payment-free-controller.mjs"
+    },
+    {
+      "status": "A",
+      "path": "server/buyermatch/local-synthetic.js"
+    },
+    {
+      "status": "M",
+      "path": "server/buyermatch/matching.js"
+    },
+    {
+      "status": "A",
+      "path": "server/buyermatch/operations.js"
+    },
+    {
+      "status": "M",
+      "path": "server/buyermatch/response-config.js"
+    },
+    {
+      "status": "M",
+      "path": "server/buyermatch/staging.js"
+    },
+    {
+      "status": "M",
+      "path": "server/http/buyermatch.ts"
+    },
+    {
+      "status": "M",
+      "path": "src/pages/app/BuyerMatch.tsx"
+    },
+    {
+      "status": "A",
+      "path": "src/pages/app/BuyerMatchActivity.tsx"
+    },
+    {
+      "status": "M",
+      "path": "src/pages/app/BuyerMatchUsage.tsx"
+    },
+    {
+      "status": "M",
+      "path": "src/pages/public/BuyerMatchLanding.tsx"
+    },
+    {
+      "status": "M",
+      "path": "supabase/functions/notify-submission/index.ts"
+    },
+    {
+      "status": "M",
+      "path": "supabase/migrations/20261026175709_buyermatch_authenticated_buyer_self_service.sql"
+    },
+    {
+      "status": "A",
+      "path": "supabase/migrations/20261028025423_buyermatch_deal_activity.sql"
+    },
+    {
+      "status": "A",
+      "path": "supabase/migrations/20261028025900_buyermatch_explicit_criteria_version.sql"
+    },
+    {
+      "status": "A",
+      "path": "supabase/migrations/20261028031838_buyermatch_service_function_permissions.sql"
+    },
+    {
+      "status": "M",
+      "path": "supabase/staging/999_staging_access.sql"
+    },
+    {
+      "status": "A",
+      "path": "tests/buyermatch/activity-ui.test.js"
+    },
+    {
+      "status": "M",
+      "path": "tests/buyermatch/analysis-version.test.js"
+    },
+    {
+      "status": "M",
+      "path": "tests/buyermatch/api.test.js"
+    },
+    {
+      "status": "M",
+      "path": "tests/buyermatch/baseline.test.js"
+    },
+    {
+      "status": "M",
+      "path": "tests/buyermatch/buyer-account-ui.test.js"
+    },
+    {
+      "status": "A",
+      "path": "tests/buyermatch/deal-activity.test.js"
+    },
+    {
+      "status": "A",
+      "path": "tests/buyermatch/explicit-criteria.test.js"
+    },
+    {
+      "status": "A",
+      "path": "tests/buyermatch/final-acceptance-preparation.test.mjs"
+    },
+    {
+      "status": "A",
+      "path": "tests/buyermatch/isolated-application-acceptance.test.mjs"
+    },
+    {
+      "status": "A",
+      "path": "tests/buyermatch/local-api-adapter.test.mjs"
+    },
+    {
+      "status": "A",
+      "path": "tests/buyermatch/local-client-boundary.test.mjs"
+    },
+    {
+      "status": "A",
+      "path": "tests/buyermatch/local-stack-setup.test.mjs"
+    },
+    {
+      "status": "A",
+      "path": "tests/buyermatch/notification-log-boundary.test.mjs"
+    },
+    {
+      "status": "A",
+      "path": "tests/buyermatch/operations.test.js"
+    },
+    {
+      "status": "M",
+      "path": "tests/buyermatch/s2-billing-journal.test.mjs"
+    },
+    {
+      "status": "M",
+      "path": "tests/buyermatch/s2-billing-runner.test.mjs"
+    },
+    {
+      "status": "M",
+      "path": "tests/buyermatch/s2-payment-free-controller.test.mjs"
+    },
+    {
+      "status": "M",
+      "path": "tests/buyermatch/s2-secret-recovery.test.mjs"
+    },
+    {
+      "status": "M",
+      "path": "tests/buyermatch/s2-stripe-operator.test.mjs"
+    },
+    {
+      "status": "A",
+      "path": "tests/buyermatch/service-function-permissions.test.js"
+    },
+    {
+      "status": "A",
+      "path": "tests/buyermatch/synthetic-recovery-coverage.test.mjs"
+    }
+  ],
+  "highConfidenceSecretFindings": 0,
+  "unpublishedCredentialFindings": 0,
+  "imageReview": {
+    "c4": "Synthetic existing QA account locator with empty password field; no credential/token. Locator already present in published source.",
+    "buyer": "Synthetic proof statuses only",
+    "subscriber": "Synthetic local workspace and hourly-limit feedback"
+  },
+  "excludedExistingWorkingItems": [
+    {
+      "path": "docs/BUYERMATCH_FORWARD_RELEASE_MANIFEST.json",
+      "status": "MODIFIED"
+    },
+    {
+      "path": "docs/BUYERMATCH_RELEASE_DECISION_20261025.md",
+      "status": "UNTRACKED"
+    },
+    {
+      "path": "docs/BUYERMATCH_RELEASE_METADATA_REVIEW_20261025.json",
+      "status": "UNTRACKED"
+    },
+    {
+      "path": "docs/REGISTRATION_FIRST_PUSH_ISOLATION_REVIEW.md",
+      "status": "UNTRACKED"
+    },
+    {
+      "path": "docs/release-evidence/2026-10-27/PRIVATE_HANDOFF_VISIBILITY.md",
+      "status": "UNTRACKED"
+    },
+    {
+      "path": "docs/ui-evidence/buyermatch-buyer-mobile.png",
+      "status": "UNTRACKED"
+    },
+    {
+      "path": "scripts/testing/hp-svm-enable-once.ps1",
+      "status": "UNTRACKED"
+    },
+    {
+      "path": "scripts/testing/hp-svm-readonly.ps1",
+      "status": "UNTRACKED"
+    },
+    {
+      "path": "scripts/testing/owner-s2-handoff-readiness.ps1",
+      "status": "UNTRACKED"
+    }
+  ],
+  "noNewTestsExecuted": true,
+  "pushPerformed": false,
+  "hostedOrInfrastructureOperations": false,
+  "ignoredPrivateContentsOpened": false
+}

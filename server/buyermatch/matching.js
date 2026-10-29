@@ -1,5 +1,5 @@
 // SERVER ONLY. Never bundle this module or its buyer inputs into the client.
-export const ENGINE_VERSION = "1.0.1";
+export const ENGINE_VERSION = "1.0.2";
 const present = (x) => x !== undefined && x !== null && x !== "";
 const normalized = (x) => String(x).trim().toLowerCase();
 const includes = (xs, x) => xs?.some((v) => normalized(v) === normalized(x));
@@ -12,6 +12,9 @@ const numericFields = [
   "capRate",
   "repairs",
   "arv",
+  "noi",
+  "leaseYears",
+  "debtServiceCoverage",
 ];
 export function validateDeal(deal) {
   for (const key of ["state", "city", "assetType"])
@@ -158,7 +161,7 @@ export function matchBuyer(deal, buyer, now = new Date()) {
   // Other missing dimensions remain visible as confidence gaps as before.
   const unresolvedRestriction = unknown.some(name =>
     name.startsWith('Excluded ') || ['condition', 'occupancy', 'dealType', 'financing',
-      'ARV formula', 'price', 'repairs', 'capRate', 'noi', 'debtServiceCoverage'].includes(name));
+      'ARV formula', ...ranges.map(([field]) => field)].includes(name));
   const eligible = failed.length === 0 && !unresolvedRestriction && marketFit.includes(true);
   const score = eligible
     ? Math.round(criteriaScore * 0.85 + freshness * 0.15)

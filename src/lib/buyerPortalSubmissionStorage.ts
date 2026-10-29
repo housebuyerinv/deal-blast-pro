@@ -1,4 +1,5 @@
 import { notifySubmission } from './submissionNotifications'
+import { INTAKE_UNAVAILABLE_MESSAGE } from './buyerIntakeFeedback'
 
 function notifyBuyerPortalQueueChanged() {
   try {
@@ -84,7 +85,17 @@ const requireSupabase = () => {
   return supabase
 }
 
-export const createBuyerPortalSubmission = async (buyerData: any) => {
+function intakeUnavailable(error: any) {
+  return ['42501', '42883', 'PGRST202'].includes(String(error?.code || ''))
+}
+
+function reviewError(error: any) {
+  return new Error(intakeUnavailable(error)
+    ? 'Buyer intake review is temporarily unavailable. Existing submissions are preserved. Contact the platform operator.'
+    : 'Buyer intake review could not be completed. Please contact support.')
+}
+
+export const createBuyerPortalSubmission = async (buyerData: any, options: { operationKey?: string; notify?: boolean } = {}) => {
   const client = requireSupabase()
   const payload = {
     ...buyerData,
@@ -93,20 +104,19 @@ export const createBuyerPortalSubmission = async (buyerData: any) => {
     status: buyerData?.status || 'Submitted / Pending Review',
   }
 
-  const { data, error } = await client
-    .from(BUYER_PORTAL_SUBMISSIONS_TABLE)
-    .insert({
-      status: 'pending_review',
-      buyer_data: payload,
-    })
-    .select('id')
-    .single()
+  // A receipt RPC avoids granting public SELECT/UPDATE access to private intake.
+  // Never fall back to the historical direct table insert if migration is missing.
+  const { data, error } = await client.rpc('bm_submit_buyer_intake', {
+    p_key: options.operationKey || crypto.randomUUID(), p_value: payload,
+  })
 
   if (error) {
-    throw error
+    if (intakeUnavailable(error)) throw new Error(INTAKE_UNAVAILABLE_MESSAGE)
+    throw new Error('Buyer submission could not be confirmed. Retry the same details or contact support.')
   }
+  if (data?.recorded !== true || !data?.id) throw new Error('Buyer submission receipt is unavailable. Please contact support before submitting again.')
 
-  const notification = await notifySubmission('buyer', { ...payload, id: data?.id }, {
+  const notification = options.notify === false ? { ok: true, skipped: true } : await notifySubmission('buyer', { ...payload, id: data?.id }, {
     eventType: 'new_buyer',
     workspaceId: 'default',
     relatedRecordId: data?.id,
@@ -126,7 +136,7 @@ export const listPendingBuyerPortalSubmissions = async () => {
     .order('created_at', { ascending: false })
 
   if (error) {
-    throw error
+    throw reviewError(error)
   }
 
   return (data || []).filter(isReviewableBuyerPortalSubmission)
@@ -139,7 +149,7 @@ export const countPendingBuyerPortalSubmissions = async () => {
     .select('id', { count: 'exact', head: true })
     .in('status', REVIEWABLE_BUYER_PORTAL_DB_STATUSES)
 
-  if (error) throw error
+  if (error) throw reviewError(error)
   return count || 0
 }
 
@@ -153,7 +163,7 @@ export const listRecentBuyerPortalSubmissionActivity = async (limit = 4) => {
     .order('created_at', { ascending: false })
     .limit(safeLimit)
 
-  if (error) throw error
+  if (error) throw reviewError(error)
   return data || []
 }
 
@@ -192,7 +202,7 @@ export const markBuyerPortalSubmissionsImported = async (ids: string[], metadata
   }
 
   if (error) {
-    throw error
+    throw reviewError(error)
   }
 
   notifyBuyerPortalQueueChanged()
@@ -217,7 +227,7 @@ export async function markBuyerPortalSubmissionsDismissed(ids: string[]) {
     .in('id', ids)
 
   if (error) {
-    throw error
+    throw reviewError(error)
   }
   notifyBuyerPortalQueueChanged()
 }

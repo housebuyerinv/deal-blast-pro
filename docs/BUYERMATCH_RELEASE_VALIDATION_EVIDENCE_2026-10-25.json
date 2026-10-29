@@ -1,0 +1,120 @@
+{
+  "schema": 1,
+  "asOf": "2026-10-25",
+  "applicationCanarySha": "202b3d3965aa2fd4bb9e16dab06f207b157b8acd",
+  "operatorReviewSha": "c0fdbf0dd93c30eeb510a0d7581d14100a60db7d",
+  "deploymentId": "dpl_DUUyLNdAtKPN1UhGR1Yvgx5MC25B",
+  "canaryState": "RETIRED_AUTOMATICALLY",
+  "previewReadyVerified": true,
+  "manualRemoval": false,
+  "anonymousProtection": "302_TO_VERCEL_AUTH",
+  "withoutApplicationAuth": "SIGN_IN_REQUIRED",
+  "agreementDiscovery": {
+    "required": true,
+    "exactQaIdsVersionsAndHashes": true
+  },
+  "ownerBuildRuntimeAttestation": "NOT_RUN_PRIVATE_LOGIN_NOT_COMPLETED_IN_WINDOW",
+  "configuredSettingsPerScope": 17,
+  "automaticResult": true,
+  "independentReadback": {
+    "at": "2026-10-25T13:56:42.580Z",
+    "mode": "INDEPENDENT_READ_ONLY_POST_CLEANUP",
+    "deploymentId": "dpl_DUUyLNdAtKPN1UhGR1Yvgx5MC25B",
+    "automaticWorkerVerified": true,
+    "status": "PASS_AUTOMATIC_REMOVAL_AND_INDEPENDENT_READBACK",
+    "exactAuthenticatedHttp404": true,
+    "stableAliasUnchanged": true,
+    "safety": {
+      "registrationPaused": true,
+      "checkoutPaused": true,
+      "liveBillingPaused": true,
+      "deliveryDisabled": true,
+      "stagingOnly": true,
+      "endpointDisabled": true,
+      "receiverPaused": true,
+      "protectionEnabled": true
+    },
+    "inventoryCount": 7,
+    "priorDeploymentInventoryUnchanged": true,
+    "productionContainmentUnchanged": true
+  },
+  "evidenceHashes": {
+    "watchdogResult": "3e0e3f1db4ba2fedd6d72322b920ea3f79aafeded1f2e714a914832b0da874ed",
+    "watchdogJournal": "f087c812ff80c8001b2044921ec4fa6db4e4ade7651971599193a212c5ace097",
+    "independentReadback": "7eae5db1f9c22564200cccfbc64d640478c6c3eb7c5b694d717132484659d29c"
+  },
+  "localBrowser": {
+    "environment": "LOCAL_SYNTHETIC_ACTUAL_BROWSER",
+    "applicationSourceMatches": "5fab059a531f20c1b94c581c1b9e0c95a205a66f",
+    "providerRequests": 0,
+    "databaseWrites": 0,
+    "tests": [
+      {
+        "scenario": "390px intake headings and validation text wrap visibly",
+        "result": "PASS",
+        "evidence": "actual browser screenshot in fixed390px iframe; not mobile-device emulation"
+      },
+      {
+        "scenario": "390px keyboard Tab moves from name to labelled email field",
+        "result": "PASS",
+        "evidence": "actual focused AX element EMAIL"
+      },
+      {
+        "scenario": "390px empty submission gives8 required-field errors and focuses error summary",
+        "result": "PASS",
+        "evidence": "actual AX error list and screenshot"
+      },
+      {
+        "scenario": "private response without invitation denies form access",
+        "result": "PASS",
+        "evidence": "actual browser prompt to reopen complete invitation"
+      },
+      {
+        "scenario": "synthetic invitation opens and fragment is removed",
+        "result": "PASS",
+        "evidence": "actual browser location contains no fragment and form appears"
+      },
+      {
+        "scenario": "pending response disables edit, submit and conversation controls",
+        "result": "PASS",
+        "evidence": "actual AX disabled controls; synthetic count1"
+      },
+      {
+        "scenario": "stale completion cannot populate or unlock newer invitation",
+        "result": "PASS",
+        "evidence": "actual browser pending request remains locked after first completion"
+      },
+      {
+        "scenario": "current invitation completion unlocks and reports recorded response",
+        "result": "PASS",
+        "evidence": "actual browser controls enabled and success status"
+      },
+      {
+        "scenario": "synthetic opt-out reports unsubscribe completion",
+        "result": "PASS",
+        "evidence": "actual browser selected unsubscribe and displayed opted-out status"
+      }
+    ],
+    "limits": [
+      "synthetic fetch fixtures, not hosted authorization or database enforcement",
+      "no real invitations or contact delivery",
+      "not a mobile hardware or complete subscriber/admin acceptance test",
+      "no claim of hosted deal-to-distribution round trip"
+    ]
+  },
+  "restrictions": {
+    "testPurchases": 0,
+    "registrationPosts": 0,
+    "productionWrites": 0,
+    "liveDelivery": false,
+    "moneyMapActions": 0
+  },
+  "remaining": [
+    "owner-authenticated attestation",
+    "current-MVP hosted browser/workflow/privacy acceptance",
+    "Pro and subscription lifecycle",
+    "legal decisions and final approval",
+    "verified Linux resources and full encrypted recovery",
+    "separate Production approval"
+  ]
+}

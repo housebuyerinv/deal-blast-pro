@@ -1,4 +1,6 @@
-﻿import React, { useState } from 'react'
+import { subscriberDestination } from '../../lib/subscriberDestination'
+import { completeRegistration } from '../../lib/completeRegistration'
+import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { supabase } from '../../lib/supabase'
@@ -26,6 +28,7 @@ export default function Login() {
         return
       }
 
+      const destination = subscriberDestination(window.location.search, await completeRegistration())
       const userEmail = data.user?.email || email
       const fullName =
         data.user?.user_metadata?.full_name ||
@@ -44,7 +47,8 @@ export default function Login() {
         }
       }
 
-      const startNewAccount = window.sessionStorage.getItem('dealblastpro:start-new-account') === 'true'
+      window.sessionStorage.removeItem('dealblastpro:start-new-account')
+      const startNewAccount = false // Server provisioning owns workspace creation.
       login(userEmail, fullName, { id: data.user?.id, newWorkspace: startNewAccount })
       if (startNewAccount) {
         window.sessionStorage.removeItem('dealblastpro:start-new-account')
@@ -53,10 +57,10 @@ export default function Login() {
       const loadedCloud = startNewAccount ? false : await loadCloudAppDataToLocal({ reload: false, silentMissing: true })
       if (loadedCloud) {
         toast.success('Cloud data loaded')
-        window.location.href = '/app/dashboard'
+        window.location.href = destination
         return
       }
-      navigate('/app/dashboard')
+      navigate(destination)
     } catch (err: any) {
       toast.error(err?.message || 'Login failed')
     } finally {
@@ -84,18 +88,18 @@ export default function Login() {
 
         <div className="card p-8">
           <div className="text-2xl font-semibold mb-1">Welcome back</div>
-          <div className="text-[#8B92A3] mb-6">Sign in to your Deal Blast Pro workspace</div>
+          <div className="text-[#8B92A3] mb-6">Sign in to your workspace. BuyerMatch subscriptions are independent of DBP CRM.</div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <div className="text-xs text-[#8B92A3] mb-1.5">EMAIL</div>
-              <input className="input" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@company.com" required />
+              <label htmlFor="login-email" className="block text-xs text-[#8B92A3] mb-1.5">EMAIL</label>
+              <input id="login-email" className="input" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@company.com" required />
             </div>
 
             <div>
-              <div className="text-xs text-[#8B92A3] mb-1.5">PASSWORD</div>
+              <label htmlFor="login-password" className="block text-xs text-[#8B92A3] mb-1.5">PASSWORD</label>
               <div className="flex gap-2">
-                <input className="input flex-1" type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} placeholder="Your password" required />
+                <input id="login-password" className="input flex-1" type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} placeholder="Your password" required />
                 <button type="button" onClick={() => setShowPassword(v => !v)} className="btn btn-ghost px-3">
                   {showPassword ? 'Hide' : 'Show'}
                 </button>
@@ -110,7 +114,7 @@ export default function Login() {
           <div className="mt-4 text-center text-sm">
             <Link to="/forgot-password" className="text-[#3B82F6]">Forgot password?</Link>
             <span className="mx-2 text-[#8B92A3]">-</span>
-              <Link to="/register" className="text-[#3B82F6]">Create an account</Link>
+              <Link to={`/register${window.location.search}`} className="text-[#3B82F6]">Create an account</Link>
             <span className="mx-2 text-[#8B92A3]">-</span>
             <Link to="/pricing" className="text-[#3B82F6]">Pricing</Link>
           </div>

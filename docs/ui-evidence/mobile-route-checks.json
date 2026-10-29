@@ -1,0 +1,113 @@
+{
+  "scope": "Actual local browser DOM checks at 390px; no form submission or provider operations",
+  "checks": [
+    {
+      "route": "/buyermatch",
+      "contentWidth": 375,
+      "headings": [
+        "The right buyer fit.\nA more focused deal flow."
+      ],
+      "width": 390,
+      "pass": true
+    },
+    {
+      "route": "/buyermatch/features",
+      "contentWidth": 375,
+      "headings": [
+        "Every deal. A clearer next step."
+      ],
+      "width": 390,
+      "pass": true
+    },
+    {
+      "route": "/buyermatch/how-it-works",
+      "contentWidth": 375,
+      "headings": [
+        "From property details to private conversations."
+      ],
+      "width": 390,
+      "pass": true
+    },
+    {
+      "route": "/buyermatch/pricing",
+      "contentWidth": 375,
+      "headings": [
+        "A plan for your deal flow."
+      ],
+      "width": 390,
+      "pass": true
+    },
+    {
+      "route": "/buyermatch/demo",
+      "contentWidth": 375,
+      "headings": [
+        "Your next deal, in focus."
+      ],
+      "width": 390,
+      "pass": true
+    },
+    {
+      "route": "/buyermatch/demo/plans",
+      "contentWidth": 375,
+      "headings": [
+        "Capacity that fits your workflow."
+      ],
+      "width": 390,
+      "pass": true
+    },
+    {
+      "route": "/buyermatch/demo/buyers",
+      "contentWidth": 375,
+      "headings": [
+        "Your criteria. Your next opportunity."
+      ],
+      "width": 390,
+      "pass": true
+    },
+    {
+      "route": "/buyermatch/demo/admin",
+      "contentWidth": 375,
+      "headings": [
+        "A considered approach to your network."
+      ],
+      "width": 390,
+      "pass": true
+    },
+    {
+      "route": "/buyermatch/demo/deals/sample-oak",
+      "contentWidth": 375,
+      "headings": [
+        "124 Sample Oak Lane"
+      ],
+      "width": 390,
+      "pass": true
+    },
+    {
+      "route": "/buyermatch/demo/deals/unknown",
+      "contentWidth": 390,
+      "headings": [
+        "Sample deal not found"
+      ],
+      "width": 390,
+      "pass": true
+    },
+    {
+      "route": "/buyermatch/buyers",
+      "contentWidth": 375,
+      "headings": [
+        "Join the BuyerMatch buyer network"
+      ],
+      "width": 390,
+      "pass": true
+    },
+    {
+      "route": "/register?product=buyermatch&tier=pro",
+      "contentWidth": 375,
+      "headings": [
+        "Create your BuyerMatch account"
+      ],
+      "width": 390,
+      "pass": true
+    }
+  ]
+}

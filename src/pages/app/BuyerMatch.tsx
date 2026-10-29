@@ -1,8 +1,11 @@
 import BuyerCriteriaEditor from "./BuyerCriteriaEditor";
+import { BuyerMatchOperations, DealActivity } from './BuyerMatchActivity';
+import BuyerProofReview from './BuyerProofReview';
+import { WorkspaceOverview, WorkflowSteps } from '../../components/buyermatch/WorkspaceOverview';
 import BuyerMatchConfiguration from "./BuyerMatchConfiguration";
 import { UsageCards, AdminUsage, CommercialPlans } from './BuyerMatchUsage';
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { Link, NavLink, useLocation, useNavigate, useParams } from "react-router-dom";
 import Papa from "papaparse";
 import { supabase } from "../../lib/supabase";
 import { useAppStore } from "../../store/useAppStore";
@@ -85,17 +88,26 @@ function Analysis({ value }: { value: RecordData }) {
   );
 }
 export default function BuyerMatch() {
+  const ownerId = useAppStore(s => s.user?.id);
+  const location = useLocation();
+  // Never reuse drafts/private results when the account or deal route changes.
+  return <BuyerMatchScreen key={`${ownerId || 'signed-out'}:${location.pathname}`} />;
+}
+function BuyerMatchScreen() {
   const { id } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const isPlans = location.pathname.endsWith("/plans");
-  const isAdmin = location.pathname.endsWith("/admin");
+  const routePath = location.pathname.replace(/\/+$/, "");
+  const isPlans = routePath.endsWith("/plans");
+  const isAdmin = routePath.endsWith("/admin");
   const [data, setData] = useState<RecordData>({});
   const [plans, setPlans] = useState<RecordData>({});
   const checkoutKeys = useRef<Record<string, string>>({});
   const [error, setError] = useState("");
+  const [dealSearch, setDealSearch] = useState("");
   const [notice, setNotice] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [property, setProperty] = useState<RecordData>({
     serviceType: 'software',
     assetType: "sfh",
@@ -123,11 +135,17 @@ export default function BuyerMatch() {
   const [settlementKey, setSettlementKey] = useState("");
   const [filter, setFilter] = useState("all");
   const [adminPage, setAdminPage] = useState(0);
+  const [adminSearch, setAdminSearch] = useState("");
   const [operationKey, setOperationKey] = useState(() => crypto.randomUUID());
   const reload = useCallback(async () => {
+    setLoadFailed(false);
+    try {
     const plan = await request("plans", {}, true);
     setPlans(plan);
-    if (isPlans) return;
+    if (isPlans) {
+      setDocuments((await request('onboarding', {}, true)).documents);
+      return;
+    }
     if (isAdmin) {
       if (!plan.isNetworkAdmin)
         throw new Error("Network administrator required");
@@ -143,6 +161,10 @@ export default function BuyerMatch() {
       setTitle(detail.deal.title || {});
       setDocuments((await request("documents", {}, true)).documents);
     } else setData(await request("list", {}, true));
+    } catch (error) {
+      setLoadFailed(true);
+      throw error;
+    }
   }, [id, isPlans, isAdmin, adminPage]);
   useEffect(() => {
     setData({});
@@ -210,24 +232,27 @@ export default function BuyerMatch() {
     </label>
   );
   return (
-    <main className="max-w-6xl mx-auto p-4 sm:p-8 space-y-6 text-slate-100">
+    <main className="bm-workspace-app max-w-6xl mx-auto p-4 sm:p-8 space-y-6 text-slate-100">
       <header className="space-y-3">
         <p className="text-xs tracking-widest text-emerald-400">
           DEAL BLAST PRO · PRIVATE NETWORK
         </p>
         <h1 className="text-3xl font-semibold">
           {isAdmin
-            ? "Private Buyer Network"
+            ? "Network administration"
             : isPlans
-              ? "BuyerMatch access"
-              : "DBP BuyerMatch"}
+              ? "Your BuyerMatch plan & usage"
+              : id ? "Deal workspace" : "Your next deal, in focus."}
         </h1>
-        <nav className="flex gap-5 text-sm">
-          <Link to="/app/buyermatch">My deals</Link>
-          <Link to="/app/buyermatch/plans">Plans & allowances</Link>
+        <p className="text-sm text-slate-400">{isAdmin ? 'Review buyer criteria, consent and evidence before eligibility. Network identities remain administrator-only.' : isPlans ? 'Independent BuyerMatch billing. Your DBP CRM subscription stays separate.' : 'Save the property. Understand buyer fit. Review before distribution.'}</p>
+        <nav aria-label="BuyerMatch workspace" className="flex flex-wrap gap-5 text-sm">
+          <NavLink end to="/app/buyermatch">My deals</NavLink>
+            <NavLink to="/app/buyermatch/conversion">Conversion intelligence</NavLink>
+          <NavLink to="/app/buyermatch/plans">Plans & allowances</NavLink>
           {plans.isNetworkAdmin && (
-            <Link to="/app/buyermatch/admin">Network admin</Link>
+            <NavLink to="/app/buyermatch/admin">Network admin</NavLink>
           )}
+          <Link to="/buyermatch/how-it-works">Product guide</Link>
         </nav>
       </header>
       {error && (
@@ -236,6 +261,7 @@ export default function BuyerMatch() {
           className="rounded border border-amber-800 bg-amber-950/40 p-4"
         >
           {error}
+          <button className="btn btn-ghost ml-3" disabled={busy} onClick={() => void run(reload)}>Retry</button>
         </p>
       )}
       {busy && <p role="status">Working…</p>}
@@ -246,6 +272,19 @@ export default function BuyerMatch() {
       )}
       {isPlans ? (
         <section className="space-y-5">
+          <div className="rounded-xl border border-slate-700 p-5 space-y-3">
+            <h2 className="text-xl font-semibold">Get started with BuyerMatch</h2>
+            <p>Review the agreements, subscribe, then add a property to see private matches. Analysis does not contact buyers. Distribution requires eligibility, consent and review. Managed disposition is arranged separately.</p>
+            <p>No paid CRM plan is required. Your existing CRM subscription stays separate.</p>
+            {new URLSearchParams(location.search).has('checkout') && <p role="status">{new URLSearchParams(location.search).get('checkout') === 'canceled' ? 'Checkout canceled. No subscription is activated by this page. You can retry below.' : 'Payment returned. Access updates only after server verification. Refresh subscription status if payment is still processing.'}</p>}
+            {button('Refresh subscription status', async () => { await reload(); })}
+            {documents.map(doc => <div key={doc.id} className="space-y-2">
+              <details><summary>{doc.kind} · {doc.version} · {doc.accepted ? 'Accepted' : 'Review required'}</summary><p className="whitespace-pre-wrap max-h-60 overflow-auto text-sm">{doc.content}</p></details>
+              {!doc.accepted && button(`Accept ${doc.kind}`, async () => { await request('onboarding-accept', { documentId: doc.id, hash: doc.document_hash, signature }); await reload(); }, signature.trim().length < 2)}
+            </div>)}
+            {documents.some(doc => !doc.accepted) && <label className="block">Electronic signature (full name)<input className={inputClass} value={signature} maxLength={200} onChange={e => setSignature(e.target.value)} /><span className="text-sm text-slate-400">Selecting Accept records your signature for that exact document version.</span></label>}
+            <Link className="btn btn-primary inline-block" to="/app/buyermatch">Open BuyerMatch workspace</Link>
+          </div>
           <UsageCards usage={plans.usage} />
           <CommercialPlans plans={plans.commercialPlans} />
           <p>
@@ -280,6 +319,11 @@ export default function BuyerMatch() {
                       ? plans.checkoutMode === 'live' ? 'Secure Stripe subscription checkout' : "Stripe test mode · no live billing"
                       : "Checkout is unavailable. No payment will be taken."}
                   </p>
+                  {product === 'buyermatch' && p?.billingManaged && <div className="mt-3 space-y-2">
+                    {button('Update BuyerMatch payment method', async () => { const result = await request('billing-portal', { operation: 'payment' }); window.location.assign(result.url); })}
+                    {button('Cancel BuyerMatch subscription', async () => { const result = await request('billing-portal', { operation: 'cancel' }); window.location.assign(result.url); })}
+                    <p className="text-sm">Stripe shows the cancellation date, payment details and any price adjustment before confirmation. Access follows verified subscription status. An already-ended subscription requires support review before restarting; this prevents duplicate subscriptions.</p>
+                  </div>}
                   {plans.catalog
                     ?.filter((item: RecordData) => item.product === product)
                     .map((item: RecordData) => (
@@ -296,21 +340,20 @@ export default function BuyerMatch() {
                             : item.interval}
                         </p>
                         {plans.checkoutEnabled &&
-                          button(plans.checkoutMode === 'live' ? 'Open secure checkout' : "Open Stripe test checkout", async () => {
+                          button(product === 'buyermatch' && p?.billingManaged ? 'Review plan change in Stripe' : plans.checkoutMode === 'live' ? 'Open secure checkout' : "Open Stripe test checkout", async () => {
                             const key = (checkoutKeys.current[item.version] ??=
                               crypto.randomUUID());
                             try {
-                              const result = await request("checkout", {
-                                planVersion: item.version,
-                                operationKey: key,
-                              });
+                              const result = product === 'buyermatch' && p?.billingManaged
+                                ? await request('billing-portal', { operation: 'change', planVersion: item.version })
+                                : await request("checkout", { planVersion: item.version, operationKey: key });
                               window.location.assign(result.url);
                             } catch (error: any) {
                               if (error.status === 409)
                                 delete checkoutKeys.current[item.version];
                               throw error;
                             }
-                          })}
+                          }, documents.length !== 2 || documents.some(doc => !doc.accepted))}
                       </div>
                     ))}
                 </article>
@@ -330,6 +373,8 @@ export default function BuyerMatch() {
         plans.isNetworkAdmin && (
           <>
             <AdminUsage metrics={data.metrics} />
+            <BuyerMatchOperations request={request} />
+            <BuyerProofReview request={request}/>
             <section className="border border-slate-700 rounded-xl p-5 space-y-4">
               <h2 className="text-xl">Import buyers</h2>
               <p className="text-sm text-slate-400">
@@ -474,6 +519,8 @@ export default function BuyerMatch() {
             </section>
             <section className="space-y-3">
               <h2 className="text-xl">Network buyers</h2>
+              <p className="text-sm text-slate-400">Private administrator view. Profile status, verification and invitation consent are separate checks.</p>
+              <label className="block text-sm text-slate-400">Search this page of buyers<input type="search" className={inputClass} value={adminSearch} onChange={e => setAdminSearch(e.target.value)} placeholder="Name, email or status" /></label>
               <div className="flex gap-4 items-center">
                 <button
                   disabled={busy || adminPage === 0}
@@ -492,10 +539,12 @@ export default function BuyerMatch() {
                   Next page
                 </button>
               </div>
-              {data.buyers?.map((b: RecordData) => (
-                <button
-                  key={b.id}
-                  className="block w-full text-left rounded border border-slate-700 p-3"
+              <div className="overflow-x-auto rounded-xl border border-slate-700"><table className="w-full text-left text-sm"><caption className="sr-only">Private network buyer profiles on this page</caption><thead className="bg-slate-900 text-slate-400"><tr><th scope="col" className="p-4">Buyer</th><th scope="col" className="p-4">Status</th><th scope="col" className="p-4">Verification</th><th scope="col" className="p-4">Review</th></tr></thead><tbody>
+              {(data.buyers || []).filter((b: RecordData) => [b.identity.name,b.identity.email,b.status].join(' ').toLowerCase().includes(adminSearch.trim().toLowerCase())).map((b: RecordData) => (
+                <tr key={b.id} className="border-t border-slate-700"><th scope="row" className="p-4 font-normal">{b.identity.name || b.identity.email}</th><td className="p-4"><span className="bm-status">{b.status}</span></td><td className="p-4 text-slate-400">{String(b.verification_level || 'unverified').replace(/_/g,' ')}</td><td className="p-4"><button
+                  disabled={busy}
+                  className="text-emerald-300 underline disabled:opacity-40 whitespace-nowrap"
+                  aria-label={`Review ${b.identity.name || b.identity.email}`}
                   onClick={() => {
                     setSelectedBuyer(b);
                     setDuplicates([]);
@@ -503,10 +552,11 @@ export default function BuyerMatch() {
                     setCriteria(JSON.stringify(b.criteria, null, 2));
                   }}
                 >
-                  {b.identity.name || b.identity.email} · {b.status} ·{" "}
-                  {b.verification_level}
-                </button>
+                  Review profile
+                </button></td></tr>
               ))}
+              </tbody></table></div>
+              {!busy && !error && !(data.buyers || []).some((b: RecordData) => [b.identity.name,b.identity.email,b.status].join(' ').toLowerCase().includes(adminSearch.trim().toLowerCase())) && <p className="rounded-xl border border-slate-700 p-5 text-sm text-slate-400">{adminSearch ? 'No buyers match this search on the current page.' : 'No buyer profiles on this page. Import a reviewed CSV to begin.'}</p>}
               {selectedBuyer && (
                 <div className="space-y-3 border border-slate-700 rounded p-4">
                   <h3>{selectedBuyer.identity.email}</h3>
@@ -855,9 +905,9 @@ export default function BuyerMatch() {
                     );
                     await reload();
                   })}
-                  <pre className="text-xs p-4 bg-black/30 overflow-auto max-h-96">
+                  <details><summary className="text-sm text-slate-400 cursor-pointer">Administrator audit details</summary><pre className="text-xs p-4 bg-black/30 overflow-auto max-h-96">
                     {JSON.stringify(adminDetail, null, 2)}
-                  </pre>
+                  </pre></details>
                 </section>
               )}
             </section>
@@ -877,25 +927,13 @@ export default function BuyerMatch() {
         <>
           {!id && (
             <section className="space-y-3">
-              <p>
-                Save and analyze a deal before contracting it. Analysis never
-                distributes a deal.
-              </p>
-              {data.deals?.map((d: RecordData) => (
-                <Link
-                  key={d.id}
-                  to={`/app/buyermatch/deals/${d.id}`}
-                  className="block rounded-xl border border-slate-700 p-4"
-                >
-                  {d.property.address} · {d.property.city}, {d.property.state}{" "}
-                  <span className="block mt-2 text-sm text-slate-400 sm:mt-0 sm:float-right">
-                    {d.status.replaceAll("_", " ")}
-                  </span>
-                </Link>
-              ))}
+              <WorkflowSteps />
+              <label className="block text-sm text-slate-400">Find a saved deal<input type="search" className={inputClass} placeholder="Address, city or deal status" value={dealSearch} onChange={e => setDealSearch(e.target.value)} /></label>
+              <WorkspaceOverview allDeals={data.deals || []} searchActive={Boolean(dealSearch.trim())} deals={(data.deals || []).filter((d: RecordData) => [d.property.address, d.property.city, d.status].join(' ').toLowerCase().includes(dealSearch.trim().toLowerCase()))} loading={busy} failed={loadFailed} />
             </section>
           )}
           <form
+            id="new-deal"
             className="rounded-xl border border-slate-700 p-5 space-y-4"
             onSubmit={(e) => {
               e.preventDefault();
@@ -914,7 +952,7 @@ export default function BuyerMatch() {
               <select className={inputClass} value={property.serviceType || (id ? 'managed_dispo' : 'software')}
                 onChange={event => setProperty({...property,serviceType:event.target.value})}>
                 <option value="software">BuyerMatch software — no automatic success fee</option>
-                <option value="managed_dispo">Managed Dispo — separate deal-specific terms required</option>
+                <option value="managed_dispo">Managed Dispo / JV coordination — separate approved terms required</option>
               </select>
             </label>
             <div className="grid sm:grid-cols-3 gap-4">
@@ -1138,6 +1176,7 @@ export default function BuyerMatch() {
               </section>
               <section className="border border-slate-700 rounded-xl p-5 space-y-3">
                 <h2 className="text-xl">Deal progress</h2>
+                <DealActivity key={data.deal.id} request={request} id={data.deal.id} />
                 {data.offers?.map((offer: RecordData) => (
                   <p key={offer.id}>
                     Network offer: $

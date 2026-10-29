@@ -1,0 +1,9 @@
+# Preserve exact operator-tool fingerprints across Windows checkouts only.
+scripts/owner-confirm-buyermatch-s2.ps1 text eol=lf
+scripts/testing/s2-owner-confirmation.mjs text eol=lf
+tests/s2-owner-confirmation.test.mjs text eol=lf
+tests/s2-owner-private-entry.test.ps1 text eol=lf
+scripts/owner-provision-buyermatch-s2.ps1 text eol=lf
+scripts/testing/s2-owner-provision.mjs text eol=lf
+tests/s2-owner-provision.test.mjs text eol=lf
+tests/s2-owner-provision-private.test.ps1 text eol=lf

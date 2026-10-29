@@ -1,3 +1,11 @@
+import { subscriberPortal } from '../buyermatch/portal.js';
+import { conversionRequest } from '../buyermatch/conversion.js';
+import { conversionReport } from '../buyermatch/conversion-report.js';
+import { activityPage, confirmedNetworkOwner, networkOperations } from '../buyermatch/operations.js';
+import {s2BillingWindowStatus} from '../buyermatch/s2-billing-window.js';
+import {buyerProofReview} from '../buyermatch/buyer-proof-review.js';
+import { portalConsentEvidence } from '../buyermatch/portal-consent.js';
+import { subscriberAgreements, requireSubscriberAgreements } from '../buyermatch/onboarding.js';
 import { randomUUID, createHash } from "node:crypto";
 import { z } from "zod";
 import {
@@ -9,8 +17,6 @@ import { analyzeDeal, ENGINE_VERSION } from "../buyermatch/matching.js";
 import { calculateFee } from "../buyermatch/workflow.js";
 import {
   createCheckout,
-  checkoutStripe,
-  isTestPlanPrice,
 } from "../buyermatch/checkout.js";
 import { assertStaging, stagingOrigin } from "../buyermatch/staging.js";
 import { findDuplicates } from "../buyermatch/deduplication.js";
@@ -22,7 +28,7 @@ import { deliveryAvailability } from "../buyermatch/availability.js";
 import { verifyProductionResend } from "../buyermatch/provider-verification.js";
 import { hasBuyerMatchAccess } from "../../src/lib/buyerMatchAccess.js";
 import { safeConversationText } from '../buyermatch/conversation.js';
-import { billingConfig, isLiveSoftwarePrice } from "../buyermatch/billing-config.js";
+import { subscriptionCatalog, catalogDiagnosticEnabled } from "../buyermatch/catalog.js";
 import { commercialPlans, simulatePlans } from '../buyermatch/usage.js';
 import {
   dealSchema,
@@ -86,7 +92,7 @@ export default async function handler(req: any, res: any) {
       )
     )
       fail("Active account required", 403);
-    const account = { isOwnerAdmin: isOwnerAdminEmail(user.email || "") };
+    const account = { isOwnerAdmin: confirmedNetworkOwner(user, isOwnerAdminEmail) };
     const body =
       req.method === "POST"
         ? typeof req.body === "string"
@@ -95,24 +101,45 @@ export default async function handler(req: any, res: any) {
         : req.query;
     const action = String(body.action || "list");
     const readActions = new Set([
+      'conversion-report',
+      'billing-status',
       "list",
       "detail",
+      "activity",
       "plans",
       "access",
       "admin-list",
       "admin-usage",
+      "admin-operations",
       "admin-verify-provider",
       "documents",
+      "onboarding",
     ]);
     if (req.method === "GET" && !readActions.has(action))
       fail("POST required", 405);
-    if (action === "access" || (!account.isOwnerAdmin && !["plans", "checkout"].includes(action) && !action.startsWith("admin-"))) {
+    if(action==='billing-status'){
+      if(req.method!=='GET')fail('GET required',405);
+      return res.status(200).json(s2BillingWindowStatus(user));
+    }
+    if (action === "access" || (!account.isOwnerAdmin && !["plans", "checkout", "onboarding", "onboarding-accept", "billing-portal"].includes(action) && !action.startsWith("admin-"))) {
       const entitlements = checked(await db.from("bm_entitlements")
         .select("product,status,period_start,period_end").eq("owner_id", user.id));
       const active = account.isOwnerAdmin || hasBuyerMatchAccess(entitlements);
       if (action === "access") return res.status(200).json({ active,
         subscribed: entitlements.some((item: any) => item.product === "buyermatch") });
       if (!active) fail("An active BuyerMatch subscription is required. View BuyerMatch plans.", 403);
+    }
+    if (['conversion-report','conversion-record','conversion-review'].includes(action)) {
+      if (action !== 'conversion-report' && req.method !== 'POST') fail('POST required',405);
+      if (action === 'conversion-report') {
+        if (req.method !== 'GET') fail('GET required',405);
+        const { action: _action, ...filters } = z.object({ action: z.literal('conversion-report'),
+          market: z.string().max(80).optional(), source: z.string().max(80).optional(), jvPartner: z.string().max(80).optional(),
+          from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(), to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+          outcome: z.enum(['open','closed','lost','stalled','withdrawn','canceled','reopened']).optional(), windowDays: z.coerce.number().int().min(1).max(1095).optional() }).strict().parse(body);
+        return res.status(200).json(conversionReport(await conversionRequest(db,user.id,action,body),filters));
+      }
+      return res.status(200).json(await conversionRequest(db,user.id,action,body));
     }
     const owned = async (id: string) => {
       uuid.parse(id);
@@ -130,6 +157,11 @@ export default async function handler(req: any, res: any) {
     const emit = (value: any) => res.status(200).json(value);
     if (action.startsWith("admin-")) {
       assertAdmin(account);
+      if (action === 'admin-operations') {
+        if (req.method !== 'GET') fail('GET required',405);
+        return emit(await networkOperations(db, account, body.page));
+      }
+      if(action.startsWith('admin-buyer-proof-'))return emit(await buyerProofReview(db,user,body));
       if (action === 'admin-verify-provider') return emit(await verifyProductionResend());
       if (action === 'admin-usage') {
         const metrics = checked(await db.rpc('bm_operating_metrics', { p_owner: body.ownerId ? uuid.parse(body.ownerId) : null }));
@@ -422,6 +454,7 @@ export default async function handler(req: any, res: any) {
         const criteria = criteriaSchema.parse(body.criteria || {});
         if (!criteria.markets.length || !criteria.assetTypes.length)
           fail("BuyerMatch requires at least one supported market and property type");
+        const consentEvidence = await portalConsentEvidence(db, body.sourceId, identity.email);
         const hash = identityHash(identity.email);
         const payload = {
           identity_hash: hash,
@@ -430,7 +463,7 @@ export default async function handler(req: any, res: any) {
           status: "active",
           criteria_verified_at: new Date().toISOString(),
           synthetic: process.env.BM_ENVIRONMENT === 'staging' && identity.email.endsWith('@example.invalid'),
-          consent_evidence: String(body.consentEvidence || "Approved Buyer Portal submission").slice(0, 2000),
+          consent_evidence: consentEvidence,
           source_ciphertext: encryptIdentity({
             source: "buyer_portal",
             sourceId: String(body.sourceId || ""),
@@ -666,13 +699,15 @@ export default async function handler(req: any, res: any) {
         await db
           .from("bm_entitlements")
           .select(
-            "product,plan_version,status,period_start,period_end,allowance",
+            "product,plan_version,status,period_start,period_end,allowance,stripe_subscription_id",
           )
           .eq("owner_id", user.id),
       );
       // Never take a customer-supplied owner/workspace ID for quota reporting.
       const usage = checked(await db.rpc('bm_account_usage', { p_owner: user.id }));
       for (const entitlement of entitlements) {
+        entitlement.billingManaged = Boolean(entitlement.stripe_subscription_id);
+        delete entitlement.stripe_subscription_id;
         const counter = entitlement.product === 'buyermatch' ? usage.analysis : usage.managedDispo;
         entitlement.used = counter.used;
         entitlement.remaining = counter.remaining;
@@ -680,40 +715,11 @@ export default async function handler(req: any, res: any) {
       let catalog: any[] = [];
       let checkoutEnabled = false;
       let checkoutLive = false;
-      if (process.env.BM_CHECKOUT_ENABLED === "true") {
-        try {
-          const { live } = billingConfig();
-          checkoutLive = live;
-          if (live) {
-            const gate = checked(await db.from('bm_live_billing_config').select('enabled,verified').eq('id',true).single());
-            if (!gate?.enabled || !gate?.verified) throw new Error('Billing disabled');
-          }
-          const stripe = checkoutStripe();
-          const approved = checked(
-            await db
-              .from("bm_plans")
-              .select("version,product,label,allowance,stripe_price_id")
-              .eq("approved", true),
-          );
-          for (const plan of approved) {
-            if (!plan.stripe_price_id) continue;
-            const price = await stripe.prices.retrieve(plan.stripe_price_id);
-            if (price.recurring && (live ? isLiveSoftwarePrice(price, plan) && plan.allowance > 0 : isTestPlanPrice(price)))
-              catalog.push({
-                version: plan.version,
-                product: plan.product,
-                label: plan.label,
-                allowance: plan.allowance,
-                amount: price.unit_amount,
-                currency: price.currency,
-                interval: price.recurring.interval,
-                intervalCount: price.recurring.interval_count,
-              });
-          }
-          checkoutEnabled = true;
-        } catch {
-          catalog = [];
-        }
+      if (process.env.BM_CHECKOUT_ENABLED === "true" || catalogDiagnosticEnabled()) {
+        const result = await subscriptionCatalog(db);
+        catalog = result.catalog;
+        checkoutEnabled = process.env.BM_CHECKOUT_ENABLED === "true" && result.available;
+        checkoutLive = result.live;
       }
       return emit({
         catalog,
@@ -746,7 +752,21 @@ export default async function handler(req: any, res: any) {
         isNetworkAdmin: account.isOwnerAdmin,
       });
     }
-    if (action === "checkout")
+    if (action === 'onboarding') return emit({ documents: await subscriberAgreements(db, user.id) });
+    if (action === 'onboarding-accept') {
+      const current = await subscriberAgreements(db, user.id);
+      const document = current.find(d => d.id === body.documentId && d.document_hash === body.hash);
+      if (!document) fail('Review the current approved agreement.', 409);
+      const signature = z.string().trim().min(2).max(200).parse(body.signature);
+      if (!document.accepted) checked(await db.rpc('bm_accept_document', {
+        p_owner: user.id, p_deal: null, p_document: document.id, p_hash: document.document_hash, p_signature: signature,
+      }));
+      return emit({ ok: true });
+    }
+    if (action === 'billing-portal') return emit(await subscriberPortal(db, user, body.operation, body.planVersion));
+    if (action === "checkout") {
+      // Independently verify approved consent before any payment session is created.
+      await requireSubscriberAgreements(db, user.id);
       return emit(
         await createCheckout(
           db,
@@ -755,6 +775,7 @@ export default async function handler(req: any, res: any) {
           uuid.parse(body.operationKey),
         ),
       );
+    }
     if (action === "list")
       return emit({
         deals: checked(
@@ -825,7 +846,11 @@ export default async function handler(req: any, res: any) {
       );
       return emit({ accepted: true });
     }
+    if (action === 'activity' && req.method !== 'GET') fail('GET required',405);
     const deal = await owned(body.id);
+    if (action === 'activity') return emit(checked(await db.rpc('bm_deal_activity', {
+      p_owner: user.id, p_deal: deal.id, p_page: activityPage(body.page),
+    })));
     if (action === "detail") {
       const offers = checked(
         await db

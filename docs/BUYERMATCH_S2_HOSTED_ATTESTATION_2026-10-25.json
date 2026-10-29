@@ -1,0 +1,215 @@
+{
+  "schema": 1,
+  "asOf": "2026-10-25T20:42:21.990Z",
+  "approvalComment": 6402458765,
+  "approvalPacket": "d7b139d93235803eaae6b985f84bbe4f669b4093",
+  "applicationSource": "b99830596080eef2b24472e71bdcb061c855bf57",
+  "gitBlobsVerified": 555,
+  "project": "prj_XglHAvS3zjuyLWvHkuNt5U8BoUtl",
+  "team": "team_2ejXKYjjGXIFsIQTUMEqZ8Cf",
+  "deploymentId": "dpl_9N41ZRqvCoSMHimYkrK5gRuPZM7y",
+  "generatedOrigin": "https://dbp-registration-s2-j7li96bz8-housebuyerinv.vercel.app",
+  "target": "preview",
+  "ready": true,
+  "newDeploymentsCreated": 1,
+  "preflight": {
+    "first": "STOP_BEFORE_CONTROLLER_OR_DEPLOYMENT_CAUSE_NOT_RETAINED",
+    "firstEvidenceRun": "b124ce30-3f3d-4c31-9c26-6df29f1b6657",
+    "independentReadOnlyRecheck": "ALL_PASS",
+    "freshUnchangedApprovedPreflight": "PASS",
+    "successfulRun": "14063430-74fa-40e9-9efe-f57925e933eb"
+  },
+  "ownerAttestation": {
+    "status": "PASS_ACTUAL_HOSTED",
+    "httpStatus": 200,
+    "authenticatedRequests": 1,
+    "noRequestRetry": true,
+    "buildSettingsVerified": 17,
+    "runtimeSettingsVerified": 17,
+    "buildSettings": {
+      "DBP_REQUIRE_VERSIONED_PLATFORM_AGREEMENTS": "true",
+      "DBP_REGISTRATION_PAUSED": "true",
+      "BM_CHECKOUT_ENABLED": "false",
+      "BM_ENVIRONMENT": "staging",
+      "BM_STAGING_PROJECT_REF": "qxhhlprentrufobpcgna",
+      "SUPABASE_URL": "https://qxhhlprentrufobpcgna.supabase.co",
+      "VITE_SUPABASE_URL": "https://qxhhlprentrufobpcgna.supabase.co",
+      "PUBLIC_APP_URL": "https://dbp-registration-s2-preview-housebuyerinv.vercel.app",
+      "BM_APP_ORIGIN": "https://dbp-registration-s2-preview-housebuyerinv.vercel.app",
+      "BM_STRIPE_PORTAL_CONFIGURATION_ID": "bpc_1UTRxYL6efr9LhPIA0rP1HOJ",
+      "BM_LIVE_BILLING_ENABLED": "false",
+      "BM_BILLING_VERIFIED": "false",
+      "BM_LIVE_BILLING_VERIFIED": "false",
+      "BM_LIVE_DELIVERY_ENABLED": "false",
+      "BM_DELIVERY_MODE": "mock",
+      "BM_RESPONSE_ENABLED": "false",
+      "BM_S2_CATALOG_DIAGNOSTIC": "false"
+    },
+    "runtimeSettings": {
+      "DBP_REQUIRE_VERSIONED_PLATFORM_AGREEMENTS": "true",
+      "DBP_REGISTRATION_PAUSED": "true",
+      "BM_CHECKOUT_ENABLED": "false",
+      "BM_ENVIRONMENT": "staging",
+      "BM_STAGING_PROJECT_REF": "qxhhlprentrufobpcgna",
+      "SUPABASE_URL": "https://qxhhlprentrufobpcgna.supabase.co",
+      "VITE_SUPABASE_URL": "https://qxhhlprentrufobpcgna.supabase.co",
+      "PUBLIC_APP_URL": "https://dbp-registration-s2-preview-housebuyerinv.vercel.app",
+      "BM_APP_ORIGIN": "https://dbp-registration-s2-preview-housebuyerinv.vercel.app",
+      "BM_STRIPE_PORTAL_CONFIGURATION_ID": "bpc_1UTRxYL6efr9LhPIA0rP1HOJ",
+      "BM_LIVE_BILLING_ENABLED": "false",
+      "BM_BILLING_VERIFIED": "false",
+      "BM_LIVE_BILLING_VERIFIED": "false",
+      "BM_LIVE_DELIVERY_ENABLED": "false",
+      "BM_DELIVERY_MODE": "mock",
+      "BM_RESPONSE_ENABLED": "false",
+      "BM_S2_CATALOG_DIAGNOSTIC": "false"
+    },
+    "buildChecksum": "9b4859c6544d8eddafa48d0aebb195c5d7a464b2aeb8aab48a8b5b71c80a02c3",
+    "sourceAndDeploymentMatchProvider": true,
+    "normalExistingSession": true,
+    "newOwnerSetup": false
+  },
+  "protection": {
+    "anonymous": "302_TO_VERCEL_AUTH",
+    "withoutApplicationBearer": 401,
+    "bypassSecretsCreated": 0
+  },
+  "agreements": "PASS_EXACT_QA_IDS_VERSIONS_CONTENT_HASHES_NO_NEW_ACCEPTANCE",
+  "readOnlyBrowser": {
+    "overview": "PASS",
+    "plans": "PASS_OWNER_READ_ONLY",
+    "advertisedStarter": {
+      "usdPerMonth": 59,
+      "analyses": 20,
+      "distributions": 10,
+      "fanout": 25
+    },
+    "advertisedPro": {
+      "usdPerMonth": 119,
+      "analyses": 50,
+      "distributions": 25,
+      "fanout": 50
+    },
+    "checkoutUnavailable": true,
+    "crmRemainsFree": true,
+    "paidEntitlementNotClaimed": true,
+    "networkAdmin": "FAIL_GENERIC_CONFIGURATION_ERROR",
+    "networkHttp503Responses": 2,
+    "manualAdminNavigations": 1,
+    "noManualRetry": true,
+    "buyerIntake": "NOT_RUN_STOPPED_ON_FAILURE",
+    "keyboardNarrowLayout": "NOT_RUN_STOPPED_ON_FAILURE"
+  },
+  "overallAcceptance": "FAIL_SAFE_ROLLBACK",
+  "automaticRollback": {
+    "verified": true,
+    "routingRestored": true,
+    "safeguardsVerified": true,
+    "mutationCertain": true,
+    "operationResults": [
+      "fulfilled",
+      "fulfilled",
+      "fulfilled"
+    ]
+  },
+  "independentReadback": {
+    "status": "PASS_INDEPENDENT_READBACK_OF_AUTOMATIC_ROLLBACK",
+    "at": "2026-10-25T20:20:51.523Z",
+    "manualRecovery": false,
+    "route": {
+      "projectId": "prj_XglHAvS3zjuyLWvHkuNt5U8BoUtl",
+      "deploymentId": "dpl_nr5RVunmUGdryPUtWkRkVdsA96pT"
+    },
+    "candidateRetainedForDiagnostics": "dpl_9N41ZRqvCoSMHimYkrK5gRuPZM7y",
+    "candidateReadyProtectedPausedUnaliased": true,
+    "safety": {
+      "registrationPaused": true,
+      "checkoutPaused": true,
+      "liveBillingPaused": true,
+      "deliveryDisabled": true,
+      "stagingOnly": true,
+      "endpointDisabled": true,
+      "receiverPaused": true,
+      "protectionEnabled": true
+    },
+    "priorDeploymentCount": 8,
+    "priorDeploymentsPreserved": true,
+    "inventoryCount": 9,
+    "projectDomains": 0,
+    "productionContainmentUnchanged": true
+  },
+  "stableAlias": "dbp-registration-s2-preview-housebuyerinv.vercel.app",
+  "stableAliasTarget": "dpl_nr5RVunmUGdryPUtWkRkVdsA96pT",
+  "candidateDisposition": "PRESERVED_READY_PROTECTED_PAUSED_UNALIASED",
+  "manualRecovery": false,
+  "configurationGap": {
+    "BUYERMATCH_IDENTITY_KEY": "ABSENT_FROM_S2_PREVIEW",
+    "BM_RESPONSE_SECRET": "ABSENT_FROM_S2_PREVIEW_LATER_WORKFLOW_DEPENDENCY",
+    "BM_WORKER_SECRET": "ABSENT_FROM_S2_PREVIEW_LATER_WORKFLOW_DEPENDENCY",
+    "allAdminTablesServiceSelect": true,
+    "existingBuyerRows": 223,
+    "rowsMarkedSynthetic": 223,
+    "threePartAesGcmShapedRows": 223,
+    "syntheticLocalMissingKeyReproduction": "PASS_IDENTITY_ENCRYPTION_IS_NOT_CONFIGURED",
+    "secretContentsRetrieved": false,
+    "keysGeneratedRotatedOrInstalled": false,
+    "existingCiphertextDecryptedByAgent": false,
+    "originalSeedFile": {
+      "documentedIn": "docs/BUYERMATCH_HANDOFF.md",
+      "basename": ".env.buyermatch-staging",
+      "metadataVisibleInBothExecutionContexts": true,
+      "gitIgnored": true,
+      "ownerPrincipal": "CodexSandboxOffline",
+      "contentsRead": false,
+      "custodyAndKeyMatch": "NOT_VERIFIED"
+    }
+  },
+  "blockedDiagnostic": {
+    "action": "Optional staging Supabase secret-list inspection",
+    "automaticApprovalReview": "REJECTED_COULD_RETRIEVE_SECRET_VALUES",
+    "executed": false,
+    "alternative": "Vercel decrypt=false binding metadata and SQL aggregates only",
+    "supabaseSecretInventory": "NOT_INSPECTED"
+  },
+  "dataPreservation": {
+    "ownerProfileWorkspacePlanFingerprintsUnchanged": true,
+    "ownerAppRowTimestampsPredateWindow": true,
+    "ownerCrmFree": true,
+    "noApplicationPostObservedIn31BoundedLogEntries": true,
+    "noClaimOfFullDatabaseSnapshot": true
+  },
+  "spending": {
+    "additionalCapUsd": 0,
+    "hobbyPlanVerified": true,
+    "paidServicesOrUpgradesInitiated": false
+  },
+  "productionContainment": "dpl_EBYBJZS7Q9Gqmvwdk8Ay3RM6C1PE",
+  "productionContainmentUnchanged": true,
+  "moneyMapChanged": false,
+  "prDraft": true,
+  "remaining": {
+    "s2OriginalSecretProvenanceAndPreviewBinding": "REQUIRES_SEPARATE_PRIVATE_ACCESS_AND_INSTALLATION_AUTHORIZATION",
+    "currentMvpBrowserAcceptance": "INCOMPLETE",
+    "proAndPaidLifecycle": "NOT_AUTHORIZED_IN_THIS_WINDOW_NOT_RUN",
+    "legal": "OWNER_COUNSEL_APPROVAL_PENDING",
+    "recovery": "BLOCKED_ON_HARDWARE",
+    "productionRelease": "NO_GO"
+  },
+  "evidenceSha256": {
+    "preflight.json": "a96f072893920f9777b936f4345f731d3b3c7eed579f005d0aaa965ba02f9492",
+    "routing-watchdog.jsonl": "6657f51c9826797546c3f3d891e21282745c22c81c254a1a1c69918d85470bc1",
+    "routing-ready.json": "ea0be2b4f5b2f0218c6de6687d4aa45e128fd77d80e90e3c26e9414dd559712d",
+    "before-alias-verification.json": "d27fc4336201b0839307eadd3b401afd204951ebea6b5db32bbf850ba0480636",
+    "agreement-discovery.json": "c378360d0f34ca46dee141b14ad55bd87ac13f7d5c683381715c62b478424e1d",
+    "routing-active.json": "1a5a608d3b8e015a54b94151a0e31036e942ba25600a3179859c35e89284ede2",
+    "owner-attestation-pass.json": "e4cb8dfcbbaa292dc38f1999ed43bbee46aa6237273559ef35ca92fdf39ddbd4",
+    "owner-attestation-pass.png": "2ab1e71a001329d82b3cd14530d63c734df6410b9e781c7bb69684fd0c099011",
+    "browser-acceptance-partial.json": "f22d547ae3b9c69d957c0e5c93d5cbc3364f30d3d0fbebee82f1d2f2fa8390e5",
+    "runtime-http-results.json": "6c36868f31dcc80b3b82ac86dbbd9c697ff2a489370264d35f6c542dda3f346e",
+    "routing-result.json": "bca01c150e16c2c6604d0635dd61175239f0b45f5edb2873ec63d2937298625d",
+    "independent-rollback-readback.json": "8ad236f664bb759b5ed8af3ce6d62113f7e46e1eefe5f40aa86191ae45a4ec93",
+    "identity-key-preview-metadata.json": "31bebb2c96a01388a507844432fd965fb96f1d545be2b2d290a76ff2fd606c75",
+    "owner-readonly-baseline.json": "3e3d2fa1ebbe642c7f7b2e3c6d249e2974cba28b56541016a81c0ff56cc7f749",
+    "owner-readonly-after.json": "05f7df7205218e1e212d30ae40e47cd935635ae0f542df3e64217e5fe8e794d0"
+  }
+}

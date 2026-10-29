@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import { supabase } from '../../lib/supabase'
 import { BUYER_DOCUMENT_TYPES, BUYER_REVIEW_MAX_FILE_SIZE, openBuyerProofFile, resolveBuyerProofFileUrl, uploadBuyerProofFile, validateBuyerReviewDocument, type BuyerDocumentType } from '../../lib/buyerProofStorage'
 import { countPendingBuyerPortalSubmissions, listPendingBuyerPortalSubmissions, markBuyerPortalSubmissionsImported, markBuyerPortalSubmissionsDismissed } from '../../lib/buyerPortalSubmissionStorage'
+import { hasRecordedBuyerInvitationConsent } from '../../lib/buyerInvitationConsent'
 import { Buyer } from '../../lib/types'
 import Tooltip from '../../components/Tooltip'
 import { fetchBuyersFromSupabase, updateBuyerInSupabase, deleteBuyersFromSupabase, deleteAllBuyersFromSupabase, upsertBuyersToSupabase } from '../../lib/buyerSupabaseSync'
@@ -3629,7 +3630,7 @@ const cleanBuyerName = (value: any, emailValue = '') => {
       uploadedFiles: row.uploadedFiles || row.proofFiles || [],
       tags: Array.from(new Set([...(Array.isArray(normalized.tags) ? normalized.tags : []), 'Buyer Portal', 'Verified Buyer'])),
       notes: portalNotes,
-      blastEligible: true,
+      blastEligible: hasRecordedBuyerInvitationConsent(row.buyerPortalSubmission),
       updatedAt: new Date().toISOString(),
     }
   }
@@ -3644,6 +3645,7 @@ const cleanBuyerName = (value: any, emailValue = '') => {
     let merged = 0
     let skippedInvalid = 0
     let failed = 0
+    let networkReview = 0
     const approvedIds: string[] = []
     const seenEmails = new Set<string>()
     const existingEmails = new Set((buyers || []).map((b: any) => safeLower(b.email).trim()).filter(Boolean))
@@ -3679,6 +3681,7 @@ const cleanBuyerName = (value: any, emailValue = '') => {
         // existing Buyer Portal approval path authoritative, then mirror only
         // owner-admin approved buyers into BuyerMatch as a best-effort sync.
         if (user?.isOwnerAdmin) {
+          let networkSynced = false
           try {
             const normalizeAsset = (value: string) => {
               const v = String(value || '').trim().toLowerCase()
@@ -3725,16 +3728,16 @@ const cleanBuyerName = (value: any, emailValue = '') => {
                       ...(Number(buyerToApprove.budgetMin || row.budgetMin || 0) > 0 ? { minPrice: Number(buyerToApprove.budgetMin || row.budgetMin) } : {}),
                       ...(Number(buyerToApprove.budgetMax || row.budgetMax || 0) > 0 ? { maxPrice: Number(buyerToApprove.budgetMax || row.budgetMax) } : {}),
                     },
-                    consentEvidence: 'Approved Buyer Portal submission',
                     sourceId: row.buyerPortalSubmissionId || savedBuyer?.id || '',
                   }),
                 })
-                if (!response.ok) console.warn('[BuyerMatch] Buyer Portal sync needs review')
+                if (response.ok) networkSynced = (await response.json().catch(() => ({})))?.synced === true
               }
             }
-          } catch (syncError) {
-            console.warn('[BuyerMatch] Buyer Portal approval succeeded; network sync needs review', syncError)
+          } catch {
+            // CRM approval remains committed; never claim a failed network activation.
           }
+          if (!networkSynced) networkReview++
         }
 
         if (row.buyerPortalSubmissionId) {
@@ -3769,11 +3772,11 @@ const cleanBuyerName = (value: any, emailValue = '') => {
       if (approved > 0) toast.warning('Approved buyers saved, but the buyer list refresh needs review.')
     }
 
-    const summary = `Approved: ${approved} | Merged duplicates: ${merged} | Skipped invalid: ${skippedInvalid} | Failed: ${failed}`
+    const summary = `Approved: ${approved} | Merged duplicates: ${merged} | Skipped invalid: ${skippedInvalid} | Failed: ${failed}${networkReview ? ` | BuyerMatch activation needs review: ${networkReview}. Confirm invitation consent and supported criteria; no network activation was confirmed.` : ''}`
     setPortalApprovalSummary(summary)
     void refreshBuyerPortalQueueCount()
 
-    if (approved > 0 && failed === 0 && skippedInvalid === 0) {
+    if (approved > 0 && failed === 0 && skippedInvalid === 0 && networkReview === 0) {
       toast.success(summary)
     } else if (approved > 0) {
       toast.warning(summary)

@@ -1,0 +1,20 @@
+{
+  "date": "2026-10-27",
+  "candidate": "c00d59f048282343af5d81afe9655556aa285e75",
+  "scope": "LOCAL_SYNTHETIC_ONLY",
+  "checks": {"affectedApplicationAndWatchdog": 104, "containmentIncludingLoopback": 19, "sourcePacket": 7, "newThisBatch": 30, "currentFailures": 0},
+  "actualOperatingSystemVerification": ["detached child survives launcher", "deadline and explicit/unknown closure triggers", "loopback HTTP transport"],
+  "simulatedProviderEffects": true,
+  "authenticatedProviderVerification": "NOT EXECUTED",
+  "privateTransportAndReadbackPortsVerified": false,
+  "hostedWatchdogAuthorityForThisSourceVerified": false,
+  "portalRevocation": "UNVERIFIED; HOSTED lifecycle refused before activation",
+  "initialLoopbackAttempt": "Sandbox EACCES before server received any request",
+  "approvedLoopbackRerun": "PASS; no internet/provider request or credential",
+  "scopedLint": "PASS after fixing two missing URL imports",
+  "serverTypecheckAndBundle": "PASS",
+  "frontendBuild": "Prior evidence retained; no frontend changes or repeated build",
+  "hostedWritesDeploymentsPushesMigrationsPayments": 0,
+  "production": "NO-GO",
+  "newOverallMilestone": null
+}

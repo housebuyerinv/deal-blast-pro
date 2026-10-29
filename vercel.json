@@ -1,5 +1,15 @@
 {
+  "git": { "deploymentEnabled": { "codex/buyermatch-1b-integration": false } },
+  "functions": {
+    "api/platform/*.ts": {
+      "includeFiles": "server/generated/s2-build-attestation.json"
+    }
+  },
   "rewrites": [
+    {
+      "source": "/api/buyermatch-buyer",
+      "destination": "/api/platform/buyermatch-buyer"
+    },
     {
       "source": "/api/buyermatch",
       "destination": "/api/platform/buyermatch"

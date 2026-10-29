@@ -1,0 +1,17 @@
+{
+  "candidate": "f5e59d9aa64c308f2add2a3c8dea593226984978",
+  "scope": "LOCAL_SYNTHETIC_ONLY",
+  "selectedChecks": {"unitAndIntegration": 142, "realLoopback": 1, "sourcePacket": 7, "newThisBatch": 49, "failures": 0},
+  "confirmedFixes": ["legacy S2 CRM Portal bypass", "distinct-run resource-lock conflict", "missing live-window readback"],
+  "actualOsChecks": ["pinned synthetic CLI child", "shared filesystem lock and durable journal", "loopback HTTP"],
+  "providerEffects": "SYNTHETIC; authenticated profiles not invoked",
+  "lintTypecheckServerBundles": "PASS",
+  "frontendBuild": "Prior evidence retained; no frontend changes",
+  "hostedProviderAuthority": "UNVERIFIED",
+  "portalLifecycle": "BLOCKED",
+  "legalApproval": "PENDING",
+  "encryptedRecovery": "UNVERIFIED; independent hardware/storage unavailable",
+  "hostedWritesDeploymentsPushesPaymentsMigrations": 0,
+  "production": "NO-GO",
+  "newOverallMilestone": null
+}

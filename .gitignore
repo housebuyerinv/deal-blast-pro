@@ -46,6 +46,9 @@ verification-screenshots/
 *.before-*
 *.backup-before-*
 
+# Server-only generated S2 diagnostic snapshot
+server/generated/s2-build-attestation.json
+
 # TypeScript build cache
 *.tsbuildinfo
 
@@ -81,4 +84,5 @@ make-delete-audit-clean.ps1
 Analytics.txt
 TODO_NEXT.md
 diagnose-buyer-db-fields.cjs
+.netlify/
 patch-buyer-review.js
