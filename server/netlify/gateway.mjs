@@ -26,7 +26,7 @@ export async function boundedBody(request, max = 3000000) {
   }
   return Buffer.concat(chunks);
 }
-export function createGateway({ handlers, assets, env, now = Date.now }) {
+export function createGateway({ handlers, assets, env, now = Date.now, validateProfile = netlifyProfile, accessCheck = previewAccess, beforeDispatch = async () => {} }) {
   // Bounded warm-instance abuse control. Existing database quota/hourly guards
   // remain authoritative across instances; this is not a distributed WAF.
   const attempts = new Map();
@@ -39,12 +39,12 @@ export function createGateway({ handlers, assets, env, now = Date.now }) {
   }
   return async (request, context) => {
     let profile;
-    try { profile = netlifyProfile(env, context, now()); } catch { return json(503, 'Private preview unavailable'); }
+    try { profile = validateProfile(env, context, now()); } catch { return json(503, 'Service unavailable'); }
     const url = new URL(request.url);
     if (url.origin !== profile.origin) return json(403, 'Origin unavailable');
     const fingerprint = createHash('sha256').update(String(context.ip || 'unknown')).digest('hex');
     if (limited(`request:${fingerprint}`, 240)) return json(429, 'Request limit reached', { 'Retry-After': '60' });
-    const access = previewAccess(request, env, profile, now());
+    const access = accessCheck(request, env, profile, now());
     if (!access.allowed) {
       if (limited(`denied:${fingerprint}`, 5)) return json(429, 'Request limit reached', { 'Retry-After': '60' });
       return json(401, 'Private preview access required', { 'WWW-Authenticate': 'Basic realm="BuyerMatch private preview", charset="UTF-8"' });
@@ -79,6 +79,7 @@ export function createGateway({ handlers, assets, env, now = Date.now }) {
         if (name === 'buyermatch-buyer' && (!['POST'].includes(request.method) || input.action === 'create')) return json(503, 'Buyer registration paused');
         // Gate cookie never substitutes for a Supabase session.
         if (name !== 'register-account' && !/^Bearer\s+\S+$/i.test(request.headers.get('authorization') || '')) return json(401, 'Sign in required');
+        await beforeDispatch(name, input);
         const req = { method: request.method, url: canonical + url.search, query, body,
           rawBody: raw, headers: Object.fromEntries(request.headers) };
         let status = 200, output = '', ended = false;
@@ -94,8 +95,8 @@ export function createGateway({ handlers, assets, env, now = Date.now }) {
       if (!['GET', 'HEAD'].includes(request.method)) return json(405, 'Method not allowed');
       const item = assets[path] || (!path.split('/').at(-1).includes('.') ? assets['/index.html'] : null);
       if (!item) return json(404, 'Not found');
-      const extension = (assets[path] ? path : '/index.html').match(/\.[a-z0-9]+$/)?.[0];
-      return new Response(request.method === 'HEAD' ? null : Buffer.from(item, 'base64'), { headers: { ...headers, 'Content-Type': mime[extension] || 'application/octet-stream' } });
+      const extension = (assets[path] ? path : '/index.html').match(/\.[a-z0-9]+$/)?.[0] || '.html';
+      return new Response(request.method === 'HEAD' ? null : Buffer.from(item, 'base64'), { headers: { ...headers, 'Content-Type': extension === '.txt' ? 'text/plain; charset=utf-8' : mime[extension] || 'application/octet-stream' } });
     } catch (error) { return json(error?.status === 413 ? 413 : 503, error?.status === 413 ? 'File too large' : 'Operation unavailable'); }
   };
 }

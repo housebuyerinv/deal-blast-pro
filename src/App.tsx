@@ -16,6 +16,7 @@ import Features from './pages/public/Features'
 import Contact from './pages/public/Contact'
 import Privacy from './pages/public/Privacy'
 import Terms from './pages/public/Terms'
+import NetlifyLegalDocument from './pages/public/NetlifyLegalDocument'
 import Security from './pages/public/Security'
 import RefundPolicy from './pages/public/RefundPolicy'
 import AcceptableUse from './pages/public/AcceptableUse'
@@ -339,9 +340,10 @@ function App() {
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/features" element={<Features />} />
         <Route path="/contact" element={<Contact />} />
-        <Route path="/privacy" element={<Privacy />} />
-        <Route path="/terms" element={<Terms />} />
-        <Route path="/refund-policy" element={<RefundPolicy />} />
+        <Route path="/privacy" element={<NetlifyLegalDocument name="privacy" fallback={<Privacy />} />} />
+        <Route path="/terms" element={<NetlifyLegalDocument name="terms" fallback={<Terms />} />} />
+        <Route path="/refund-policy" element={<NetlifyLegalDocument name="refunds" fallback={<RefundPolicy />} />} />
+        <Route path="/renewal-cancellation" element={<NetlifyLegalDocument name="renewal" fallback={<Terms />} />} />
         <Route path="/acceptable-use" element={<AcceptableUse />} />
         <Route path="/security" element={<Security />} />
         <Route path="/waitlist" element={<Waitlist />} />

@@ -1,0 +1,41 @@
+{
+  "schema": "buyermatch-netlify-production-local-v1",
+  "parentIntegration": "1c14545dd95aad6995ad5d08486f86ce5d80c714",
+  "remoteHeadVerified": "46ec035e0c53c07723f54a424d39ad1b8522fa85",
+  "productionAdapterImplemented": true,
+  "focusedBehaviorChecks": {"passed": 27, "failed": 0},
+  "productionPackageChecks": {"passed": 3, "failed": 0},
+  "typescriptApplication": "PASS",
+  "typescriptAuthImport": "PASS",
+  "scopedLint": "PASS",
+  "appShellLint": "EXISTING_INITIALIZE_STORE_HOOK_WARNING_NO_ERRORS",
+  "frontendAndNode22TargetBuild": "PASS_WITH_EXISTING_CHUNK_WARNINGS",
+  "verificationBundleBytes": 5584384,
+  "verificationBundleSha256": "a0311d80133d227c7e9a54b758011ddaaafb1529802ba122b85e711dfc2b171c",
+  "normalProductionEntryTest": "PASS_SYNTHETIC_APPROVAL_AND_PROVIDER_FIXTURES_ONLY",
+  "legalPageTest": "PASS_PRODUCTION_TEXT_AND_LEGACY_FALLBACK_ISOLATION",
+  "legalDatabaseDriftBlocksConsent": "PASS",
+  "privateBundleCannotBecomePublicViaEnvironment": "PASS",
+  "backend": {
+    "status": "BLOCKED_NO_VERIFIED_INDEPENDENT_FREE_SLOT",
+    "connectedOrganizations": 1,
+    "plan": "free",
+    "activeProjects": 2,
+    "inactiveProjects": 1,
+    "noProtectedProjectRepurposing": true
+  },
+  "sourceSuppression": {
+    "vercelBranchDeploymentDisabled": true,
+    "dedicatedS2GitLink": false,
+    "linkedRepositoryProductionBranchDifferent": true,
+    "automationConfigurationChanged": false
+  },
+  "unapprovedLegalDraftsChanged": false,
+  "originalKeysOrBuyerPayloadsAccessed": false,
+  "hostedDatabaseChanges": false,
+  "hostedDeployments": false,
+  "pushed": false,
+  "spending": 0,
+  "publicActivationAuthorized": false,
+  "publicRelease": "NO_GO"
+}

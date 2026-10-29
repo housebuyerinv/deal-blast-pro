@@ -1,0 +1,22 @@
+# Explicit future production profile only. Never auto-selected by netlify.toml.
+# No activation is authorized. Normal build refuses unapproved legal documents.
+[build]
+  command = "node scripts/build-buyermatch-netlify.mjs --production-profile"
+  publish = ".netlify/buyermatch-production/publish"
+  functions = ".netlify/buyermatch-production/functions"
+[build.environment]
+  NODE_VERSION = "22"
+[functions]
+  node_bundler = "esbuild"
+[[redirects]]
+  from = "/*"
+  to = "/.netlify/functions/buyermatch"
+  status = 200
+  force = true
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Cache-Control = "no-store"
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "no-referrer"
